@@ -38,7 +38,7 @@ import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import com.yahoo.pulsar.common.naming.DestinationName;
 import com.yahoo.pulsar.common.policies.data.ConsumerStats;
-import com.yahoo.pulsar.common.util.collections.ConcurrentOpenHashSet;
+import com.yahoo.pulsar.common.util.collections.ConcurrentOpenHashMap;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelFutureListener;
@@ -63,17 +63,22 @@ public class Consumer {
     // increase its availability
     private final AtomicInteger messagePermits = new AtomicInteger(0);
 
-    private final ConcurrentOpenHashSet<PositionImpl> pendingAcks;
+    private final ConcurrentOpenHashMap<PositionImpl, Integer> pendingAcks;
 
     private final ConsumerStats stats;
+    
+    private final int maxUnackedMessages;
+    private AtomicInteger unackedMessages = new AtomicInteger(0);
+    private volatile boolean blockedConsumerOnUnackedMsgs = false;
 
-    public Consumer(Subscription subscription, SubType subType, long consumerId, String consumerName, ServerCnx cnx,
-            String appId) throws BrokerServiceException {
+    public Consumer(Subscription subscription, SubType subType, long consumerId, String consumerName,
+            int maxUnackedMessages, ServerCnx cnx, String appId) throws BrokerServiceException {
 
         this.subscription = subscription;
         this.subType = subType;
         this.consumerId = consumerId;
         this.consumerName = consumerName;
+        this.maxUnackedMessages = maxUnackedMessages;
         this.cnx = cnx;
         this.msgOut = new Rate();
         this.appId = appId;
@@ -84,7 +89,7 @@ public class Consumer {
         stats.connectedSince = DATE_FORMAT.format(new Date(System.currentTimeMillis()));
 
         if (subType == SubType.Shared) {
-            this.pendingAcks = new ConcurrentOpenHashSet<PositionImpl>(256, 2);
+            this.pendingAcks = new ConcurrentOpenHashMap<PositionImpl, Integer>(256, 2);
         } else {
             // We don't need to keep track of pending acks if the subscription is not shared
             this.pendingAcks = null;
@@ -156,6 +161,12 @@ public class Consumer {
         return writePromise;
     }
 
+    private void incrementUnackedMessages(int ackedMessages) {
+        if (shouldBlockConsumerOnUnackMsgs() && unackedMessages.addAndGet(ackedMessages) >= maxUnackedMessages) {
+            blockedConsumerOnUnackedMsgs = true;
+        }
+    }
+
     int getBatchSizeforEntry(ByteBuf metadataAndPayload) {
         try {
             // save the reader index and restore after parsing
@@ -191,12 +202,13 @@ public class Consumer {
             }
             if (pendingAcks != null) {
                 PositionImpl pos = PositionImpl.get((PositionImpl) entry.getPosition());
-                pendingAcks.add(pos);
+                pendingAcks.put(pos, batchSize);
             }
             permitsToReduce += batchSize;
         }
-
+        // reduce permit and increment unackedMsg count with total number of messages in batch-msgs
         int permits = messagePermits.addAndGet(-permitsToReduce);
+        incrementUnackedMessages(permitsToReduce);
         if (permits < 0) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] message permits dropped below 0 - {}", subscription, consumerId, permits);
@@ -266,23 +278,46 @@ public class Consumer {
         } else {
             subscription.acknowledgeMessage(position, ack.getAckType());
         }
+       
     }
 
     void flowPermits(int additionalNumberOfMessages) {
         checkArgument(additionalNumberOfMessages > 0);
 
-        int oldPermits = messagePermits.getAndAdd(additionalNumberOfMessages);
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] Added more flow control message permits {} (old was: {})", this, additionalNumberOfMessages,
-                    oldPermits);
+        // block shared consumer when unacked-messages reaches limit
+        if (shouldBlockConsumerOnUnackMsgs() && unackedMessages.get() >= maxUnackedMessages) {
+            blockedConsumerOnUnackedMsgs = true;
         }
-        subscription.consumerFlow(this, additionalNumberOfMessages);
+
+        int oldPermits = messagePermits.getAndAdd(additionalNumberOfMessages);
+        if (!blockedConsumerOnUnackedMsgs) {
+            subscription.consumerFlow(this, additionalNumberOfMessages);
+        }
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] Added more flow control message permits {} (old was: {})", this,
+                    additionalNumberOfMessages, oldPermits);
+        }
     }
 
     public int getAvailablePermits() {
         return messagePermits.get();
     }
 
+    public boolean isBlocked() {
+        return blockedConsumerOnUnackedMsgs;
+    }
+    
+    /**
+     * Checks if consumer-blocking on unAckedMessages is allowed for below conditions:<br/>
+     * a. consumer must have Shared-subscription<br/>
+     * b. {@link maxUnackedMessages} value > 0
+     * 
+     * @return
+     */
+    private boolean shouldBlockConsumerOnUnackMsgs() {
+        return SubType.Shared.equals(subType) && maxUnackedMessages > 0;
+    }
+    
     public void updateRates() {
         msgOut.calculateRate();
         stats.msgRateOut = msgOut.getRate();
@@ -291,6 +326,7 @@ public class Consumer {
 
     public ConsumerStats getStats() {
         stats.availablePermits = getAvailablePermits();
+        stats.unackedMessages = unackedMessages.get();
         return stats;
     }
 
@@ -338,22 +374,44 @@ public class Consumer {
      * @param position
      */
     private void removePendingAcks(PositionImpl position) {
-        if (!pendingAcks.remove(position)) {
+        Consumer ackOwnedConsumer = null;
+        if (pendingAcks.get(position) == null) {
             for (Consumer consumer : subscription.getConsumers()) {
-                if (!consumer.equals(this) && consumer.getPendingAcks().remove(position)) {
+                if (!consumer.equals(this) && consumer.getPendingAcks().get(position) != null) {
+                    ackOwnedConsumer = consumer;
                     break;
                 }
+            }
+        } else {
+            ackOwnedConsumer = this;
+        }
+        
+        // remove pending message from appropriate consumer and unblock unAckMsg-flow if requires
+        if (ackOwnedConsumer != null) {
+            int totalAckedMsgs = ackOwnedConsumer.getPendingAcks().remove(position);
+            // unblock consumer-throttling when receives half of maxUnackedMessages => consumer can start again
+            // consuming messages
+            if (ackOwnedConsumer.shouldBlockConsumerOnUnackMsgs()
+                    && ((ackOwnedConsumer.unackedMessages.addAndGet(-totalAckedMsgs) == (maxUnackedMessages / 2))
+                            && ackOwnedConsumer.blockedConsumerOnUnackedMsgs)) {
+                ackOwnedConsumer.blockedConsumerOnUnackedMsgs = false;
+                subscription.consumerFlow(ackOwnedConsumer, ackOwnedConsumer.messagePermits.get());
             }
         }
     }
     
-    public ConcurrentOpenHashSet<PositionImpl> getPendingAcks() {
+    public ConcurrentOpenHashMap<PositionImpl, Integer> getPendingAcks() {
         return pendingAcks;
     }
 
     private static final Logger log = LoggerFactory.getLogger(Consumer.class);
 
     public void redeliverUnacknowledgedMessages() {
+
+        // cleanup unackedMessage bucket and redeliver those unack-msgs again
+        unackedMessages.set(0);
+        blockedConsumerOnUnackedMsgs = false;
+        // redeliver unacked-msgs
         subscription.redeliverUnacknowledgedMessages(this);
         if (pendingAcks != null) {
             pendingAcks.clear();

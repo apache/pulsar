@@ -192,7 +192,7 @@ public class PersistentDispatcherFailoverConsumerTest {
 
         // 2. Add consumer
         Consumer consumer1 = new Consumer(sub, SubType.Exclusive, 1 /* consumer id */, "Cons1"/* consumer name */,
-                serverCnx, "myrole-1");
+                50000, serverCnx, "myrole-1");
         pdfc.addConsumer(consumer1);
         List<Consumer> consumers = pdfc.getConsumers();
         assertTrue(consumers.get(0).consumerName() == consumer1.consumerName());
@@ -209,7 +209,7 @@ public class PersistentDispatcherFailoverConsumerTest {
 
         // 5. Add another consumer which does not change active consumer
         Consumer consumer2 = new Consumer(sub, SubType.Exclusive, 2 /* consumer id */, "Cons2"/* consumer name */,
-                serverCnx, "myrole-1");
+                50000, serverCnx, "myrole-1");
         pdfc.addConsumer(consumer2);
         consumers = pdfc.getConsumers();
         assertTrue(pdfc.getActiveConsumer().consumerName() == consumer1.consumerName());
@@ -217,7 +217,7 @@ public class PersistentDispatcherFailoverConsumerTest {
 
         // 6. Add a consumer which changes active consumer
         Consumer consumer0 = new Consumer(sub, SubType.Exclusive, 0 /* consumer id */, "Cons0"/* consumer name */,
-                serverCnx, "myrole-1");
+                50000, serverCnx, "myrole-1");
         pdfc.addConsumer(consumer0);
         consumers = pdfc.getConsumers();
         assertTrue(pdfc.getActiveConsumer().consumerName() == consumer0.consumerName());

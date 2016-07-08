@@ -372,7 +372,7 @@ public class PersistentTopicTest {
 
         // 1. simple add consumer
         Consumer consumer = new Consumer(sub, SubType.Exclusive, 1 /* consumer id */, "Cons1"/* consumer name */,
-                serverCnx, "myrole-1");
+                50000, serverCnx, "myrole-1");
         sub.addConsumer(consumer);
         assertTrue(sub.getDispatcher().isConsumerConnected());
 
@@ -402,7 +402,7 @@ public class PersistentTopicTest {
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
         PersistentSubscription sub = new PersistentSubscription(topic, cursorMock);
         Consumer consumer1 = new Consumer(sub, SubType.Exclusive, 1 /* consumer id */, "Cons1"/* consumer name */,
-                serverCnx, "myrole-1");
+                50000, serverCnx, "myrole-1");
         sub.addConsumer(consumer1);
 
         doAnswer(new Answer<Object>() {
@@ -424,7 +424,7 @@ public class PersistentTopicTest {
         try {
             Thread.sleep(10); /* delay to ensure that the ubsubscribe gets executed first */
             Consumer consumer2 = new Consumer(sub, SubType.Exclusive, 2 /* consumer id */, "Cons2"/* consumer name */,
-                    serverCnx, "myrole-1");
+                    50000, serverCnx, "myrole-1");
         } catch (BrokerServiceException e) {
             assertTrue(e instanceof BrokerServiceException.SubscriptionFencedException);
         }

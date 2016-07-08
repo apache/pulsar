@@ -31,6 +31,9 @@ public class ConsumerStats {
 
     /** Number of available message permits for the consumer */
     public int availablePermits;
+    
+    /** Number of unacknowledged messages for the consumer */
+    public int unackedMessages;
 
     /** Address of this consumer */
     public String address;
@@ -43,6 +46,7 @@ public class ConsumerStats {
         this.msgRateOut += stats.msgRateOut;
         this.msgThroughputOut += stats.msgThroughputOut;
         this.availablePermits += stats.availablePermits;
+        this.unackedMessages += stats.unackedMessages;
         return this;
     }
 }
