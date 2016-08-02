@@ -71,6 +71,7 @@ import com.yahoo.pulsar.broker.service.ServerCnx.State;
 import com.yahoo.pulsar.broker.service.persistent.PersistentTopic;
 import com.yahoo.pulsar.broker.service.utils.ClientChannelHelper;
 import com.yahoo.pulsar.common.api.Commands;
+import com.yahoo.pulsar.common.api.Commands.ChecksumType;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.AuthMethod;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConnected;
@@ -519,7 +520,7 @@ public class ServerCnxTest {
                 .setProducerName("prod-name").setSequenceId(0).build();
         ByteBuf data = Unpooled.buffer(1024);
 
-        clientCommand = Commands.newSend(1, 0, 1, messageMetadata, data);
+        clientCommand = Commands.newSend(1, 0, 1, ChecksumType.None, messageMetadata, data);
         channel.writeInbound(Unpooled.copiedBuffer(clientCommand));
         clientCommand.release();
 

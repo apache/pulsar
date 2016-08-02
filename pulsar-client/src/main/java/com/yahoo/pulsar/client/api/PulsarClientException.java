@@ -163,4 +163,10 @@ public class PulsarClientException extends IOException {
             super(msg);
         }
     }
+    
+    public static class ChecksumException extends PulsarClientException {
+        public ChecksumException(String msg) {
+            super(msg);
+        }
+    }
 }

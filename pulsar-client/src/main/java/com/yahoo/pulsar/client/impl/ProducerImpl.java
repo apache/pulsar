@@ -16,7 +16,10 @@
 package com.yahoo.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.yahoo.pulsar.checksum.utils.Crc32cChecksum.computeChecksum;
+import static com.yahoo.pulsar.checksum.utils.Crc32cChecksum.resumeChecksum;
 
+import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
@@ -38,11 +41,13 @@ import com.yahoo.pulsar.client.api.Producer;
 import com.yahoo.pulsar.client.api.ProducerConfiguration;
 import com.yahoo.pulsar.client.api.PulsarClientException;
 import com.yahoo.pulsar.common.api.Commands;
+import com.yahoo.pulsar.common.api.Commands.ChecksumType;
+import com.yahoo.pulsar.common.api.DoubleByteBuf;
 import com.yahoo.pulsar.common.api.proto.PulsarApi;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.MessageMetadata;
+import com.yahoo.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import com.yahoo.pulsar.common.compression.CompressionCodec;
 import com.yahoo.pulsar.common.compression.CompressionCodecProvider;
-import com.yahoo.pulsar.common.util.XXHashChecksum;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.util.Recycler;
@@ -50,6 +55,8 @@ import io.netty.util.Recycler.Handle;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
+import static com.yahoo.pulsar.common.api.Commands.hasChecksum;
+import static com.yahoo.pulsar.common.api.Commands.readChecksum;
 
 public class ProducerImpl extends ProducerBase implements TimerTask {
 
@@ -183,10 +190,6 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
         MessageMetadata.Builder msgMetadata = msg.getMessageBuilder();
         ByteBuf payload = msg.getDataBuffer();
 
-        if (!msgMetadata.hasChecksum()) {
-            msgMetadata.setChecksum(XXHashChecksum.computeChecksum(payload));
-        }
-
         // If compression is enabled, we are compressing, otherwise it will simply use the same buffer
         int uncompressedSize = payload.readableBytes();
         ByteBuf compressedPayload = payload;
@@ -233,7 +236,7 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
                         doBatchSendAndAdd(msg, callback, payload);
                     }
                 } else {
-                    ByteBuf cmd = Commands.newSend(producerId, sequenceId, 1, msgMetadata.build(), compressedPayload);
+                    ByteBuf cmd = sendMessage(producerId, sequenceId, 1, msgMetadata.build(), compressedPayload);
                     msgMetadata.recycle();
 
                     final OpSendMsg op = OpSendMsg.create(msg, cmd, sequenceId, callback);
@@ -264,6 +267,18 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
             semaphore.release();
             callback.sendComplete(new PulsarClientException(t));
         }
+    }
+
+    private ByteBuf sendMessage(long producerId, long sequenceId, int numMessages, MessageMetadata msgMetadata,
+            ByteBuf compressedPayload) throws IOException {
+        ChecksumType checksumType;
+        if (clientCnx.get() == null
+                || clientCnx.get().getRemoteEndpointProtocolVersion() >= brokerChecksumSupportedVersion()) {
+            checksumType = ChecksumType.Crc32c;
+        } else {
+            checksumType = ChecksumType.None;
+        }
+        return Commands.newSend(producerId, sequenceId, numMessages, checksumType, msgMetadata, compressedPayload);
     }
 
     private void doBatchSendAndAdd(MessageImpl msg, SendCallback callback, ByteBuf payload) {
@@ -484,7 +499,102 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
         }
     }
 
-    private static final class OpSendMsg {
+    /**
+     * Checks message checksum to retry if message was corrupted while sending to broker. Recomputes checksum of the
+     * message header-payload again.
+     * <ul>
+     * <li><b>if matches with existing checksum</b>: it means message was corrupt while sending to broker. So, resend message</li>
+     * <li><b>if doesn't match with existing checksum</b>: it means message is already corrupt and can't retry again. So, fail
+     * send-message by failing callback</li>
+     * </ul>
+     * 
+     * @param cnx
+     * @param sequenceId
+     */
+    protected synchronized void recoverChecksumError(ClientCnx cnx, long sequenceId) {
+        OpSendMsg op = pendingMessages.peek();
+        if (op == null) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] [{}] Got send failure for timed out msg {}", topic, producerName, sequenceId);
+            }
+        } else {
+            long expectedSequenceId = op.sequenceId;
+            if (sequenceId == expectedSequenceId) {
+                boolean corrupted = !verifyLocalBufferIsNotCorrupted(op);
+                if (corrupted) {
+                    // remove message from pendingMessages queue and fail callback
+                    pendingMessages.remove();
+                    semaphore.release(op.numMessagesInBatch);
+                    try {
+                        op.callback.sendComplete(
+                                new PulsarClientException.ChecksumException("Checksum failded on corrupt message"));
+                    } catch (Throwable t) {
+                        log.warn("[{}] [{}] Got exception while completing the callback for msg {}:", topic, producerName,
+                                sequenceId, t);
+                    }
+                    ReferenceCountUtil.safeRelease(op.cmd);
+                    op.recycle();
+                    return;
+                } else {
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] [{}] Message is not corrupted, retry send-message with sequenceId {}", topic,
+                                producerName, sequenceId);
+                    }
+                }
+                
+            } else {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] [{}] Corrupt message is already timed out {}", topic, producerName, sequenceId);
+                }
+            }
+        }
+        // as msg is not corrupted : let producer resend pending-messages again including checksum failed message
+        resendMessages(cnx);
+    }
+    
+    /**
+     * Computes checksum again and verifies it against existing checksum. If checksum doesn't match it means that
+     * message is corrupt.
+     * 
+     * @param op
+     * @return returns true only if message is not modified and computed-checksum is same as previous checksum else
+     *         return false that means that message is corrupted. Returns true if checksum is not present.
+     */
+    protected boolean verifyLocalBufferIsNotCorrupted(OpSendMsg op) {
+        DoubleByteBuf msg = getDoubleByteBuf(op.cmd);
+
+        if (msg != null) {
+            ByteBuf headerFrame = msg.getFirst();
+            msg.markReaderIndex();
+            headerFrame.markReaderIndex();
+            try {
+                // skip bytes up to checksum index
+                headerFrame.skipBytes(4); // skip [total-size]
+                int cmdSize = (int) headerFrame.readUnsignedInt();
+                headerFrame.skipBytes(cmdSize);
+                // verify if checksum present
+                if (hasChecksum(headerFrame)) {
+                    int checksum = readChecksum(headerFrame).intValue();
+                    // msg.readerIndex is already at header-payload index, Recompute checksum for headers-payload
+                    int metadataChecksum = computeChecksum(headerFrame);
+                    long computedChecksum = resumeChecksum(metadataChecksum, msg.getSecond());
+                    return checksum == computedChecksum;
+                } else {
+                    log.warn("[{}] [{}] checksum is not present into message with id {}", topic, producerName,
+                            op.sequenceId);
+                }
+            } finally {
+                headerFrame.resetReaderIndex();
+                msg.resetReaderIndex();
+            }
+            return true;
+        } else {
+            log.warn("[{}] Failed while casting {} into DoubleByteBuf", producerName, op.cmd.getClass().getName());
+            return false;
+        }
+    }
+
+    protected static final class OpSendMsg {
         MessageImpl msg;
         List<MessageImpl> msgs;
         ByteBuf cmd;
@@ -681,6 +791,10 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
                 log.info("[{}] [{}] Re-Sending {} messages to server", topic, producerName, messagesToResend);
 
                 for (OpSendMsg op : pendingMessages) {
+                    
+                    if (cnx.getRemoteEndpointProtocolVersion() < brokerChecksumSupportedVersion()) {
+                        stripChecksum(op);
+                    }
                     op.cmd.retain();
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] [{}] Re-Sending message in cnx {}, sequenceId {}", topic, producerName,
@@ -701,6 +815,60 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
         });
     }
 
+    /**
+     * Strips checksum from {@link OpSendMsg} command if present else ignore it.   
+     * 
+     * @param op
+     */
+    private void stripChecksum(OpSendMsg op) {
+        op.cmd.markReaderIndex();
+        int totalMsgBufSize = op.cmd.readableBytes();
+        DoubleByteBuf msg = getDoubleByteBuf(op.cmd);
+        if (msg != null) {
+            ByteBuf headerFrame = msg.getFirst();
+            ByteBuf payloadFrame = msg.getSecond();
+            msg.markReaderIndex();
+            headerFrame.markReaderIndex();
+            payloadFrame.markReaderIndex();
+            try {
+                headerFrame.skipBytes(4); // skip [total-size]
+                int cmdSize = (int) headerFrame.readUnsignedInt();
+
+                // verify if checksum present
+                headerFrame.skipBytes(cmdSize);
+
+                if (!hasChecksum(headerFrame)) {
+                    return;
+                }
+
+                int headerSize = 4 + 4 + cmdSize; // [total-size] [cmd-length] [cmd-size]
+                int checksumSize = 4 + 2; // [magic-number] [checksum-size]
+                int checksumMark = (headerSize + checksumSize); // [header-size] [checksum-size]
+                int metaPayloadSize = (totalMsgBufSize - checksumMark); // metadataPayload = totalSize - checksumMark
+                int newTotalFrameSizeLength = 4 + cmdSize + metaPayloadSize; // new total-size without checksum
+                headerFrame.resetReaderIndex();
+                int headerFrameSize = headerFrame.readableBytes();
+
+                headerFrame.setInt(0, newTotalFrameSizeLength); // rewrite new [total-size]
+                ByteBuf metadata = headerFrame.slice(checksumMark, headerFrameSize - checksumMark); // sliced only
+                                                                                                    // metadata
+                headerFrame.writerIndex(headerSize); // set headerFrame write-index to overwrite metadata over checksum
+                metadata.readBytes(headerFrame, metadata.readableBytes());
+                headerFrame.capacity(headerFrameSize - checksumSize); // reduce capacity by removed checksum bytes
+                headerFrame.resetReaderIndex();
+
+            } finally {
+                op.cmd.resetReaderIndex();
+            }
+        } else {
+            log.warn("[{}] Failed while casting {} into DoubleByteBuf", producerName, op.cmd.getClass().getName());
+        }
+    }
+
+    public int brokerChecksumSupportedVersion() {
+        return ProtocolVersion.v6.getNumber();
+    }
+    
     @Override
     String getHandlerName() {
         return producerName;
@@ -836,11 +1004,9 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
         try {
             if (!batchMessageContainer.isEmpty()) {
                 numMessagesInBatch = batchMessageContainer.numMessagesInBatch;
-                // checksum is on uncompressed payload for batch
-                batchMessageContainer.setChecksum();
                 ByteBuf compressedPayload = batchMessageContainer.getCompressedBatchMetadataAndPayload();
                 long sequenceId = batchMessageContainer.sequenceId;
-                ByteBuf cmd = Commands.newSend(producerId, sequenceId, batchMessageContainer.numMessagesInBatch,
+                ByteBuf cmd = sendMessage(producerId, sequenceId, batchMessageContainer.numMessagesInBatch,
                         batchMessageContainer.setBatchAndBuild(), compressedPayload);
 
                 op = OpSendMsg.create(batchMessageContainer.messages, cmd, sequenceId,
@@ -881,6 +1047,30 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
         }
     }
 
+    /**
+     * Casts input cmd to {@link DoubleByteBuf}
+     * 
+     * Incase if leak-detection level is enabled: pulsar instruments {@link DoubleByteBuf} into LeakAwareByteBuf (type of {@link io.netty.buffer.WrappedByteBuf})
+     * So, this method casts input cmd to {@link DoubleByteBuf} else retrieves it from LeakAwareByteBuf.
+     * 
+     * @param cmd
+     * @return DoubleByteBuf or null in case failed to cast input {@link ByteBuf}
+     */
+    private DoubleByteBuf getDoubleByteBuf(ByteBuf cmd) {
+        DoubleByteBuf msg = null;
+        if (cmd instanceof DoubleByteBuf) {
+            msg =  (DoubleByteBuf) cmd;
+        } else {
+            try {
+                msg = (DoubleByteBuf) cmd.unwrap();    
+            } catch (Exception e) {
+                log.error("[{}] Failed while casting {} into DoubleByteBuf", producerName, cmd.getClass().getName(),
+                        e);
+            }
+        }
+        return msg;
+    }
+    
     public long getDelayInMillis() {
         OpSendMsg firstMsg = pendingMessages.peek();
         if (firstMsg != null) {
