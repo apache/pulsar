@@ -137,8 +137,8 @@ public class ManagedLedgerOfflineBacklog {
     private void readLedgerMeta(final ManagedLedgerFactoryImpl factory, final DestinationName dn,
             final NavigableMap<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgers) throws Exception {
         String managedLedgerName = dn.getPersistenceNamingEncoding();
-        MetaStore store = factory.getMetaStore();
-        BookKeeper bk = factory.getBookKeeper();
+        MetaStore store = factory.getMetaStore(managedLedgerName);
+        BookKeeper bk = factory.getBookKeeper(managedLedgerName);
         final CountDownLatch mlMetaCounter = new CountDownLatch(1);
 
         store.getManagedLedgerInfo(managedLedgerName,
@@ -213,8 +213,8 @@ public class ManagedLedgerOfflineBacklog {
             return;
         }
         String managedLedgerName = dn.getPersistenceNamingEncoding();
-        MetaStore store = factory.getMetaStore();
-        BookKeeper bk = factory.getBookKeeper();
+        MetaStore store = factory.getMetaStore(managedLedgerName);
+        BookKeeper bk = factory.getBookKeeper(managedLedgerName);
         final CountDownLatch allCursorsCounter = new CountDownLatch(1);
         final long errorInReadingCursor = (long) -1;
         ConcurrentOpenHashMap<String, Long> ledgerRetryMap = new ConcurrentOpenHashMap<>();

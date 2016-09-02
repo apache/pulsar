@@ -29,10 +29,12 @@ import com.yahoo.pulsar.zookeeper.ZkBookieRackAffinityMapping;
 import com.yahoo.pulsar.zookeeper.ZkIsolatedBookieEnsemblePlacementPolicy;
 import com.yahoo.pulsar.zookeeper.ZooKeeperCache;
 
+import io.netty.channel.EventLoopGroup;
+
 public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
 
     @Override
-    public BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient) throws IOException {
+    public BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient, EventLoopGroup eventLoopGroup) throws IOException {
         ClientConfiguration bkConf = new ClientConfiguration();
 
         if (conf.getBookkeeperClientAuthenticationPlugin() != null
@@ -46,7 +48,7 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
         bkConf.setAddEntryTimeout((int) conf.getBookkeeperClientTimeoutInSeconds());
         bkConf.setReadEntryTimeout((int) conf.getBookkeeperClientTimeoutInSeconds());
         bkConf.setSpeculativeReadTimeout(conf.getBookkeeperClientSpeculativeReadTimeoutInMillis());
-        bkConf.setNumChannelsPerBookie(16);
+        bkConf.setNumChannelsPerBookie(1);
         bkConf.setUseV2WireProtocol(true);
         bkConf.setLedgerManagerFactoryClassName(HierarchicalLedgerManagerFactory.class.getName());
         if (conf.isBookkeeperClientHealthCheckEnabled()) {
@@ -76,7 +78,7 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
         }
 
         try {
-            return new BookKeeper(bkConf, zkClient);
+            return new BookKeeper(bkConf, zkClient, eventLoopGroup);
         } catch (InterruptedException | KeeperException e) {
             throw new IOException(e);
         }

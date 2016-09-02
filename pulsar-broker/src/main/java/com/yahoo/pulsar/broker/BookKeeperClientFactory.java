@@ -20,9 +20,11 @@ import java.io.IOException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.zookeeper.ZooKeeper;
 
+import io.netty.channel.EventLoopGroup;
+
 /**
  * Provider of a new BookKeeper client instance
  */
 public interface BookKeeperClientFactory {
-    BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient) throws IOException;
+    BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient, EventLoopGroup eventLoopGroup) throws IOException;
 }

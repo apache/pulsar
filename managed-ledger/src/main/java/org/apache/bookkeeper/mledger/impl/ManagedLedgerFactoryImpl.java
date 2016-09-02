@@ -58,6 +58,7 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.MessageRange;
 import org.apache.bookkeeper.mledger.util.Futures;
+import org.apache.bookkeeper.util.MathUtils;
 import org.apache.bookkeeper.util.OrderedSafeExecutor;
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooKeeper;
@@ -66,15 +67,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Predicates;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
 
 public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
-    private final MetaStore store;
-    private final BookKeeper bookKeeper;
+    private final List<MetaStore> metaStores;
+    private final List<BookKeeper> bookKeeperClients;
     private final boolean isBookkeeperManaged;
-    private final ZooKeeper zookeeper;
+    private final List<ZooKeeper> zookeeperClients;
     private final ManagedLedgerFactoryConfig config;
     protected final ScheduledExecutorService executor = Executors.newScheduledThreadPool(16,
             new DefaultThreadFactory("bookkeeper-ml"));
@@ -98,24 +100,25 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         final CountDownLatch counter = new CountDownLatch(1);
         final String zookeeperQuorum = checkNotNull(bkClientConfiguration.getZkServers());
 
-        zookeeper = new ZooKeeper(zookeeperQuorum, bkClientConfiguration.getZkTimeout(), event -> {
-            if (event.getState().equals(Watcher.Event.KeeperState.SyncConnected)) {
-                log.info("Connected to zookeeper");
-                counter.countDown();
-            } else {
-                log.error("Error connecting to zookeeper {}", event);
-            }
-        });
+        zookeeperClients = Lists
+                .newArrayList(new ZooKeeper(zookeeperQuorum, bkClientConfiguration.getZkTimeout(), event -> {
+                    if (event.getState().equals(Watcher.Event.KeeperState.SyncConnected)) {
+                        log.info("Connected to zookeeper");
+                        counter.countDown();
+                    } else {
+                        log.error("Error connecting to zookeeper {}", event);
+                    }
+                }));
 
         if (!counter.await(bkClientConfiguration.getZkTimeout(), TimeUnit.MILLISECONDS)
-                || zookeeper.getState() != States.CONNECTED) {
+                || zookeeperClients.get(0).getState() != States.CONNECTED) {
             throw new ManagedLedgerException("Error connecting to ZooKeeper at '" + zookeeperQuorum + "'");
         }
 
-        this.bookKeeper = new BookKeeper(bkClientConfiguration, zookeeper);
+        this.bookKeeperClients = Lists.newArrayList(new BookKeeper(bkClientConfiguration, zookeeperClients.get(0)));
         this.isBookkeeperManaged = true;
 
-        this.store = new MetaStoreImplZookeeper(zookeeper, orderedExecutor);
+        this.metaStores = Lists.newArrayList(new MetaStoreImplZookeeper(zookeeperClients.get(0), orderedExecutor));
 
         this.config = config;
         this.mbean = new ManagedLedgerFactoryMBeanImpl(this);
@@ -129,10 +132,19 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
 
     public ManagedLedgerFactoryImpl(BookKeeper bookKeeper, ZooKeeper zooKeeper, ManagedLedgerFactoryConfig config)
             throws Exception {
-        this.bookKeeper = bookKeeper;
+        this(Lists.newArrayList(bookKeeper), Lists.newArrayList(zooKeeper), config);
+    }
+
+    public ManagedLedgerFactoryImpl(List<BookKeeper> bookKeeperClients, List<ZooKeeper> zooKeeperClients,
+            ManagedLedgerFactoryConfig config) throws Exception {
+        this.bookKeeperClients = bookKeeperClients;
         this.isBookkeeperManaged = false;
-        this.zookeeper = null;
-        this.store = new MetaStoreImplZookeeper(zooKeeper, orderedExecutor);
+        this.zookeeperClients = null;
+        this.metaStores = new ArrayList<>(zooKeeperClients.size());
+        for (ZooKeeper zk : zooKeeperClients) {
+            metaStores.add(new MetaStoreImplZookeeper(zk, orderedExecutor));
+        }
+
         this.config = config;
         this.mbean = new ManagedLedgerFactoryMBeanImpl(this);
         this.entryCacheManager = new EntryCacheManager(this);
@@ -230,8 +242,9 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         ledgers.computeIfAbsent(name, (mlName) -> {
             // Create the managed ledger
             CompletableFuture<ManagedLedgerImpl> future = new CompletableFuture<>();
-            final ManagedLedgerImpl newledger = new ManagedLedgerImpl(this, bookKeeper, store, config, executor,
-                    orderedExecutor, name);
+
+            final ManagedLedgerImpl newledger = new ManagedLedgerImpl(this, getBookKeeper(mlName), getMetaStore(mlName),
+                    config, executor, orderedExecutor, name);
             newledger.initialize(new ManagedLedgerInitializeLedgerCallback() {
                 @Override
                 public void initializeComplete() {
@@ -291,13 +304,17 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         latch.await();
         log.info("{} ledgers closed", numLedgers);
 
-        if (zookeeper != null) {
-            zookeeper.close();
+        if (zookeeperClients != null) {
+            for (ZooKeeper zk : zookeeperClients) {
+                zk.close();
+            }
         }
 
         if (isBookkeeperManaged) {
             try {
-                bookKeeper.close();
+                for (BookKeeper bk : bookKeeperClients) {
+                    bk.close();
+                }
             } catch (BKException e) {
                 throw new ManagedLedgerException(e);
             }
@@ -341,7 +358,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
 
     @Override
     public void asyncGetManagedLedgerInfo(String name, ManagedLedgerInfoCallback callback, Object ctx) {
-        store.getManagedLedgerInfo(name, new MetaStoreCallback<MLDataFormats.ManagedLedgerInfo>() {
+        getMetaStore(name).getManagedLedgerInfo(name, new MetaStoreCallback<MLDataFormats.ManagedLedgerInfo>() {
             @Override
             public void operationComplete(MLDataFormats.ManagedLedgerInfo pbInfo, Stat stat) {
                 ManagedLedgerInfo info = new ManagedLedgerInfo();
@@ -359,7 +376,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                     info.ledgers.add(ledgerInfo);
                 }
 
-                store.getCursors(name, new MetaStoreCallback<List<String>>() {
+                getMetaStore(name).getCursors(name, new MetaStoreCallback<List<String>>() {
                     @Override
                     public void operationComplete(List<String> cursorsList, Stat stat) {
                         // Get the info for each cursor
@@ -369,7 +386,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                         for (String cursorName : cursorsList) {
                             CompletableFuture<Void> cursorFuture = new CompletableFuture<>();
                             cursorsFutures.add(cursorFuture);
-                            store.asyncGetCursorInfo(name, cursorName,
+                            getMetaStore(name).asyncGetCursorInfo(name, cursorName,
                                     new MetaStoreCallback<MLDataFormats.ManagedCursorInfo>() {
                                         @Override
                                         public void operationComplete(ManagedCursorInfo pbCursorInfo, Stat stat) {
@@ -436,8 +453,8 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         });
     }
 
-    public MetaStore getMetaStore() {
-        return store;
+    public MetaStore getMetaStore(String managedLedger) {
+        return metaStores.get(MathUtils.signSafeMod(managedLedger.hashCode(), metaStores.size()));
     }
 
     public ManagedLedgerFactoryConfig getConfig() {
@@ -452,8 +469,8 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         return this.mbean;
     }
 
-    public BookKeeper getBookKeeper() {
-        return bookKeeper;
+    public BookKeeper getBookKeeper(String managedLedger) {
+        return bookKeeperClients.get(MathUtils.signSafeMod(managedLedger.hashCode(), bookKeeperClients.size()));
     }
 
     private static final Logger log = LoggerFactory.getLogger(ManagedLedgerFactoryImpl.class);

@@ -49,6 +49,8 @@ import com.yahoo.pulsar.client.api.PulsarClient;
 import com.yahoo.pulsar.zookeeper.ZooKeeperClientFactory;
 import com.yahoo.pulsar.zookeeper.ZookeeperClientFactoryImpl;
 
+import io.netty.channel.EventLoopGroup;
+
 /**
  * Base class for all tests that need a Pulsar instance without a ZK and BK cluster
  */
@@ -212,7 +214,7 @@ public abstract class MockedPulsarServiceBaseTest {
     private BookKeeperClientFactory mockBookKeeperClientFactory = new BookKeeperClientFactory() {
 
         @Override
-        public BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient) throws IOException {
+        public BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient, EventLoopGroup eventLoopGroup) throws IOException {
             // Always return the same instance (so that we don't loose the mock BK content on broker restart
             return mockBookKeeper;
         }

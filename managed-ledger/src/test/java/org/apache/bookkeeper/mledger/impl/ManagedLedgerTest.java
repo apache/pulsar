@@ -1135,7 +1135,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
     @Test
     public void ledgersList() throws Exception {
-        MetaStore store = factory.getMetaStore();
+        MetaStore store = factory.getMetaStore("mlName");
 
         assertEquals(Sets.newHashSet(store.getManagedLedgers()), Sets.newHashSet());
         ManagedLedger ledger1 = factory.open("ledger1");
@@ -1471,7 +1471,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         // Add the deleted ledger back in the meta-data to simulate an empty ledger that was deleted but not removed
         // from the list of ledgers
         final CountDownLatch counter = new CountDownLatch(1);
-        final MetaStore store = factory.getMetaStore();
+        final MetaStore store = factory.getMetaStore("my_test_ledger");
         store.getManagedLedgerInfo("my_test_ledger", new MetaStoreCallback<ManagedLedgerInfo>() {
             @Override
             public void operationComplete(ManagedLedgerInfo result, Stat version) {
