@@ -20,7 +20,7 @@ import org.slf4j.LoggerFactory;
 
 import com.yahoo.pulsar.broker.loadbalance.LoadRanker;
 import com.yahoo.pulsar.broker.loadbalance.ResourceDescription;
-import com.yahoo.pulsar.broker.loadbalance.data.ResourceUsage;
+import com.yahoo.pulsar.common.policies.data.loadbalancer.ResourceUsage;
 
 import java.util.Comparator;
 import java.util.Map;

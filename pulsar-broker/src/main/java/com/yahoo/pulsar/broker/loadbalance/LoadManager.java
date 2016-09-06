@@ -19,8 +19,8 @@ import java.util.List;
 
 import com.google.common.collect.Lists;
 import com.yahoo.pulsar.common.naming.ServiceUnitId;
+import com.yahoo.pulsar.common.policies.data.loadbalancer.LoadReport;
 import com.yahoo.pulsar.broker.PulsarServerException;
-import com.yahoo.pulsar.broker.loadbalance.data.LoadReport;
 import com.yahoo.pulsar.broker.stats.Metrics;
 
 /**

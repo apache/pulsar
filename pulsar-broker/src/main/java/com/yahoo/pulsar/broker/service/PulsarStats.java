@@ -25,13 +25,13 @@ import org.slf4j.LoggerFactory;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.yahoo.pulsar.broker.PulsarService;
-import com.yahoo.pulsar.broker.loadbalance.data.NamespaceBundleStats;
 import com.yahoo.pulsar.broker.service.persistent.PersistentTopic;
 import com.yahoo.pulsar.broker.stats.BrokerOperabilityMetrics;
 import com.yahoo.pulsar.broker.stats.ClusterReplicationMetrics;
 import com.yahoo.pulsar.broker.stats.Metrics;
 import com.yahoo.pulsar.broker.stats.NamespaceStats;
 import com.yahoo.pulsar.common.naming.NamespaceBundle;
+import com.yahoo.pulsar.common.policies.data.loadbalancer.NamespaceBundleStats;
 import com.yahoo.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import com.yahoo.pulsar.utils.StatsOutputStream;
 

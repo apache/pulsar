@@ -19,7 +19,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import com.yahoo.pulsar.broker.loadbalance.ResourceDescription;
-import com.yahoo.pulsar.broker.loadbalance.data.ResourceUsage;
+import com.yahoo.pulsar.common.policies.data.loadbalancer.ResourceUsage;
 
 public class PulsarResourceDescription extends ResourceDescription {
 

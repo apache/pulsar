@@ -55,7 +55,6 @@ import com.yahoo.pulsar.broker.ServiceConfiguration;
 import com.yahoo.pulsar.broker.admin.AdminResource;
 import com.yahoo.pulsar.broker.authentication.AuthenticationService;
 import com.yahoo.pulsar.broker.authorization.AuthorizationManager;
-import com.yahoo.pulsar.broker.loadbalance.data.NamespaceBundleStats;
 import com.yahoo.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import com.yahoo.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import com.yahoo.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
@@ -81,6 +80,7 @@ import com.yahoo.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import com.yahoo.pulsar.common.policies.data.PersistentTopicStats;
 import com.yahoo.pulsar.common.policies.data.Policies;
 import com.yahoo.pulsar.common.policies.data.RetentionPolicies;
+import com.yahoo.pulsar.common.policies.data.loadbalancer.NamespaceBundleStats;
 import com.yahoo.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import com.yahoo.pulsar.zookeeper.ZooKeeperCacheListener;
 

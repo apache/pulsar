@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.yahoo.pulsar.broker.loadbalance.data;
+package com.yahoo.pulsar.common.policies.data.loadbalancer;
 
 /**
  * this class represents usages of resources used by a namespace, this is an aggregate of all the topics and queues on
