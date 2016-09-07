@@ -15,15 +15,15 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -47,7 +47,6 @@ import com.google.common.collect.Lists;
 
 public class ManagedCursorConcurrencyTest extends MockedBookKeeperTestCase {
 
-    Executor executor = Executors.newCachedThreadPool();
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorConcurrencyTest.class);
 
     private final AsyncCallbacks.DeleteCallback deleteCallback = new AsyncCallbacks.DeleteCallback() {
@@ -208,7 +207,7 @@ public class ManagedCursorConcurrencyTest extends MockedBookKeeperTestCase {
         assertEquals(closeFuture.get(), CLOSED);
     }
 
-    @Test
+    @Test(timeOut = 30000)
     public void testAckAndClose() throws Exception {
         ManagedLedger ledger = factory.open("my_test_ledger_test_ack_and_close",
                 new ManagedLedgerConfig().setMaxEntriesPerLedger(2));
@@ -226,51 +225,44 @@ public class ManagedCursorConcurrencyTest extends MockedBookKeeperTestCase {
         final CountDownLatch counter = new CountDownLatch(2);
         final AtomicBoolean gotException = new AtomicBoolean(false);
 
-        Thread deleter = new Thread() {
-            public void run() {
-                try {
-                    barrier.await();
+        // Deleter thread
+        cachedExecutor.execute(() -> {
+            try {
+                barrier.await();
 
-                    for (Position position : addedEntries) {
-                        cursor.asyncDelete(position, deleteCallback, position);
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    gotException.set(true);
-                } finally {
-                    counter.countDown();
+                for (Position position : addedEntries) {
+                    cursor.asyncDelete(position, deleteCallback, position);
                 }
+            } catch (Exception e) {
+                e.printStackTrace();
+                gotException.set(true);
+            } finally {
+                counter.countDown();
             }
-        };
+        });
 
-        Thread reader = new Thread() {
-            public void run() {
-                try {
-                    barrier.await();
+        // Reader thread
+        cachedExecutor.execute(() -> {
+            try {
+                barrier.await();
 
-                    for (int i = 0; i < 1000; i++) {
-                        cursor.readEntries(1).forEach(e -> e.release());
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    gotException.set(true);
-                } finally {
-                    counter.countDown();
+                for (int i = 0; i < 1000; i++) {
+                    cursor.readEntries(1).forEach(e -> e.release());
                 }
+            } catch (Exception e) {
+                e.printStackTrace();
+                gotException.set(true);
+            } finally {
+                counter.countDown();
             }
-        };
-        System.out.println("starting deleter and reader.." + System.currentTimeMillis());
-        deleter.start();
-        reader.start();
+        });
 
         counter.await();
 
         assertEquals(gotException.get(), false);
-        System.out.println("Finished.." + System.currentTimeMillis());
-
     }
 
-    @Test
+    @Test(timeOut = 30000)
     public void testConcurrentIndividualDeletes() throws Exception {
         ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(100));
 
@@ -291,24 +283,22 @@ public class ManagedCursorConcurrencyTest extends MockedBookKeeperTestCase {
 
         for (int thread = 0; thread < Threads; thread++) {
             final int myThread = thread;
-            executor.execute(new Runnable() {
-                public void run() {
-                    try {
-                        barrier.await();
+            cachedExecutor.execute(() -> {
+                try {
+                    barrier.await();
 
-                        for (int i = 0; i < N; i++) {
-                            int threadId = i % Threads;
-                            if (threadId == myThread) {
-                                cursor.delete(addedEntries.get(i));
-                            }
+                    for (int i = 0; i < N; i++) {
+                        int threadId = i % Threads;
+                        if (threadId == myThread) {
+                            cursor.delete(addedEntries.get(i));
                         }
-
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                        gotException.set(true);
-                    } finally {
-                        counter.countDown();
                     }
+
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    gotException.set(true);
+                } finally {
+                    counter.countDown();
                 }
             });
         }
@@ -319,7 +309,7 @@ public class ManagedCursorConcurrencyTest extends MockedBookKeeperTestCase {
         assertEquals(cursor.getMarkDeletedPosition(), addedEntries.get(addedEntries.size() - 1));
     }
 
-    @Test
+    @Test(timeOut = 30000)
     public void testConcurrentReadOfSameEntry() throws Exception {
         ManagedLedger ledger = factory.open("testConcurrentReadOfSameEntry", new ManagedLedgerConfig());
         final int numCursors = 5;
@@ -346,7 +336,7 @@ public class ManagedCursorConcurrencyTest extends MockedBookKeeperTestCase {
         for (int i = 0; i < numCursors; i++) {
             final int cursorIndex = i;
             final ManagedCursor cursor = cursors.get(cursorIndex);
-            executor.execute(() -> {
+            cachedExecutor.execute(() -> {
                 try {
                     barrier.await();
                     for (int j = 0; j < N; j++) {
@@ -369,7 +359,7 @@ public class ManagedCursorConcurrencyTest extends MockedBookKeeperTestCase {
         assertNull(result.get());
     }
 
-    @Test
+    @Test(timeOut = 30000)
     public void testConcurrentIndividualDeletesWithGetNthEntry() throws Exception {
         ManagedLedger ledger = factory.open("my_test_ledger",
                 new ManagedLedgerConfig().setMaxEntriesPerLedger(100).setThrottleMarkDelete(0.5));
@@ -390,12 +380,12 @@ public class ManagedCursorConcurrencyTest extends MockedBookKeeperTestCase {
         final AtomicInteger iteration = new AtomicInteger(0);
 
         for (int i = 0; i < deleteEntries; i++) {
-            executor.execute(() -> {
+            executor.submit(safeRun(() -> {
                 try {
                     cursor.asyncDelete(addedEntries.get(iteration.getAndIncrement()), new DeleteCallback() {
                         @Override
                         public void deleteComplete(Object ctx) {
-                            log.info("Successfully deleted cursor");
+                            // Ok
                         }
 
                         @Override
@@ -410,8 +400,7 @@ public class ManagedCursorConcurrencyTest extends MockedBookKeeperTestCase {
                 } finally {
                     counter.countDown();
                 }
-
-            });
+            }));
         }
 
         counter.await();
@@ -426,6 +415,7 @@ public class ManagedCursorConcurrencyTest extends MockedBookKeeperTestCase {
                     public void readEntryComplete(Entry entry, Object ctx) {
                         successReadEntries.getAndIncrement();
                         entry.release();
+                        readCounter.countDown();
                     }
 
                     @Override
@@ -437,14 +427,12 @@ public class ManagedCursorConcurrencyTest extends MockedBookKeeperTestCase {
             } catch (Exception e) {
                 e.printStackTrace();
                 gotException.set(true);
-            } finally {
-                readCounter.countDown();
             }
         }
 
         readCounter.await();
 
-        assertEquals(gotException.get(), false);
-        assertEquals(readEntries, successReadEntries.get());
+        assertFalse(gotException.get());
+        assertEquals(successReadEntries.get(), readEntries);
     }
 }
