@@ -16,6 +16,8 @@
 package org.apache.bookkeeper.test;
 
 import java.lang.reflect.Method;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import org.apache.bookkeeper.client.MockBookKeeper;
 import org.apache.bookkeeper.conf.ClientConfiguration;
@@ -47,6 +49,7 @@ public abstract class MockedBookKeeperTestCase {
     protected ClientConfiguration baseClientConf = new ClientConfiguration();
 
     protected OrderedSafeExecutor executor;
+    protected ExecutorService cachedExecutor;
 
     public MockedBookKeeperTestCase() {
         // By default start a 3 bookies cluster
@@ -69,19 +72,19 @@ public abstract class MockedBookKeeperTestCase {
         }
 
         executor = new OrderedSafeExecutor(2, "test");
+        cachedExecutor = Executors.newCachedThreadPool();
         factory = new ManagedLedgerFactoryImpl(bkc, zkc);
     }
 
     @AfterMethod
     public void tearDown(Method method) throws Exception {
         LOG.info("@@@@@@@@@ stopping " + method);
-        System.gc();
         factory.shutdown();
         factory = null;
         stopBookKeeper();
         stopZooKeeper();
         executor.shutdown();
-        System.gc();
+        cachedExecutor.shutdown();
         LOG.info("--------- stopped {}", method);
     }
 
