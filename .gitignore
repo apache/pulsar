@@ -1,0 +1,27 @@
+status.html
+.metadata
+test-output
+test-results
+dependency-reduced-pom.xml
+logs
+/data
+
+*.versionsBackup
+
+# Eclipse
+.classpath
+.project
+.settings/
+.recommenders/
+
+# Intellij
+.idea/
+*.iml
+*.iws
+
+# Mac
+.DS_Store
+
+# Maven
+log/
+target/

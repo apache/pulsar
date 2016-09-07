@@ -1,0 +1,99 @@
+/**
+ * Copyright 2016 Yahoo Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.bookkeeper.mledger;
+
+import org.apache.bookkeeper.mledger.proto.PendingBookieOpsStats;
+
+public interface ManagedLedgerMXBean {
+
+    /**
+     * @return the ManagedLedger name
+     */
+    String getName();
+
+    /**
+     * @return the total size of the messages in active ledgers (accounting for the multiple copies stored)
+     */
+    long getStoredMessagesSize();
+
+    /**
+     * @return the number of backlog messages for all the consumers
+     */
+    long getNumberOfMessagesInBacklog();
+
+    /**
+     * @return the msg/s rate of messages added
+     */
+    double getAddEntryMessagesRate();
+
+    /**
+     * @return the bytes/s rate of messages added
+     */
+    double getAddEntryBytesRate();
+
+    /**
+     * @return the msg/s rate of messages read
+     */
+    double getReadEntriesRate();
+
+    /**
+     * @return the bytes/s rate of messages read
+     */
+    double getReadEntriesBytesRate();
+
+    /**
+     * @return the rate of mark-delete ops/s
+     */
+    double getMarkDeleteRate();
+
+    /**
+     * @return the number of addEntry requests that succeeded
+     */
+    long getAddEntrySucceed();
+
+    /**
+     * @return the number of addEntry requests that failed
+     */
+    long getAddEntryErrors();
+
+    /**
+     * @return the number of readEntries requests that succeeded
+     */
+    long getReadEntriesSucceeded();
+
+    /**
+     * @return the number of readEntries requests that failed
+     */
+    long getReadEntriesErrors();
+
+    // Entry size statistics
+
+    double getEntrySizeAverage();
+
+    long[] getEntrySizeBuckets();
+
+    // Add entry latency statistics
+
+    double getAddEntryLatencyAverageUsec();
+
+    long[] getAddEntryLatencyBuckets();
+
+    long[] getLedgerSwitchLatencyBuckets();
+
+    double getLedgerSwitchLatencyAverageUsec();
+
+    PendingBookieOpsStats getPendingBookieOpsStats();
+}

@@ -1,0 +1,293 @@
+/**
+ * Copyright 2016 Yahoo Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.yahoo.pulsar.common.api.proto;
+option java_package = "com.yahoo.pulsar.common.api.proto";
+option optimize_for = LITE_RUNTIME;
+
+message MessageIdData {
+	required uint64 ledgerId = 1;
+	required uint64 entryId  = 2;
+	optional int32 partition = 3 [default = -1];
+	optional int32 batch_index = 4 [default = -1];
+}
+
+message KeyValue {
+	required string key = 1;
+	required string value = 2;
+}
+
+enum CompressionType {
+	NONE   = 0;
+	LZ4    = 1;
+	ZLIB   = 2;
+}
+
+message MessageMetadata {
+	required string producer_name   = 1;
+	required uint64 sequence_id     = 2;
+	required uint64 publish_time    = 3;
+	repeated KeyValue properties    = 4;
+
+	// Property set on replicated message,
+	// includes the source cluster name
+	optional string replicated_from = 5;
+	//key to decide partition for the msg
+	optional string partition_key   = 6;
+	// Override namespace's replication
+	repeated string replicate_to    = 7;
+	optional CompressionType compression = 8 [default = NONE];
+	optional uint32 uncompressed_size = 9 [default = 0];
+	// XXHash64 checksum of the original message payload
+	optional sfixed64 checksum = 10;
+	// differentiate single and batch message metadata
+	optional int32 num_messages_in_batch = 11 [default = 1];
+}
+
+
+message SingleMessageMetadata {
+	repeated KeyValue properties    = 1;
+	optional string partition_key   = 2;
+	required int32 payload_size	= 3;
+}
+
+enum ServerError {
+    UnknownError        = 0;
+	MetadataError       = 1; // Error with ZK/metadata
+	PersistenceError    = 2; // Error writing reading from BK
+	AuthenticationError = 3; // Non valid authentication
+	AuthorizationError  = 4; // Not authorized to use resource
+
+	ConsumerBusy        = 5; // Unable to subscribe/unsubscribe because
+	                         // other consumers are connected
+    ServiceNotReady     = 6; // Any error that requires client retry operation with a fresh lookup
+    ProducerBlockedQuotaExceededError = 7; // Unable to create producer because backlog quota exceeded
+    ProducerBlockedQuotaExceededException = 8; // Exception while creating producer because quota exceeded
+}
+
+enum AuthMethod {
+	AuthMethodNone   = 0;
+	AuthMethodYcaV1  = 1;
+	AuthMethodAthens = 2;
+}
+
+// Each protocol version identify new features that are
+// incrementally added to the protocol
+enum ProtocolVersion {
+	v0 = 0;  // Initial versioning
+	v1 = 1;  // Added application keep-alive
+	v2 = 2;  // Added RedeliverUnacknowledgedMessages Command
+	v3 = 3;  // Added compression with LZ4 and ZLib
+	v4 = 4;  // Added batch message support
+	v5 = 5;  // Added disconnect client w/o closing connection
+}
+
+message CommandConnect {
+	required string client_version = 1;
+	optional AuthMethod auth_method = 2; // Deprecated. Use "auth_method_name" instead.
+	optional string auth_method_name = 5;
+	optional bytes auth_data = 3;
+	optional int32 protocol_version = 4 [default = 0];
+}
+
+message CommandConnected {
+	required string server_version = 1;
+	optional int32 protocol_version = 2 [default = 0];
+}
+
+message CommandSubscribe {
+	enum SubType {
+		Exclusive = 0;
+		Shared    = 1;
+		Failover  = 2;
+	}
+
+	required string topic        = 1;
+	required string subscription = 2;
+	required SubType subType     = 3;
+	required uint64 consumer_id  = 4;
+	required uint64 request_id   = 5;
+	optional string consumer_name = 6;
+}
+
+/// Create a new Producer on a topic, assigning the given producer_id,
+/// all messages sent with this producer_id will be persisted on the topic
+message CommandProducer {
+	required string topic         = 1;
+	required uint64 producer_id   = 2;
+	required uint64 request_id    = 3;
+
+	/// If a producer name is specified, the name will be used,
+	/// otherwise the broker will generate a unique name
+	optional string producer_name = 4;
+}
+
+message CommandSend {
+	required uint64 producer_id   = 1;
+	required uint64 sequence_id   = 2;
+	optional int32 num_messages = 3 [default = 1];;
+}
+
+message CommandSendReceipt {
+	required uint64 producer_id = 1;
+	required uint64 sequence_id = 2;
+	optional MessageIdData message_id = 3;
+}
+
+message CommandSendError {
+	required uint64 producer_id = 1;
+	required uint64 sequence_id = 2;
+	required ServerError error  = 3;
+	required string message     = 4;
+}
+
+message CommandMessage {
+	required uint64 consumer_id       = 1;
+	required MessageIdData message_id = 2;
+}
+
+message CommandAck {
+	enum AckType {
+		Individual = 0;
+		Cumulative = 1;
+	}
+
+	required uint64 consumer_id       = 1;
+	required AckType ack_type         = 2;
+	required MessageIdData message_id = 3;
+
+	// Acks can contain a flag to indicate the consumer
+	// received an invalid message that got discarded
+	// before being passed on to the application.
+	enum ValidationError {
+		UncompressedSizeCorruption = 0;
+		DecompressionError = 1;
+		ChecksumMismatch = 2;
+		BatchDeSerializeError = 3;
+	}
+
+	optional ValidationError validation_error = 4;
+}
+
+message CommandFlow {
+	required uint64 consumer_id       = 1;
+
+	// Max number of messages to prefetch, in addition
+	// of any number previously specified
+	required uint32 messagePermits     = 2;
+}
+
+message CommandUnsubscribe {
+	required uint64 consumer_id = 1;
+	required uint64 request_id  = 2;
+}
+
+message CommandCloseProducer {
+	required uint64 producer_id = 1;
+	required uint64 request_id = 2;
+}
+
+message CommandCloseConsumer {
+	required uint64 consumer_id = 1;
+	required uint64 request_id = 2;
+}
+
+message CommandRedeliverUnacknowledgedMessages {
+	required uint64 consumer_id = 1;
+}
+
+message CommandSuccess {
+	required uint64 request_id = 1;
+}
+
+/// Response from CommandProducer
+message CommandProducerSuccess {
+	required uint64 request_id    = 1;
+	required string producer_name = 2;
+}
+
+message CommandError {
+	required uint64 request_id  = 1;
+	required ServerError error = 2;
+	required string message    = 3;
+}
+
+// Commands to probe the state of connection.
+// When either client or broker doesn't receive commands for certain
+// amount of time, they will send a Ping probe.
+message CommandPing {
+}
+message CommandPong {
+}
+
+message BaseCommand {
+	enum Type {
+		CONNECT     = 2;
+		CONNECTED   = 3;
+		SUBSCRIBE   = 4;
+
+		PRODUCER    = 5;
+
+		SEND        = 6;
+		SEND_RECEIPT= 7;
+		SEND_ERROR  = 8;
+
+		MESSAGE     = 9;
+		ACK         = 10;
+		FLOW        = 11;
+
+		UNSUBSCRIBE = 12;
+
+		SUCCESS     = 13;
+		ERROR       = 14;
+
+		CLOSE_PRODUCER = 15;
+		CLOSE_CONSUMER = 16;
+
+		PRODUCER_SUCCESS = 17;
+
+		PING = 18;
+		PONG = 19;
+		
+		REDELIVER_UNACKNOWLEDGED_MESSAGES = 20;
+	}
+
+	required Type type = 1;
+
+	optional CommandConnect connect          = 2;
+	optional CommandConnected connected      = 3;
+
+	optional CommandSubscribe subscribe      = 4;
+	optional CommandProducer producer        = 5;
+	optional CommandSend send                = 6;
+	optional CommandSendReceipt send_receipt = 7;
+	optional CommandSendError send_error     = 8;
+	optional CommandMessage message          = 9;
+	optional CommandAck ack                  = 10;
+	optional CommandFlow flow                = 11;
+	optional CommandUnsubscribe unsubscribe  = 12;
+
+	optional CommandSuccess success          = 13;
+	optional CommandError error              = 14;
+
+	optional CommandCloseProducer close_producer = 15;
+	optional CommandCloseConsumer close_consumer = 16;
+
+	optional CommandProducerSuccess producer_success = 17;
+	optional CommandPing ping = 18;
+	optional CommandPong pong = 19;
+	optional CommandRedeliverUnacknowledgedMessages redeliverUnacknowledgedMessages = 20;
+}
+

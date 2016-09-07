@@ -1,0 +1,198 @@
+#!/usr/bin/env bash
+#
+# Copyright 2016 Yahoo Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# check if net.ipv6.bindv6only is set to 1
+bindv6only=$(/sbin/sysctl -n net.ipv6.bindv6only 2> /dev/null)
+if [ -n "$bindv6only" ] && [ "$bindv6only" -eq "1" ]
+then
+  echo "Error: \"net.ipv6.bindv6only\" is set to 1 - Java networking could be broken"
+  echo "For more info (the following page also applies to bookkeeper): http://wiki.apache.org/hadoop/HadoopIPv6"
+  exit 1
+fi
+
+# See the following page for extensive details on setting
+# up the JVM to accept JMX remote management:
+# http://java.sun.com/javase/6/docs/technotes/guides/management/agent.html
+# by default we allow local JMX connections
+if [ "x$JMXLOCALONLY" = "x" ]
+then
+    JMXLOCALONLY=false
+fi
+
+if [ "x$JMXDISABLE" = "x" ]
+then
+    echo "JMX enabled by default" >&2
+    # for some reason these two options are necessary on jdk6 on Ubuntu
+    #   accord to the docs they are not necessary, but otw jconsole cannot
+    #   do a local attach
+    JMX_ARGS="-Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.local.only=$JMXLOCALONLY"
+else
+    echo "JMX disabled by user request" >&2
+fi
+
+BINDIR=`dirname "$0"`
+BK_HOME=`cd $BINDIR/..;pwd`
+
+DEFAULT_CONF=$BK_HOME/conf/bk_server.conf
+DEFAULT_LOG_CONF=$BK_HOME/conf/log4j.properties
+
+source $BK_HOME/conf/bkenv.sh
+
+# Check for the java to use
+if [[ -z $JAVA_HOME ]]; then
+    JAVA=$(which java)
+    if [ $? = 0 ]; then
+        echo "JAVA_HOME not set, using java from PATH. ($JAVA)"
+    else
+        echo "Error: JAVA_HOME not set, and no java executable found in $PATH." 1>&2
+        exit 1
+    fi
+else
+    JAVA=$JAVA_HOME/bin/java
+fi
+
+# exclude tests jar
+RELEASE_JAR=`ls $BK_HOME/bookkeeper-server-*.jar 2> /dev/null | grep -v tests | tail -1` 
+if [ $? == 0 ]; then
+    BOOKIE_JAR=$RELEASE_JAR
+fi
+
+# exclude tests jar
+BUILT_JAR=`ls $BK_HOME/target/bookkeeper-server-*.jar 2> /dev/null | grep -v tests | tail -1`
+if [ $? != 0 ] && [ ! -e "$BOOKIE_JAR" ]; then 
+    echo "\nCouldn't find bookkeeper jar.";
+    echo "Make sure you've run 'mvn package'\n";
+    exit 1;
+elif [ -e "$BUILT_JAR" ]; then
+    BOOKIE_JAR=$BUILT_JAR
+fi
+
+bookkeeper_help() {
+    cat <<EOF
+Usage: bookkeeper <command>
+where command is one of:
+    bookie              Run a bookie server
+    autorecovery        Run AutoRecovery service daemon
+    localbookie <n>     Run a test ensemble of <n> bookies locally
+    upgrade             Upgrade bookie filesystem
+    shell               Run shell for admin commands
+    help                This help message
+
+or command is the full name of a class with a defined main() method.
+
+Environment variables:
+   BOOKIE_LOG_CONF        Log4j configuration file (default $DEFAULT_LOG_CONF)
+   BOOKIE_CONF            Configuration file (default: $DEFAULT_CONF)
+   BOOKIE_EXTRA_OPTS      Extra options to be passed to the jvm
+   BOOKIE_EXTRA_CLASSPATH Add extra paths to the bookkeeper classpath
+   ENTRY_FORMATTER_CLASS  Entry formatter class to format entries.
+   BOOKIE_PID_DIR         Folder where the Bookie server PID file should be stored
+   BOOKIE_STOP_TIMEOUT    Wait time before forcefully kill the Bookie server instance, if the stop is not successful
+
+These variable can also be set in conf/bkenv.sh
+EOF
+}
+
+add_maven_deps_to_classpath() {
+    MVN="mvn"
+    if [ "$MAVEN_HOME" != "" ]; then
+	MVN=${MAVEN_HOME}/bin/mvn
+    fi
+    
+    # Need to generate classpath from maven pom. This is costly so generate it
+    # and cache it. Save the file into our target dir so a mvn clean will get
+    # clean it up and force us create a new one.
+    f="${BK_HOME}/all/target/classpath.txt"
+    if [ ! -f "${f}" ]
+    then
+	${MVN} -f "${BK_HOME}/pom.xml" dependency:build-classpath -Dmdep.outputFile="${f}" &> /dev/null
+    fi
+    BOOKIE_CLASSPATH=${CLASSPATH}:`cat "${f}"`
+}
+
+if [ -d "$BK_HOME/lib" ]; then
+    for i in $BK_HOME/lib/*.jar; do
+	BOOKIE_CLASSPATH=$BOOKIE_CLASSPATH:$i
+    done
+else
+    add_maven_deps_to_classpath
+fi
+
+# if no args specified, show usage
+if [ $# = 0 ]; then
+    bookkeeper_help;
+    exit 1;
+fi
+
+# get arguments
+COMMAND=$1
+shift
+
+if [ $COMMAND == "shell" ]; then
+    DEFAULT_LOG_CONF=$BK_HOME/conf/log4j.shell.properties
+fi
+
+if [ -z "$BOOKIE_CONF" ]; then
+    BOOKIE_CONF=$DEFAULT_CONF
+fi
+
+if [ -z "$BOOKIE_LOG_CONF" ]; then
+    BOOKIE_LOG_CONF=$DEFAULT_LOG_CONF
+fi
+
+BOOKIE_CLASSPATH="$BOOKIE_JAR:$BOOKIE_CLASSPATH:$BOOKIE_EXTRA_CLASSPATH"
+BOOKIE_CLASSPATH="`dirname $BOOKIE_LOG_CONF`:$BOOKIE_CLASSPATH"
+OPTS="$OPTS -Dlog4j.configuration=`basename $BOOKIE_LOG_CONF`"
+
+OPTS="-cp $BOOKIE_CLASSPATH $OPTS"
+
+OPTS="$OPTS $BOOKIE_EXTRA_OPTS"
+
+# Disable ipv6 as it can cause issues
+OPTS="$OPTS -Djava.net.preferIPv4Stack=true"
+
+# log directory & file
+BOOKIE_ROOT_LOGGER=${BOOKIE_ROOT_LOGGER:-"INFO,CONSOLE"}
+BOOKIE_LOG_DIR=${BOOKIE_LOG_DIR:-"$BK_HOME/logs"}
+BOOKIE_LOG_FILE=${BOOKIE_LOG_FILE:-"bookkeeper-server.log"}
+
+#Configure log configuration system properties
+OPTS="$OPTS -Dbookkeeper.root.logger=$BOOKIE_ROOT_LOGGER"
+OPTS="$OPTS -Dbookkeeper.log.dir=$BOOKIE_LOG_DIR"
+OPTS="$OPTS -Dbookkeeper.log.file=$BOOKIE_LOG_FILE"
+
+#Change to BK_HOME to support relative paths
+cd "$BK_HOME"
+if [ $COMMAND == "bookie" ]; then
+    exec $JAVA $OPTS $JMX_ARGS org.apache.bookkeeper.proto.BookieServer --conf $BOOKIE_CONF $@
+elif [ $COMMAND == "autorecovery" ]; then
+    exec $JAVA $OPTS $JMX_ARGS org.apache.bookkeeper.replication.AutoRecoveryMain --conf $BOOKIE_CONF $@
+elif [ $COMMAND == "localbookie" ]; then
+    NUMBER=$1
+    shift
+    exec $JAVA $OPTS $JMX_ARGS org.apache.bookkeeper.util.LocalBookKeeper $NUMBER $BOOKIE_CONF $@
+elif [ $COMMAND == "upgrade" ]; then
+    exec $JAVA $OPTS org.apache.bookkeeper.bookie.FileSystemUpgrade --conf $BOOKIE_CONF $@
+elif [ $COMMAND == "shell" ]; then
+    ENTRY_FORMATTER_ARG="-DentryFormatterClass=${ENTRY_FORMATTER_CLASS:-org.apache.bookkeeper.util.StringEntryFormatter}"
+    exec $JAVA $OPTS $ENTRY_FORMATTER_ARG org.apache.bookkeeper.bookie.BookieShell -conf $BOOKIE_CONF $@
+elif [ $COMMAND == "help" ]; then
+    bookkeeper_help;
+else
+    exec $JAVA $OPTS $COMMAND $@
+fi
+

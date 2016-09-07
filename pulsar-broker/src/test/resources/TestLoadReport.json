@@ -1,0 +1,28 @@
+{
+    "name": "http://prod1-broker1.messaging.use.example.com:8080",
+    "isUnderloaded": false,
+    "isOverloaded": true,
+    "bundleStats": {
+        "property/cluster/namespace/0x00000000_0xFFFFFFFF": {
+            "msgThroughputOut": 510
+        }
+    },
+    "systemResourceUsage": {
+        "bandwidthIn": {
+            "usage": 100,
+            "limit": 1000
+        },
+        "bandwidthOut": {
+            "usage": 659,
+            "limit": 1000
+        },
+        "memory": {
+            "usage": 16.0,
+            "limit": 16070
+        },
+        "cpu": {
+            "usage": 160.0,
+            "limit": 1600
+        }
+    }
+}

@@ -1,0 +1,144 @@
+#!/usr/bin/env bash
+#
+# Copyright 2016 Yahoo Inc.
+# 
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+# 
+#     http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# 
+
+BINDIR=$(dirname "$0")
+PULSAR_HOME=`cd $BINDIR/..;pwd`
+
+DEFAULT_CLIENT_CONF=$PULSAR_HOME/conf/client.conf
+DEFAULT_LOG_CONF=$PULSAR_HOME/conf/log4j.properties
+
+if [ -f "$PULSAR_HOME/conf/pulsar_env.sh" ]
+then
+    . "$PULSAR_HOME/conf/pulsar_env.sh"
+fi
+
+# Check for the java to use
+if [[ -z $JAVA_HOME ]]; then
+    JAVA=$(which java)
+    if [ $? != 0 ]; then
+        echo "Error: JAVA_HOME not set, and no java executable found in $PATH." 1>&2
+        exit 1
+    fi
+else
+    JAVA=$JAVA_HOME/bin/java
+fi
+
+# exclude tests jar
+RELEASE_JAR=`ls $PULSAR_HOME/pulsar-*.jar 2> /dev/null | grep -v tests | tail -1` 
+if [ $? == 0 ]; then
+    PULSAR_JAR=$RELEASE_JAR
+fi
+
+# exclude tests jar
+BUILT_JAR=`ls $PULSAR_HOME/pulsar-testclient/target/pulsar-*.jar 2> /dev/null | grep -v tests | tail -1`
+if [ $? != 0 ] && [ ! -e "$PULSAR_JAR" ]; then 
+    echo "\nCouldn't find pulsar jar.";
+    echo "Make sure you've run 'mvn package'\n";
+    exit 1;
+elif [ -e "$BUILT_JAR" ]; then
+    PULSAR_JAR=$BUILT_JAR
+fi
+
+add_maven_deps_to_classpath() {
+    MVN="mvn"
+    if [ "$MAVEN_HOME" != "" ]; then
+	MVN=${MAVEN_HOME}/bin/mvn
+    fi
+    
+    # Need to generate classpath from maven pom. This is costly so generate it
+    # and cache it. Save the file into our target dir so a mvn clean will get
+    # clean it up and force us create a new one.
+    f="${PULSAR_HOME}/all/target/classpath.txt"
+    if [ ! -f "${f}" ]
+    then
+	${MVN} -f "${PULSAR_HOME}/pom.xml" dependency:build-classpath -Dmdep.outputFile="${f}" &> /dev/null
+    fi
+    PULSAR_CLASSPATH=${CLASSPATH}:`cat "${f}"`
+}
+pulsar_help() {
+    cat <<EOF
+Usage: pulsar <command>
+where command is one of:
+    produce             Run a producer
+    consume             Run a consumer
+    help                This help message
+
+or command is the full name of a class with a defined main() method.
+
+Environment variables:
+   PULSAR_LOG_CONF               Log4j configuration file (default $DEFAULT_LOG_CONF)
+   PULSAR_CLIENT_CONF          Configuration file for client (default: $DEFAULT_CLIENT_CONF)
+   PULSAR_EXTRA_OPTS             Extra options to be passed to the jvm
+   PULSAR_EXTRA_CLASSPATH        Add extra paths to the pulsar classpath
+
+These variable can also be set in conf/pulsar_env.sh
+EOF
+}
+
+if [ -d "$PULSAR_HOME/lib" ]; then
+	PULSAR_CLASSPATH="$PULSAR_CLASSPATH:$PULSAR_HOME/lib/*"
+else
+    add_maven_deps_to_classpath
+fi
+
+if [ -z "$PULSAR_PERFTEST_CONF" ]; then
+    PULSAR_PERFTEST_CONF=$DEFAULT_CLIENT_CONF
+fi
+
+if [ -z "$PULSAR_LOG_CONF" ]; then
+    PULSAR_LOG_CONF=$DEFAULT_LOG_CONF
+fi
+
+PULSAR_CLASSPATH="$PULSAR_JAR:$PULSAR_CLASSPATH:$PULSAR_EXTRA_CLASSPATH"
+PULSAR_CLASSPATH="`dirname $PULSAR_LOG_CONF`:$PULSAR_CLASSPATH"
+OPTS="$OPTS -Dlog4j.configuration=`basename $PULSAR_LOG_CONF`"
+
+OPTS="-cp $PULSAR_CLASSPATH $OPTS"
+OPTS="$OPTS $PULSAR_EXTRA_OPTS"
+
+# log directory & file
+PULSAR_ROOT_LOGGER=${PULSAR_ROOT_LOGGER:-"INFO,CONSOLE"}
+PULSAR_LOG_DIR=${PULSAR_LOG_DIR:-"$PULSAR_HOME/logs"}
+PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"pulsar-perftest.log"}
+
+#Configure log configuration system properties
+OPTS="$OPTS -Dpulsar.root.logger=$PULSAR_ROOT_LOGGER"
+OPTS="$OPTS -Dpulsar.log.dir=$PULSAR_LOG_DIR"
+OPTS="$OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE"
+
+#Change to PULSAR_HOME to support relative paths
+cd "$PULSAR_HOME"
+
+# if no args specified, show usage
+if [ $# = 0 ]; then
+    pulsar_help;
+    exit 1;
+fi
+
+# get arguments
+COMMAND=$1
+shift
+
+if [ "$COMMAND" == "produce" ]; then
+    exec $JAVA $OPTS com.yahoo.pulsar.testclient.PerformanceProducer --conf-file $PULSAR_PERFTEST_CONF "$@"
+elif [ "$COMMAND" == "consume" ]; then
+    exec $JAVA $OPTS com.yahoo.pulsar.testclient.PerformanceConsumer --conf-file $PULSAR_PERFTEST_CONF "$@"
+elif [ "$COMMAND" == "help" ]; then
+    pulsar_help;
+else
+    exec $JAVA $OPTS $COMMAND $PULSAR_PERFTEST_CONF "$@"
+fi
