@@ -28,6 +28,7 @@ flexible messaging model and an intuitive client API.
 * [Getting Started](docs/GettingStarted.md)
 * [Architecture](docs/Architecture.md)
 * [Documentation Index](docs/Documentation.md)
+* [Announcement post on Yahoo Eng Blog](https://yahooeng.tumblr.com/post/150078336821/open-sourcing-pulsar-pub-sub-messaging-at-scale)
 
 ## Contact
 * [Pulsar-Dev](https://groups.google.com/d/forum/pulsar-dev) for
