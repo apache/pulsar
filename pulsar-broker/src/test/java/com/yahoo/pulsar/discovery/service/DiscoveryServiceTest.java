@@ -18,7 +18,8 @@ package com.yahoo.pulsar.discovery.service;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.fail;
 
-import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 
 import javax.ws.rs.HttpMethod;
 import javax.ws.rs.client.Client;
@@ -38,7 +39,6 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import com.google.common.collect.Lists;
 import com.yahoo.pulsar.client.api.ProducerConsumerBase;
 import com.yahoo.pulsar.common.policies.data.BundlesData;
 import com.yahoo.pulsar.discovery.service.server.ServerManager;
@@ -64,22 +64,22 @@ public class DiscoveryServiceTest extends ProducerConsumerBase {
     /**
      * 1. Start : Broker and Discovery service. 2. Provide started broker server as active broker to Discovery service
      * 3. Call GET, PUT, POST request to discovery service that redirects to Broker service and receives response
-     * 
+     *
      * @throws Exception
      */
     @Test
     public void testRiderectUrlWithServerStarted() throws Exception {
-
         // 1. start server
-        List<String> resources = Lists.newArrayList(DiscoveryService.class.getPackage().getName());
-        System.setProperty("zookeeperServers", "dummy-value");
-        System.setProperty("zooKeeperSessionTimeoutMillis", "1000");
-
         int port = PortManager.nextFreePort();
         ServiceConfig config = new ServiceConfig();
         config.setWebServicePort(port);
         ServerManager server = new ServerManager(config);
-        server.start(resources);
+
+        Map<String, String> params = new TreeMap<>();
+        params.put("zookeeperServers", "dummy-value");
+        params.put("zooKeeperSessionTimeoutMillis", "1000");
+        server.addServlet("/", DiscoveryServiceServlet.class, params);
+        server.start();
 
         ZookeeperCacheLoader.availableActiveBrokers.add(super.brokerUrl.getHost() + ":" + super.brokerUrl.getPort());
 
@@ -122,7 +122,8 @@ public class DiscoveryServiceTest extends ProducerConsumerBase {
             fail();
         }
 
-        JSONObject jsonObject = new JSONObject(response.readEntity(String.class));
+        String s = response.readEntity(String.class);
+        JSONObject jsonObject = new JSONObject();
         String serviceResponse = jsonObject.getString("reason");
         return serviceResponse;
     }

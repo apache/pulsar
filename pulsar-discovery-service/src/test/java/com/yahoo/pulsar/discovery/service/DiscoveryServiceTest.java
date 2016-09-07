@@ -15,7 +15,7 @@
  */
 package com.yahoo.pulsar.discovery.service;
 
-import static com.yahoo.pulsar.discovery.service.DiscoveryService.LOADBALANCE_BROKERS_ROOT;
+import static com.yahoo.pulsar.discovery.service.ZookeeperCacheLoader.LOADBALANCE_BROKERS_ROOT;
 import static javax.ws.rs.core.Response.Status.BAD_GATEWAY;
 import static javax.ws.rs.core.Response.Status.INTERNAL_SERVER_ERROR;
 import static org.apache.bookkeeper.test.PortManager.nextFreePort;
@@ -30,19 +30,14 @@ import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.lang.reflect.Field;
 import java.net.InetAddress;
-import java.net.URI;
 import java.net.URL;
 import java.net.UnknownHostException;
-import java.security.KeyStore;
-import java.security.PrivateKey;
 import java.security.SecureRandom;
-import java.security.cert.Certificate;
 import java.util.List;
 import java.util.stream.Collectors;
 
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.KeyManager;
-import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import javax.ws.rs.HttpMethod;
@@ -64,7 +59,6 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
 import com.yahoo.pulsar.common.policies.data.BundlesData;
-import com.yahoo.pulsar.common.util.SecurityUtility;
 import com.yahoo.pulsar.discovery.service.server.DiscoveryServiceStarter;
 import com.yahoo.pulsar.discovery.service.server.ServerManager;
 import com.yahoo.pulsar.discovery.service.server.ServiceConfig;
@@ -75,7 +69,7 @@ import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
  * 1. starts discovery service a. loads broker list from zk 2. http-client calls multiple http request: GET, PUT and
  * POST. 3. discovery service redirects to appropriate brokers in round-robin 4. client receives unknown host exception
  * with redirected broker
- * 
+ *
  */
 public class DiscoveryServiceTest {
 
@@ -89,8 +83,8 @@ public class DiscoveryServiceTest {
         List<String> brokers = Lists.newArrayList("broker-1:15000", "broker-2:15000", "broker-3:15000");
         System.setProperty("zookeeperServers", "dummy-value");
 
-        DiscoveryService discovery = new DiscoveryService();
-        Field zkCacheField = DiscoveryService.class.getDeclaredField("zkCache");
+        DiscoveryServiceServlet discovery = new DiscoveryServiceServlet();
+        Field zkCacheField = DiscoveryServiceServlet.class.getDeclaredField("zkCache");
         zkCacheField.setAccessible(true);
         ZooKeeper zk = ((ZookeeperCacheLoader) zkCacheField.get(discovery)).getLocalZkCache().getZooKeeper();
 
@@ -120,17 +114,17 @@ public class DiscoveryServiceTest {
     public void testRiderectUrlWithServerStarted() throws Exception {
 
         // 1. start server
-        List<String> resources = Lists.newArrayList(DiscoveryService.class.getPackage().getName());
+        List<String> resources = Lists.newArrayList(DiscoveryServiceServlet.class.getPackage().getName());
         System.setProperty("zookeeperServers", "dummy-value");
         int port = nextFreePort();
         ServiceConfig config = new ServiceConfig();
         config.setWebServicePort(port);
         ServerManager server = new ServerManager(config);
-        server.start(resources);
+        server.start();
 
         // 2. get ZookeeperCacheLoader to add more brokers
-        DiscoveryService discovery = new DiscoveryService();
-        Field zkCacheField = DiscoveryService.class.getDeclaredField("zkCache");
+        DiscoveryServiceServlet discovery = new DiscoveryServiceServlet();
+        Field zkCacheField = DiscoveryServiceServlet.class.getDeclaredField("zkCache");
         zkCacheField.setAccessible(true);
         ZooKeeper zk = ((ZookeeperCacheLoader) zkCacheField.get(discovery)).getLocalZkCache().getZooKeeper();
 
@@ -195,9 +189,6 @@ public class DiscoveryServiceTest {
     public void testTlsEnable() throws Exception {
 
         // 1. start server with tls enable
-        final boolean allowInsecure = false;
-        List<String> resources = Lists.newArrayList(DiscoveryService.class.getPackage().getName());
-        System.setProperty("zookeeperServers", "dummy-value");
         int port = nextFreePort();
         int tlsPort = nextFreePort();
         ServiceConfig config = new ServiceConfig();
@@ -207,11 +198,11 @@ public class DiscoveryServiceTest {
         config.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         config.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
         ServerManager server = new ServerManager(config);
-        server.start(resources);
+        server.start();
 
         // 2. get ZookeeperCacheLoader to add more brokers
-        DiscoveryService discovery = new DiscoveryService();
-        Field zkCacheField = DiscoveryService.class.getDeclaredField("zkCache");
+        DiscoveryServiceServlet discovery = new DiscoveryServiceServlet();
+        Field zkCacheField = DiscoveryServiceServlet.class.getDeclaredField("zkCache");
         zkCacheField.setAccessible(true);
         ZooKeeper zk = ((ZookeeperCacheLoader) zkCacheField.get(discovery)).getLocalZkCache().getZooKeeper();
         final String redirect_broker_host = "broker-1";

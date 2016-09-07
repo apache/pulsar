@@ -15,130 +15,106 @@
  */
 package com.yahoo.pulsar.discovery.service;
 
-import java.io.IOException;
+import java.io.Closeable;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
 import org.apache.bookkeeper.util.OrderedSafeExecutor;
-import org.apache.zookeeper.KeeperException;
-import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.collect.Lists;
+import com.yahoo.pulsar.common.policies.data.loadbalancer.LoadReport;
+import com.yahoo.pulsar.common.util.ObjectMapperFactory;
 import com.yahoo.pulsar.zookeeper.LocalZooKeeperCache;
 import com.yahoo.pulsar.zookeeper.LocalZooKeeperConnectionService;
 import com.yahoo.pulsar.zookeeper.ZooKeeperCache;
-import com.yahoo.pulsar.zookeeper.ZooKeeperCacheListener;
 import com.yahoo.pulsar.zookeeper.ZooKeeperChildrenCache;
 import com.yahoo.pulsar.zookeeper.ZooKeeperClientFactory;
-import com.yahoo.pulsar.zookeeper.ZooKeeperSessionWatcher.ShutdownService;
-import com.yahoo.pulsar.zookeeper.ZookeeperClientFactoryImpl;
+import com.yahoo.pulsar.zookeeper.ZooKeeperDataCache;
 
 /**
  * Connects with ZooKeeper and sets watch to listen changes for active broker list.
- * 
+ *
  */
-public class ZookeeperCacheLoader {
+public class ZookeeperCacheLoader implements Closeable {
 
-    // Zookeeper quorum connection string
-    private String zookeeperServers;
-    // Zookeeper session timeout in milliseconds
-    private long zooKeeperSessionTimeoutMillis = 30000;
-    private ZooKeeperCache localZkCache;
-    private LocalZooKeeperConnectionService localZkConnectionSvc;
-    private ZooKeeperClientFactory zkClientFactory = null;
-    private ZooKeeperChildrenCache availableActiveBrokerCache;
-    private volatile List<String> availableActiveBrokers;
-    public static final String LOADBALANCE_BROKERS_ROOT = "/loadbalance/brokers";
+    private final ZooKeeperCache localZkCache;
+    private final LocalZooKeeperConnectionService localZkConnectionSvc;
+
+    private final ZooKeeperDataCache<LoadReport> brokerInfo;
+    private final ZooKeeperChildrenCache availableBrokersCache;
+
+    private volatile List<LoadReport> availableBrokers;
+
     private final OrderedSafeExecutor orderedExecutor = new OrderedSafeExecutor(8, "pulsar-discovery");
+
+    static final String LOADBALANCE_BROKERS_ROOT = "/loadbalance/brokers";
+
+    private static final int zooKeeperSessionTimeoutMillis = 30_000;
 
     /**
      * Initialize ZooKeeper session and creates broker cache list
-     * 
+     *
      * @param zookeeperServers
-     * @throws InterruptedException
-     *             : when failed to fetch broker list from cache
-     * @throws IOException
-     *             : when failed create ZooKeeper session
+     * @throws Exception
      */
-    public ZookeeperCacheLoader(String zookeeperServers) throws InterruptedException, IOException {
-        this.zookeeperServers = zookeeperServers;
-        start();
-    }
-
-    /**
-     * starts ZooKeeper session
-     * 
-     * @throws InterruptedException
-     *             : when failed to fetch broker list from cache
-     * @throws IOException
-     *             : when failed create zk session
-     */
-    public void start() throws InterruptedException, IOException {
-
-        localZkConnectionSvc = new LocalZooKeeperConnectionService(getZooKeeperClientFactory(), zookeeperServers,
+    public ZookeeperCacheLoader(ZooKeeperClientFactory zkClientFactory, String zookeeperServers) throws Exception {
+        localZkConnectionSvc = new LocalZooKeeperConnectionService(zkClientFactory, zookeeperServers,
                 zooKeeperSessionTimeoutMillis);
-
-        localZkConnectionSvc.start(new ShutdownService() {
-            @Override
-            public void shutdown(int exitCode) {
-                try {
-                    localZkCache.getZooKeeper().close();
-                } catch (InterruptedException e) {
-                    log.warn("Failed to shutdown ZooKeeper gracefully {}", e.getMessage(), e);
-                }
-            }
+        localZkConnectionSvc.start(exitCode -> {
+            log.error("Shutting down ZK sessions: {}", exitCode);
         });
 
         this.localZkCache = new LocalZooKeeperCache(localZkConnectionSvc.getLocalZooKeeper(), this.orderedExecutor);
-        // attach ZooKeeperChildrenCache listener
-        initializeBrokerList();
-    }
-
-    /**
-     * 1. creates ZooKeeper Children cache on path {@value LOADBALANCE_BROKERS_ROOT}, 2. sets watch on the path and 3.
-     * maintain list of available brokers at availableActiveBrokers
-     * 
-     * @throws InterruptedException
-     * @throws IOException
-     * 
-     */
-    private void initializeBrokerList() throws InterruptedException, IOException {
-        this.availableActiveBrokerCache = new ZooKeeperChildrenCache(getLocalZkCache(), LOADBALANCE_BROKERS_ROOT);
-        this.availableActiveBrokerCache.registerListener(new ZooKeeperCacheListener<Set<String>>() {
-            @Override
-            public void onUpdate(String path, Set<String> data, Stat stat) {
-                if (log.isDebugEnabled()) {
-                    log.debug("Update Received for path {}", path);
-                }
-                availableActiveBrokers = Lists.newArrayList(data);
+        localZkConnectionSvc.start(exitCode -> {
+            try {
+                localZkCache.getZooKeeper().close();
+            } catch (InterruptedException e) {
+                log.warn("Failed to shutdown ZooKeeper gracefully {}", e.getMessage(), e);
             }
         });
-        // initialize available broker list
-        try {
-            this.availableActiveBrokers = Lists.newArrayList(availableActiveBrokerCache.get());
-        } catch (KeeperException e) {
-            log.warn("Failed to find broker znode children under {}", LOADBALANCE_BROKERS_ROOT, e);
-            throw new IOException(String.format("Failed to find broker list in zk at %s with %s ",
-                    LOADBALANCE_BROKERS_ROOT, e.getMessage()), e);
-        }
+
+        this.brokerInfo = new ZooKeeperDataCache<LoadReport>(localZkCache) {
+            @Override
+            public LoadReport deserialize(String key, byte[] content) throws Exception {
+                return ObjectMapperFactory.getThreadLocal().readValue(content, LoadReport.class);
+            }
+        };
+
+        this.availableBrokersCache = new ZooKeeperChildrenCache(getLocalZkCache(), LOADBALANCE_BROKERS_ROOT);
+        this.availableBrokersCache.registerListener((path, brokerNodes, stat) -> {
+            try {
+                updateBrokerList(brokerNodes);
+            } catch (Exception e) {
+                log.warn("Error updating broker info after broker list changed.", e);
+            }
+        });
+
+        // Do initial fetch of brokers list
+        updateBrokerList(availableBrokersCache.get());
     }
 
-    private ZooKeeperClientFactory getZooKeeperClientFactory() {
-        if (zkClientFactory == null) {
-            zkClientFactory = new ZookeeperClientFactoryImpl();
-        }
-        // Return default factory
-        return zkClientFactory;
-    }
-
-    public List<String> getAvailableActiveBrokers() {
-        return this.availableActiveBrokers;
+    public List<LoadReport> getAvailableBrokers() {
+        return availableBrokers;
     }
 
     public ZooKeeperCache getLocalZkCache() {
         return localZkCache;
+    }
+
+    @Override
+    public void close() {
+        orderedExecutor.shutdown();
+    }
+
+    private void updateBrokerList(Set<String> brokerNodes) throws Exception {
+        List<LoadReport> availableBrokers = new ArrayList<>(brokerNodes.size());
+        for (String broker : brokerNodes) {
+            availableBrokers.add(brokerInfo.get(LOADBALANCE_BROKERS_ROOT + '/' + broker));
+        }
+
+        this.availableBrokers = availableBrokers;
     }
 
     private static final Logger log = LoggerFactory.getLogger(ZookeeperCacheLoader.class);
