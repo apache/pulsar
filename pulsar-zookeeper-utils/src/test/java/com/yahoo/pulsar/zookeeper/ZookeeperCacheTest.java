@@ -277,8 +277,6 @@ public class ZookeeperCacheTest {
         // seen by the cache
         zkClient.failAfter(-1, Code.OK);
         zkClient.delete("/my_test2", -1);
-        // Make sure it has not been updated yet
-        assertEquals(zkCache.get("/my_test2"), value);
         zkCacheService.process(new WatchedEvent(Event.EventType.None, KeeperState.SyncConnected, null));
         assertEquals(zkCache.get("/other"), newValue);
 
