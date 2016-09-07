@@ -1,27 +1,24 @@
 /**
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
+ * Copyright 2016 Yahoo Inc.
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package org.apache.bookkeeper.mledger.impl;
 
-import org.apache.bookkeeper.client.api.ReadHandle;
+import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
-import org.apache.commons.lang3.tuple.Pair;
+import org.apache.bookkeeper.mledger.util.Pair;
 
 /**
  * Cache of entries used by a single ManagedLedger. An EntryCache is compared to other EntryCache instances using their
@@ -36,9 +33,9 @@ public interface EntryCache extends Comparable<EntryCache> {
 
     /**
      * Insert an entry in the cache.
-     *
-     * <p/>If the overall limit have been reached, this will triggered the eviction of other entries, possibly from
-     * other EntryCache instances
+     * <p>
+     * If the overall limit have been reached, this will triggered the eviction of other entries, possibly from other
+     * EntryCache instances
      *
      * @param entry
      *            the entry to be cached
@@ -50,14 +47,12 @@ public interface EntryCache extends Comparable<EntryCache> {
      * Remove from cache all the entries related to a ledger up to lastPosition included.
      *
      * @param lastPosition
-     *            the position of the last entry to be invalidated (non-inclusive)
+     *            the position of the last entry to be invalidated (inclusive)
      */
     void invalidateEntries(PositionImpl lastPosition);
 
-    void invalidateEntriesBeforeTimestamp(long timestamp);
-
     /**
-     * Remove from the cache all the entries belonging to a specific ledger.
+     * Remove from the cache all the entries belonging to a specific ledger
      *
      * @param ledgerId
      *            the ledger id
@@ -65,7 +60,7 @@ public interface EntryCache extends Comparable<EntryCache> {
     void invalidateAllEntries(long ledgerId);
 
     /**
-     * Remove all the entries from the cache.
+     * Remove all the entries from the cache
      */
     void clear();
 
@@ -81,7 +76,7 @@ public interface EntryCache extends Comparable<EntryCache> {
     /**
      * Read entries from the cache or from bookkeeper.
      *
-     * <p/>Get the entry data either from cache or bookkeeper and mixes up the results in a single list.
+     * Get the entry data either from cache or bookkeeper and mixes up the results in a single list.
      *
      * @param lh
      *            the ledger handle
@@ -96,13 +91,13 @@ public interface EntryCache extends Comparable<EntryCache> {
      * @param ctx
      *            the context object
      */
-    void asyncReadEntry(ReadHandle lh, long firstEntry, long lastEntry, boolean isSlowestReader,
+    void asyncReadEntry(LedgerHandle lh, long firstEntry, long lastEntry, boolean isSlowestReader,
             ReadEntriesCallback callback, Object ctx);
 
     /**
      * Read entry at given position from the cache or from bookkeeper.
      *
-     * <p/>Get the entry data either from cache or bookkeeper and mixes up the results in a single list.
+     * Get the entry data either from cache or bookkeeper and mixes up the results in a single list.
      *
      * @param lh
      *            the ledger handle
@@ -113,10 +108,10 @@ public interface EntryCache extends Comparable<EntryCache> {
      * @param ctx
      *            the context object
      */
-    void asyncReadEntry(ReadHandle lh, PositionImpl position, ReadEntryCallback callback, Object ctx);
+    void asyncReadEntry(LedgerHandle lh, PositionImpl position, ReadEntryCallback callback, Object ctx);
 
     /**
-     * Get the total size in bytes of all the entries stored in this cache.
+     * Get the total size in bytes of all the entries stored in this cache
      *
      * @return the size of the entry cache
      */

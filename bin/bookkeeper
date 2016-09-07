@@ -1,21 +1,18 @@
 #!/usr/bin/env bash
 #
-# Licensed to the Apache Software Foundation (ASF) under one
-# or more contributor license agreements.  See the NOTICE file
-# distributed with this work for additional information
-# regarding copyright ownership.  The ASF licenses this file
-# to you under the Apache License, Version 2.0 (the
-# "License"); you may not use this file except in compliance
-# with the License.  You may obtain a copy of the License at
-# 
-#   http://www.apache.org/licenses/LICENSE-2.0
-# 
-# Unless required by applicable law or agreed to in writing,
-# software distributed under the License is distributed on an
-# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-# KIND, either express or implied.  See the License for the
-# specific language governing permissions and limitations
-# under the License.
+# Copyright 2016 Yahoo Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
 
 # check if net.ipv6.bindv6only is set to 1
@@ -48,10 +45,10 @@ else
 fi
 
 BINDIR=`dirname "$0"`
-BK_HOME=`cd -P $BINDIR/..;pwd`
+BK_HOME=`cd $BINDIR/..;pwd`
 
-DEFAULT_CONF=$BK_HOME/conf/bookkeper.conf
-DEFAULT_LOG_CONF=$BK_HOME/conf/log4j2.yaml
+DEFAULT_CONF=$BK_HOME/conf/bk_server.conf
+DEFAULT_LOG_CONF=$BK_HOME/conf/log4j.properties
 
 source $BK_HOME/conf/bkenv.sh
 
@@ -69,14 +66,14 @@ else
 fi
 
 # exclude tests jar
-RELEASE_JAR=`ls $BK_HOME/bookkeeper-server-*.jar 2> /dev/null | grep -v tests | tail -1`
+RELEASE_JAR=`ls $BK_HOME/bookkeeper-server-*.jar 2> /dev/null | grep -v tests | tail -1` 
 if [ $? == 0 ]; then
     BOOKIE_JAR=$RELEASE_JAR
 fi
 
 # exclude tests jar
 BUILT_JAR=`ls $BK_HOME/target/bookkeeper-server-*.jar 2> /dev/null | grep -v tests | tail -1`
-if [ $? != 0 ] && [ ! -e "$BOOKIE_JAR" ]; then
+if [ $? != 0 ] && [ ! -e "$BOOKIE_JAR" ]; then 
     echo "\nCouldn't find bookkeeper jar.";
     echo "Make sure you've run 'mvn package'\n";
     exit 1;
@@ -115,11 +112,11 @@ add_maven_deps_to_classpath() {
     if [ "$MAVEN_HOME" != "" ]; then
 	MVN=${MAVEN_HOME}/bin/mvn
     fi
-
+    
     # Need to generate classpath from maven pom. This is costly so generate it
     # and cache it. Save the file into our target dir so a mvn clean will get
     # clean it up and force us create a new one.
-    f="${BK_HOME}/distribution/server/target/classpath.txt"
+    f="${BK_HOME}/all/target/classpath.txt"
     if [ ! -f "${f}" ]
     then
 	${MVN} -f "${BK_HOME}/pom.xml" dependency:build-classpath -Dmdep.outputFile="${f}" &> /dev/null
@@ -146,7 +143,7 @@ COMMAND=$1
 shift
 
 if [ $COMMAND == "shell" ]; then
-    DEFAULT_LOG_CONF=$BK_HOME/conf/log4j2.yaml
+    DEFAULT_LOG_CONF=$BK_HOME/conf/log4j.shell.properties
 fi
 
 if [ -z "$BOOKIE_CONF" ]; then
@@ -159,7 +156,7 @@ fi
 
 BOOKIE_CLASSPATH="$BOOKIE_JAR:$BOOKIE_CLASSPATH:$BOOKIE_EXTRA_CLASSPATH"
 BOOKIE_CLASSPATH="`dirname $BOOKIE_LOG_CONF`:$BOOKIE_CLASSPATH"
-OPTS="$OPTS -Dlog4j.configurationFile=`basename $BOOKIE_LOG_CONF`"
+OPTS="$OPTS -Dlog4j.configuration=`basename $BOOKIE_LOG_CONF`"
 
 OPTS="-cp $BOOKIE_CLASSPATH $OPTS"
 
@@ -169,16 +166,14 @@ OPTS="$OPTS $BOOKIE_EXTRA_OPTS"
 OPTS="$OPTS -Djava.net.preferIPv4Stack=true"
 
 # log directory & file
-BOOKIE_LOG_APPENDER=${BOOKIE_LOG_APPENDER:-"Console"}
+BOOKIE_ROOT_LOGGER=${BOOKIE_ROOT_LOGGER:-"INFO,CONSOLE"}
 BOOKIE_LOG_DIR=${BOOKIE_LOG_DIR:-"$BK_HOME/logs"}
 BOOKIE_LOG_FILE=${BOOKIE_LOG_FILE:-"bookkeeper-server.log"}
 
 #Configure log configuration system properties
-OPTS="$OPTS -Dpulsar.log.appender=$BOOKIE_LOG_APPENDER"
-OPTS="$OPTS -Dbk.log.appender=$BOOKIE_LOG_APPENDER"
-OPTS="$OPTS -Dbk.log.level=error"
-OPTS="$OPTS -Dpulsar.log.dir=$BOOKIE_LOG_DIR"
-OPTS="$OPTS -Dpulsar.log.file=$BOOKIE_LOG_FILE"
+OPTS="$OPTS -Dbookkeeper.root.logger=$BOOKIE_ROOT_LOGGER"
+OPTS="$OPTS -Dbookkeeper.log.dir=$BOOKIE_LOG_DIR"
+OPTS="$OPTS -Dbookkeeper.log.file=$BOOKIE_LOG_FILE"
 
 #Change to BK_HOME to support relative paths
 cd "$BK_HOME"
@@ -195,8 +190,9 @@ elif [ $COMMAND == "upgrade" ]; then
 elif [ $COMMAND == "shell" ]; then
     ENTRY_FORMATTER_ARG="-DentryFormatterClass=${ENTRY_FORMATTER_CLASS:-org.apache.bookkeeper.util.StringEntryFormatter}"
     exec $JAVA $OPTS $ENTRY_FORMATTER_ARG org.apache.bookkeeper.bookie.BookieShell -conf $BOOKIE_CONF $@
-elif [ $COMMAND == "help" -o $COMMAND == "--help" -o $COMMAND == "-h" ]; then
+elif [ $COMMAND == "help" ]; then
     bookkeeper_help;
 else
     exec $JAVA $OPTS $COMMAND $@
 fi
+

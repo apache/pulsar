@@ -1,39 +1,39 @@
 /**
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
+ * Copyright 2016 Yahoo Inc.
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package org.apache.bookkeeper.mledger.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Collections.reverseOrder;
 
-import com.google.common.collect.Lists;
+import java.util.Collections;
 import java.util.List;
-import org.apache.commons.lang3.tuple.Pair;
+
+import org.apache.bookkeeper.mledger.util.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.collect.Lists;
 
 /**
  * Default eviction policy.
  *
- * <p/>This policy consider only the bigger caches for doing eviction.
+ * This policy consider only the bigger caches for doing eviction.
  *
- * <p/>The PercentOfSizeToConsiderForEviction parameter should always be bigger than the cacheEvictionWatermak,
- * otherwisethe eviction cycle will free less memory than what was required.
+ * The PercentOfSizeToConsiderForEviction parameter should always be bigger than the cacheEvictionWatermak, otherwise
+ * the eviction cycle will free less memory than what was required.
  */
 public class EntryCacheDefaultEvictionPolicy implements EntryCacheEvictionPolicy {
 
@@ -44,7 +44,7 @@ public class EntryCacheDefaultEvictionPolicy implements EntryCacheEvictionPolicy
         checkArgument(sizeToFree > 0);
         checkArgument(!caches.isEmpty());
 
-        caches.sort(reverseOrder());
+        Collections.sort(caches, reverseOrder());
 
         long totalSize = 0;
         for (EntryCache cache : caches) {
@@ -85,8 +85,8 @@ public class EntryCacheDefaultEvictionPolicy implements EntryCacheEvictionPolicy
             }
 
             Pair<Integer, Long> evicted = entryCache.evictEntries(singleCacheSizeToFree);
-            evictedEntries += evicted.getLeft();
-            evictedSize += evicted.getRight();
+            evictedEntries += evicted.first;
+            evictedSize += evicted.second;
         }
 
         log.info("Completed cache eviction. Removed {} entries from {} caches. ({} Mb)", evictedEntries,

@@ -1,21 +1,18 @@
 <!--
 
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
+    Copyright 2016 Yahoo Inc.
 
-      http://www.apache.org/licenses/LICENSE-2.0
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
 
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
 
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -23,9 +20,9 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>org.apache.pulsar</groupId>
+    <groupId>com.yahoo.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>2.7.0-SNAPSHOT</version>
+    <version>1.14</version>
     <relativePath>..</relativePath>
   </parent>
 
@@ -43,48 +40,14 @@
       <groupId>org.apache.bookkeeper</groupId>
       <artifactId>bookkeeper-server</artifactId>
     </dependency>
-
-    <dependency>
-      <groupId>org.apache.bookkeeper</groupId>
-      <artifactId>stream-storage-server</artifactId>
-      <exclusions>
-        <exclusion>
-          <groupId>io.grpc</groupId>
-          <artifactId>grpc-all</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-
-    <!-- `grpc-all` is excluded from `stream-storage-server` at root pom file -->
-    <dependency>
-      <groupId>io.grpc</groupId>
-      <artifactId>grpc-all</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>org.apache.bookkeeper.stats</groupId>
-      <artifactId>prometheus-metrics-provider</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>com.github.ben-manes.caffeine</groupId>
-      <artifactId>caffeine</artifactId>
-    </dependency>
-
+    
     <dependency>
       <groupId>org.apache.zookeeper</groupId>
       <artifactId>zookeeper</artifactId>
       <classifier>tests</classifier>
       <scope>test</scope>
     </dependency>
-
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>testmocks</artifactId>
-      <version>${project.version}</version>
-      <scope>test</scope>
-    </dependency>
-
+    
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-common</artifactId>
@@ -92,83 +55,20 @@
     </dependency>
 
     <dependency>
-      <groupId>org.aspectj</groupId>
-      <artifactId>aspectjrt</artifactId>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>managed-ledger</artifactId>
+      <version>${project.parent.version}</version>
+      <scope>test</scope>
     </dependency>
 
     <dependency>
-      <groupId>org.aspectj</groupId>
-      <artifactId>aspectjweaver</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>io.prometheus</groupId>
-      <artifactId>simpleclient_caffeine</artifactId>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>managed-ledger</artifactId>
+      <version>${project.parent.version}</version>
+      <type>test-jar</type>
+      <scope>test</scope>
     </dependency>
 
   </dependencies>
-
-  <build>
-    <plugins>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-jar-plugin</artifactId>
-        <executions>
-          <execution>
-            <goals>
-              <goal>test-jar</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
-        <groupId>com.github.m50d</groupId>
-        <artifactId>aspectj-maven-plugin</artifactId>
-        <version>${aspectj-maven-plugin.version}</version>
-        <configuration>
-          <complianceLevel>1.8</complianceLevel>
-          <source>1.8</source>
-          <target>1.8</target>
-          <showWeaveInfo>true</showWeaveInfo>
-        </configuration>
-        <executions>
-          <execution>
-            <goals>
-              <goal>compile</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
-    </plugins>
-    <pluginManagement>
-      <plugins>
-        <!--This plugin's configuration is used to store Eclipse m2e settings only. It has no influence on the Maven build itself.-->
-        <plugin>
-          <groupId>org.eclipse.m2e</groupId>
-          <artifactId>lifecycle-mapping</artifactId>
-          <version>1.0.0</version>
-          <configuration>
-            <lifecycleMappingMetadata>
-              <pluginExecutions>
-                <pluginExecution>
-                  <pluginExecutionFilter>
-                    <groupId>org.codehaus.mojo</groupId>
-                    <artifactId>aspectj-maven-plugin</artifactId>
-                    <versionRange>[1.10,)</versionRange>
-                    <goals>
-                      <goal>compile</goal>
-                    </goals>
-                  </pluginExecutionFilter>
-                  <action>
-                    <ignore></ignore>
-                  </action>
-                </pluginExecution>
-              </pluginExecutions>
-            </lifecycleMappingMetadata>
-          </configuration>
-        </plugin>
-      </plugins>
-    </pluginManagement>
-  </build>
 
 </project>

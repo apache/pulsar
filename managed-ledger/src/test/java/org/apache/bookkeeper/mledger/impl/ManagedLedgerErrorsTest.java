@@ -1,34 +1,30 @@
 /**
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
+ * Copyright 2016 Yahoo Inc.
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package org.apache.bookkeeper.mledger.impl;
 
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.fail;
 
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
+
 import org.apache.bookkeeper.client.BKException;
-import org.apache.bookkeeper.client.api.DigestType;
+import org.apache.bookkeeper.client.BookKeeper.DigestType;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
 import org.apache.bookkeeper.mledger.Entry;
@@ -42,7 +38,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.zookeeper.KeeperException.Code;
-import org.apache.zookeeper.MockZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
@@ -54,12 +49,9 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
         ManagedLedger ledger = factory.open("my_test_ledger");
         ManagedCursor c1 = ledger.openCursor("c1");
 
-        assertNotNull(zkc.exists("/managed-ledgers/my_test_ledger/c1", false));
+        assertEquals(zkc.exists("/managed-ledgers/my_test_ledger/c1", false) != null, true);
 
-        zkc.failConditional(Code.BADVERSION, (op, path) -> {
-                return op == MockZooKeeper.Op.SET
-                    && path.equals("/managed-ledgers/my_test_ledger/c1");
-            });
+        zkc.failNow(Code.BADVERSION);
 
         try {
             c1.close();
@@ -73,7 +65,7 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
         // Cursor ledger deletion will fail, but that should not prevent the deleteCursor to fail
         ledger.deleteCursor("c1");
 
-        assertNull(zkc.exists("/managed-ledgers/my_test_ledger/c1", false));
+        assertEquals(zkc.exists("/managed-ledgers/my_test_ledger/c1", false) != null, false);
         assertEquals(bkc.getLedgers().size(), 2);
     }
 
@@ -82,10 +74,7 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
         ManagedLedger ledger = factory.open("my_test_ledger");
         ledger.openCursor("c1");
 
-        zkc.failConditional(Code.CONNECTIONLOSS, (op, path) -> {
-                return op == MockZooKeeper.Op.DELETE
-                    && path.equals("/managed-ledgers/my_test_ledger/c1");
-            });
+        zkc.failNow(Code.CONNECTIONLOSS);
 
         try {
             ledger.deleteCursor("c1");
@@ -215,11 +204,7 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
 
         factory = new ManagedLedgerFactoryImpl(bkc, zkc);
 
-
-        zkc.failConditional(Code.CONNECTIONLOSS, (op, path) -> {
-                return path.equals("/managed-ledgers/my_test_ledger")
-                    && op == MockZooKeeper.Op.SET;
-            });
+        zkc.failAfter(1, Code.CONNECTIONLOSS);
 
         try {
             ledger = factory.open("my_test_ledger");
@@ -241,10 +226,7 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
 
         factory = new ManagedLedgerFactoryImpl(bkc, zkc);
 
-        zkc.failConditional(Code.CONNECTIONLOSS, (op, path) -> {
-                return path.equals("/managed-ledgers/my_test_ledger")
-                    && op == MockZooKeeper.Op.GET_CHILDREN;
-            });
+        zkc.failAfter(2, Code.CONNECTIONLOSS);
 
         try {
             ledger = factory.open("my_test_ledger");
@@ -267,10 +249,7 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
 
         factory = new ManagedLedgerFactoryImpl(bkc, zkc);
 
-        zkc.failConditional(Code.CONNECTIONLOSS, (op, path) -> {
-                return path.equals("/managed-ledgers/my_test_ledger/c1")
-                    && op == MockZooKeeper.Op.GET;
-            });
+        zkc.failAfter(3, Code.CONNECTIONLOSS);
 
         try {
             ledger = factory.open("my_test_ledger");
@@ -320,12 +299,9 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
     public void errorInUpdatingLedgersList() throws Exception {
         ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(1));
 
-        CompletableFuture<Void> promise = new CompletableFuture<>();
+        final CountDownLatch latch = new CountDownLatch(1);
 
-        zkc.failConditional(Code.CONNECTIONLOSS, (op, path) -> {
-                return path.equals("/managed-ledgers/my_test_ledger")
-                    && op == MockZooKeeper.Op.SET;
-            });
+        zkc.failAfter(0, Code.CONNECTIONLOSS);
 
         ledger.asyncAddEntry("entry".getBytes(), new AddEntryCallback() {
             public void addFailed(ManagedLedgerException exception, Object ctx) {
@@ -339,25 +315,56 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
 
         ledger.asyncAddEntry("entry".getBytes(), new AddEntryCallback() {
             public void addFailed(ManagedLedgerException exception, Object ctx) {
-                promise.complete(null);
+                latch.countDown();
             }
 
             public void addComplete(Position position, Object ctx) {
-                promise.completeExceptionally(new Exception("should have failed"));
+                fail("should have failed");
             }
         }, null);
 
-        promise.get();
+        latch.await();
+    }
+
+    @Test
+    public void recoverAfterWriteError() throws Exception {
+        ManagedLedger ledger = factory.open("my_test_ledger");
+        ManagedCursor cursor = ledger.openCursor("c1");
+
+        bkc.failNow(BKException.Code.BookieHandleNotAvailableException);
+
+        // With one single error, the write should succeed
+        ledger.addEntry("entry".getBytes());
+
+        assertEquals(cursor.getNumberOfEntriesInBacklog(), 1);
+
+        bkc.failNow(BKException.Code.BookieHandleNotAvailableException);
+        zkc.failNow(Code.CONNECTIONLOSS);
+        try {
+            ledger.addEntry("entry".getBytes());
+            fail("should fail");
+        } catch (ManagedLedgerException e) {
+            // ok
+        }
+
+        assertEquals(cursor.getNumberOfEntriesInBacklog(), 1);
+
+        // Next add will fail as well
+        try {
+            ledger.addEntry("entry".getBytes());
+            fail("should fail");
+        } catch (ManagedLedgerException e) {
+            // ok
+        }
+
+        assertEquals(cursor.getNumberOfEntriesInBacklog(), 1);
     }
 
     @Test
     public void recoverAfterZnodeVersionError() throws Exception {
         ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(1));
 
-        zkc.failConditional(Code.BADVERSION, (op, path) -> {
-                return path.equals("/managed-ledgers/my_test_ledger")
-                    && op == MockZooKeeper.Op.SET;
-            });
+        zkc.failNow(Code.BADVERSION);
 
         // First write will succeed
         ledger.addEntry("test".getBytes());
@@ -366,8 +373,7 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
             // This write will try to create a ledger and it will fail at it
             ledger.addEntry("entry".getBytes());
             fail("should fail");
-        } catch (ManagedLedgerFencedException e) {
-            assertEquals(e.getCause().getClass(), ManagedLedgerException.BadVersionException.class);
+        } catch (BadVersionException e) {
             // ok
         }
 
@@ -381,7 +387,7 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
     }
 
     @Test
-    public void recoverAfterWriteError() throws Exception {
+    public void recoverLongTimeAfterWriteError() throws Exception {
         ManagedLedger ledger = factory.open("my_test_ledger");
         ManagedCursor cursor = ledger.openCursor("c1");
 
@@ -390,14 +396,10 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
         // With one single error, the write should succeed
         ledger.addEntry("entry-1".getBytes());
 
-        assertEquals(cursor.getNumberOfEntriesInBacklog(false), 1);
+        assertEquals(cursor.getNumberOfEntriesInBacklog(), 1);
 
         bkc.failNow(BKException.Code.BookieHandleNotAvailableException);
-        zkc.failConditional(Code.CONNECTIONLOSS, (op, path) -> {
-                return path.equals("/managed-ledgers/my_test_ledger")
-                    && op == MockZooKeeper.Op.SET;
-            });
-
+        zkc.failNow(Code.CONNECTIONLOSS);
         try {
             ledger.addEntry("entry-2".getBytes());
             fail("should fail");
@@ -405,7 +407,7 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
             // ok
         }
 
-        bkc.failNow(BKException.Code.NotEnoughBookiesException);
+        Thread.sleep(ManagedLedgerImpl.WaitTimeAfterLedgerCreationFailureMs / 2);
         try {
             ledger.addEntry("entry-3".getBytes());
             fail("should fail");
@@ -413,15 +415,13 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
             // ok
         }
 
-        assertEquals(cursor.getNumberOfEntriesInBacklog(false), 1);
-
-        // Signal that ManagedLedger has recovered from write error and will be availbe for writes again
-        ledger.readyToCreateNewLedger();
+        // After some time, the managed ledger will be available for writes again
+        Thread.sleep(ManagedLedgerImpl.WaitTimeAfterLedgerCreationFailureMs / 2 + 10);
 
         // Next add should succeed, and the previous write should not appear
         ledger.addEntry("entry-4".getBytes());
 
-        assertEquals(cursor.getNumberOfEntriesInBacklog(false), 2);
+        assertEquals(cursor.getNumberOfEntriesInBacklog(), 2);
 
         List<Entry> entries = cursor.readEntries(10);
         assertEquals(entries.size(), 2);
@@ -435,8 +435,8 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("recoverLongTimeAfterMultipleWriteErrors");
         ManagedCursor cursor = ledger.openCursor("c1");
 
-        bkc.failAfter(0, BKException.Code.BookieHandleNotAvailableException);
-        bkc.failAfter(1, BKException.Code.BookieHandleNotAvailableException);
+        bkc.failNow(BKException.Code.BookieHandleNotAvailableException,
+                BKException.Code.BookieHandleNotAvailableException);
 
         CountDownLatch counter = new CountDownLatch(2);
         AtomicReference<ManagedLedgerException> ex = new AtomicReference<>();
@@ -463,7 +463,7 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
         counter.await();
         assertNull(ex.get());
 
-        assertEquals(cursor.getNumberOfEntriesInBacklog(false), 2);
+        assertEquals(cursor.getNumberOfEntriesInBacklog(), 2);
 
         // Ensure that we are only creating one new ledger
         // even when there are multiple (here, 2) add entry failed ops
@@ -486,10 +486,6 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
         Position position = ledger.addEntry("entry".getBytes());
 
         bkc.failNow(BKException.Code.BookieHandleNotAvailableException);
-        zkc.failConditional(Code.CONNECTIONLOSS, (op, path) -> {
-                return path.equals("/managed-ledgers/my_test_ledger/my-cursor")
-                    && op == MockZooKeeper.Op.SET;
-            });
 
         try {
             cursor.markDelete(position);

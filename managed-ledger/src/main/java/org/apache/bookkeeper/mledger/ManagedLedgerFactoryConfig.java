@@ -1,69 +1,53 @@
 /**
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
+ * Copyright 2016 Yahoo Inc.
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package org.apache.bookkeeper.mledger;
 
-import lombok.Data;
-
-/**
- * Configuration for a {@link ManagedLedgerFactory}.
- */
-@Data
 public class ManagedLedgerFactoryConfig {
     private static final long MB = 1024 * 1024;
 
     private long maxCacheSize = 128 * MB;
+    private double cacheEvictionWatermark = 0.90;
+
+    public long getMaxCacheSize() {
+        return maxCacheSize;
+    }
+
+    /**
+     *
+     * @param maxCacheSize
+     * @return
+     */
+    public ManagedLedgerFactoryConfig setMaxCacheSize(long maxCacheSize) {
+        this.maxCacheSize = maxCacheSize;
+        return this;
+    }
+
+    public double getCacheEvictionWatermark() {
+        return cacheEvictionWatermark;
+    }
 
     /**
      * The cache eviction watermark is the percentage of the cache size to reach when removing entries from the cache.
+     *
+     * @param cacheEvictionWatermark
+     * @return
      */
-    private double cacheEvictionWatermark = 0.90;
+    public ManagedLedgerFactoryConfig setCacheEvictionWatermark(double cacheEvictionWatermark) {
+        this.cacheEvictionWatermark = cacheEvictionWatermark;
+        return this;
+    }
 
-    private int numManagedLedgerWorkerThreads = Runtime.getRuntime().availableProcessors();
-    private int numManagedLedgerSchedulerThreads = Runtime.getRuntime().availableProcessors();
-
-    /**
-     * Frequency of cache eviction triggering. Default is 100 times per second.
-     */
-    private double cacheEvictionFrequency = 100;
-
-    /**
-     * All entries that have stayed in cache for more than the configured time, will be evicted
-     */
-    private long cacheEvictionTimeThresholdMillis = 1000;
-
-    /**
-     * Whether we should make a copy of the entry payloads when inserting in cache
-     */
-    private boolean copyEntriesInCache = false;
-
-    /**
-     * Whether trace managed ledger task execution time
-     */
-    private boolean traceTaskExecution = true;
-
-    /**
-     * Managed ledger prometheus stats Latency Rollover Seconds
-     */
-    private int prometheusStatsLatencyRolloverSeconds = 60;
-
-    /**
-     * cluster name for prometheus stats
-     */
-    private String clusterName;
 }

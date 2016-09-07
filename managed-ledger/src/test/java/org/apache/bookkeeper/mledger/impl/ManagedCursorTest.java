@@ -1,47 +1,31 @@
 /**
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
+ * Copyright 2016 Yahoo Inc.
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package org.apache.bookkeeper.mledger.impl;
 
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
-import com.google.common.base.Charsets;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Range;
-import com.google.common.collect.Sets;
-import java.lang.reflect.Field;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.BitSet;
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
@@ -51,19 +35,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Collectors;
 
-import io.netty.buffer.ByteBufAllocator;
 import org.apache.bookkeeper.client.BKException;
-import org.apache.bookkeeper.client.BookKeeper;
-import org.apache.bookkeeper.client.BookKeeper.DigestType;
-import org.apache.bookkeeper.client.LedgerEntry;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
-import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
@@ -72,36 +48,21 @@ import org.apache.bookkeeper.mledger.ManagedCursor.IndividualDeletedEntries;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
-import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.VoidCallback;
-import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
-import org.apache.pulsar.metadata.api.Stat;
-import org.apache.pulsar.common.api.proto.PulsarApi.IntRange;
-import org.apache.zookeeper.KeeperException.Code;
-import org.apache.zookeeper.MockZooKeeper;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testng.Assert;
-import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
+
+import com.google.common.base.Charsets;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 
 public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     private static final Charset Encoding = Charsets.UTF_8;
-
-    @DataProvider(name = "useOpenRangeSet")
-    public static Object[][] useOpenRangeSet() {
-        return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
-    }
-
 
     @Test(timeOut = 20000)
     void readFromEmptyLedger() throws Exception {
@@ -234,19 +195,19 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ManagedCursor c5 = ledger.openCursor("c5");
 
         assertEquals(c1.getNumberOfEntries(), 4);
-        assertTrue(c1.hasMoreEntries());
+        assertEquals(c1.hasMoreEntries(), true);
 
         assertEquals(c2.getNumberOfEntries(), 3);
-        assertTrue(c2.hasMoreEntries());
+        assertEquals(c2.hasMoreEntries(), true);
 
         assertEquals(c3.getNumberOfEntries(), 2);
-        assertTrue(c3.hasMoreEntries());
+        assertEquals(c3.hasMoreEntries(), true);
 
         assertEquals(c4.getNumberOfEntries(), 1);
-        assertTrue(c4.hasMoreEntries());
+        assertEquals(c4.hasMoreEntries(), true);
 
         assertEquals(c5.getNumberOfEntries(), 0);
-        assertFalse(c5.hasMoreEntries());
+        assertEquals(c5.hasMoreEntries(), false);
 
         List<Entry> entries = c1.readEntries(2);
         assertEquals(entries.size(), 2);
@@ -269,61 +230,31 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         Position p4 = ledger.addEntry("dummy-entry-4".getBytes(Encoding));
         ManagedCursor c5 = ledger.openCursor("c5");
 
-        assertEquals(c1.getNumberOfEntriesInBacklog(false), 4);
-        assertEquals(c2.getNumberOfEntriesInBacklog(false), 3);
-        assertEquals(c3.getNumberOfEntriesInBacklog(false), 2);
-        assertEquals(c4.getNumberOfEntriesInBacklog(false), 1);
-        assertEquals(c5.getNumberOfEntriesInBacklog(false), 0);
+        assertEquals(c1.getNumberOfEntriesInBacklog(), 4);
+        assertEquals(c2.getNumberOfEntriesInBacklog(), 3);
+        assertEquals(c3.getNumberOfEntriesInBacklog(), 2);
+        assertEquals(c4.getNumberOfEntriesInBacklog(), 1);
+        assertEquals(c5.getNumberOfEntriesInBacklog(), 0);
 
         List<Entry> entries = c1.readEntries(2);
         assertEquals(entries.size(), 2);
         entries.forEach(e -> e.release());
 
         assertEquals(c1.getNumberOfEntries(), 2);
-        assertEquals(c1.getNumberOfEntriesInBacklog(false), 4);
+        assertEquals(c1.getNumberOfEntriesInBacklog(), 4);
 
         c1.markDelete(p1);
         assertEquals(c1.getNumberOfEntries(), 2);
-        assertEquals(c1.getNumberOfEntriesInBacklog(false), 3);
+        assertEquals(c1.getNumberOfEntriesInBacklog(), 3);
 
         c1.delete(p3);
 
         assertEquals(c1.getNumberOfEntries(), 1);
-        assertEquals(c1.getNumberOfEntriesInBacklog(false), 2);
+        assertEquals(c1.getNumberOfEntriesInBacklog(), 2);
 
         c1.markDelete(p4);
         assertEquals(c1.getNumberOfEntries(), 0);
-        assertEquals(c1.getNumberOfEntriesInBacklog(false), 0);
-    }
-
-    @Test(timeOut = 20000)
-    void testNumberOfEntriesInBacklogWithFallback() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(2));
-
-        ManagedCursor c1 = ledger.openCursor("c1");
-        ledger.addEntry("dummy-entry-1".getBytes(Encoding));
-        ManagedCursor c2 = ledger.openCursor("c2");
-        ledger.addEntry("dummy-entry-2".getBytes(Encoding));
-        ManagedCursor c3 = ledger.openCursor("c3");
-        ledger.addEntry("dummy-entry-3".getBytes(Encoding));
-        ManagedCursor c4 = ledger.openCursor("c4");
-        ledger.addEntry("dummy-entry-4".getBytes(Encoding));
-        ManagedCursor c5 = ledger.openCursor("c5");
-
-        Field field = ManagedCursorImpl.class.getDeclaredField("messagesConsumedCounter");
-        field.setAccessible(true);
-        long counter = ((ManagedLedgerImpl) ledger).getEntriesAddedCounter() + 1;
-        field.setLong(c1, counter);
-        field.setLong(c2, counter);
-        field.setLong(c3, counter);
-        field.setLong(c4, counter);
-        field.setLong(c5, counter);
-
-        assertEquals(c1.getNumberOfEntriesInBacklog(false), 4);
-        assertEquals(c2.getNumberOfEntriesInBacklog(false), 3);
-        assertEquals(c3.getNumberOfEntriesInBacklog(false), 2);
-        assertEquals(c4.getNumberOfEntriesInBacklog(false), 1);
-        assertEquals(c5.getNumberOfEntriesInBacklog(false), 0);
+        assertEquals(c1.getNumberOfEntriesInBacklog(), 0);
     }
 
     @Test(timeOut = 20000)
@@ -344,13 +275,13 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         c3 = ledger.openCursor("c3");
 
         assertEquals(c1.getNumberOfEntries(), 2);
-        assertTrue(c1.hasMoreEntries());
+        assertEquals(c1.hasMoreEntries(), true);
 
         assertEquals(c2.getNumberOfEntries(), 1);
-        assertTrue(c2.hasMoreEntries());
+        assertEquals(c2.hasMoreEntries(), true);
 
         assertEquals(c3.getNumberOfEntries(), 0);
-        assertFalse(c3.hasMoreEntries());
+        assertEquals(c3.hasMoreEntries(), false);
 
         factory2.shutdown();
     }
@@ -365,7 +296,6 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         final CountDownLatch counter = new CountDownLatch(1);
 
         cursor.asyncReadEntries(100, new ReadEntriesCallback() {
-            @Override
             public void readEntriesComplete(List<Entry> entries, Object ctx) {
                 assertNull(ctx);
                 assertEquals(entries.size(), 1);
@@ -373,7 +303,6 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                 counter.countDown();
             }
 
-            @Override
             public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
                 fail(exception.getMessage());
             }
@@ -395,13 +324,11 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         stopBookKeeper();
 
         cursor.asyncReadEntries(100, new ReadEntriesCallback() {
-            @Override
             public void readEntriesComplete(List<Entry> entries, Object ctx) {
                 entries.forEach(e -> e.release());
                 counter.countDown();
             }
 
-            @Override
             public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
                 fail("async-call should not have failed");
             }
@@ -418,12 +345,10 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         final CountDownLatch counter2 = new CountDownLatch(1);
 
         cursor.asyncReadEntries(100, new ReadEntriesCallback() {
-            @Override
             public void readEntriesComplete(List<Entry> entries, Object ctx) {
                 fail("async-call should have failed");
             }
 
-            @Override
             public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
                 counter2.countDown();
             }
@@ -445,12 +370,10 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         stopBookKeeper();
 
         cursor.asyncReadEntries(0, new ReadEntriesCallback() {
-            @Override
             public void readEntriesComplete(List<Entry> entries, Object ctx) {
                 fail("async-call should have failed");
             }
 
-            @Override
             public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
                 counter.countDown();
             }
@@ -470,29 +393,11 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         stopBookKeeper();
         assertEquals(entries.size(), 1);
 
-        // Mark-delete should succeed if BK is down
-        cursor.markDelete(entries.get(0).getPosition());
-
-        entries.forEach(e -> e.release());
-    }
-
-    @Test(timeOut = 20000)
-    void markDeleteWithZKErrors() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger");
-        ManagedCursor cursor = ledger.openCursor("c1");
-        ledger.addEntry("dummy-entry-1".getBytes(Encoding));
-        List<Entry> entries = cursor.readEntries(100);
-
-        assertEquals(entries.size(), 1);
-
-        stopBookKeeper();
-        stopZooKeeper();
-
         try {
             cursor.markDelete(entries.get(0).getPosition());
-            fail("Should have failed");
-        } catch (Exception e) {
-            // Expected
+            fail("call should have failed");
+        } catch (ManagedLedgerException e) {
+            // ok
         }
 
         entries.forEach(e -> e.release());
@@ -551,78 +456,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         }
 
         assertTrue(moveStatus.get());
-        assertEquals(resetPosition, cursor.getReadPosition());
-        cursor.close();
-        ledger.close();
-    }
-
-    @Test(timeOut = 20000)
-    void testResetCursor1() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_move_cursor_ledger",
-            new ManagedLedgerConfig().setMaxEntriesPerLedger(2));
-        ManagedCursor cursor = ledger.openCursor("trc1");
-        PositionImpl actualEarliest = (PositionImpl) ledger.addEntry("dummy-entry-1".getBytes(Encoding));
-        ledger.addEntry("dummy-entry-2".getBytes(Encoding));
-        ledger.addEntry("dummy-entry-3".getBytes(Encoding));
-        PositionImpl lastInPrev = (PositionImpl) ledger.addEntry("dummy-entry-4".getBytes(Encoding));
-        PositionImpl firstInNext = (PositionImpl) ledger.addEntry("dummy-entry-5".getBytes(Encoding));
-        ledger.addEntry("dummy-entry-6".getBytes(Encoding));
-        ledger.addEntry("dummy-entry-7".getBytes(Encoding));
-        ledger.addEntry("dummy-entry-8".getBytes(Encoding));
-        ledger.addEntry("dummy-entry-9".getBytes(Encoding));
-        PositionImpl last = (PositionImpl) ledger.addEntry("dummy-entry-10".getBytes(Encoding));
-
-        final AtomicBoolean moveStatus = new AtomicBoolean(false);
-
-        // reset to earliest
-        PositionImpl earliest = PositionImpl.earliest;
-        try {
-            cursor.resetCursor(earliest);
-            moveStatus.set(true);
-        } catch (Exception e) {
-            log.warn("error in reset cursor", e.getCause());
-        }
-        assertTrue(moveStatus.get());
-        PositionImpl earliestPos = new PositionImpl(actualEarliest.getLedgerId(), -1);
-        assertEquals(earliestPos, cursor.getReadPosition());
-        moveStatus.set(false);
-
-        // reset to one after last entry in a ledger should point to the first entry in the next ledger
-        PositionImpl resetPosition = new PositionImpl(lastInPrev.getLedgerId(), lastInPrev.getEntryId() + 1);
-        try {
-            cursor.resetCursor(resetPosition);
-            moveStatus.set(true);
-        } catch (Exception e) {
-            log.warn("error in reset cursor", e.getCause());
-        }
-        assertTrue(moveStatus.get());
-        assertEquals(firstInNext, cursor.getReadPosition());
-        moveStatus.set(false);
-
-        // reset to a non exist larger ledger should point to the first non-exist entry in the last ledger
-        PositionImpl latest = new PositionImpl(last.getLedgerId() + 2, 0);
-        try {
-            cursor.resetCursor(latest);
-            moveStatus.set(true);
-        } catch (Exception e) {
-            log.warn("error in reset cursor", e.getCause());
-        }
-        assertTrue(moveStatus.get());
-        PositionImpl lastPos = new PositionImpl(last.getLedgerId(), last.getEntryId() + 1);
-        assertEquals(lastPos, cursor.getReadPosition());
-        moveStatus.set(false);
-
-        // reset to latest should point to the first non-exist entry in the last ledger
-        PositionImpl anotherLast = PositionImpl.latest;
-        try {
-            cursor.resetCursor(anotherLast);
-            moveStatus.set(true);
-        } catch (Exception e) {
-            log.warn("error in reset cursor", e.getCause());
-        }
-        assertTrue(moveStatus.get());
-        assertEquals(lastPos, cursor.getReadPosition());
-
+        assertTrue(cursor.getReadPosition().equals(resetPosition));
         cursor.close();
         ledger.close();
     }
@@ -655,7 +489,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         });
         countDownLatch.await();
         assertTrue(moveStatus.get());
-        assertEquals(resetPosition, cursor.getReadPosition());
+        assertTrue(cursor.getReadPosition().equals(resetPosition));
         cursor.close();
         ledger.close();
     }
@@ -681,7 +515,6 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
             final int idx = i;
 
             futures.add(executor.submit(new Callable<AtomicBoolean>() {
-                @Override
                 public AtomicBoolean call() throws Exception {
                     barrier.await();
 
@@ -708,7 +541,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                         }
                     });
                     countDownLatch.await();
-                    assertEquals(resetPosition, cursor.getReadPosition());
+                    assertTrue(cursor.getReadPosition().equals(resetPosition));
                     cursor.close();
 
                     return moveStatus;
@@ -815,34 +648,34 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         log.debug("p4: {}", p4);
 
         assertEquals(c1.getNumberOfEntries(), 4);
-        assertEquals(c1.getNumberOfEntriesInBacklog(false), 4);
+        assertEquals(c1.getNumberOfEntriesInBacklog(), 4);
         c1.markDelete(p1);
         assertEquals(c1.getNumberOfEntries(), 3);
-        assertEquals(c1.getNumberOfEntriesInBacklog(false), 3);
+        assertEquals(c1.getNumberOfEntriesInBacklog(), 3);
         List<Entry> entries = c1.readEntries(10);
         assertEquals(entries.size(), 3);
         entries.forEach(e -> e.release());
 
         assertEquals(c1.getNumberOfEntries(), 0);
-        assertEquals(c1.getNumberOfEntriesInBacklog(false), 3);
+        assertEquals(c1.getNumberOfEntriesInBacklog(), 3);
         c1.rewind();
         assertEquals(c1.getNumberOfEntries(), 3);
-        assertEquals(c1.getNumberOfEntriesInBacklog(false), 3);
+        assertEquals(c1.getNumberOfEntriesInBacklog(), 3);
         c1.markDelete(p2);
         assertEquals(c1.getNumberOfEntries(), 2);
-        assertEquals(c1.getNumberOfEntriesInBacklog(false), 2);
+        assertEquals(c1.getNumberOfEntriesInBacklog(), 2);
 
         entries = c1.readEntries(10);
         assertEquals(entries.size(), 2);
         entries.forEach(e -> e.release());
 
         assertEquals(c1.getNumberOfEntries(), 0);
-        assertEquals(c1.getNumberOfEntriesInBacklog(false), 2);
+        assertEquals(c1.getNumberOfEntriesInBacklog(), 2);
         c1.rewind();
         assertEquals(c1.getNumberOfEntries(), 2);
         c1.markDelete(p4);
         assertEquals(c1.getNumberOfEntries(), 0);
-        assertEquals(c1.getNumberOfEntriesInBacklog(false), 0);
+        assertEquals(c1.getNumberOfEntriesInBacklog(), 0);
         c1.rewind();
         assertEquals(c1.getNumberOfEntries(), 0);
         ledger.addEntry("dummy-entry-5".getBytes(Encoding));
@@ -863,7 +696,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertEquals(cursor.getNumberOfEntries(), 4);
 
         cursor.markDelete(p1);
-        assertTrue(cursor.hasMoreEntries());
+        assertEquals(cursor.hasMoreEntries(), true);
         assertEquals(cursor.getNumberOfEntries(), 3);
 
         assertEquals(cursor.getReadPosition(), p2);
@@ -874,7 +707,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         entries.forEach(e -> e.release());
 
         cursor.markDelete(p4);
-        assertFalse(cursor.hasMoreEntries());
+        assertEquals(cursor.hasMoreEntries(), false);
         assertEquals(cursor.getNumberOfEntries(), 0);
 
         assertEquals(cursor.getReadPosition(), new PositionImpl(p4.getLedgerId(), p4.getEntryId() + 1));
@@ -993,19 +826,15 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         final CountDownLatch latch = new CountDownLatch(N);
         for (int i = 0; i < N; i++) {
             ledger.asyncAddEntry("entry".getBytes(Encoding), new AddEntryCallback() {
-                @Override
                 public void addFailed(ManagedLedgerException exception, Object ctx) {
                 }
 
-                @Override
                 public void addComplete(Position position, Object ctx) {
                     lastPosition.set(position);
                     c1.asyncMarkDelete(position, new MarkDeleteCallback() {
-                        @Override
                         public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
                         }
 
-                        @Override
                         public void markDeleteComplete(Object ctx) {
                             latch.countDown();
                         }
@@ -1045,12 +874,10 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         final CountDownLatch latch = new CountDownLatch(N);
         for (final Position p : positions) {
             c1.asyncMarkDelete(p, new MarkDeleteCallback() {
-                @Override
                 public void markDeleteComplete(Object ctx) {
                     latch.countDown();
                 }
 
-                @Override
                 public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
                     log.error("Failed to markdelete", exception);
                     latch.countDown();
@@ -1098,24 +925,20 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         final CountDownLatch latch = new CountDownLatch(2);
         c1.asyncMarkDelete(p2, new MarkDeleteCallback() {
-            @Override
             public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
                 fail();
             }
 
-            @Override
             public void markDeleteComplete(Object ctx) {
                 latch.countDown();
             }
         }, null);
 
         c1.asyncMarkDelete(p1, new MarkDeleteCallback() {
-            @Override
             public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
                 latch.countDown();
             }
 
-            @Override
             public void markDeleteComplete(Object ctx) {
                 fail();
             }
@@ -1172,48 +995,12 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ManagedLedger ledger = factory.open("my_test_ledger");
 
         bkc.failAfter(1, BKException.Code.NotEnoughBookiesException);
-        zkc.failConditional(Code.SESSIONEXPIRED, (op, path) -> {
-                return path.equals("/managed-ledgers/my_test_ledger/c1")
-                    && op == MockZooKeeper.Op.CREATE;
-            });
-
         try {
             ledger.openCursor("c1");
             fail("should have failed");
         } catch (ManagedLedgerException e) {
             // ok
         }
-    }
-
-    @Test
-    void failDuringRecoveryWithEmptyLedger() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger");
-        ManagedCursor cursor = ledger.openCursor("cursor");
-
-        ledger.addEntry("entry-1".getBytes());
-        Position p2 = ledger.addEntry("entry-2".getBytes());
-        Position p3 = ledger.addEntry("entry-3".getBytes());
-
-        cursor.markDelete(p2);
-        // Do graceful close so snapshot is forced
-        ledger.close();
-
-        // Re-open
-        ledger = factory.open("my_test_ledger");
-        cursor = ledger.openCursor("cursor");
-        cursor.markDelete(p3);
-
-        // Force-reopen so the recovery will be forced to read from ledger
-        bkc.returnEmptyLedgerAfter(1);
-        ManagedLedgerFactoryConfig conf = new ManagedLedgerFactoryConfig();
-        ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(bkc, zkc, conf);
-        ledger = factory2.open("my_test_ledger");
-        cursor = ledger.openCursor("cursor");
-
-        // Cursor was rolled back to p2 because of the ledger recovery failure
-        assertEquals(cursor.getMarkDeletedPosition(), p2);
-
-        factory2.shutdown();
     }
 
     @Test(timeOut = 20000)
@@ -1332,26 +1119,26 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         /* Position p6 = */ledger.addEntry("entry6".getBytes());
 
         assertEquals(cursor.getNumberOfEntries(), 6);
-        assertEquals(cursor.getNumberOfEntriesInBacklog(false), 6);
+        assertEquals(cursor.getNumberOfEntriesInBacklog(), 6);
 
         List<Entry> entries = cursor.readEntries(3);
         assertEquals(entries.size(), 3);
         entries.forEach(e -> e.release());
 
         assertEquals(cursor.getNumberOfEntries(), 3);
-        assertEquals(cursor.getNumberOfEntriesInBacklog(false), 6);
+        assertEquals(cursor.getNumberOfEntriesInBacklog(), 6);
 
         log.info("Deleting {}", p5);
         cursor.delete(p5);
 
         assertEquals(cursor.getNumberOfEntries(), 2);
-        assertEquals(cursor.getNumberOfEntriesInBacklog(false), 5);
+        assertEquals(cursor.getNumberOfEntriesInBacklog(), 5);
 
         entries = cursor.readEntries(3);
         assertEquals(entries.size(), 2);
         entries.forEach(e -> e.release());
         assertEquals(cursor.getNumberOfEntries(), 0);
-        assertEquals(cursor.getNumberOfEntriesInBacklog(false), 5);
+        assertEquals(cursor.getNumberOfEntriesInBacklog(), 5);
     }
 
     @Test(timeOut = 20000)
@@ -1392,27 +1179,26 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         Position p8 = ledger.addEntry("entry8".getBytes());
 
         assertEquals(cursor.getNumberOfEntries(), 8);
-        assertEquals(cursor.getNumberOfEntriesInBacklog(false), 8);
+        assertEquals(cursor.getNumberOfEntriesInBacklog(), 8);
 
         cursor.delete(p8);
         assertEquals(cursor.getNumberOfEntries(), 7);
-        assertEquals(cursor.getNumberOfEntriesInBacklog(false), 7);
+        assertEquals(cursor.getNumberOfEntriesInBacklog(), 7);
 
         cursor.delete(p1);
         assertEquals(cursor.getNumberOfEntries(), 6);
-        assertEquals(cursor.getNumberOfEntriesInBacklog(false), 6);
+        assertEquals(cursor.getNumberOfEntriesInBacklog(), 6);
 
         cursor.delete(p7);
         cursor.delete(p6);
         cursor.delete(p5);
         assertEquals(cursor.getNumberOfEntries(), 3);
-        assertEquals(cursor.getNumberOfEntriesInBacklog(false), 3);
+        assertEquals(cursor.getNumberOfEntriesInBacklog(), 3);
     }
 
-    @Test(timeOut = 20000, dataProvider = "useOpenRangeSet")
-    void testMarkDeleteTwice(boolean useOpenRangeSet) throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig()
-                .setUnackedRangesOpenCacheSetEnabled(useOpenRangeSet).setMaxEntriesPerLedger(2));
+    @Test(timeOut = 20000)
+    void testMarkDeleteTwice() throws Exception {
+        ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(2));
         ManagedCursor cursor = ledger.openCursor("c1");
 
         Position p1 = ledger.addEntry("entry1".getBytes());
@@ -1422,10 +1208,9 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertEquals(cursor.getMarkDeletedPosition(), p1);
     }
 
-    @Test(timeOut = 20000, dataProvider = "useOpenRangeSet")
-    void testSkipEntries(boolean useOpenRangeSet) throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig()
-                .setUnackedRangesOpenCacheSetEnabled(useOpenRangeSet).setMaxEntriesPerLedger(2));
+    @Test(timeOut = 20000)
+    void testSkipEntries() throws Exception {
+        ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(2));
         Position pos;
 
         ManagedCursor c1 = ledger.openCursor("c1");
@@ -1459,15 +1244,15 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         // skip more than the current set of entries
         c1.skipEntries(10, IndividualDeletedEntries.Exclude);
         assertEquals(c1.getNumberOfEntries(), 0);
-        assertFalse(c1.hasMoreEntries());
+        assertEquals(c1.hasMoreEntries(), false);
         assertEquals(c1.getReadPosition(), pos.getNext());
         assertEquals(c1.getMarkDeletedPosition(), pos);
     }
 
-    @Test(timeOut = 20000, dataProvider = "useOpenRangeSet")
-    void testSkipEntriesWithIndividualDeletedMessages(boolean useOpenRangeSet) throws Exception {
-        ManagedLedger ledger = factory.open("testSkipEntriesWithIndividualDeletedMessages", new ManagedLedgerConfig()
-                .setUnackedRangesOpenCacheSetEnabled(useOpenRangeSet).setMaxEntriesPerLedger(5));
+    @Test(timeOut = 20000)
+    void testSkipEntriesWithIndividualDeletedMessages() throws Exception {
+        ManagedLedger ledger = factory.open("testSkipEntriesWithIndividualDeletedMessages",
+                new ManagedLedgerConfig().setMaxEntriesPerLedger(5));
         ManagedCursor c1 = ledger.openCursor("c1");
 
         Position pos1 = ledger.addEntry("dummy-entry-1".getBytes(Encoding));
@@ -1500,10 +1285,9 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertEquals(c1.getMarkDeletedPosition(), pos4);
     }
 
-    @Test(timeOut = 20000, dataProvider = "useOpenRangeSet")
-    void testClearBacklog(boolean useOpenRangeSet) throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig()
-                .setUnackedRangesOpenCacheSetEnabled(useOpenRangeSet).setMaxEntriesPerLedger(1));
+    @Test(timeOut = 20000)
+    void testClearBacklog() throws Exception {
+        ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(1));
 
         ManagedCursor c1 = ledger.openCursor("c1");
         ledger.addEntry("dummy-entry-1".getBytes(Encoding));
@@ -1512,24 +1296,24 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ManagedCursor c3 = ledger.openCursor("c3");
         ledger.addEntry("dummy-entry-3".getBytes(Encoding));
 
-        assertEquals(c1.getNumberOfEntriesInBacklog(false), 3);
+        assertEquals(c1.getNumberOfEntriesInBacklog(), 3);
         assertEquals(c1.getNumberOfEntries(), 3);
-        assertTrue(c1.hasMoreEntries());
+        assertEquals(c1.hasMoreEntries(), true);
 
         c1.clearBacklog();
         c3.clearBacklog();
 
-        assertEquals(c1.getNumberOfEntriesInBacklog(false), 0);
+        assertEquals(c1.getNumberOfEntriesInBacklog(), 0);
         assertEquals(c1.getNumberOfEntries(), 0);
-        assertFalse(c1.hasMoreEntries());
+        assertEquals(c1.hasMoreEntries(), false);
 
-        assertEquals(c2.getNumberOfEntriesInBacklog(false), 2);
+        assertEquals(c2.getNumberOfEntriesInBacklog(), 2);
         assertEquals(c2.getNumberOfEntries(), 2);
-        assertTrue(c2.hasMoreEntries());
+        assertEquals(c2.hasMoreEntries(), true);
 
-        assertEquals(c3.getNumberOfEntriesInBacklog(false), 0);
+        assertEquals(c3.getNumberOfEntriesInBacklog(), 0);
         assertEquals(c3.getNumberOfEntries(), 0);
-        assertFalse(c3.hasMoreEntries());
+        assertEquals(c3.hasMoreEntries(), false);
 
         ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
         ledger = factory2.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(1));
@@ -1538,24 +1322,24 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         c2 = ledger.openCursor("c2");
         c3 = ledger.openCursor("c3");
 
-        assertEquals(c1.getNumberOfEntriesInBacklog(false), 0);
+        assertEquals(c1.getNumberOfEntriesInBacklog(), 0);
         assertEquals(c1.getNumberOfEntries(), 0);
-        assertFalse(c1.hasMoreEntries());
+        assertEquals(c1.hasMoreEntries(), false);
 
-        assertEquals(c2.getNumberOfEntriesInBacklog(false), 2);
+        assertEquals(c2.getNumberOfEntriesInBacklog(), 2);
         assertEquals(c2.getNumberOfEntries(), 2);
-        assertTrue(c2.hasMoreEntries());
+        assertEquals(c2.hasMoreEntries(), true);
 
-        assertEquals(c3.getNumberOfEntriesInBacklog(false), 0);
+        assertEquals(c3.getNumberOfEntriesInBacklog(), 0);
         assertEquals(c3.getNumberOfEntries(), 0);
-        assertFalse(c3.hasMoreEntries());
+        assertEquals(c3.hasMoreEntries(), false);
         factory2.shutdown();
     }
 
-    @Test(timeOut = 20000, dataProvider = "useOpenRangeSet")
-    void testRateLimitMarkDelete(boolean useOpenRangeSet) throws Exception {
+    @Test(timeOut = 20000)
+    void testRateLimitMarkDelete() throws Exception {
         ManagedLedgerConfig config = new ManagedLedgerConfig();
-        config.setThrottleMarkDelete(1).setUnackedRangesOpenCacheSetEnabled(useOpenRangeSet); // Throttle to 1/s
+        config.setThrottleMarkDelete(1); // Throttle to 1/s
         ManagedLedger ledger = factory.open("my_test_ledger", config);
 
         ManagedCursor c1 = ledger.openCursor("c1");
@@ -1563,12 +1347,12 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         Position p2 = ledger.addEntry("dummy-entry-2".getBytes(Encoding));
         Position p3 = ledger.addEntry("dummy-entry-3".getBytes(Encoding));
 
-        assertEquals(c1.getNumberOfEntriesInBacklog(false), 3);
+        assertEquals(c1.getNumberOfEntriesInBacklog(), 3);
         c1.markDelete(p1);
         c1.markDelete(p2);
         c1.markDelete(p3);
 
-        assertEquals(c1.getNumberOfEntriesInBacklog(false), 0);
+        assertEquals(c1.getNumberOfEntriesInBacklog(), 0);
 
         // Re-open to recover from storage
         ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
@@ -1577,14 +1361,13 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         c1 = ledger.openCursor("c1");
 
         // Only the 1st mark-delete was persisted
-        assertEquals(c1.getNumberOfEntriesInBacklog(false), 2);
+        assertEquals(c1.getNumberOfEntriesInBacklog(), 2);
         factory2.shutdown();
     }
 
-    @Test(timeOut = 20000, dataProvider = "useOpenRangeSet")
-    void deleteSingleMessageTwice(boolean useOpenRangeSet) throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger",
-                new ManagedLedgerConfig().setUnackedRangesOpenCacheSetEnabled(useOpenRangeSet));
+    @Test(timeOut = 20000)
+    void deleteSingleMessageTwice() throws Exception {
+        ManagedLedger ledger = factory.open("my_test_ledger");
 
         ManagedCursor c1 = ledger.openCursor("c1");
 
@@ -1593,66 +1376,65 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         Position p3 = ledger.addEntry("entry-3".getBytes(Encoding));
         Position p4 = ledger.addEntry("entry-4".getBytes(Encoding));
 
-        assertEquals(c1.getNumberOfEntriesInBacklog(false), 4);
+        assertEquals(c1.getNumberOfEntriesInBacklog(), 4);
         assertEquals(c1.getNumberOfEntries(), 4);
 
         c1.delete(p1);
-        assertEquals(c1.getNumberOfEntriesInBacklog(false), 3);
+        assertEquals(c1.getNumberOfEntriesInBacklog(), 3);
         assertEquals(c1.getNumberOfEntries(), 3);
         assertEquals(c1.getMarkDeletedPosition(), p1);
         assertEquals(c1.getReadPosition(), p2);
 
         // Should have not effect since p1 is already deleted
         c1.delete(p1);
-        assertEquals(c1.getNumberOfEntriesInBacklog(false), 3);
+        assertEquals(c1.getNumberOfEntriesInBacklog(), 3);
         assertEquals(c1.getNumberOfEntries(), 3);
         assertEquals(c1.getMarkDeletedPosition(), p1);
         assertEquals(c1.getReadPosition(), p2);
 
         c1.delete(p2);
-        assertEquals(c1.getNumberOfEntriesInBacklog(false), 2);
+        assertEquals(c1.getNumberOfEntriesInBacklog(), 2);
         assertEquals(c1.getNumberOfEntries(), 2);
         assertEquals(c1.getMarkDeletedPosition(), p2);
         assertEquals(c1.getReadPosition(), p3);
 
         // Should have not effect since p2 is already deleted
         c1.delete(p2);
-        assertEquals(c1.getNumberOfEntriesInBacklog(false), 2);
+        assertEquals(c1.getNumberOfEntriesInBacklog(), 2);
         assertEquals(c1.getNumberOfEntries(), 2);
         assertEquals(c1.getMarkDeletedPosition(), p2);
         assertEquals(c1.getReadPosition(), p3);
 
         c1.delete(p3);
-        assertEquals(c1.getNumberOfEntriesInBacklog(false), 1);
+        assertEquals(c1.getNumberOfEntriesInBacklog(), 1);
         assertEquals(c1.getNumberOfEntries(), 1);
         assertEquals(c1.getMarkDeletedPosition(), p3);
         assertEquals(c1.getReadPosition(), p4);
 
         // Should have not effect since p3 is already deleted
         c1.delete(p3);
-        assertEquals(c1.getNumberOfEntriesInBacklog(false), 1);
+        assertEquals(c1.getNumberOfEntriesInBacklog(), 1);
         assertEquals(c1.getNumberOfEntries(), 1);
         assertEquals(c1.getMarkDeletedPosition(), p3);
         assertEquals(c1.getReadPosition(), p4);
 
         c1.delete(p4);
-        assertEquals(c1.getNumberOfEntriesInBacklog(false), 0);
+        assertEquals(c1.getNumberOfEntriesInBacklog(), 0);
         assertEquals(c1.getNumberOfEntries(), 0);
         assertEquals(c1.getMarkDeletedPosition(), p4);
         assertEquals(c1.getReadPosition(), p4.getNext());
 
         // Should have not effect since p4 is already deleted
         c1.delete(p4);
-        assertEquals(c1.getNumberOfEntriesInBacklog(false), 0);
+        assertEquals(c1.getNumberOfEntriesInBacklog(), 0);
         assertEquals(c1.getNumberOfEntries(), 0);
         assertEquals(c1.getMarkDeletedPosition(), p4);
         assertEquals(c1.getReadPosition(), p4.getNext());
     }
 
-    @Test(timeOut = 10000, dataProvider = "useOpenRangeSet")
-    void testReadEntriesOrWait(boolean useOpenRangeSet) throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger",
-                new ManagedLedgerConfig().setUnackedRangesOpenCacheSetEnabled(useOpenRangeSet));
+    @Test(timeOut = 10000)
+    void testReadEntriesOrWait() throws Exception {
+        ManagedLedger ledger = factory.open("my_test_ledger");
 
         final int Consumers = 10;
         final CountDownLatch counter = new CountDownLatch(Consumers);
@@ -1661,14 +1443,12 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
             ManagedCursor c = ledger.openCursor("c" + i);
 
             c.asyncReadEntriesOrWait(1, new ReadEntriesCallback() {
-                @Override
                 public void readEntriesComplete(List<Entry> entries, Object ctx) {
                     assertEquals(entries.size(), 1);
                     entries.forEach(e -> e.release());
                     counter.countDown();
                 }
 
-                @Override
                 public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
                     log.error("Error reading", exception);
                 }
@@ -1694,7 +1474,6 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
             final ManagedCursor cursor = ledger.openCursor("c" + i);
 
             futures.add(executor.submit(new Callable<Void>() {
-                @Override
                 public Void call() throws Exception {
                     barrier.await();
 
@@ -1891,8 +1670,9 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ManagedLedger ledger = factory.open("my_test_ledger");
 
         ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
-        assertNull(c1.findNewestMatching(
-            entry -> Arrays.equals(entry.getDataAndRelease(), "expired".getBytes(Encoding))));
+        assertEquals(
+                c1.findNewestMatching(entry -> Arrays.equals(entry.getDataAndRelease(), "expired".getBytes(Encoding))),
+                null);
     }
 
     @Test(timeOut = 20000)
@@ -1944,10 +1724,10 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                 p2);
     }
 
-    @Test(timeOut = 20000, dataProvider = "useOpenRangeSet")
-    void testFindNewestMatchingEdgeCase6(boolean useOpenRangeSet) throws Exception {
-        ManagedLedger ledger = factory.open("testFindNewestMatchingEdgeCase6", new ManagedLedgerConfig()
-                .setUnackedRangesOpenCacheSetEnabled(useOpenRangeSet).setMaxEntriesPerLedger(3));
+    @Test(timeOut = 20000)
+    void testFindNewestMatchingEdgeCase6() throws Exception {
+        ManagedLedger ledger = factory.open("testFindNewestMatchingEdgeCase6",
+                new ManagedLedgerConfig().setMaxEntriesPerLedger(3));
 
         ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
         ledger.addEntry("expired".getBytes(Encoding));
@@ -1963,10 +1743,9 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                 newPosition);
     }
 
-    @Test(timeOut = 20000, dataProvider = "useOpenRangeSet")
-    void testFindNewestMatchingEdgeCase7(boolean useOpenRangeSet) throws Exception {
-        ManagedLedger ledger = factory.open("testFindNewestMatchingEdgeCase7",
-                new ManagedLedgerConfig().setUnackedRangesOpenCacheSetEnabled(useOpenRangeSet));
+    @Test(timeOut = 20000)
+    void testFindNewestMatchingEdgeCase7() throws Exception {
+        ManagedLedger ledger = factory.open("testFindNewestMatchingEdgeCase7");
 
         ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
         ledger.addEntry("expired".getBytes(Encoding));
@@ -2058,10 +1837,9 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                 lastPosition);
     }
 
-    @Test(timeOut = 20000, dataProvider = "useOpenRangeSet")
-    void testIndividuallyDeletedMessages(boolean useOpenRangeSet) throws Exception {
-        ManagedLedger ledger = factory.open("testIndividuallyDeletedMessages",
-                new ManagedLedgerConfig().setUnackedRangesOpenCacheSetEnabled(useOpenRangeSet));
+    @Test(timeOut = 20000)
+    void testIndividuallyDeletedMessages() throws Exception {
+        ManagedLedger ledger = factory.open("testIndividuallyDeletedMessages");
 
         ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
         ledger.addEntry("entry-0".getBytes(Encoding));
@@ -2098,10 +1876,9 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertTrue(c1.isIndividuallyDeletedEntriesEmpty());
     }
 
-    @Test(timeOut = 20000, dataProvider = "useOpenRangeSet")
-    void testIndividuallyDeletedMessages2(boolean useOpenRangeSet) throws Exception {
-        ManagedLedger ledger = factory.open("testIndividuallyDeletedMessages2",
-                new ManagedLedgerConfig().setUnackedRangesOpenCacheSetEnabled(useOpenRangeSet));
+    @Test(timeOut = 20000)
+    void testIndividuallyDeletedMessages2() throws Exception {
+        ManagedLedger ledger = factory.open("testIndividuallyDeletedMessages2");
 
         ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
         ledger.addEntry("entry-0".getBytes(Encoding));
@@ -2119,10 +1896,9 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertTrue(c1.isIndividuallyDeletedEntriesEmpty());
     }
 
-    @Test(timeOut = 20000, dataProvider = "useOpenRangeSet")
-    void testIndividuallyDeletedMessages3(boolean useOpenRangeSet) throws Exception {
-        ManagedLedger ledger = factory.open("testIndividuallyDeletedMessages3",
-                new ManagedLedgerConfig().setUnackedRangesOpenCacheSetEnabled(useOpenRangeSet));
+    @Test(timeOut = 20000)
+    void testIndividuallyDeletedMessages3() throws Exception {
+        ManagedLedger ledger = factory.open("testIndividuallyDeletedMessages3");
 
         ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
         ledger.addEntry("entry-0".getBytes(Encoding));
@@ -2160,8 +1936,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
             }
 
             @Override
-            public void findEntryFailed(ManagedLedgerException exception, Optional<Position> failedReadPosition,
-                    Object ctx) {
+            public void findEntryFailed(ManagedLedgerException exception, Object ctx) {
                 result.exception = exception;
                 counter.countDown();
             }
@@ -2223,9 +1998,6 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         PositionImpl found = (PositionImpl) findPositionFromAllEntries(c1, timestamp);
         assertEquals(found.getLedgerId(), ledgerId);
         assertEquals(found.getEntryId(), expectedEntryId);
-
-        found = (PositionImpl) findPositionFromAllEntries(c1, 0);
-        assertNull(found);
     }
 
     @Test(timeOut = 20000)
@@ -2300,67 +2072,11 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         c1.markDelete(p2);
 
         try {
-            // as mark-delete is at position: p2 it should read entry : p3
-            assertEquals(1, c1.replayEntries(positions).size());
+            c1.replayEntries(positions);
+            fail("Should fail");
         } catch (ManagedLedgerException e) {
-            fail("Should have not failed");
+            // ok
         }
-    }
-
-    @Test(timeOut = 20000)
-    void testGetLastIndividualDeletedRange() throws Exception {
-        ManagedLedger ledger = factory.open("test_last_individual_deleted");
-
-        ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
-        PositionImpl markDeletedPosition = (PositionImpl) c1.getMarkDeletedPosition();
-        for(int i = 0; i < 10; i++) {
-            ledger.addEntry(("entry" + i).getBytes(Encoding));
-        }
-        PositionImpl p1 = PositionImpl.get(markDeletedPosition.getLedgerId() , markDeletedPosition.getEntryId() + 1);
-        PositionImpl p2 = PositionImpl.get(markDeletedPosition.getLedgerId() , markDeletedPosition.getEntryId() + 2);
-        PositionImpl p3 = PositionImpl.get(markDeletedPosition.getLedgerId() , markDeletedPosition.getEntryId() + 5);
-        PositionImpl p4 = PositionImpl.get(markDeletedPosition.getLedgerId() , markDeletedPosition.getEntryId() + 6);
-
-        c1.delete(Lists.newArrayList(p1, p2, p3, p4));
-
-        assertEquals(c1.getLastIndividualDeletedRange(), Range.openClosed(PositionImpl.get(p3.getLedgerId(),
-                p3.getEntryId() - 1), p4));
-
-        PositionImpl p5 = PositionImpl.get(markDeletedPosition.getLedgerId() , markDeletedPosition.getEntryId() + 8);
-        c1.delete(p5);
-
-        assertEquals(c1.getLastIndividualDeletedRange(), Range.openClosed(PositionImpl.get(p5.getLedgerId(),
-                p5.getEntryId() - 1), p5));
-
-    }
-
-    @Test(timeOut = 20000)
-    void testTrimDeletedEntries() throws ManagedLedgerException, InterruptedException {
-        ManagedLedger ledger = factory.open("my_test_ledger");
-
-        ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
-        PositionImpl markDeletedPosition = (PositionImpl) c1.getMarkDeletedPosition();
-        for(int i = 0; i < 10; i++) {
-            ledger.addEntry(("entry" + i).getBytes(Encoding));
-        }
-        PositionImpl p1 = PositionImpl.get(markDeletedPosition.getLedgerId() , markDeletedPosition.getEntryId() + 1);
-        PositionImpl p2 = PositionImpl.get(markDeletedPosition.getLedgerId() , markDeletedPosition.getEntryId() + 2);
-        PositionImpl p3 = PositionImpl.get(markDeletedPosition.getLedgerId() , markDeletedPosition.getEntryId() + 5);
-        PositionImpl p4 = PositionImpl.get(markDeletedPosition.getLedgerId() , markDeletedPosition.getEntryId() + 6);
-
-        c1.delete(Lists.newArrayList(p1, p2, p3, p4));
-
-        EntryImpl entry1 = EntryImpl.create(p1, ByteBufAllocator.DEFAULT.buffer(0));
-        EntryImpl entry2 = EntryImpl.create(p2, ByteBufAllocator.DEFAULT.buffer(0));
-        EntryImpl entry3 = EntryImpl.create(p3, ByteBufAllocator.DEFAULT.buffer(0));
-        EntryImpl entry4 = EntryImpl.create(p4, ByteBufAllocator.DEFAULT.buffer(0));
-        EntryImpl entry5 = EntryImpl.create(markDeletedPosition.getLedgerId() , markDeletedPosition.getEntryId() + 7,
-                ByteBufAllocator.DEFAULT.buffer(0));
-        List<Entry> entries = Lists.newArrayList(entry1, entry2, entry3, entry4, entry5);
-        c1.trimDeletedEntries(entries);
-        assertEquals(entries.size(), 1);
-        assertEquals(entries.get(0).getPosition(), PositionImpl.get(markDeletedPosition.getLedgerId() ,
-                markDeletedPosition.getEntryId() + 7));
     }
 
     @Test(timeOut = 20000)
@@ -2375,19 +2091,19 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
             positions.add(ledger.addEntry("entry".getBytes()));
         }
 
-        assertEquals(c1.getNumberOfEntriesInBacklog(false), N);
+        assertEquals(c1.getNumberOfEntriesInBacklog(), N);
 
         c1.delete(positions.get(3));
-        assertEquals(c1.getNumberOfEntriesInBacklog(false), N - 1);
+        assertEquals(c1.getNumberOfEntriesInBacklog(), N - 1);
 
         c1.delete(positions.get(2));
-        assertEquals(c1.getNumberOfEntriesInBacklog(false), N - 2);
+        assertEquals(c1.getNumberOfEntriesInBacklog(), N - 2);
 
         c1.delete(positions.get(1));
-        assertEquals(c1.getNumberOfEntriesInBacklog(false), N - 3);
+        assertEquals(c1.getNumberOfEntriesInBacklog(), N - 3);
 
         c1.delete(positions.get(0));
-        assertEquals(c1.getNumberOfEntriesInBacklog(false), N - 4);
+        assertEquals(c1.getNumberOfEntriesInBacklog(), N - 4);
     }
 
     @Test(timeOut = 20000)
@@ -2402,17 +2118,17 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
             positions.add(ledger.addEntry("entry".getBytes()));
         }
 
-        assertEquals(c1.getNumberOfEntriesInBacklog(false), N);
+        assertEquals(c1.getNumberOfEntriesInBacklog(), N);
 
         // Randomize the ack sequence
         Collections.shuffle(positions);
 
         int toDelete = N;
         for (Position p : positions) {
-            assertEquals(c1.getNumberOfEntriesInBacklog(false), toDelete);
+            assertEquals(c1.getNumberOfEntriesInBacklog(), toDelete);
             c1.delete(p);
             --toDelete;
-            assertEquals(c1.getNumberOfEntriesInBacklog(false), toDelete);
+            assertEquals(c1.getNumberOfEntriesInBacklog(), toDelete);
         }
     }
 
@@ -2453,8 +2169,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertNull(e);
 
         // check that the mark delete and read positions have not been updated after all the previous operations
-        assertEquals(c1.getMarkDeletedPosition(), new PositionImpl(currentLedger, -1));
-        assertEquals(c1.getReadPosition(), new PositionImpl(currentLedger, 4));
+        assertEquals((PositionImpl) c1.getMarkDeletedPosition(), new PositionImpl(currentLedger, -1));
+        assertEquals((PositionImpl) c1.getReadPosition(), new PositionImpl(currentLedger, 4));
 
         c1.markDelete(pos4);
         assertEquals(c1.getMarkDeletedPosition(), pos4);
@@ -2497,7 +2213,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ManagedCursor c1 = ledger.openCursor("c1");
 
         // No read request so far
-        assertFalse(c1.cancelPendingReadRequest());
+        assertEquals(c1.cancelPendingReadRequest(), false);
 
         CountDownLatch counter = new CountDownLatch(1);
 
@@ -2513,7 +2229,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
             }
         }, null);
 
-        assertTrue(c1.cancelPendingReadRequest());
+        assertEquals(c1.cancelPendingReadRequest(), true);
 
         CountDownLatch counter2 = new CountDownLatch(1);
 
@@ -2534,7 +2250,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         Thread.sleep(100);
 
         // Read operation should have already been completed
-        assertFalse(c1.cancelPendingReadRequest());
+        assertEquals(c1.cancelPendingReadRequest(), false);
 
         counter2.await();
     }
@@ -2560,659 +2276,6 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         ledger = factory.open("testReopenMultipleTimes");
         c1 = ledger.openCursor("c1");
-    }
-
-    @Test(timeOut = 20000)
-    public void testOutOfOrderDeletePersistenceWithClose() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig());
-
-        ManagedCursor c1 = ledger.openCursor("c1");
-        List<Position> addedPositions = new ArrayList<>();
-        for (int i = 0; i < 20; i++) {
-            Position p = ledger.addEntry(("dummy-entry-" + i).getBytes(Encoding));
-            addedPositions.add(p);
-        }
-
-        // Acknowledge few messages leaving holes
-        c1.delete(addedPositions.get(2));
-        c1.delete(addedPositions.get(5));
-        c1.delete(addedPositions.get(7));
-        c1.delete(addedPositions.get(8));
-        c1.delete(addedPositions.get(9));
-
-        assertEquals(c1.getNumberOfEntriesInBacklog(false), 20 - 5);
-
-        ledger.close();
-        factory.shutdown();
-
-        // Re-Open
-        factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
-        ledger = factory.open("my_test_ledger", new ManagedLedgerConfig());
-        c1 = ledger.openCursor("c1");
-        assertEquals(c1.getNumberOfEntriesInBacklog(false), 20 - 5);
-
-        List<Entry> entries = c1.readEntries(20);
-        assertEquals(entries.size(), 20 - 5);
-
-        List<String> entriesStr = entries.stream().map(e -> new String(e.getDataAndRelease(), Encoding))
-                .collect(Collectors.toList());
-        assertEquals(entriesStr.get(0), "dummy-entry-0");
-        assertEquals(entriesStr.get(1), "dummy-entry-1");
-        // Entry-2 was deleted
-        assertEquals(entriesStr.get(2), "dummy-entry-3");
-        assertEquals(entriesStr.get(3), "dummy-entry-4");
-        // Entry-6 was deleted
-        assertEquals(entriesStr.get(4), "dummy-entry-6");
-
-        assertFalse(c1.hasMoreEntries());
-    }
-
-    @Test(timeOut = 20000)
-    public void testOutOfOrderDeletePersistenceAfterCrash() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig());
-
-        ManagedCursor c1 = ledger.openCursor("c1");
-        List<Position> addedPositions = new ArrayList<>();
-        for (int i = 0; i < 20; i++) {
-            Position p = ledger.addEntry(("dummy-entry-" + i).getBytes(Encoding));
-            addedPositions.add(p);
-        }
-
-        // Acknowledge few messages leaving holes
-        c1.delete(addedPositions.get(2));
-        c1.delete(addedPositions.get(5));
-        c1.delete(addedPositions.get(7));
-        c1.delete(addedPositions.get(8));
-        c1.delete(addedPositions.get(9));
-
-        assertEquals(c1.getNumberOfEntriesInBacklog(false), 20 - 5);
-
-        // Re-Open
-        ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
-        ledger = factory2.open("my_test_ledger", new ManagedLedgerConfig());
-        c1 = ledger.openCursor("c1");
-        assertEquals(c1.getNumberOfEntriesInBacklog(false), 20 - 5);
-
-        List<Entry> entries = c1.readEntries(20);
-        assertEquals(entries.size(), 20 - 5);
-
-        List<String> entriesStr = entries.stream().map(e -> new String(e.getDataAndRelease(), Encoding))
-                .collect(Collectors.toList());
-        assertEquals(entriesStr.get(0), "dummy-entry-0");
-        assertEquals(entriesStr.get(1), "dummy-entry-1");
-        // Entry-2 was deleted
-        assertEquals(entriesStr.get(2), "dummy-entry-3");
-        assertEquals(entriesStr.get(3), "dummy-entry-4");
-        // Entry-6 was deleted
-        assertEquals(entriesStr.get(4), "dummy-entry-6");
-
-        assertFalse(c1.hasMoreEntries());
-        factory2.shutdown();
-    }
-
-    /**
-     * <pre>
-     * Verifies that {@link ManagedCursorImpl#createNewMetadataLedger()} cleans up orphan ledgers if fails to switch new
-     * ledger
-     * </pre>
-     * @throws Exception
-     */
-    @Test(timeOut=5000)
-    public void testLeakFailedLedgerOfManageCursor() throws Exception {
-
-        ManagedLedgerConfig mlConfig = new ManagedLedgerConfig();
-        ManagedLedger ledger = factory.open("my_test_ledger", mlConfig);
-
-        ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
-        CountDownLatch latch = new CountDownLatch(1);
-        c1.createNewMetadataLedger(new VoidCallback() {
-            @Override
-            public void operationComplete() {
-                latch.countDown();
-            }
-
-            @Override
-            public void operationFailed(ManagedLedgerException exception) {
-                latch.countDown();
-            }
-        });
-
-        // update cursor-info with data which makes bad-version for existing managed-cursor
-        CountDownLatch latch1 = new CountDownLatch(1);
-        String path = "/managed-ledgers/my_test_ledger/c1";
-        zkc.setData(path, "".getBytes(), -1, (rc, path1, ctx, stat) -> {
-            // updated path
-            latch1.countDown();
-        }, null);
-        latch1.await();
-
-        // try to create ledger again which will fail because managedCursorInfo znode is already updated with different
-        // version so, this call will fail with BadVersionException
-        CountDownLatch latch2 = new CountDownLatch(1);
-        // create ledger will create ledgerId = 6
-        long ledgerId = 6;
-        c1.createNewMetadataLedger(new VoidCallback() {
-            @Override
-            public void operationComplete() {
-                latch2.countDown();
-            }
-
-            @Override
-            public void operationFailed(ManagedLedgerException exception) {
-                latch2.countDown();
-            }
-        });
-
-        // Wait until operation is completed and the failed ledger should have been deleted
-        latch2.await();
-
-        try {
-            bkc.openLedgerNoRecovery(ledgerId, DigestType.fromApiDigestType(mlConfig.getDigestType()),
-                                     mlConfig.getPassword());
-            fail("ledger should have deleted due to update-cursor failure");
-        } catch (BKException e) {
-            // ok
-        }
-    }
-
-    /**
-     * Verifies cursor persists individually unack range into cursor-ledger if range count is higher than
-     * MaxUnackedRangesToPersistInZk
-     *
-     * @throws Exception
-     */
-    @Test(timeOut = 20000)
-    public void testOutOfOrderDeletePersistenceIntoLedgerWithClose() throws Exception {
-
-        final int totalAddEntries = 100;
-        String ledgerName = "my_test_ledger";
-        String cursorName = "c1";
-        ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
-        // metaStore is allowed to store only up to 10 deleted entries range
-        managedLedgerConfig.setMaxUnackedRangesToPersistInZk(10);
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(ledgerName, managedLedgerConfig);
-
-        ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor(cursorName);
-
-        List<Position> addedPositions = new ArrayList<>();
-        for (int i = 0; i < totalAddEntries; i++) {
-            Position p = ledger.addEntry(("dummy-entry-" + i).getBytes(Encoding));
-            addedPositions.add(p);
-            if (i % 2 == 0) {
-                // Acknowledge alternative message to create totalEntries/2 holes
-                c1.delete(addedPositions.get(i));
-            }
-        }
-
-        assertEquals(c1.getNumberOfEntriesInBacklog(false), totalAddEntries / 2);
-
-        // Close ledger to persist individual-deleted positions into cursor-ledger
-        ledger.close();
-
-        // verify cursor-ledgerId is updated properly into cursor-metaStore
-        CountDownLatch cursorLedgerLatch = new CountDownLatch(1);
-        AtomicLong cursorLedgerId = new AtomicLong(0);
-        ledger.getStore().asyncGetCursorInfo(ledger.getName(), cursorName, new MetaStoreCallback<ManagedCursorInfo>() {
-            @Override
-            public void operationComplete(ManagedCursorInfo result, Stat stat) {
-                cursorLedgerId.set(result.getCursorsLedgerId());
-                cursorLedgerLatch.countDown();
-            }
-
-            @Override
-            public void operationFailed(MetaStoreException e) {
-                cursorLedgerLatch.countDown();
-            }
-        });
-        cursorLedgerLatch.await();
-        assertEquals(cursorLedgerId.get(), c1.getCursorLedger());
-
-        // verify cursor-ledger's last entry has individual-deleted positions
-        final CountDownLatch latch = new CountDownLatch(1);
-        final AtomicInteger individualDeletedMessagesCount = new AtomicInteger(0);
-        bkc.asyncOpenLedger(c1.getCursorLedger(), DigestType.CRC32C, "".getBytes(), (rc, lh, ctx) -> {
-            if (rc == BKException.Code.OK) {
-                long lastEntry = lh.getLastAddConfirmed();
-                lh.asyncReadEntries(lastEntry, lastEntry, (rc1, lh1, seq, ctx1) -> {
-                    try {
-                        LedgerEntry entry = seq.nextElement();
-                        PositionInfo positionInfo;
-                        positionInfo = PositionInfo.parseFrom(entry.getEntry());
-                        individualDeletedMessagesCount.set(positionInfo.getIndividualDeletedMessagesCount());
-                    } catch (Exception e) {
-                    }
-                    latch.countDown();
-                }, null);
-            } else {
-                latch.countDown();
-            }
-        }, null);
-
-        latch.await();
-        assertEquals(individualDeletedMessagesCount.get(), totalAddEntries / 2 - 1);
-
-        // Re-Open
-        factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
-        ledger = (ManagedLedgerImpl) factory.open(ledgerName, managedLedgerConfig);
-        c1 = (ManagedCursorImpl) ledger.openCursor("c1");
-        // verify cursor has been recovered
-        assertEquals(c1.getNumberOfEntriesInBacklog(false), totalAddEntries / 2);
-
-        // try to read entries which should only read non-deleted positions
-        List<Entry> entries = c1.readEntries(totalAddEntries);
-        assertEquals(entries.size(), totalAddEntries / 2);
-    }
-
-    /**
-     * Close Cursor without MaxUnackedRangesToPersistInZK: It should store individually unack range into Zk
-     *
-     * @throws Exception
-     */
-    @Test(timeOut = 20000)
-    public void testOutOfOrderDeletePersistenceIntoZkWithClose() throws Exception {
-        final int totalAddEntries = 100;
-        String ledgerName = "my_test_ledger_zk";
-        String cursorName = "c1";
-        ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(ledgerName, managedLedgerConfig);
-
-        ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor(cursorName);
-
-        List<Position> addedPositions = new ArrayList<>();
-        for (int i = 0; i < totalAddEntries; i++) {
-            Position p = ledger.addEntry(("dummy-entry-" + i).getBytes(Encoding));
-            addedPositions.add(p);
-            if (i % 2 == 0) {
-                // Acknowledge alternative message to create totalEntries/2 holes
-                c1.delete(addedPositions.get(i));
-            }
-        }
-
-        assertEquals(c1.getNumberOfEntriesInBacklog(false), totalAddEntries / 2);
-
-        // Close ledger to persist individual-deleted positions into cursor-ledger
-        ledger.close();
-
-        // verify cursor-ledgerId is updated as -1 into cursor-metaStore
-        CountDownLatch latch = new CountDownLatch(1);
-        AtomicInteger individualDeletedMessagesCount = new AtomicInteger(0);
-        ledger.getStore().asyncGetCursorInfo(ledger.getName(), cursorName, new MetaStoreCallback<ManagedCursorInfo>() {
-            @Override
-            public void operationComplete(ManagedCursorInfo result, Stat stat) {
-                individualDeletedMessagesCount.set(result.getIndividualDeletedMessagesCount());
-                latch.countDown();
-            }
-
-            @Override
-            public void operationFailed(MetaStoreException e) {
-                latch.countDown();
-            }
-        });
-        latch.await();
-        assertEquals(individualDeletedMessagesCount.get(), totalAddEntries / 2 - 1);
-
-        // Re-Open
-        factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
-        ledger = (ManagedLedgerImpl) factory.open(ledgerName, managedLedgerConfig);
-        c1 = (ManagedCursorImpl) ledger.openCursor(cursorName);
-        // verify cursor has been recovered
-        assertEquals(c1.getNumberOfEntriesInBacklog(false), totalAddEntries / 2);
-
-        // try to read entries which should only read non-deleted positions
-        List<Entry> entries = c1.readEntries(totalAddEntries);
-        assertEquals(entries.size(), totalAddEntries / 2);
-    }
-
-    @Test
-    public void testInvalidMarkDelete() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig());
-
-        ManagedCursor cursor = ledger.openCursor("c1");
-        Position readPosition = cursor.getReadPosition();
-        Position markDeletePosition = cursor.getMarkDeletedPosition();
-
-        List<Position> addedPositions = new ArrayList<>();
-        for (int i = 0; i < 20; i++) {
-            Position p = ledger.addEntry(("dummy-entry-" + i).getBytes(Encoding));
-            addedPositions.add(p);
-        }
-
-        // validate: cursor.asyncMarkDelete(..)
-        CountDownLatch markDeleteCallbackLatch = new CountDownLatch(1);
-        Position position = PositionImpl.get(100, 100);
-        AtomicBoolean markDeleteCallFailed = new AtomicBoolean(false);
-        cursor.asyncMarkDelete(position, new MarkDeleteCallback() {
-            @Override
-            public void markDeleteComplete(Object ctx) {
-                markDeleteCallbackLatch.countDown();
-            }
-
-            @Override
-            public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
-                markDeleteCallFailed.set(true);
-                markDeleteCallbackLatch.countDown();
-            }
-        }, null);
-        markDeleteCallbackLatch.await();
-        assertEquals(readPosition, cursor.getReadPosition());
-        assertEquals(markDeletePosition, cursor.getMarkDeletedPosition());
-
-        // validate : cursor.asyncDelete(..)
-        CountDownLatch deleteCallbackLatch = new CountDownLatch(1);
-        markDeleteCallFailed.set(false);
-        cursor.asyncDelete(position, new DeleteCallback() {
-            @Override
-            public void deleteComplete(Object ctx) {
-                deleteCallbackLatch.countDown();
-            }
-
-            @Override
-            public void deleteFailed(ManagedLedgerException exception, Object ctx) {
-                markDeleteCallFailed.set(true);
-                deleteCallbackLatch.countDown();
-            }
-        }, null);
-
-        deleteCallbackLatch.await();
-        assertEquals(readPosition, cursor.getReadPosition());
-        assertEquals(markDeletePosition, cursor.getMarkDeletedPosition());
-    }
-
-    @Test
-    public void testEstimatedUnackedSize() throws Exception {
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
-        config.setMaxEntriesPerLedger(10);
-        ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig());
-
-        ManagedCursor cursor = ledger.openCursor("c1");
-
-        byte[] entryData = new byte[5];
-
-        // write 15 entries, saving position of 5th
-        for (int i = 0; i < 4; i++) { ledger.addEntry(entryData); }
-        Position deleteAt = ledger.addEntry(entryData);
-        for (int i = 0; i < 10; i++) { ledger.addEntry(entryData); }
-
-        assertEquals(cursor.getEstimatedSizeSinceMarkDeletePosition(), 15 * entryData.length);
-
-        cursor.markDelete(deleteAt);
-
-        // it's not an estimate if all entries are the same size
-        assertEquals(cursor.getEstimatedSizeSinceMarkDeletePosition(), 10 * entryData.length);
-    }
-
-    @Test(timeOut = 20000)
-    public void testRecoverCursorAheadOfLastPosition() throws Exception {
-        final String mlName = "my_test_ledger";
-        final PositionImpl lastPosition = new PositionImpl(1L, 10L);
-        final PositionImpl nextPosition = new PositionImpl(3L, -1L);
-
-        final String cursorName = "my_test_cursor";
-        final long cursorsLedgerId = -1L;
-        final long markDeleteLedgerId = 2L;
-        final long markDeleteEntryId = -1L;
-
-        MetaStore mockMetaStore = mock(MetaStore.class);
-        doAnswer(new Answer<Object>() {
-            public Object answer(InvocationOnMock invocation) {
-                ManagedCursorInfo info = ManagedCursorInfo.newBuilder().setCursorsLedgerId(cursorsLedgerId)
-                        .setMarkDeleteLedgerId(markDeleteLedgerId).setMarkDeleteEntryId(markDeleteEntryId)
-                        .setLastActive(0L).build();
-                Stat stat = mock(Stat.class);
-                MetaStoreCallback<ManagedCursorInfo> callback = (MetaStoreCallback<ManagedCursorInfo>) invocation
-                        .getArguments()[2];
-                callback.operationComplete(info, stat);
-                return null;
-            }
-        }).when(mockMetaStore).asyncGetCursorInfo(eq(mlName), eq(cursorName), any(MetaStoreCallback.class));
-
-        ManagedLedgerImpl ml = mock(ManagedLedgerImpl.class);
-        when(ml.getName()).thenReturn(mlName);
-        when(ml.getStore()).thenReturn(mockMetaStore);
-        when(ml.getLastPosition()).thenReturn(lastPosition);
-        when(ml.getNextValidLedger(markDeleteLedgerId)).thenReturn(3L);
-        when(ml.getNextValidPosition(lastPosition)).thenReturn(nextPosition);
-        when(ml.ledgerExists(markDeleteLedgerId)).thenReturn(false);
-
-        BookKeeper mockBookKeeper = mock(BookKeeper.class);
-        final ManagedCursorImpl cursor = new ManagedCursorImpl(mockBookKeeper, new ManagedLedgerConfig(), ml,
-                cursorName);
-
-        cursor.recover(new VoidCallback() {
-            @Override
-            public void operationComplete() {
-                assertEquals(cursor.getMarkDeletedPosition(), lastPosition);
-                assertEquals(cursor.getReadPosition(), nextPosition);
-                assertEquals(cursor.getNumberOfEntries(), 0L);
-            }
-
-            @Override
-            public void operationFailed(ManagedLedgerException exception) {
-                fail("Cursor recovery should not fail");
-            }
-        });
-    }
-
-    @Test
-    void testAlwaysInactive() throws Exception {
-        ManagedLedger ml = factory.open("testAlwaysInactive");
-        ManagedCursor cursor = ml.openCursor("c1");
-
-        assertTrue(cursor.isActive());
-
-        cursor.setAlwaysInactive();
-
-        assertFalse(cursor.isActive());
-
-        cursor.setActive();
-        assertFalse(cursor.isActive());
-    }
-
-    @Test
-    void testNonDurableCursorActive() throws Exception {
-        ManagedLedger ml = factory.open("testInactive");
-        ManagedCursor cursor = ml.newNonDurableCursor(PositionImpl.latest, "c1");
-
-        assertTrue(cursor.isActive());
-
-        cursor.setInactive();
-        assertFalse(cursor.isActive());
-    }
-
-    @Test
-    public void deleteMessagesCheckhMarkDelete() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger");
-        ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
-        final int totalEntries = 1000;
-        final Position[] positions = new Position[totalEntries];
-        for (int i = 0; i < totalEntries; i++) {
-            // add entry
-            positions[i] = ledger.addEntry(("entry-" + i).getBytes(Encoding));
-        }
-        assertEquals(c1.getNumberOfEntries(), totalEntries);
-        int totalDeletedMessages = 0;
-        for (int i = 0; i < totalEntries; i++) {
-            // delete entry
-            if ((i % 3) == 0) {
-                c1.delete(positions[i]);
-                totalDeletedMessages += 1;
-            }
-        }
-        assertEquals(c1.getNumberOfEntriesInBacklog(false), totalEntries - totalDeletedMessages);
-        assertEquals(c1.getNumberOfEntries(), totalEntries - totalDeletedMessages);
-        assertEquals(c1.getMarkDeletedPosition(), positions[0]);
-        assertEquals(c1.getReadPosition(), positions[1]);
-
-        // delete 1/2 of the messags
-        for (int i = 0; i < totalEntries / 2; i++) {
-            // delete entry
-            if ((i % 3) != 0) {
-                c1.delete(positions[i]);
-                totalDeletedMessages += 1;
-            }
-        }
-        int markDelete = totalEntries / 2 - 1;
-        assertEquals(c1.getNumberOfEntriesInBacklog(false), totalEntries - totalDeletedMessages);
-        assertEquals(c1.getNumberOfEntries(), totalEntries - totalDeletedMessages);
-        assertEquals(c1.getMarkDeletedPosition(), positions[markDelete]);
-        assertEquals(c1.getReadPosition(), positions[markDelete + 1]);
-    }
-
-    @Test
-    public void testBatchIndexDelete() throws ManagedLedgerException, InterruptedException {
-        ManagedLedger ledger = factory.open("test_batch_index_delete");
-        ManagedCursor cursor = ledger.openCursor("c1");
-
-        final int totalEntries = 100;
-        final Position[] positions = new Position[totalEntries];
-        for (int i = 0; i < totalEntries; i++) {
-            // add entry
-            positions[i] = ledger.addEntry(("entry-" + i).getBytes(Encoding));
-        }
-        assertEquals(cursor.getNumberOfEntries(), totalEntries);
-        deleteBatchIndex(cursor, positions[0], 10, Lists.newArrayList(IntRange.newBuilder().setStart(2).setEnd(4).build()));
-        List<IntRange> deletedIndexes = getAckedIndexRange(cursor.getDeletedBatchIndexesAsLongArray((PositionImpl) positions[0]), 10);
-        Assert.assertEquals(1, deletedIndexes.size());
-        Assert.assertEquals(2, deletedIndexes.get(0).getStart());
-        Assert.assertEquals(4, deletedIndexes.get(0).getEnd());
-
-        deleteBatchIndex(cursor, positions[0], 10, Lists.newArrayList(IntRange.newBuilder().setStart(3).setEnd(8).build()));
-        deletedIndexes = getAckedIndexRange(cursor.getDeletedBatchIndexesAsLongArray((PositionImpl) positions[0]), 10);
-        Assert.assertEquals(1, deletedIndexes.size());
-        Assert.assertEquals(2, deletedIndexes.get(0).getStart());
-        Assert.assertEquals(8, deletedIndexes.get(0).getEnd());
-
-        deleteBatchIndex(cursor, positions[0], 10, Lists.newArrayList(IntRange.newBuilder().setStart(0).setEnd(0).build()));
-        deletedIndexes = getAckedIndexRange(cursor.getDeletedBatchIndexesAsLongArray((PositionImpl) positions[0]), 10);
-        Assert.assertEquals(2, deletedIndexes.size());
-        Assert.assertEquals(0, deletedIndexes.get(0).getStart());
-        Assert.assertEquals(0, deletedIndexes.get(0).getEnd());
-        Assert.assertEquals(2, deletedIndexes.get(1).getStart());
-        Assert.assertEquals(8, deletedIndexes.get(1).getEnd());
-
-        deleteBatchIndex(cursor, positions[0], 10, Lists.newArrayList(IntRange.newBuilder().setStart(1).setEnd(1).build()));
-        deleteBatchIndex(cursor, positions[0], 10, Lists.newArrayList(IntRange.newBuilder().setStart(9).setEnd(9).build()));
-        deletedIndexes = getAckedIndexRange(cursor.getDeletedBatchIndexesAsLongArray((PositionImpl) positions[0]), 10);
-        Assert.assertNull(deletedIndexes);
-        Assert.assertEquals(positions[0], cursor.getMarkDeletedPosition());
-
-        deleteBatchIndex(cursor, positions[1], 10, Lists.newArrayList(IntRange.newBuilder().setStart(0).setEnd(5).build()));
-        cursor.delete(positions[1]);
-        deleteBatchIndex(cursor, positions[1], 10, Lists.newArrayList(IntRange.newBuilder().setStart(6).setEnd(8).build()));
-        deletedIndexes = getAckedIndexRange(cursor.getDeletedBatchIndexesAsLongArray((PositionImpl) positions[1]), 10);
-        Assert.assertNull(deletedIndexes);
-
-        deleteBatchIndex(cursor, positions[2], 10, Lists.newArrayList(IntRange.newBuilder().setStart(0).setEnd(5).build()));
-        cursor.markDelete(positions[3]);
-        deletedIndexes = getAckedIndexRange(cursor.getDeletedBatchIndexesAsLongArray((PositionImpl) positions[2]), 10);
-        Assert.assertNull(deletedIndexes);
-
-        deleteBatchIndex(cursor, positions[3], 10, Lists.newArrayList(IntRange.newBuilder().setStart(0).setEnd(5).build()));
-        cursor.resetCursor(positions[0]);
-        deletedIndexes = getAckedIndexRange(cursor.getDeletedBatchIndexesAsLongArray((PositionImpl) positions[3]), 10);
-        Assert.assertNull(deletedIndexes);
-    }
-
-    @Test
-    public void testBatchIndexesDeletionPersistAndRecover() throws ManagedLedgerException, InterruptedException {
-        ManagedLedger ledger = factory.open("test_batch_indexes_deletion_persistent");
-        ManagedCursor cursor = ledger.openCursor("c1");
-
-        final int totalEntries = 100;
-        final Position[] positions = new Position[totalEntries];
-        for (int i = 0; i < totalEntries; i++) {
-            // add entry
-            positions[i] = ledger.addEntry(("entry-" + i).getBytes(Encoding));
-        }
-        assertEquals(cursor.getNumberOfEntries(), totalEntries);
-        deleteBatchIndex(cursor, positions[5], 10, Lists.newArrayList(IntRange.newBuilder().setStart(3).setEnd(6).build()));
-        deleteBatchIndex(cursor, positions[0], 10, Lists.newArrayList(IntRange.newBuilder().setStart(0).setEnd(9).build()));
-        deleteBatchIndex(cursor, positions[1], 10, Lists.newArrayList(IntRange.newBuilder().setStart(0).setEnd(9).build()));
-        deleteBatchIndex(cursor, positions[2], 10, Lists.newArrayList(IntRange.newBuilder().setStart(0).setEnd(9).build()));
-        deleteBatchIndex(cursor, positions[3], 10, Lists.newArrayList(IntRange.newBuilder().setStart(0).setEnd(9).build()));
-        deleteBatchIndex(cursor, positions[4], 10, Lists.newArrayList(IntRange.newBuilder().setStart(0).setEnd(9).build()));
-
-        ledger = factory.open("test_batch_indexes_deletion_persistent");
-        cursor = ledger.openCursor("c1");
-        List<IntRange> deletedIndexes = getAckedIndexRange(cursor.getDeletedBatchIndexesAsLongArray((PositionImpl) positions[5]), 10);
-        Assert.assertEquals(deletedIndexes.size(), 1);
-        Assert.assertEquals(deletedIndexes.get(0).getStart(), 3);
-        Assert.assertEquals(deletedIndexes.get(0).getEnd(), 6);
-        Assert.assertEquals(cursor.getMarkDeletedPosition(), positions[4]);
-        deleteBatchIndex(cursor, positions[5], 10, Lists.newArrayList(IntRange.newBuilder().setStart(0).setEnd(9).build()));
-        deletedIndexes = getAckedIndexRange(cursor.getDeletedBatchIndexesAsLongArray((PositionImpl) positions[5]), 10);
-        Assert.assertNull(deletedIndexes);
-        Assert.assertEquals(cursor.getMarkDeletedPosition(), positions[5]);
-    }
-
-    private void deleteBatchIndex(ManagedCursor cursor, Position position, int batchSize,
-                                  List<IntRange> deleteIndexes) throws InterruptedException {
-        CountDownLatch latch = new CountDownLatch(1);
-        PositionImpl pos = (PositionImpl) position;
-        BitSet bitSet = new BitSet(batchSize);
-        bitSet.set(0, batchSize);
-        deleteIndexes.forEach(intRange -> {
-            bitSet.clear(intRange.getStart(), intRange.getEnd() + 1);
-        });
-        pos.ackSet = bitSet.toLongArray();
-
-        cursor.asyncDelete(pos,
-            new DeleteCallback() {
-                @Override
-                public void deleteComplete(Object ctx) {
-                    latch.countDown();
-                }
-
-                @Override
-                public void deleteFailed(ManagedLedgerException exception, Object ctx) {
-                    latch.countDown();
-                }
-            }, null);
-        latch.await();
-        pos.ackSet = null;
-    }
-
-    private List<IntRange> getAckedIndexRange(long[] bitSetLongArray, int batchSize) {
-        if (bitSetLongArray == null) {
-            return null;
-        }
-        List<IntRange> result = new ArrayList<>();
-        BitSet bitSet = BitSet.valueOf(bitSetLongArray);
-        int nextClearBit = bitSet.nextClearBit(0);
-        IntRange.Builder builder = IntRange.newBuilder();
-        while (nextClearBit != -1 && nextClearBit <= batchSize) {
-            int nextSetBit = bitSet.nextSetBit(nextClearBit);
-            if (nextSetBit == -1) {
-                break;
-            }
-            result.add(builder.setStart(nextClearBit).setEnd(nextSetBit - 1).build());
-            nextClearBit = bitSet.nextClearBit(nextSetBit);
-        }
-        return result;
-    }
-  
-    void testReadEntriesOrWaitWithMaxSize() throws Exception {
-        ManagedLedger ledger = factory.open("testReadEntriesOrWaitWithMaxSize");
-        ManagedCursor c = ledger.openCursor("c");
-
-        for (int i = 0; i < 20; i++) {
-            ledger.addEntry(new byte[1024]);
-        }
-
-        // First time, since we don't have info, we'll get 1 single entry
-        List<Entry> entries = c.readEntriesOrWait(10, 3 * 1024);
-        assertEquals(entries.size(), 1);
-        entries.forEach(e -> e.release());
-
-        // We should only return 3 entries, based on the max size
-        entries = c.readEntriesOrWait(10, 3 * 1024);
-        assertEquals(entries.size(), 3);
-        entries.forEach(e -> e.release());
-
-        // If maxSize is < avg, we should get 1 entry
-        entries = c.readEntriesOrWait(10, 5);
-        assertEquals(entries.size(), 1);
-        entries.forEach(e -> e.release());
     }
 
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorTest.class);

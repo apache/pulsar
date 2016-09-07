@@ -1,27 +1,24 @@
 /**
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
+ * Copyright 2016 Yahoo Inc.
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package org.apache.bookkeeper.mledger;
 
 import com.google.common.annotations.Beta;
 
+@SuppressWarnings("serial")
 @Beta
-@SuppressWarnings({"serial", "checkstyle:javadoctype"})
 public class ManagedLedgerException extends Exception {
     public ManagedLedgerException(String msg) {
         super(msg);
@@ -31,20 +28,9 @@ public class ManagedLedgerException extends Exception {
         super(e);
     }
 
-    public static ManagedLedgerException getManagedLedgerException(Throwable e) {
-        if (e instanceof ManagedLedgerException) {
-            return (ManagedLedgerException) e;
-        }
-        return new ManagedLedgerException(e);
-    }
-
     public static class MetaStoreException extends ManagedLedgerException {
-        public MetaStoreException(Throwable t) {
-            super(t);
-        }
-
-        public MetaStoreException(String msg) {
-            super(msg);
+        public MetaStoreException(Exception e) {
+            super(e);
         }
     }
 
@@ -52,22 +38,7 @@ public class ManagedLedgerException extends Exception {
         public BadVersionException(Exception e) {
             super(e);
         }
-
-        public BadVersionException(String msg) {
-            super(msg);
-        }
     }
-
-    public static class MetadataNotFoundException extends MetaStoreException {
-        public MetadataNotFoundException(Exception e) {
-            super(e);
-        }
-
-        public MetadataNotFoundException(String msg) {
-            super(msg);
-        }
-    }
-
 
     public static class ManagedLedgerFencedException extends ManagedLedgerException {
         public ManagedLedgerFencedException() {
@@ -79,48 +50,15 @@ public class ManagedLedgerException extends Exception {
         }
     }
 
-    public static class ManagedLedgerNotFoundException extends ManagedLedgerException {
-        public ManagedLedgerNotFoundException(Exception e) {
-            super(e);
-        }
-
-        public ManagedLedgerNotFoundException(String message) {
-            super(message);
-        }
-    }
-
-    public static class ManagedLedgerTerminatedException extends ManagedLedgerException {
-        public ManagedLedgerTerminatedException(String msg) {
-            super(msg);
-        }
-    }
-
-    public static class NoMoreEntriesToReadException extends ManagedLedgerException {
-        public NoMoreEntriesToReadException(String msg) {
-            super(msg);
-        }
-    }
-
     public static class InvalidCursorPositionException extends ManagedLedgerException {
         public InvalidCursorPositionException(String msg) {
             super(msg);
         }
+
     }
 
     public static class ConcurrentFindCursorPositionException extends ManagedLedgerException {
         public ConcurrentFindCursorPositionException(String msg) {
-            super(msg);
-        }
-    }
-
-    public static class ManagedLedgerAlreadyClosedException extends ManagedLedgerException {
-        public ManagedLedgerAlreadyClosedException(String msg) {
-            super(msg);
-        }
-    }
-
-    public static class CursorAlreadyClosedException extends ManagedLedgerException {
-        public CursorAlreadyClosedException(String msg) {
             super(msg);
         }
     }
@@ -131,20 +69,8 @@ public class ManagedLedgerException extends Exception {
         }
     }
 
-    public static class NonRecoverableLedgerException extends ManagedLedgerException {
-        public NonRecoverableLedgerException(String msg) {
-            super(msg);
-        }
-    }
-
     public static class InvalidReplayPositionException extends ManagedLedgerException {
         public InvalidReplayPositionException(String msg) {
-            super(msg);
-        }
-    }
-
-    public static class OffloadInProgressException extends ManagedLedgerException {
-        public OffloadInProgressException(String msg) {
             super(msg);
         }
     }

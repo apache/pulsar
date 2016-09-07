@@ -1,37 +1,28 @@
 /**
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
+ * Copyright 2016 Yahoo Inc.
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package org.apache.bookkeeper.mledger.impl;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
-import com.google.common.base.Predicate;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Range;
-import com.google.common.collect.Sets;
-import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
+
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
@@ -41,12 +32,14 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.SkipEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
-import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.pulsar.common.api.proto.PulsarApi.IntRange;
 import org.testng.annotations.Test;
 
+import com.google.common.base.Predicate;
+import com.google.common.collect.Lists;
+
+@Test
 public class ManagedCursorContainerTest {
 
     private static class MockManagedCursor implements ManagedCursor {
@@ -59,16 +52,6 @@ public class ManagedCursorContainerTest {
             this.container = container;
             this.name = name;
             this.position = position;
-        }
-
-        @Override
-        public Map<String, Long> getProperties() {
-            return Collections.emptyMap();
-        }
-
-        @Override
-        public boolean isDurable() {
-            return true;
         }
 
         @Override
@@ -92,29 +75,18 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
-        public long getNumberOfEntriesInBacklog(boolean isPrecise) {
+        public long getNumberOfEntriesInBacklog() {
             return 0;
         }
 
         @Override
         public void markDelete(Position position) throws ManagedLedgerException {
-            markDelete(position, Collections.emptyMap());
-        }
-
-        @Override
-        public void markDelete(Position position, Map<String, Long> properties) throws ManagedLedgerException {
             this.position = position;
             container.cursorUpdated(this, (PositionImpl) position);
         }
 
         @Override
         public void asyncMarkDelete(Position position, MarkDeleteCallback callback, Object ctx) {
-            fail();
-        }
-
-        @Override
-        public void asyncMarkDelete(Position position, Map<String, Long> properties, MarkDeleteCallback callback,
-                Object ctx) {
             fail();
         }
 
@@ -126,16 +98,6 @@ public class ManagedCursorContainerTest {
         @Override
         public String getName() {
             return name;
-        }
-
-        @Override
-        public long getLastActive() {
-            return System.currentTimeMillis();
-        }
-
-        @Override
-        public void updateLastActive() {
-            // no-op
         }
 
         public String toString() {
@@ -172,14 +134,6 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
-        public void delete(Iterable<Position> positions) throws InterruptedException, ManagedLedgerException {
-        }
-
-        @Override
-        public void asyncDelete(Iterable<Position> position, DeleteCallback callback, Object ctx) {
-        }
-
-        @Override
         public void clearBacklog() throws InterruptedException, ManagedLedgerException {
         }
 
@@ -204,11 +158,6 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
-        public Position findNewestMatching(FindPositionConstraint constraint, Predicate<Entry> condition) throws InterruptedException, ManagedLedgerException {
-            return null;
-        }
-
-        @Override
         public void asyncFindNewestMatching(FindPositionConstraint constraint, Predicate<Entry> condition,
                 AsyncCallbacks.FindEntryCallback callback, Object ctx) {
         }
@@ -229,23 +178,13 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
-        public void setAlwaysInactive() {
-        }
-
-        @Override
         public List<Entry> replayEntries(Set<? extends Position> positions)
                 throws InterruptedException, ManagedLedgerException {
             return null;
         }
 
         @Override
-        public Set<? extends Position> asyncReplayEntries(Set<? extends Position> positions, ReadEntriesCallback callback, Object ctx) {
-            return Sets.newConcurrentHashSet();
-        }
-
-        @Override
-        public Set<? extends Position> asyncReplayEntries(Set<? extends Position> positions, ReadEntriesCallback callback, Object ctx, boolean sortEntries) {
-            return Sets.newConcurrentHashSet();
+        public void asyncReplayEntries(Set<? extends Position> positions, ReadEntriesCallback callback, Object ctx) {
         }
 
         @Override
@@ -286,66 +225,12 @@ public class ManagedCursorContainerTest {
         public boolean isActive() {
             return true;
         }
-
-        @Override
-        public long getNumberOfEntriesSinceFirstNotAckedMessage() {
-            return 0;
-        }
-
-        @Override
-        public int getTotalNonContiguousDeletedMessagesRange() {
-            return 0;
-        }
-
-        @Override
-        public long getEstimatedSizeSinceMarkDeletePosition() {
-            return 0L;
-        }
-
-        @Override
-        public void setThrottleMarkDelete(double throttleMarkDelete) {
-        }
-
-        @Override
-        public double getThrottleMarkDelete() {
-            return -1;
-        }
-
-        @Override
-        public ManagedLedger getManagedLedger() {
-            return null;
-        }
-
-        @Override
-        public Range<PositionImpl> getLastIndividualDeletedRange() {
-            return null;
-        }
-
-        @Override
-        public void trimDeletedEntries(List<Entry> entries) {
-
-        }
-
-        @Override
-        public long[] getDeletedBatchIndexesAsLongArray(PositionImpl position) {
-            return new long[0];
-        }
-
-        public void asyncReadEntriesOrWait(int maxEntries, long maxSizeBytes, ReadEntriesCallback callback,
-                Object ctx) {
-        }
-
-        @Override
-        public List<Entry> readEntriesOrWait(int maxEntries, long maxSizeBytes)
-                throws InterruptedException, ManagedLedgerException {
-            return null;
-        }
     }
 
     @Test
-    public void simple() throws Exception {
+    void simple() throws Exception {
         ManagedCursorContainer container = new ManagedCursorContainer();
-        assertNull(container.getSlowestReaderPosition());
+        assertEquals(container.getSlowestReaderPosition(), null);
 
         ManagedCursor cursor1 = new MockManagedCursor(container, "test1", new PositionImpl(5, 5));
         container.add(cursor1);
@@ -383,12 +268,12 @@ public class ManagedCursorContainerTest {
         container.removeCursor(cursor1.getName());
         assertEquals(container.getSlowestReaderPosition(), new PositionImpl(4, 0));
 
-        assertTrue(container.hasDurableCursors());
+        assertFalse(container.isEmpty());
 
         container.removeCursor(cursor4.getName());
-        assertNull(container.getSlowestReaderPosition());
+        assertEquals(container.getSlowestReaderPosition(), null);
 
-        assertFalse(container.hasDurableCursors());
+        assertTrue(container.isEmpty());
 
         ManagedCursor cursor6 = new MockManagedCursor(container, "test6", new PositionImpl(6, 5));
         container.add(cursor6);
@@ -398,7 +283,7 @@ public class ManagedCursorContainerTest {
     }
 
     @Test
-    public void updatingCursorOutsideContainer() throws Exception {
+    void updatingCursorOutsideContainer() throws Exception {
         ManagedCursorContainer container = new ManagedCursorContainer();
 
         ManagedCursor cursor1 = new MockManagedCursor(container, "test1", new PositionImpl(5, 5));
@@ -420,7 +305,7 @@ public class ManagedCursorContainerTest {
     }
 
     @Test
-    public void removingCursor() throws Exception {
+    void removingCursor() throws Exception {
         ManagedCursorContainer container = new ManagedCursorContainer();
 
         ManagedCursor cursor1 = new MockManagedCursor(container, "test1", new PositionImpl(5, 5));
@@ -445,7 +330,7 @@ public class ManagedCursorContainerTest {
 
         assertEquals(container, Lists.newArrayList(cursor1, cursor3));
 
-        assertNull(container.get("test2"));
+        assertEquals(container.get("test2"), null);
 
         assertEquals(container.getSlowestReaderPosition(), new PositionImpl(1, 1));
 
@@ -457,7 +342,7 @@ public class ManagedCursorContainerTest {
     }
 
     @Test
-    public void ordering() throws Exception {
+    void ordering() throws Exception {
         ManagedCursorContainer container = new ManagedCursorContainer();
 
         ManagedCursor cursor1 = new MockManagedCursor(container, "test1", new PositionImpl(5, 5));
@@ -487,11 +372,11 @@ public class ManagedCursorContainerTest {
         assertEquals(container.getSlowestReaderPosition(), new PositionImpl(7, 1));
         container.removeCursor("test3");
 
-        assertFalse(container.hasDurableCursors());
+        assertTrue(container.isEmpty());
     }
 
     @Test
-    public void orderingWithUpdates() throws Exception {
+    void orderingWithUpdates() throws Exception {
         ManagedCursorContainer container = new ManagedCursorContainer();
 
         MockManagedCursor c1 = new MockManagedCursor(container, "test1", new PositionImpl(5, 5));
@@ -552,11 +437,11 @@ public class ManagedCursorContainerTest {
         assertEquals(container.getSlowestReaderPosition(), new PositionImpl(8, 5));
         container.removeCursor("test3");
 
-        assertFalse(container.hasDurableCursors());
+        assertTrue(container.isEmpty());
     }
 
     @Test
-    public void orderingWithUpdatesAndReset() throws Exception {
+    void orderingWithUpdatesAndReset() throws Exception {
         ManagedCursorContainer container = new ManagedCursorContainer();
 
         MockManagedCursor c1 = new MockManagedCursor(container, "test1", new PositionImpl(5, 5));
@@ -617,6 +502,6 @@ public class ManagedCursorContainerTest {
         assertEquals(container.getSlowestReaderPosition(), new PositionImpl(8, 5));
         container.removeCursor("test3");
 
-        assertFalse(container.hasDurableCursors());
+        assertTrue(container.isEmpty());
     }
 }

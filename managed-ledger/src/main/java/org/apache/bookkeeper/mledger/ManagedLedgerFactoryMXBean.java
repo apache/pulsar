@@ -1,64 +1,61 @@
 /**
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
+ * Copyright 2016 Yahoo Inc.
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package org.apache.bookkeeper.mledger;
 
 /**
- * JMX Bean interface for ManagedLedgerFactory stats.
+ * JMX Bean interface for ManagedLedgerFactory stats
  */
 public interface ManagedLedgerFactoryMXBean {
     /**
-     * Get the number of currently opened managed ledgers on the factory.
+     * Get the number of currently opened managed ledgers on the factory
      */
     int getNumberOfManagedLedgers();
 
     /**
-     * Get the size in byte used to store the entries payloads.
+     * Get the size in byte used to store the entries payloads
      */
     long getCacheUsedSize();
 
     /**
-     * Get the configured maximum cache size.
+     * Get the configured maximum cache size
      */
     long getCacheMaxSize();
 
     /**
-     * Get the number of cache hits per second.
+     * Get the number of cache hits per second
      */
     double getCacheHitsRate();
 
     /**
-     * Get the number of cache misses per second.
+     * Get the number of cache misses per second
      */
     double getCacheMissesRate();
 
     /**
-     * Get the amount of data is retrieved from the cache in byte/s.
+     * Get the amount of data is retrieved from the cache in byte/s
      */
     double getCacheHitsThroughput();
 
     /**
-     * Get the amount of data is retrieved from the bookkeeper in byte/s.
+     * Get the amount of data is retrieved from the bookkeeper in byte/s
      */
     double getCacheMissesThroughput();
 
     /**
-     * Get the number of cache evictions during the last minute.
+     * Get the number of cache evictions during the last minute
      */
     long getNumberOfCacheEvictions();
 }

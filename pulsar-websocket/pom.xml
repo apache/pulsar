@@ -1,21 +1,18 @@
 <!--
 
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
+    Copyright 2016 Yahoo Inc.
 
-      http://www.apache.org/licenses/LICENSE-2.0
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
 
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
 
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -23,9 +20,9 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>org.apache.pulsar</groupId>
+    <groupId>com.yahoo.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>2.7.0-SNAPSHOT</version>
+    <version>1.14</version>
     <relativePath>..</relativePath>
   </parent>
 
@@ -41,7 +38,13 @@
 
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>pulsar-client-original</artifactId>
+      <artifactId>pulsar-common</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-client</artifactId>
       <version>${project.version}</version>
     </dependency>
 
@@ -59,43 +62,24 @@
     </dependency>
 
     <dependency>
-      <groupId>org.apache.commons</groupId>
-      <artifactId>commons-lang3</artifactId>
+      <groupId>com.beust</groupId>
+      <artifactId>jcommander</artifactId>
     </dependency>
 
     <dependency>
-      <groupId>org.glassfish.jersey.containers</groupId>
-      <artifactId>jersey-container-servlet-core</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>org.glassfish.jersey.containers</groupId>
-      <artifactId>jersey-container-servlet</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>org.glassfish.jersey.inject</groupId>
-      <artifactId>jersey-hk2</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>com.google.code.gson</groupId>
-      <artifactId>gson</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>io.swagger</groupId>
-      <artifactId>swagger-core</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>com.fasterxml.jackson.jaxrs</groupId>
-      <artifactId>jackson-jaxrs-json-provider</artifactId>
+      <groupId>org.json</groupId>
+      <artifactId>json</artifactId>
     </dependency>
 
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>jul-to-slf4j</artifactId>
+    </dependency>
+
+    <dependency>
+      <artifactId>log4j</artifactId>
+      <groupId>log4j</groupId>
+      <scope>test</scope>
     </dependency>
 
 		<!-- To write basic websockets against -->
@@ -116,6 +100,21 @@
       <groupId>org.eclipse.jetty.websocket</groupId>
       <artifactId>javax-websocket-client-impl</artifactId>
       <version>${jetty.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-core</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.powermock</groupId>
+      <artifactId>powermock-api-mockito</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.powermock</groupId>
+      <artifactId>powermock-module-testng</artifactId>
+      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.hdrhistogram</groupId>

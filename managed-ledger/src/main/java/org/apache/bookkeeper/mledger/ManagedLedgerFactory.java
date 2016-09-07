@@ -1,32 +1,23 @@
 /**
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
+ * Copyright 2016 Yahoo Inc.
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package org.apache.bookkeeper.mledger;
 
-import com.google.common.annotations.Beta;
-
-import java.util.function.Supplier;
-
-import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
-import org.apache.bookkeeper.mledger.AsyncCallbacks.ManagedLedgerInfoCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
-import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenReadOnlyCursorCallback;
-import org.apache.bookkeeper.stats.StatsProvider;
+
+import com.google.common.annotations.Beta;
 
 /**
  * A factory to open/create managed ledgers and delete them.
@@ -44,7 +35,7 @@ public interface ManagedLedgerFactory {
      * @return the managed ledger
      * @throws ManagedLedgerException
      */
-    ManagedLedger open(String name) throws InterruptedException, ManagedLedgerException;
+    public ManagedLedger open(String name) throws InterruptedException, ManagedLedgerException;
 
     /**
      * Open a managed ledger. If the managed ledger does not exist, a new one will be automatically created.
@@ -56,7 +47,7 @@ public interface ManagedLedgerFactory {
      * @return the managed ledger
      * @throws ManagedLedgerException
      */
-    ManagedLedger open(String name, ManagedLedgerConfig config)
+    public ManagedLedger open(String name, ManagedLedgerConfig config)
             throws InterruptedException, ManagedLedgerException;
 
     /**
@@ -70,7 +61,7 @@ public interface ManagedLedgerFactory {
      * @param ctx
      *            opaque context
      */
-    void asyncOpen(String name, OpenLedgerCallback callback, Object ctx);
+    public void asyncOpen(String name, OpenLedgerCallback callback, Object ctx);
 
     /**
      * Asynchronous open method.
@@ -82,82 +73,16 @@ public interface ManagedLedgerFactory {
      *            managed ledger configuration
      * @param callback
      *            callback object
-     * @param mlOwnershipChecker
-     *            checks ml-ownership in case updating ml-metadata fails due to ownership conflict
      * @param ctx
      *            opaque context
      */
-    void asyncOpen(String name, ManagedLedgerConfig config, OpenLedgerCallback callback,
-            Supplier<Boolean> mlOwnershipChecker, Object ctx);
+    public void asyncOpen(String name, ManagedLedgerConfig config, OpenLedgerCallback callback, Object ctx);
 
     /**
-     * Open a {@link ReadOnlyCursor} positioned to the earliest entry for the specified managed ledger
-     *
-     * @param managedLedgerName
-     * @param startPosition
-     *            set the cursor on that particular position. If setting to `PositionImpl.earliest` it will be
-     *            positioned on the first available entry.
-     * @return
-     */
-    ReadOnlyCursor openReadOnlyCursor(String managedLedgerName, Position startPosition, ManagedLedgerConfig config)
-            throws InterruptedException, ManagedLedgerException;
-
-    /**
-     * Open a {@link ReadOnlyCursor} positioned to the earliest entry for the specified managed ledger
-     *
-     * @param managedLedgerName
-     * @param startPosition
-     *            set the cursor on that particular position. If setting to `PositionImpl.earliest` it will be
-     *            positioned on the first available entry.
-     * @param callback
-     * @param ctx
-     */
-    void asyncOpenReadOnlyCursor(String managedLedgerName, Position startPosition, ManagedLedgerConfig config,
-            OpenReadOnlyCursorCallback callback, Object ctx);
-
-    /**
-     * Get the current metadata info for a managed ledger.
-     *
-     * @param name
-     *            the unique name that identifies the managed ledger
-     */
-    ManagedLedgerInfo getManagedLedgerInfo(String name) throws InterruptedException, ManagedLedgerException;
-
-    /**
-     * Asynchronously get the current metadata info for a managed ledger.
-     *
-     * @param name
-     *            the unique name that identifies the managed ledger
-     * @param callback
-     *            callback object
-     * @param ctx
-     *            opaque context
-     */
-    void asyncGetManagedLedgerInfo(String name, ManagedLedgerInfoCallback callback, Object ctx);
-
-    /**
-     * Delete a managed ledger. If it's not open, it's metadata will get regardless deleted.
-     *
-     * @param name
-     * @throws InterruptedException
-     * @throws ManagedLedgerException
-     */
-    void delete(String name) throws InterruptedException, ManagedLedgerException;
-
-    /**
-     * Delete a managed ledger. If it's not open, it's metadata will get regardless deleted.
-     *
-     * @param name
-     * @throws InterruptedException
-     * @throws ManagedLedgerException
-     */
-    void asyncDelete(String name, DeleteLedgerCallback callback, Object ctx);
-
-    /**
-     * Releases all the resources maintained by the ManagedLedgerFactory.
+     * Releases all the resources maintained by the ManagedLedgerFactory
      *
      * @throws ManagedLedgerException
      */
-    void shutdown() throws InterruptedException, ManagedLedgerException;
+    public void shutdown() throws InterruptedException, ManagedLedgerException;
 
 }

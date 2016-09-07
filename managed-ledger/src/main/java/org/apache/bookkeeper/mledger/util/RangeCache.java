@@ -1,34 +1,30 @@
 /**
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
+ * Copyright 2016 Yahoo Inc.
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package org.apache.bookkeeper.mledger.util;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.collect.Lists;
-import io.netty.util.ReferenceCounted;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentNavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicLong;
-import org.apache.commons.lang3.tuple.Pair;
+
+import com.google.common.collect.Lists;
 
 /**
  * Special type of cache where get() and delete() operations can be done over a range of keys.
@@ -43,30 +39,28 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ReferenceCoun
     private final ConcurrentNavigableMap<Key, Value> entries;
     private AtomicLong size; // Total size of values stored in cache
     private final Weighter<Value> weighter; // Weighter object used to extract the size from values
-    private final TimestampExtractor<Value> timestampExtractor; // Extract the timestamp associated with a value
 
     /**
-     * Construct a new RangeLruCache with default Weighter.
+     * Construct a new RangeLruCache with default Weighter
      */
     public RangeCache() {
-        this(new DefaultWeighter<>(), (x) -> System.nanoTime());
+        this(new DefaultWeighter<Value>());
     }
 
     /**
-     * Construct a new RangeLruCache.
+     * Construct a new RangeLruCache
      *
      * @param weighter
      *            a custom weighter to compute the size of each stored value
      */
-    public RangeCache(Weighter<Value> weighter, TimestampExtractor<Value> timestampExtractor) {
+    public RangeCache(Weighter<Value> weighter) {
         this.size = new AtomicLong(0);
         this.entries = new ConcurrentSkipListMap<>();
         this.weighter = weighter;
-        this.timestampExtractor = timestampExtractor;
     }
 
     /**
-     * Insert.
+     * Insert
      *
      * @param key
      * @param value
@@ -147,7 +141,7 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ReferenceCoun
 
         size.addAndGet(-removedSize);
 
-        return Pair.of(removedEntries, removedSize);
+        return Pair.create(removedEntries, removedSize);
     }
 
     /**
@@ -174,36 +168,8 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ReferenceCoun
         }
 
         size.addAndGet(-removedSize);
-        return Pair.of(removedEntries, removedSize);
+        return Pair.create(removedEntries, removedSize);
     }
-
-    /**
-    *
-    * @param maxTimestamp the max timestamp of the entries to be evicted
-    * @return the tota
-    */
-   public long evictLEntriesBeforeTimestamp(long maxTimestamp) {
-       long removedSize = 0;
-
-       while (true) {
-           Map.Entry<Key, Value> entry = entries.firstEntry();
-           if (entry == null || timestampExtractor.getTimestamp(entry.getValue()) > maxTimestamp) {
-               break;
-           }
-
-           entry = entries.pollFirstEntry();
-           if (entry == null) {
-               break;
-           }
-
-           Value value = entry.getValue();
-           removedSize += weighter.getSize(value);
-           value.release();
-       }
-
-       size.addAndGet(-removedSize);
-       return removedSize;
-   }
 
     /**
      * Just for testing. Getting the number of entries is very expensive on the conncurrent map
@@ -217,7 +183,7 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ReferenceCoun
     }
 
     /**
-     * Remove all the entries from the cache.
+     * Remove all the entries from the cache
      *
      * @return the old size
      */
@@ -239,30 +205,20 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ReferenceCoun
     }
 
     /**
-     * Interface of a object that is able to the extract the "weight" (size/cost/space) of the cached values.
+     * Interface of a object that is able to the extract the "weight" (size/cost/space) of the cached values
      *
-     * @param <ValueT>
+     * @param <Value>
      */
-    public interface Weighter<ValueT> {
-        long getSize(ValueT value);
+    public static interface Weighter<Value> {
+        long getSize(Value value);
     }
 
     /**
-     * Interface of a object that is able to the extract the "timestamp" of the cached values.
-     *
-     * @param <ValueT>
-     */
-    public interface TimestampExtractor<ValueT> {
-        long getTimestamp(ValueT value);
-    }
-
-    /**
-     * Default cache weighter, every value is assumed the same cost.
+     * Default cache weighter, every value is assumed the same cost
      *
      * @param <Value>
      */
     private static class DefaultWeighter<Value> implements Weighter<Value> {
-        @Override
         public long getSize(Value value) {
             return 1;
         }

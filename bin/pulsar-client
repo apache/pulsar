@@ -1,32 +1,29 @@
 #!/usr/bin/env bash
 #
-# Licensed to the Apache Software Foundation (ASF) under one
-# or more contributor license agreements.  See the NOTICE file
-# distributed with this work for additional information
-# regarding copyright ownership.  The ASF licenses this file
-# to you under the Apache License, Version 2.0 (the
-# "License"); you may not use this file except in compliance
-# with the License.  You may obtain a copy of the License at
+# Copyright 2016 Yahoo Inc.
 # 
-#   http://www.apache.org/licenses/LICENSE-2.0
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 # 
-# Unless required by applicable law or agreed to in writing,
-# software distributed under the License is distributed on an
-# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-# KIND, either express or implied.  See the License for the
-# specific language governing permissions and limitations
-# under the License.
-#
+#     http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# 
 
 BINDIR=$(dirname "$0")
-PULSAR_HOME=`cd -P $BINDIR/..;pwd`
+PULSAR_HOME=`cd $BINDIR/..;pwd`
 
 DEFAULT_CLIENT_CONF=$PULSAR_HOME/conf/client.conf
-DEFAULT_LOG_CONF=$PULSAR_HOME/conf/log4j2.yaml
+DEFAULT_LOG_CONF=$PULSAR_HOME/conf/log4j.properties
 
-if [ -f "$PULSAR_HOME/conf/pulsar_tools_env.sh" ]
+if [ -f "$PULSAR_HOME/conf/pulsar_env.sh" ]
 then
-    . "$PULSAR_HOME/conf/pulsar_tools_env.sh"
+    . "$PULSAR_HOME/conf/pulsar_env.sh"
 fi
 
 # Check for the java to use
@@ -65,7 +62,7 @@ add_maven_deps_to_classpath() {
     # Need to generate classpath from maven pom. This is costly so generate it
     # and cache it. Save the file into our target dir so a mvn clean will get
     # clean it up and force us create a new one.
-    f="${PULSAR_HOME}/distribution/server/target/classpath.txt"
+    f="${PULSAR_HOME}/all/target/classpath.txt"
     if [ ! -f "${f}" ]
     then
 	${MVN} -f "${PULSAR_HOME}/pom.xml" dependency:build-classpath -Dmdep.outputFile="${f}" &> /dev/null
@@ -88,22 +85,21 @@ fi
 
 PULSAR_CLASSPATH="$PULSAR_JAR:$PULSAR_CLASSPATH:$PULSAR_EXTRA_CLASSPATH"
 PULSAR_CLASSPATH="`dirname $PULSAR_LOG_CONF`:$PULSAR_CLASSPATH"
-OPTS="$OPTS -Dlog4j.configurationFile=`basename $PULSAR_LOG_CONF`"
-OPTS="$OPTS -Djava.net.preferIPv4Stack=true"
+OPTS="$OPTS -Dlog4j.configuration=`basename $PULSAR_LOG_CONF`"
 
 OPTS="-cp $PULSAR_CLASSPATH $OPTS"
 
 OPTS="$OPTS $PULSAR_EXTRA_OPTS"
 
 # log directory & file
+PULSAR_ROOT_LOGGER=${PULSAR_ROOT_LOGGER:-"INFO,CONSOLE"}
 PULSAR_LOG_DIR=${PULSAR_LOG_DIR:-"$PULSAR_HOME/logs"}
-PULSAR_LOG_APPENDER=${PULSAR_LOG_APPENDER:-"Console"}
 
 #Configure log configuration system properties
+OPTS="$OPTS -Dpulsar.root.logger=$PULSAR_ROOT_LOGGER"
 OPTS="$OPTS -Dpulsar.log.dir=$PULSAR_LOG_DIR"
-OPTS="$OPTS -Dpulsar.log.appender=$PULSAR_LOG_APPENDER"
 
 #Change to PULSAR_HOME to support relative paths
 cd "$PULSAR_HOME"
 
-exec $JAVA $OPTS org.apache.pulsar.client.cli.PulsarClientTool $PULSAR_CLIENT_CONF "$@"
+exec $JAVA $OPTS com.yahoo.pulsar.client.cli.PulsarClientTool $PULSAR_CLIENT_CONF "$@"

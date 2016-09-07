@@ -1,20 +1,17 @@
 /**
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
+ * Copyright 2016 Yahoo Inc.
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package org.apache.bookkeeper.mledger.impl;
 
@@ -24,32 +21,30 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
-import com.google.common.base.Charsets;
-import com.google.common.collect.Lists;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
-import org.apache.bookkeeper.client.BookKeeper;
+
+import org.apache.bookkeeper.client.BookKeeper.DigestType;
 import org.apache.bookkeeper.client.BookKeeperTestClient;
-import org.apache.bookkeeper.client.api.DigestType;
-import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
-import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerAlreadyClosedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.test.BookKeeperClusterTestCase;
-import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.testng.annotations.Test;
+
+import com.google.common.base.Charsets;
+import com.google.common.collect.Lists;
+import com.yahoo.pulsar.common.policies.data.PersistentOfflineTopicStats;
 
 public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
 
@@ -109,12 +104,10 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
             // ok
         }
 
-        bkc.close();
         bkc = new BookKeeperTestClient(baseClientConf);
         startNewBookie();
 
         // Reconnect a new bk client
-        factory.shutdown();
         factory = new ManagedLedgerFactoryImpl(bkc, zkc);
         ledger = factory.open("my-ledger", config);
         cursor = ledger.openCursor("my-cursor");
@@ -122,7 +115,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         // Next add should succeed
         ledger.addEntry("entry-2".getBytes());
 
-        assertEquals(3, cursor.getNumberOfEntriesInBacklog(false));
+        assertEquals(3, cursor.getNumberOfEntriesInBacklog());
 
         List<Entry> entries = cursor.readEntries(1);
         assertEquals(1, entries.size());
@@ -225,7 +218,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
     public void testSimple() throws Exception {
         ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(bkc, zkc);
         ManagedLedgerConfig mlConfig = new ManagedLedgerConfig();
-        mlConfig.setEnsembleSize(1).setAckQuorumSize(1).setMetadataEnsembleSize(1).setWriteQuorumSize(1);
+        mlConfig.setEnsembleSize(1).setAckQuorumSize(1).setMetadataEnsembleSize(1);
         // set the data ledger size
         mlConfig.setMaxEntriesPerLedger(100);
         // set the metadata ledger size to 1 to kick off many ledger switching cases
@@ -240,9 +233,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
     public void testConcurrentMarkDelete() throws Exception {
         ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(bkc, zkc);
         ManagedLedgerConfig mlConfig = new ManagedLedgerConfig();
-        mlConfig.setEnsembleSize(1).setWriteQuorumSize(1)
-            .setAckQuorumSize(1).setMetadataEnsembleSize(1).setMetadataWriteQuorumSize(1)
-            .setMetadataAckQuorumSize(1);
+        mlConfig.setEnsembleSize(1).setAckQuorumSize(1).setMetadataEnsembleSize(1).setMetadataAckQuorumSize(1);
         // set the data ledger size
         mlConfig.setMaxEntriesPerLedger(100);
         // set the metadata ledger size to 1 to kick off many ledger switching cases
@@ -282,9 +273,6 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
             future.get();
         }
 
-        // Since in this test we roll-over the cursor ledger every 10 entries acknowledged, the background roll back
-        // might still be happening when the futures are completed.
-        Thread.sleep(1000);
         factory.shutdown();
     }
 
@@ -350,18 +338,18 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         PositionImpl p1 = (PositionImpl) ledger.addEntry("entry-1".getBytes());
 
         // Trigger the closure of the data ledger
-        bkc.openLedger(p1.getLedgerId(), BookKeeper.DigestType.CRC32C, new byte[] {});
+        bkc.openLedger(p1.getLedgerId(), DigestType.MAC, new byte[] {});
 
         ledger.addEntry("entry-2".getBytes());
 
         assertEquals(2, c1.getNumberOfEntries());
-        assertEquals(2, c1.getNumberOfEntriesInBacklog(false));
+        assertEquals(2, c1.getNumberOfEntriesInBacklog());
 
         PositionImpl p3 = (PositionImpl) ledger.addEntry("entry-3".getBytes());
 
         // Now entry-2 should have been written before entry-3
         assertEquals(3, c1.getNumberOfEntries());
-        assertEquals(3, c1.getNumberOfEntriesInBacklog(false));
+        assertEquals(3, c1.getNumberOfEntriesInBacklog());
         assertTrue(p1.getLedgerId() != p3.getLedgerId());
         factory.shutdown();
     }
@@ -400,7 +388,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
             // Ok
         }
 
-        assertEquals(2, c2.getNumberOfEntriesInBacklog(false));
+        assertEquals(2, c2.getNumberOfEntriesInBacklog());
         factory1.shutdown();
         factory2.shutdown();
     }
@@ -428,118 +416,11 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         entries.forEach(e -> e.release());
         ledger.close();
 
-        ManagedLedgerOfflineBacklog offlineTopicBacklog = new ManagedLedgerOfflineBacklog(
-                DigestType.CRC32, "".getBytes(Charsets.UTF_8), "", false);
+        ManagedLedgerOfflineBacklog offlineTopicBacklog = new ManagedLedgerOfflineBacklog(DigestType.CRC32,
+                "".getBytes(Charsets.UTF_8), "", false);
         PersistentOfflineTopicStats offlineTopicStats = offlineTopicBacklog.getEstimatedUnloadedTopicBacklog(
                 (ManagedLedgerFactoryImpl) factory, "property/cluster/namespace/my-ledger");
         factory.shutdown();
         assertNotNull(offlineTopicStats);
     }
-
-    @Test(timeOut = 20000)
-    void testResetCursorAfterRecovery() throws Exception {
-        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(bkc, zkc);
-        ManagedLedgerConfig conf = new ManagedLedgerConfig().setMaxEntriesPerLedger(10).setEnsembleSize(1)
-                .setWriteQuorumSize(1).setAckQuorumSize(1).setMetadataEnsembleSize(1).setMetadataWriteQuorumSize(1)
-                .setMetadataAckQuorumSize(1);
-        ManagedLedger ledger = factory.open("my_test_move_cursor_ledger", conf);
-        ManagedCursor cursor = ledger.openCursor("trc1");
-        Position p1 = ledger.addEntry("dummy-entry-1".getBytes());
-        Position p2 = ledger.addEntry("dummy-entry-2".getBytes());
-        Position p3 = ledger.addEntry("dummy-entry-3".getBytes());
-        Position p4 = ledger.addEntry("dummy-entry-4".getBytes());
-
-        cursor.markDelete(p3);
-
-        ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(bkc, zkc);
-        ledger = factory2.open("my_test_move_cursor_ledger", conf);
-        cursor = ledger.openCursor("trc1");
-
-        assertEquals(cursor.getMarkDeletedPosition(), p3);
-        assertEquals(cursor.getReadPosition(), p4);
-        assertEquals(cursor.getNumberOfEntriesInBacklog(false), 1);
-
-        cursor.resetCursor(p2);
-        assertEquals(cursor.getMarkDeletedPosition(), p1);
-        assertEquals(cursor.getReadPosition(), p2);
-        assertEquals(cursor.getNumberOfEntriesInBacklog(false), 3);
-
-        factory2.shutdown();
-        factory.shutdown();
-    }
-
-    @Test(timeOut = 30000)
-    public void managedLedgerClosed() throws Exception {
-        ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
-        config.setEnsembleSize(2).setAckQuorumSize(2).setMetadataEnsembleSize(2);
-        ManagedLedgerImpl ledger1 = (ManagedLedgerImpl) factory.open("my_test_ledger", config);
-
-        int N = 100;
-
-        AtomicReference<ManagedLedgerException> res = new AtomicReference<>();
-        CountDownLatch latch = new CountDownLatch(N);
-
-        for (int i = 0; i < N; i++) {
-            ledger1.asyncAddEntry(("entry-" + i).getBytes(), new AddEntryCallback() {
-
-                @Override
-                public void addComplete(Position position, Object ctx) {
-                    latch.countDown();
-                }
-
-                @Override
-                public void addFailed(ManagedLedgerException exception, Object ctx) {
-                    res.compareAndSet(null, exception);
-                    latch.countDown();
-                }
-            }, null);
-
-            if (i == 1) {
-                ledger1.close();
-            }
-        }
-
-        // Ensures all the callback must have been invoked
-        latch.await();
-        assertNotNull(res.get());
-        assertEquals(res.get().getClass(), ManagedLedgerAlreadyClosedException.class);
-        factory.shutdown();
-    }
-
-    @Test
-    public void testChangeCrcType() throws Exception {
-        ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
-        config.setEnsembleSize(2).setAckQuorumSize(2).setMetadataEnsembleSize(2);
-        config.setDigestType(DigestType.CRC32);
-        ManagedLedger ledger = factory.open("my_test_ledger", config);
-        ManagedCursor c1 = ledger.openCursor("c1");
-
-        ledger.addEntry("entry-0".getBytes());
-        ledger.addEntry("entry-1".getBytes());
-        ledger.addEntry("entry-2".getBytes());
-
-        ledger.close();
-
-        config.setDigestType(DigestType.CRC32C);
-        ledger = factory.open("my_test_ledger", config);
-        c1 = ledger.openCursor("c1");
-
-        ledger.addEntry("entry-3".getBytes());
-
-        assertEquals(c1.getNumberOfEntries(), 4);
-        assertEquals(c1.getNumberOfEntriesInBacklog(false), 4);
-
-        List<Entry> entries = c1.readEntries(4);
-        assertEquals(entries.size(), 4);
-        for (int i = 0; i < 4; i++) {
-            assertEquals(new String(entries.get(i).getData()), "entry-" + i);
-        }
-
-        factory.shutdown();
-    }
-
-
-
 }

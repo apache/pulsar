@@ -1,22 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
 
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
+    Copyright 2016 Yahoo Inc.
 
-      http://www.apache.org/licenses/LICENSE-2.0
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
 
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
 
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -24,279 +21,107 @@
   <modelVersion>4.0.0</modelVersion>
   <packaging>pom</packaging>
 
-  <parent>
-    <groupId>org.apache</groupId>
-    <artifactId>apache</artifactId>
-    <version>18</version>
-  </parent>
-
-  <groupId>org.apache.pulsar</groupId>
+  <groupId>com.yahoo.pulsar</groupId>
   <artifactId>pulsar</artifactId>
 
-  <version>2.7.0-SNAPSHOT</version>
+  <version>1.14</version>
 
   <name>Pulsar</name>
-  <description>Pulsar is a distributed pub-sub messaging platform with a very
-flexible messaging model and an intuitive client API.</description>
-  <url>https://github.com/apache/pulsar</url>
+  <url>https://github.com/yahoo/pulsar</url>
 
   <organization>
-    <name>Apache Software Foundation</name>
-    <url>http://www.apache.org/</url>
+    <name>Yahoo Inc.</name>
+    <url>http://www.yahoo.com/</url>
   </organization>
-  <inceptionYear>2017</inceptionYear>
-
-  <developers>
-    <developer>
-      <organization>Apache Pulsar developers</organization>
-      <organizationUrl>http://pulsar.apache.org/</organizationUrl>
-    </developer>
-  </developers>
-
-  <licenses>
-    <license>
-      <name>Apache License, Version 2.0</name>
-      <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
-      <distribution>repo</distribution>
-    </license>
-  </licenses>
+  <inceptionYear>2016</inceptionYear>
 
   <scm>
-    <url>https://github.com/apache/pulsar</url>
-    <connection>scm:git:https://github.com/apache/pulsar.git</connection>
-    <developerConnection>scm:git:ssh://git@github.com:apache/pulsar.git</developerConnection>
+    <url>https://github.com/yahoo/pulsar</url>
+    <connection>scm:git:https://github.com/yahoo/pulsar.git</connection>
+    <developerConnection>scm:git:ssh://git@github.com:yahoo/pulsar.git</developerConnection>
   </scm>
 
-  <ciManagement>
-    <system>Travis</system>
-    <url>https://travis-ci.org/apache/pulsar</url>
-  </ciManagement>
+  <prerequisites>
+    <maven>3.3</maven>
+  </prerequisites>
+
+  <modules>
+    <module>managed-ledger</module>
+    <module>pulsar-common</module>
+    <module>pulsar-broker-common</module>
+    <module>pulsar-broker</module>
+    <module>pulsar-client-admin</module>
+    <module>pulsar-client-tools</module>
+    <module>pulsar-client</module>
+    <module>pulsar-websocket</module>
+    <module>pulsar-discovery-service</module>
+    <module>pulsar-storm</module>
+    <module>pulsar-zookeeper-utils</module>
+    <module>pulsar-checksum</module>
+    <module>pulsar-testclient</module>
+    <module>all</module>
+  </modules>
 
   <issueManagement>
     <system>Github</system>
-    <url>https://github.com/apache/pulsar/issues</url>
+    <url>https://github.com/yahoo/pulsar/issues</url>
   </issueManagement>
 
   <properties>
-    <!--config keys to congiure test selection -->
-    <include>*</include>
-    <exclude/>
-    <groups/>
-    <excludedGroups/>
-
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-    <redirectTestOutputToFile>true</redirectTestOutputToFile>
-    <testReuseFork>true</testReuseFork>
-    <testForkCount>4</testForkCount>
-    <testRealAWS>false</testRealAWS>
-    <testRetryCount>1</testRetryCount>
-    <docker.organization>apachepulsar</docker.organization>
 
-    <!-- pin the protobuf-shaded version to make the pulsar build friendly to intellij -->
-    <pulsar.protobuf.shaded.version>2.1.0-incubating</pulsar.protobuf.shaded.version>
+    <bookkeeper.version>4.3.1.32-yahoo</bookkeeper.version>
 
-    <!-- apache commons -->
-    <commons-compress.version>1.19</commons-compress.version>
+    <netty.version>4.0.40.Final</netty.version>
+    <storm.version>0.9.5</storm.version>
+    <jetty.version>9.3.11.v20160721</jetty.version>
 
-    <bookkeeper.version>4.10.0</bookkeeper.version>
-    <zookeeper.version>3.5.7</zookeeper.version>
-    <netty.version>4.1.48.Final</netty.version>
-    <netty-tc-native.version>2.0.30.Final</netty-tc-native.version>
-    <storm.version>2.0.0</storm.version>
-    <jetty.version>9.4.29.v20200521</jetty.version>
-    <jersey.version>2.31</jersey.version>
-    <athenz.version>1.8.38</athenz.version>
-    <prometheus.version>0.5.0</prometheus.version>
-    <aspectj.version>1.9.2</aspectj.version>
-    <rocksdb.version>5.13.3</rocksdb.version>
-    <slf4j.version>1.7.25</slf4j.version>
-    <commons.collections.version>3.2.2</commons.collections.version>
-    <log4j2.version>2.10.0</log4j2.version>
-    <bouncycastle.version>1.60</bouncycastle.version>
-    <bouncycastlefips.version>1.0.2</bouncycastlefips.version>
-    <jackson.version>2.11.1</jackson.version>
-    <jackson.databind.version>2.11.1</jackson.databind.version>
-    <reflections.version>0.9.11</reflections.version>
-    <swagger.version>1.5.21</swagger.version>
-    <puppycrawl.checkstyle.version>6.19</puppycrawl.checkstyle.version>
-    <dockerfile-maven.version>1.4.13</dockerfile-maven.version>
-    <typetools.version>0.5.0</typetools.version>
-    <protobuf2.version>2.4.1</protobuf2.version>
-    <protobuf3.version>3.5.1</protobuf3.version>
-    <protoc3.version>3.5.1-1</protoc3.version>
-    <grpc.version>1.18.0</grpc.version>
-    <protoc-gen-grpc-java.version>1.12.0</protoc-gen-grpc-java.version>
-    <gson.version>2.8.2</gson.version>
-    <sketches.version>0.8.3</sketches.version>
-    <hbc-core.version>2.2.0</hbc-core.version>
-    <cassandra-driver-core.version>3.6.0</cassandra-driver-core.version>
-    <aerospike-client.version>4.4.8</aerospike-client.version>
-    <kafka-client.version>2.3.0</kafka-client.version>
-    <rabbitmq-client.version>5.1.1</rabbitmq-client.version>
-    <aws-sdk.version>1.11.774</aws-sdk.version>
-    <avro.version>1.9.1</avro.version>
-    <joda.version>2.10.1</joda.version>
-    <jclouds.version>2.2.1</jclouds.version>
-    <sqlite-jdbc.version>3.8.11.2</sqlite-jdbc.version>
-    <mysql-jdbc.version>8.0.11</mysql-jdbc.version>
-    <postgresql-jdbc.version>42.2.12</postgresql-jdbc.version>
-    <clickhouse-jdbc.version>0.2.4</clickhouse-jdbc.version>
-    <mariadb-jdbc.version>2.6.0</mariadb-jdbc.version>
-    <hdfs-offload-version3>3.2.0</hdfs-offload-version3>
-    <org.eclipse.jetty-hdfs-offload>9.3.24.v20180605</org.eclipse.jetty-hdfs-offload>
-    <test-hdfs-offload-jetty>9.3.24.v20180605</test-hdfs-offload-jetty>
-    <elasticsearch.version>6.3.2</elasticsearch.version>
-    <presto.version>332</presto.version>
-    <flink.version>1.6.0</flink.version>
-    <scala.binary.version>2.11</scala.binary.version>
-    <debezium.version>1.0.0.Final</debezium.version>
-    <jsonwebtoken.version>0.11.1</jsonwebtoken.version>
-    <opencensus.version>0.18.0</opencensus.version>
-    <hbase.version>1.4.9</hbase.version>
-    <guava.version>25.1-jre</guava.version>
-    <jcip.version>1.0</jcip.version>
-    <prometheus-jmx.version>0.12.0</prometheus-jmx.version>
-    <confluent.version>5.3.2</confluent.version>
-    <kafka-avro-convert-jackson.version>1.9.13</kafka-avro-convert-jackson.version>
-    <aircompressor.version>0.16</aircompressor.version>
-    <httpcomponents.version>4.5.5</httpcomponents.version>
-    <asynchttpclient.version>2.12.1</asynchttpclient.version>
-    <jcommander.version>1.48</jcommander.version>
-    <commons-lang3.version>3.6</commons-lang3.version>
-    <commons-configuration.version>1.10</commons-configuration.version>
-    <commons-io.version>2.5</commons-io.version>
-    <commons-codec.version>1.10</commons-codec.version>
-    <javax.ws.rs-api.version>2.1</javax.ws.rs-api.version>
-    <log4j.version>1.2.17</log4j.version>
-    <hdrHistogram.version>2.1.9</hdrHistogram.version>
-    <javax.servlet-api>3.1.0</javax.servlet-api>
-    <caffeine.version>2.6.2</caffeine.version>
-    <java-semver.version>0.9.0</java-semver.version>
-    <hppc.version>0.7.3</hppc.version>
-    <spark-streaming_2.10.version>2.1.0</spark-streaming_2.10.version>
-    <assertj-core.version>3.11.1</assertj-core.version>
-    <lombok.version>1.18.10</lombok.version>
-    <javax.annotation-api.version>1.2</javax.annotation-api.version>
-    <jaxb-api>2.3.1</jaxb-api>
-    <javax.activation.version>1.2.0</javax.activation.version>
-    <jna.version>4.2.0</jna.version>
-
-    <!-- test dependencies -->
-    <cassandra.version>3.6.0</cassandra.version>
-    <disruptor.version>3.4.0</disruptor.version>
-    <testcontainers.version>1.11.2</testcontainers.version>
-    <kerby.version>1.1.1</kerby.version>
-    <testng.version>6.14.3</testng.version>
-    <mockito.version>2.28.2</mockito.version>
-    <powermock.version>2.0.2</powermock.version>
-    <javassist.version>3.25.0-GA</javassist.version>
-    <failsafe.version>2.3.1</failsafe.version>
-    <skyscreamer.version>1.5.0</skyscreamer.version>
-    <confluent.version>5.2.2</confluent.version>
-    <objenesis.version>3.1</objenesis.version>
-
-    <!-- Plugin dependencies -->
-    <protobuf-maven-plugin.version>0.6.1</protobuf-maven-plugin.version>
-    <exec-maven-plugin.version>1.6.0</exec-maven-plugin.version>
-    <aspectj-maven-plugin.version>1.11.1</aspectj-maven-plugin.version>
-    <license-maven-plugin.version>3.0</license-maven-plugin.version>
-    <maven-enforcer-plugin.version>3.0.0-M2</maven-enforcer-plugin.version>
-    <maven-surefire-plugin.version>3.0.0-M3</maven-surefire-plugin.version>
-    <maven-dependency-plugin.version>2.10</maven-dependency-plugin.version>
-    <maven-clean-plugin.version>2.4.1</maven-clean-plugin.version>
-    <maven-compiler-plugin.version>3.8.0</maven-compiler-plugin.version>
-    <maven-shade-plugin>3.2.4</maven-shade-plugin>
-    <maven-javadoc-plugin.version>2.10.3</maven-javadoc-plugin.version>
-    <exec-maven-plugin.version>1.6.0</exec-maven-plugin.version>
-    <maven-archiver.version>2.5</maven-archiver.version>
-    <nifi-nar-maven-plugin.version>1.2.0</nifi-nar-maven-plugin.version>
-    <maven-checkstyle-plugin.version>3.0.0</maven-checkstyle-plugin.version>
-    <git-commit-id-plugin.version>3.0.0</git-commit-id-plugin.version>
-    <wagon-ssh-external.version>2.10</wagon-ssh-external.version>
-    <os-maven-plugin.version>1.4.1.Final</os-maven-plugin.version>
-    <jacoco-maven-plugin.version>0.8.3</jacoco-maven-plugin.version>
-
-    <!-- Used to configure rename.netty.native. Libs -->
-    <rename.netty.native.libs>rename-netty-native-libs.sh</rename.netty.native.libs>
   </properties>
 
   <dependencyManagement>
     <dependencies>
-
       <dependency>
-        <groupId>org.asynchttpclient</groupId>
+        <groupId>com.ning</groupId>
         <artifactId>async-http-client</artifactId>
-        <version>${asynchttpclient.version}</version>
-        <exclusions>
-          <exclusion>
-            <groupId>io.netty</groupId>
-            <artifactId>*</artifactId>
-          </exclusion>
-        </exclusions>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.httpcomponents</groupId>
-        <artifactId>httpclient</artifactId>
-        <version>${httpcomponents.version}</version>
+        <version>1.9.38</version>
       </dependency>
 
       <dependency>
         <groupId>org.testng</groupId>
         <artifactId>testng</artifactId>
-        <version>${testng.version}</version>
+        <version>6.8.5</version>
       </dependency>
 
       <dependency>
         <groupId>org.mockito</groupId>
         <artifactId>mockito-core</artifactId>
-        <version>${mockito.version}</version>
+        <version>1.10.19</version>
       </dependency>
 
       <dependency>
         <groupId>org.powermock</groupId>
-        <artifactId>powermock-api-mockito2</artifactId>
-        <version>${powermock.version}</version>
+        <artifactId>powermock-api-mockito</artifactId>
+        <version>1.6.5</version>
       </dependency>
 
       <dependency>
         <groupId>org.powermock</groupId>
         <artifactId>powermock-module-testng</artifactId>
-        <version>${powermock.version}</version>
+        <version>1.6.5</version>
       </dependency>
 
       <dependency>
         <groupId>org.apache.zookeeper</groupId>
         <artifactId>zookeeper</artifactId>
-        <version>${zookeeper.version}</version>
-        <exclusions>
-          <exclusion>
-            <artifactId>slf4j-log4j12</artifactId>
-            <groupId>org.slf4j</groupId>
-          </exclusion>
-          <exclusion>
-            <artifactId>log4j</artifactId>
-            <groupId>log4j</groupId>
-          </exclusion>
-        </exclusions>
+        <version>3.4.8</version>
       </dependency>
 
       <dependency>
         <groupId>org.apache.zookeeper</groupId>
         <artifactId>zookeeper</artifactId>
         <classifier>tests</classifier>
-        <version>${zookeeper.version}</version>
-        <exclusions>
-          <exclusion>
-            <artifactId>slf4j-log4j12</artifactId>
-            <groupId>org.slf4j</groupId>
-          </exclusion>
-          <exclusion>
-            <artifactId>log4j</artifactId>
-            <groupId>log4j</groupId>
-          </exclusion>
-        </exclusions>
+        <version>3.4.8</version>
       </dependency>
 
       <dependency>
@@ -316,93 +141,19 @@ flexible messaging model and an intuitive client API.</description>
             <groupId>org.jboss.netty</groupId>
             <artifactId>netty</artifactId>
           </exclusion>
-          <!-- exclude all netty dependencies, use whatever pulsar is using -->
-          <exclusion>
-            <groupId>io.netty</groupId>
-            <artifactId>netty-*</artifactId>
-          </exclusion>
         </exclusions>
       </dependency>
 
       <dependency>
         <groupId>org.apache.bookkeeper</groupId>
-        <artifactId>bookkeeper-common-allocator</artifactId>
-        <version>${bookkeeper.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.bookkeeper</groupId>
-        <artifactId>bookkeeper-tools-framework</artifactId>
-        <version>${bookkeeper.version}</version>
-      </dependency>
-
-      <!-- reflection libs -->
-      <dependency>
-        <groupId>org.reflections</groupId>
-        <artifactId>reflections</artifactId>
-        <version>${reflections.version}</version>
-      </dependency>
-
-      <!-- exclude the grpc version from bookkeeper and use the one defined here -->
-      <dependency>
-        <groupId>org.apache.bookkeeper</groupId>
-        <artifactId>stream-storage-java-client</artifactId>
-        <version>${bookkeeper.version}</version>
-        <exclusions>
-          <exclusion>
-            <groupId>io.grpc</groupId>
-            <artifactId>grpc-all</artifactId>
-          </exclusion>
-        </exclusions>
-      </dependency>
-
-      <!-- exclude the grpc version from bookkeeper and use the one defined here -->
-      <dependency>
-        <groupId>org.apache.bookkeeper</groupId>
-        <artifactId>stream-storage-server</artifactId>
-        <version>${bookkeeper.version}</version>
-        <exclusions>
-          <exclusion>
-            <groupId>io.grpc</groupId>
-            <artifactId>grpc-all</artifactId>
-          </exclusion>
-        </exclusions>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.bookkeeper</groupId>
-        <artifactId>bookkeeper-common</artifactId>
+        <artifactId>bookkeeper-bookkeeper-stats-api</artifactId>
         <version>${bookkeeper.version}</version>
       </dependency>
 
       <dependency>
         <groupId>org.apache.bookkeeper.stats</groupId>
-        <artifactId>bookkeeper-stats-api</artifactId>
+        <artifactId>codahale-metrics-provider</artifactId>
         <version>${bookkeeper.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.bookkeeper.stats</groupId>
-        <artifactId>datasketches-metrics-provider</artifactId>
-        <version>${bookkeeper.version}</version>
-        <exclusions>
-          <exclusion>
-            <artifactId>slf4j-log4j12</artifactId>
-            <groupId>org.slf4j</groupId>
-          </exclusion>
-        </exclusions>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.bookkeeper.stats</groupId>
-        <artifactId>prometheus-metrics-provider</artifactId>
-        <version>${bookkeeper.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.rocksdb</groupId>
-        <artifactId>rocksdbjni</artifactId>
-        <version>${rocksdb.version}</version>
       </dependency>
 
       <dependency>
@@ -430,295 +181,141 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
-        <groupId>org.eclipse.jetty</groupId>
-        <artifactId>jetty-util</artifactId>
-        <version>${jetty.version}</version>
-      </dependency>
-      
-      <dependency>
         <groupId>io.netty</groupId>
-        <artifactId>netty-bom</artifactId>
+        <artifactId>netty-all</artifactId>
         <version>${netty.version}</version>
-        <type>pom</type>
-        <scope>import</scope>
       </dependency>
 
       <dependency>
         <groupId>io.netty</groupId>
-        <artifactId>netty-tcnative-boringssl-static</artifactId>
-        <version>${netty-tc-native.version}</version>
+        <artifactId>netty</artifactId>
+        <version>3.10.1.Final</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.json</groupId>
+        <artifactId>json</artifactId>
+        <version>20090211</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.google.code.gson</groupId>
+        <artifactId>gson</artifactId>
+        <version>2.7</version>
       </dependency>
 
       <dependency>
         <groupId>com.beust</groupId>
         <artifactId>jcommander</artifactId>
-        <version>${jcommander.version}</version>
+        <version>1.48</version>
       </dependency>
 
       <dependency>
         <groupId>com.google.guava</groupId>
         <artifactId>guava</artifactId>
-        <version>${guava.version}</version>
+        <version>15.0</version>
       </dependency>
 
       <dependency>
         <groupId>org.apache.commons</groupId>
         <artifactId>commons-lang3</artifactId>
-        <version>${commons-lang3.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.commons</groupId>
-        <artifactId>commons-compress</artifactId>
-        <version>${commons-compress.version}</version>
+        <version>3.4</version>
       </dependency>
 
       <dependency>
         <groupId>commons-configuration</groupId>
         <artifactId>commons-configuration</artifactId>
-        <version>${commons-configuration.version}</version>
+        <version>1.6</version>
       </dependency>
 
       <dependency>
-        <groupId>commons-io</groupId>
-        <artifactId>commons-io</artifactId>
-        <version>${commons-io.version}</version>
+        <groupId>com.google.protobuf</groupId>
+        <artifactId>protobuf-java</artifactId>
+        <version>2.4.1</version>
+      </dependency>
+
+      <dependency>
+        <groupId>net.jpountz.lz4</groupId>
+        <artifactId>lz4</artifactId>
+        <version>1.3.0</version>
       </dependency>
 
       <dependency>
         <groupId>org.slf4j</groupId>
         <artifactId>slf4j-api</artifactId>
-        <version>${slf4j.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.slf4j</groupId>
-        <artifactId>slf4j-simple</artifactId>
-        <version>${slf4j.version}</version>
+        <version>1.7.21</version>
       </dependency>
 
       <dependency>
         <groupId>org.slf4j</groupId>
         <artifactId>jul-to-slf4j</artifactId>
-        <version>${slf4j.version}</version>
+        <version>1.7.21</version>
       </dependency>
 
       <dependency>
-        <groupId>org.slf4j</groupId>
-        <artifactId>jcl-over-slf4j</artifactId>
-        <version>${slf4j.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.logging.log4j</groupId>
-        <artifactId>log4j-api</artifactId>
-        <version>${log4j2.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.logging.log4j</groupId>
-        <artifactId>log4j-core</artifactId>
-        <version>${log4j2.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.logging.log4j</groupId>
-        <artifactId>log4j-slf4j-impl</artifactId>
-        <version>${log4j2.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.logging.log4j</groupId>
-        <artifactId>log4j-web</artifactId>
-        <version>${log4j2.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.logging.log4j</groupId>
-        <artifactId>log4j-api</artifactId>
-        <type>test-jar</type>
-        <version>${log4j2.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.logging.log4j</groupId>
-        <artifactId>log4j-core</artifactId>
-        <type>test-jar</type>
-        <version>${log4j2.version}</version>
+        <groupId>commons-io</groupId>
+        <artifactId>commons-io</artifactId>
+        <version>2.5</version>
       </dependency>
 
       <dependency>
         <groupId>commons-codec</groupId>
         <artifactId>commons-codec</artifactId>
-        <version>${commons-codec.version}</version>
+        <version>1.10</version>
       </dependency>
 
       <dependency>
         <groupId>org.glassfish.jersey.core</groupId>
         <artifactId>jersey-server</artifactId>
-        <version>${jersey.version}</version>
+        <version>2.8</version>
       </dependency>
 
       <dependency>
         <groupId>org.glassfish.jersey.core</groupId>
         <artifactId>jersey-client</artifactId>
-        <version>${jersey.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.glassfish.jersey.inject</groupId>
-        <artifactId>jersey-hk2</artifactId>
-        <version>${jersey.version}</version>
+        <version>2.8</version>
       </dependency>
 
       <dependency>
         <groupId>org.glassfish.jersey.containers</groupId>
         <artifactId>jersey-container-servlet-core</artifactId>
-        <version>${jersey.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.glassfish.jersey.containers</groupId>
-        <artifactId>jersey-container-servlet</artifactId>
-        <version>${jersey.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>javax.ws.rs</groupId>
-        <artifactId>javax.ws.rs-api</artifactId>
-        <version>${javax.ws.rs-api.version}</version>
+        <version>2.8</version>
       </dependency>
 
       <dependency>
         <groupId>org.glassfish.jersey.media</groupId>
         <artifactId>jersey-media-json-jackson</artifactId>
-        <version>${jersey.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.glassfish.jersey.media</groupId>
-        <artifactId>jersey-media-multipart</artifactId>
-        <version>${jersey.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>net.java.dev.jna</groupId>
-        <artifactId>jna</artifactId>
-        <version>${jna.version}</version>
+        <version>2.9</version>
       </dependency>
 
       <dependency>
         <groupId>com.fasterxml.jackson.jaxrs</groupId>
         <artifactId>jackson-jaxrs-json-provider</artifactId>
-        <version>${jackson.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>com.fasterxml.jackson.core</groupId>
-        <artifactId>jackson-core</artifactId>
-        <version>${jackson.version}</version>
+        <version>2.4.3</version>
       </dependency>
 
       <dependency>
         <groupId>com.fasterxml.jackson.core</groupId>
         <artifactId>jackson-databind</artifactId>
-        <version>${jackson.databind.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>com.fasterxml.jackson.module</groupId>
-        <artifactId>jackson-module-scala_2.10</artifactId>
-        <version>${jackson.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>com.fasterxml.jackson.module</groupId>
-        <artifactId>jackson-module-scala_2.11</artifactId>
-        <version>${jackson.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>com.fasterxml.jackson.module</groupId>
-        <artifactId>jackson-module-paranamer</artifactId>
-        <version>${jackson.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>com.fasterxml.jackson.module</groupId>
-        <artifactId>jackson-module-parameter-names</artifactId>
-        <version>${jackson.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>com.fasterxml.jackson.module</groupId>
-        <artifactId>jackson-module-jaxb-annotations</artifactId>
-        <version>${jackson.version}</version>
+        <version>2.4.3</version>
       </dependency>
 
       <dependency>
         <groupId>com.fasterxml.jackson.core</groupId>
         <artifactId>jackson-annotations</artifactId>
-        <version>${jackson.version}</version>
+        <version>2.4.3</version>
       </dependency>
 
       <dependency>
-        <groupId>com.fasterxml.jackson.jaxrs</groupId>
-        <artifactId>jackson-jaxrs-base </artifactId>
-        <version>${jackson.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>com.fasterxml.jackson.datatype</groupId>
-        <artifactId>jackson-datatype-joda</artifactId>
-        <version>${jackson.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>com.fasterxml.jackson.datatype</groupId>
-        <artifactId>jackson-datatype-jdk8</artifactId>
-        <version>${jackson.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>com.fasterxml.jackson.datatype</groupId>
-        <artifactId>jackson-datatype-jsr310</artifactId>
-        <version>${jackson.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>com.fasterxml.jackson.dataformat</groupId>
-        <artifactId>jackson-dataformat-yaml</artifactId>
-        <version>${jackson.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>com.fasterxml.jackson.dataformat</groupId>
-        <artifactId>jackson-dataformat-csv</artifactId>
-        <version>${jackson.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>com.fasterxml.jackson.dataformat</groupId>
-        <artifactId>jackson-dataformat-cbor</artifactId>
-        <version>${jackson.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>com.fasterxml.jackson.dataformat</groupId>
-        <artifactId>jackson-dataformat-smile</artifactId>
-        <version>${jackson.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>com.fasterxml.jackson.module</groupId>
-        <artifactId>jackson-module-jsonSchema</artifactId>
-        <version>${jackson.version}</version>
+        <artifactId>slf4j-log4j12</artifactId>
+        <groupId>org.slf4j</groupId>
+        <version>1.7.21</version>
       </dependency>
 
       <dependency>
         <artifactId>log4j</artifactId>
         <groupId>log4j</groupId>
-        <version>${log4j.version}</version>
+        <version>1.2.17</version>
         <exclusions>
           <exclusion>
             <groupId>com.sun.jmx</groupId>
@@ -730,352 +327,33 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>org.hdrhistogram</groupId>
         <artifactId>HdrHistogram</artifactId>
-        <version>${hdrHistogram.version}</version>
+        <version>2.1.9</version>
       </dependency>
 
       <dependency>
         <groupId>io.swagger</groupId>
         <artifactId>swagger-core</artifactId>
-        <version>${swagger.version}</version>
+        <version>1.5.3</version>
       </dependency>
 
       <dependency>
-        <groupId>io.swagger</groupId>
+        <groupId>com.wordnik</groupId>
         <artifactId>swagger-annotations</artifactId>
-        <version>${swagger.version}</version>
+        <version>1.5.3-M1</version>
       </dependency>
 
       <dependency>
         <groupId>javax.servlet</groupId>
         <artifactId>javax.servlet-api</artifactId>
-        <version>${javax.servlet-api}</version>
+        <version>3.1.0</version>
       </dependency>
-
-      <dependency>
-        <groupId>com.github.ben-manes.caffeine</groupId>
-        <artifactId>caffeine</artifactId>
-        <version>${caffeine.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>com.yahoo.athenz</groupId>
-        <artifactId>athenz-zts-java-client</artifactId>
-        <version>${athenz.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>com.yahoo.athenz</groupId>
-        <artifactId>athenz-zpe-java-client</artifactId>
-        <version>${athenz.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>com.github.zafarkhaja</groupId>
-        <artifactId>java-semver</artifactId>
-        <version>${java-semver.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>io.prometheus</groupId>
-        <artifactId>simpleclient</artifactId>
-        <version>${prometheus.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>io.prometheus</groupId>
-        <artifactId>simpleclient_hotspot</artifactId>
-        <version>${prometheus.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>io.prometheus</groupId>
-        <artifactId>simpleclient_log4j2</artifactId>
-        <version>${prometheus.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>io.prometheus</groupId>
-        <artifactId>simpleclient_servlet</artifactId>
-        <version>${prometheus.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>io.prometheus</groupId>
-        <artifactId>simpleclient_jetty</artifactId>
-        <version>${prometheus.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>io.prometheus</groupId>
-        <artifactId>simpleclient_caffeine</artifactId>
-        <version>${prometheus.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>com.carrotsearch</groupId>
-        <artifactId>hppc</artifactId>
-        <version>${hppc.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.spark</groupId>
-        <artifactId>spark-streaming_2.10</artifactId>
-        <version>${spark-streaming_2.10.version}</version>
-        <exclusions>
-          <exclusion>
-            <groupId>com.google.guava</groupId>
-            <artifactId>guava</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>io.netty</groupId>
-            <artifactId>netty-codec-http</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>io.netty</groupId>
-            <artifactId>netty-transport-native-epoll</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>io.netty</groupId>
-            <artifactId>netty</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>io.netty</groupId>
-            <artifactId>netty-all</artifactId>
-          </exclusion>
-        </exclusions>
-      </dependency>
-
-      <dependency>
-        <groupId>io.jsonwebtoken</groupId>
-        <artifactId>jjwt-api</artifactId>
-        <version>${jsonwebtoken.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>io.jsonwebtoken</groupId>
-        <artifactId>jjwt-impl</artifactId>
-        <version>${jsonwebtoken.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>io.jsonwebtoken</groupId>
-        <artifactId>jjwt-jackson</artifactId>
-        <version>${jsonwebtoken.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.aspectj</groupId>
-        <artifactId>aspectjrt</artifactId>
-        <version>${aspectj.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.aspectj</groupId>
-        <artifactId>aspectjweaver</artifactId>
-        <version>${aspectj.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>net.jodah</groupId>
-        <artifactId>typetools</artifactId>
-        <version>${typetools.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>io.grpc</groupId>
-        <artifactId>grpc-all</artifactId>
-        <version>${grpc.version}</version>
-        <exclusions>
-          <exclusion>
-            <groupId>io.grpc</groupId>
-            <artifactId>grpc-testing</artifactId>
-          </exclusion>
-        </exclusions>
-      </dependency>
-
-      <dependency>
-        <groupId>io.grpc</groupId>
-        <artifactId>grpc-core</artifactId>
-        <version>${grpc.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>io.grpc</groupId>
-        <artifactId>grpc-protobuf-lite</artifactId>
-        <version>${grpc.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>com.google.code.gson</groupId>
-        <artifactId>gson</artifactId>
-        <version>${gson.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>com.yahoo.datasketches</groupId>
-        <artifactId>sketches-core</artifactId>
-        <version>${sketches.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>com.amazonaws</groupId>
-        <artifactId>aws-java-sdk-bom</artifactId>
-        <version>${aws-sdk.version}</version>
-        <type>pom</type>
-        <scope>import</scope>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.distributedlog</groupId>
-        <artifactId>distributedlog-core</artifactId>
-        <version>${bookkeeper.version}</version>
-        <exclusions>
-          <!-- exclude bookkeeper, reply on the bookkeeper version that pulsar uses -->
-          <exclusion>
-            <groupId>org.apache.bookkeeper</groupId>
-            <artifactId>bookkeeper-server</artifactId>
-          </exclusion>
-        </exclusions>
-      </dependency>
-
-      <dependency>
-        <groupId>commons-collections</groupId>
-        <artifactId>commons-collections</artifactId>
-        <version>${commons.collections.version}</version>
-      </dependency>
-
-      <!-- test dependencies -->
-      <dependency>
-        <groupId>com.lmax</groupId>
-        <artifactId>disruptor</artifactId>
-        <version>${disruptor.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.testcontainers</groupId>
-        <artifactId>testcontainers</artifactId>
-        <version>${testcontainers.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.testcontainers</groupId>
-        <artifactId>kafka</artifactId>
-        <version>${testcontainers.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.testcontainers</groupId>
-        <artifactId>mysql</artifactId>
-        <version>${testcontainers.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.testcontainers</groupId>
-        <artifactId>postgresql</artifactId>
-        <version>${testcontainers.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.arquillian.cube</groupId>
-        <artifactId>arquillian-cube-docker</artifactId>
-        <version>${arquillian-cube.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.jboss.arquillian.junit</groupId>
-        <artifactId>arquillian-junit-standalone</artifactId>
-        <version>${arquillian-junit.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>com.datastax.cassandra</groupId>
-        <artifactId>cassandra-driver-core</artifactId>
-        <version>${cassandra.version}</version>
-      </dependency>
-      <dependency>
-    	<groupId>org.assertj</groupId>
-    	<artifactId>assertj-core</artifactId>
-    	<version>${assertj-core.version}</version>
-	  </dependency>
-
-      <dependency>
-        <groupId>org.projectlombok</groupId>
-        <artifactId>lombok</artifactId>
-        <version>${lombok.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>javax.annotation</groupId>
-        <artifactId>javax.annotation-api</artifactId>
-        <version>${javax.annotation-api.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>javax.xml.bind</groupId>
-        <artifactId>jaxb-api</artifactId>
-        <version>${jaxb-api}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>com.sun.activation</groupId>
-        <artifactId>javax.activation</artifactId>
-        <version>${javax.activation.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>io.opencensus</groupId>
-        <artifactId>opencensus-api</artifactId>
-        <version>${opencensus.version}</version>
-      </dependency>
-      
-      <dependency>
-        <groupId>io.opencensus</groupId>
-        <artifactId>opencensus-contrib-grpc-metrics</artifactId>
-        <version>${opencensus.version}</version>
-      </dependency>
-      
-      <dependency>
-        <groupId>org.elasticsearch.client</groupId>
-        <artifactId>elasticsearch-rest-high-level-client</artifactId>
-        <version>${elasticsearch.version}</version>
-      </dependency>
-      
-      <dependency>
-        <groupId>joda-time</groupId>
-        <artifactId>joda-time</artifactId>
-        <version>${joda.version}</version>
-      </dependency>
-      
-      <dependency>
-        <groupId>org.javassist</groupId>
-        <artifactId>javassist</artifactId>
-        <version>${javassist.version}</version>
-      </dependency>
-      
-      <dependency>
-        <groupId>net.jcip</groupId>
-        <artifactId>jcip-annotations</artifactId>
-        <version>${jcip.version}</version>
-      </dependency>
-      
-      <dependency>
-        <groupId>io.airlift</groupId>
-        <artifactId>aircompressor</artifactId>
-        <version>${aircompressor.version}</version>
-        <exclusions>
-          <exclusion>
-            <groupId>org.openjdk.jol</groupId>
-            <artifactId>jol-core</artifactId>
-          </exclusion>
-        </exclusions>
-      </dependency>
-      
-      <dependency>
-        <groupId>org.objenesis</groupId>
-        <artifactId>objenesis</artifactId>
-        <version>${objenesis.version}</version>
-      </dependency>
-    
     </dependencies>
   </dependencyManagement>
 
   <dependencies>
-    <!-- These dependencies are common to all the submodules -->
     <dependency>
-      <groupId>org.apache.pulsar</groupId>
-      <artifactId>buildtools</artifactId>
-      <version>${project.version}</version>
+      <artifactId>slf4j-log4j12</artifactId>
+      <groupId>org.slf4j</groupId>
       <scope>test</scope>
     </dependency>
 
@@ -1084,75 +362,11 @@ flexible messaging model and an intuitive client API.</description>
       <artifactId>testng</artifactId>
       <scope>test</scope>
     </dependency>
-
-    <dependency>
-      <groupId>org.mockito</groupId>
-      <artifactId>mockito-core</artifactId>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>org.powermock</groupId>
-      <artifactId>powermock-api-mockito2</artifactId>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>org.powermock</groupId>
-      <artifactId>powermock-module-testng</artifactId>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-    	<groupId>org.assertj</groupId>
-    	<artifactId>assertj-core</artifactId>
-    	<scope>test</scope>
-	 </dependency>
-
-    <dependency>
-      <groupId>org.projectlombok</groupId>
-      <artifactId>lombok</artifactId>
-      <scope>provided</scope>
-    </dependency>
-
-    <dependency>
-      <!-- We use MockedBookKeeper in many unit tests -->
-      <groupId>org.apache.bookkeeper</groupId>
-      <artifactId>bookkeeper-server</artifactId>
-      <version>${bookkeeper.version}</version>
-      <scope>test</scope>
-      <classifier>tests</classifier>
-      <exclusions>
-        <exclusion>
-          <groupId>org.slf4j</groupId>
-          <artifactId>slf4j-log4j12</artifactId>
-        </exclusion>
-        <exclusion>
-          <artifactId>log4j</artifactId>
-          <groupId>log4j</groupId>
-        </exclusion>
-        <exclusion>
-          <groupId>com.fasterxml.jackson.core</groupId>
-          <artifactId>*</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
   </dependencies>
 
   <build>
     <finalName>${project.artifactId}</finalName>
     <plugins>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-checkstyle-plugin</artifactId>
-        <dependencies>
-          <dependency>
-            <groupId>org.apache.pulsar</groupId>
-            <artifactId>buildtools</artifactId>
-            <version>${project.version}</version>
-          </dependency>
-        </dependencies>
-      </plugin>
       <plugin>
         <artifactId>maven-compiler-plugin</artifactId>
         <configuration>
@@ -1166,40 +380,58 @@ flexible messaging model and an intuitive client API.</description>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-surefire-plugin</artifactId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <version>2.4</version>
+        <executions>
+          <execution>
+            <goals>
+              <goal>test-jar</goal>
+            </goals>
+          </execution>
+        </executions>
         <configuration>
-          <argLine> -Xmx1G -XX:+UseG1GC
-            -Dpulsar.allocator.pooled=false
-            -Dpulsar.allocator.leak_detection=Advanced
-            -Dpulsar.allocator.exit_on_oom=false
-            -Dlog4j.configurationFile=log4j2.xml
-          </argLine>
-          <reuseForks>${testReuseFork}</reuseForks>
-          <forkCount>${testForkCount}</forkCount>
-          <shutdown>kill</shutdown>
-          <redirectTestOutputToFile>${redirectTestOutputToFile}</redirectTestOutputToFile>
-          <trimStackTrace>false</trimStackTrace>
-          <properties>
-            <property>
-              <name>testRealAWS</name>
-              <value>${testRealAWS}</value>
-            </property>
-            <property>
-              <name>testRetryCount</name>
-              <value>${testRetryCount}</value>
-            </property>
-            <property>
-              <name>listener</name>
-              <value>org.apache.pulsar.tests.PulsarTestListener,org.apache.pulsar.tests.AnnotationListener</value>
-            </property>
-          </properties>
+          <archive>
+            <addMavenDescriptor>false</addMavenDescriptor>
+          </archive>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.jacoco</groupId>
+        <artifactId>jacoco-maven-plugin</artifactId>
+        <version>0.7.7.201606060606</version>
+        <executions>
+          <execution>
+            <id>pre-unit-test</id>
+            <goals>
+              <goal>prepare-agent</goal>
+            </goals>
+          </execution>
+          <execution>
+            <id>post-test</id>
+            <phase>test</phase>
+            <goals>
+              <goal>report</goal>
+            </goals>
+            <configuration>
+              <outputDirectory>target/report</outputDirectory>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>2.19.1</version>
+        <configuration>
+          <argLine>${argLine} -Xmx2G -XX:MaxDirectMemorySize=8G
+            -Dio.netty.leakDetectionLevel=advanced</argLine>
         </configuration>
       </plugin>
 
       <plugin>
         <groupId>com.mycila</groupId>
         <artifactId>license-maven-plugin</artifactId>
-        <version>${license-maven-plugin.version}</version>
+        <version>3.0.rc1</version>
         <configuration>
           <header>src/license-header.txt</header>
 
@@ -1207,219 +439,43 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>LICENSE</exclude>
             <exclude>NOTICE</exclude>
             <exclude>**/*.txt</exclude>
-            <exclude>**/*.pem</exclude>
-            <exclude>**/*.crt</exclude>
-            <exclude>**/*.key</exclude>
-            <exclude>**/*.csr</exclude>
-            <exclude>**/*.log</exclude>
+            <exclude>**/*.md</exclude>
+            <exclude>**/proto/*.java</exclude>
             <exclude>**/*.patch</exclude>
-            <exclude>**/*.avsc</exclude>
-            <exclude>**/*.versionsBackup</exclude>
-            <exclude>**/*.pyc</exclude>
-            <exclude>**/*.graffle</exclude>
-            <exclude>**/*.hgrm</exclude>
-            <exclude>src/main/java/org/apache/bookkeeper/mledger/proto/MLDataFormats.java</exclude>
-            <exclude>src/main/java/org/apache/pulsar/broker/service/schema/proto/SchemaRegistryFormat.java</exclude>
-            <exclude>src/main/java/org/apache/pulsar/common/api/proto/*.java</exclude>
-            <exclude>src/test/java/org/apache/pulsar/common/api/proto/*.java</exclude>
-            <exclude>src/main/java/org/apache/pulsar/io/kinesis/fbs/CompressionType.java</exclude>
-            <exclude>src/main/java/org/apache/pulsar/io/kinesis/fbs/EncryptionCtx.java</exclude>
-            <exclude>src/main/java/org/apache/pulsar/io/kinesis/fbs/EncryptionKey.java</exclude>
-            <exclude>src/main/java/org/apache/pulsar/io/kinesis/fbs/KeyValue.java</exclude>
-            <exclude>src/main/java/org/apache/pulsar/io/kinesis/fbs/Message.java</exclude>
-            <exclude>src/main/java/org/apache/bookkeeper/mledger/util/AbstractCASReferenceCounted.java</exclude>
-            <exclude>**/ByteBufCodedInputStream.java</exclude>
-            <exclude>**/ByteBufCodedOutputStream.java</exclude>
-            <exclude>bin/proto/*</exclude>
-            <exclude>conf/schema_example.conf</exclude>
+            <exclude>src/test/resources/**</exclude>
+            <exclude>src/main/resources/**</exclude>
             <exclude>data/**</exclude>
             <exclude>logs/**</exclude>
+            <exclude>**/*.versionsBackup</exclude>
             <exclude>**/circe/**</exclude>
-            <exclude>pulsar-broker/src/test/resources/authentication/basic/.htpasswd</exclude>
-            <exclude>pulsar-client-cpp/lib/checksum/int_types.h</exclude>
-            <exclude>pulsar-client-cpp/lib/checksum/gf2.hpp</exclude>
-            <exclude>pulsar-client-cpp/lib/checksum/crc32c_sse42.cc</exclude>
-            <exclude>pulsar-client-cpp/lib/checksum/crc32c_sse42.h</exclude>
-            <exclude>pulsar-client-cpp/lib/checksum/crc32c_sw.cc</exclude>
-            <exclude>pulsar-client-cpp/lib/lz4/lz4.*</exclude>
-            <exclude>pulsar-client-cpp/lib/PulsarApi.pb.*</exclude>
-            <exclude>pulsar-client-cpp/CMakeFiles/**</exclude>
-            <exclude>pulsar-client-cpp/**/Makefile</exclude>
-            <exclude>pulsar-client-cpp/**/cmake_install.cmake</exclude>
-            <exclude>**/CMakeFiles/**</exclude>
-            <exclude>**/django/stats/migrations/*.py</exclude>
-            <exclude>site2/**</exclude>
-            <exclude>generated-site/**</exclude>
-            <exclude>.github/*.md</exclude>
-            <exclude>**/.idea/**</exclude>
-            <exclude>**/generated/**</exclude>
-            <exclude>**/zk-3.5-test-data/*</exclude>
           </excludes>
           <mapping>
             <proto>JAVADOC_STYLE</proto>
-            <go>DOUBLESLASH_STYLE</go>
             <conf>SCRIPT_STYLE</conf>
-            <ini>SCRIPT_STYLE</ini>
-            <yaml>SCRIPT_STYLE</yaml>
-            <tf>SCRIPT_STYLE</tf>
-            <cfg>SCRIPT_STYLE</cfg>
-            <Makefile>SCRIPT_STYLE</Makefile>
-            <service>SCRIPT_STYLE</service>
-            <cc>JAVADOC_STYLE</cc>
-            <md>XML_STYLE</md>
-            <txt>SCRIPT_STYLE</txt>
-            <scss>JAVADOC_STYLE</scss>
-            <Doxyfile>SCRIPT_STYLE</Doxyfile>
-            <pulsar>SCRIPT_STYLE</pulsar>
-            <pulsar-managed-ledger-admin>SCRIPT_STYLE</pulsar-managed-ledger-admin>
-            <pulsar-daemon>SCRIPT_STYLE</pulsar-daemon>
-            <pulsar-admin>SCRIPT_STYLE</pulsar-admin>
-            <pulsar-perf>SCRIPT_STYLE</pulsar-perf>
-            <pulsar-client>SCRIPT_STYLE</pulsar-client>
-            <bookkeeper>SCRIPT_STYLE</bookkeeper>
-            <tfvars>SCRIPT_STYLE</tfvars>
           </mapping>
         </configuration>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.rat</groupId>
-        <artifactId>apache-rat-plugin</artifactId>
-        <configuration>
-          <excludes>
-            <!-- Other license files -->
-            <exclude>licenses/LICENSE-*.txt</exclude>
-            <exclude>pulsar-client-cpp/pkg/licenses/LICENSE-*.txt</exclude>
-            <exclude>src/assemble/README.bin.txt</exclude>
-            <exclude>src/assemble/LICENSE.bin.txt</exclude>
-            <exclude>src/assemble/NOTICE.bin.txt</exclude>
-
-            <!-- These files are generated automatically by the Protobuf compiler
-                 and are included in source tree for convenience -->
-            <exclude>src/main/java/org/apache/bookkeeper/mledger/proto/MLDataFormats.java</exclude>
-            <exclude>src/main/java/org/apache/pulsar/common/api/proto/PulsarApi.java</exclude>
-            <exclude>src/test/java/org/apache/pulsar/common/api/proto/TestApi.java</exclude>
-            <exclude>src/main/java/org/apache/pulsar/common/api/proto/PulsarMarkers.java</exclude>
-            <exclude>src/main/java/org/apache/pulsar/broker/service/schema/proto/SchemaRegistryFormat.java</exclude>
-            <exclude>bin/proto/MLDataFormats_pb2.py</exclude>
-
-            <!-- These files are generated automatically by the Avro compiler
-                 and are included in source tree for convenience -->
-            <exclude>**/avro/generated/*.java</exclude>
-
-            <!-- Avro schema definitions - JSON format -->
-            <exclude>**/*.avsc</exclude>
-
-            <!-- pulasr-io-connector kinesis : auto generated files from flatbuffer schema -->
-            <exclude>src/main/java/org/apache/pulsar/io/kinesis/fbs/CompressionType.java</exclude>
-            <exclude>src/main/java/org/apache/pulsar/io/kinesis/fbs/EncryptionCtx.java</exclude>
-            <exclude>src/main/java/org/apache/pulsar/io/kinesis/fbs/EncryptionKey.java</exclude>
-            <exclude>src/main/java/org/apache/pulsar/io/kinesis/fbs/KeyValue.java</exclude>
-            <exclude>src/main/java/org/apache/pulsar/io/kinesis/fbs/Message.java</exclude>
-
-            <!-- These files are BSD licensed files -->
-            <exclude>src/main/java/org/apache/pulsar/common/util/protobuf/ByteBufCodedInputStream.java</exclude>
-            <exclude>src/main/java/org/apache/pulsar/common/util/protobuf/ByteBufCodedOutputStream.java</exclude>
-
-            <!-- Imported from Netty - Apache License v2 -->
-            <exclude>src/main/java/org/apache/bookkeeper/mledger/util/AbstractCASReferenceCounted.java</exclude>
-
-            <!-- This is generated during maven build -->
-            <exclude>dependency-reduced-pom.xml</exclude>
-
-            <!-- LZ4 code is under BSD 2-clause  -->
-            <exclude>pulsar-client-cpp/lib/lz4/lz4.*</exclude>
-
-            <!-- These files is go module configs -->
-            <exclude>pulsar-client-go/go.mod</exclude>
-            <exclude>pulsar-client-go/go.sum</exclude>
-            <exclude>pulsar-function-go/go.mod</exclude>
-            <exclude>pulsar-function-go/go.sum</exclude>
-            <exclude>pulsar-function-go/examples/go.mod</exclude>
-            <exclude>pulsar-function-go/examples/go.sum</exclude>
-
-            <!-- This file is using ZLib license -->
-            <exclude>pulsar-client-cpp/lib/checksum/crc32c_sw.cc</exclude>
-
-            <!-- This is a text property file that contains just a class name -->
-            <exclude>**/META-INF/services/com.scurrilous.circe.HashProvider</exclude>
-            <exclude>**/META-INF/services/io.prestosql.spi.Plugin</exclude>
-
-            <!-- Django generated code -->
-            <exclude>**/django/stats/migrations/*.py</exclude>
-            <exclude>**/conf/uwsgi_params</exclude>
-
-            <!-- Exclude certificates used for tests -->
-            <exclude>**/*.crt</exclude>
-            <exclude>**/*.key</exclude>
-            <exclude>**/*.csr</exclude>
-            <exclude>**/*.pem</exclude>
-            <exclude>**/*.json</exclude>
-            <exclude>**/*.htpasswd</exclude>
-            <exclude>src/test/resources/athenz.conf.test</exclude>
-            <exclude>deployment/terraform-ansible/templates/myid</exclude>
-            <exclude>certificate-authority/index.txt</exclude>
-            <exclude>certificate-authority/README.md</exclude>
-
-            <!-- Exclude ZK test data file -->
-            <exclude>**/zk-3.5-test-data/*</exclude>
-
-            <!-- Python requirements files -->
-            <exclude>**/requirements.txt</exclude>
-
-            <!-- Configuration Templates -->
-            <exclude>conf/schema_example.conf</exclude>
-            <exclude>**/templates/*.tpl</exclude>
-
-            <!-- helm files -->
-            <exclude>**/.helmignore</exclude>
-            <exclude>**/_helpers.tpl</exclude>
-          </excludes>
-        </configuration>
-      </plugin>
-      <plugin>
-        <groupId>pl.project13.maven</groupId>
-        <artifactId>git-commit-id-plugin</artifactId>
         <executions>
           <execution>
-            <id>git-info</id>
             <goals>
-              <goal>revision</goal>
+              <goal>check</goal>
             </goals>
           </execution>
         </executions>
-        <configuration>
-          <useNativeGit>true</useNativeGit>
-          <prefix>git</prefix>
-          <verbose>false</verbose>
-          <failOnNoGitDirectory>false</failOnNoGitDirectory>
-          <failOnUnableToExtractRepoInfo>false</failOnUnableToExtractRepoInfo>
-          <format>properties</format>
-          <gitDescribe>
-            <skip>true</skip>
-          </gitDescribe>
-        </configuration>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-enforcer-plugin</artifactId>
-        <version>${maven-enforcer-plugin.version}</version>
+        <artifactId>maven-dependency-plugin</artifactId>
         <executions>
-            <execution>
-                <id>enforce-maven</id>
-                <goals>
-                    <goal>enforce</goal>
-                </goals>
-                <configuration>
-                    <rules>
-                        <requireJavaVersion>
-                            <version>[1.8.0,)</version>
-                        </requireJavaVersion>
-                        <requireMavenVersion>
-                            <version>[3.3.9,)</version>
-                        </requireMavenVersion>
-                    </rules>
-                </configuration>
-            </execution>
+          <execution>
+            <id>build-classpath</id>
+            <phase>generate-sources</phase>
+            <goals>
+              <goal>build-classpath</goal>
+            </goals>
+            <configuration>
+              <outputFile>target/classpath.txt</outputFile>
+            </configuration>
+          </execution>
         </executions>
       </plugin>
     </plugins>
@@ -1428,374 +484,124 @@ flexible messaging model and an intuitive client API.</description>
       <plugins>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-surefire-plugin</artifactId>
-          <version>${maven-surefire-plugin.version}</version>
-          <configuration>
-            <includes>
-                <include>${include}</include>
-            </includes>
-            <excludes>
-                <exclude>${exclude}</exclude>
-            </excludes>
-            <groups>${groups}</groups>
-            <excludedGroups>${excludedGroups}</excludedGroups>
-          </configuration>
-        </plugin>
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-dependency-plugin</artifactId>
-          <version>${maven-dependency-plugin.version}</version>
+          <version>2.10</version>
         </plugin>
         <plugin>
           <artifactId>maven-clean-plugin</artifactId>
-          <version>${maven-clean-plugin.version}</version>
+          <version>2.4.1</version>
         </plugin>
         <plugin>
           <artifactId>maven-compiler-plugin</artifactId>
-          <version>${maven-compiler-plugin.version}</version>
+          <version>2.3.2</version>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-shade-plugin</artifactId>
-          <version>${maven-shade-plugin}</version>
+          <version>2.4.2</version>
+        </plugin>
+        <plugin>
+          <artifactId>maven-enforcer-plugin</artifactId>
+          <version>1.0.1</version>
         </plugin>
         <plugin>
           <artifactId>maven-javadoc-plugin</artifactId>
-          <version>${maven-javadoc-plugin.version}</version>
+          <version>2.10.3</version>
           <configuration>
             <additionalparam>-Xdoclint:none</additionalparam>
           </configuration>
         </plugin>
         <plugin>
-          <groupId>org.codehaus.mojo</groupId>
-          <artifactId>exec-maven-plugin</artifactId>
-          <version>${exec-maven-plugin.version}</version>
+          <groupId>org.apache.maven</groupId>
+          <artifactId>maven-jar-plugin</artifactId>
+          <version>2.3.2</version>
         </plugin>
         <plugin>
           <groupId>org.apache.maven</groupId>
           <artifactId>maven-archiver</artifactId>
-          <version>${maven-archiver.version}</version>
+          <version>2.5</version>
         </plugin>
         <plugin>
-          <groupId>org.apache.nifi</groupId>
-          <artifactId>nifi-nar-maven-plugin</artifactId>
-          <version>${nifi-nar-maven-plugin.version}</version>
-          <extensions>true</extensions>
+          <groupId>org.eclipse.m2e</groupId>
+          <artifactId>lifecycle-mapping</artifactId>
+          <version>1.0.0</version>
           <configuration>
-            <finalName>${project.artifactId}-${project.version}</finalName>
+            <lifecycleMappingMetadata>
+              <pluginExecutions>
+                <pluginExecution>
+                  <pluginExecutionFilter>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-dependency-plugin</artifactId>
+                    <versionRange>[1.0,)</versionRange>
+                    <goals>
+                      <goal>build-classpath</goal>
+                    </goals>
+                  </pluginExecutionFilter>
+                  <action>
+                    <ignore />
+                  </action>
+                </pluginExecution>
+                <pluginExecution>
+                  <pluginExecutionFilter>
+                    <groupId>com.github.kongchen</groupId>
+                    <artifactId>swagger-maven-plugin</artifactId>
+                    <versionRange>[1.0,)</versionRange>
+                    <goals>
+                      <goal>generate</goal>
+                    </goals>
+                  </pluginExecutionFilter>
+                  <action>
+                    <ignore />
+                  </action>
+                </pluginExecution>
+              </pluginExecutions>
+            </lifecycleMappingMetadata>
           </configuration>
-          <executions>
-            <execution>
-              <id>default-nar</id>
-              <phase>package</phase>
-              <goals>
-                <goal>nar</goal>
-              </goals>
-            </execution>
-          </executions>
-        </plugin>
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-checkstyle-plugin</artifactId>
-          <version>${maven-checkstyle-plugin.version}</version>
-          <dependencies>
-            <dependency>
-              <groupId>com.puppycrawl.tools</groupId>
-              <artifactId>checkstyle</artifactId>
-              <version>${puppycrawl.checkstyle.version}</version>
-            </dependency>
-          </dependencies>
-          <configuration>
-            <configLocation>buildtools/src/main/resources/pulsar/checkstyle.xml</configLocation>
-            <suppressionsLocation>buildtools/src/main/resources/pulsar/suppressions.xml</suppressionsLocation>
-            <encoding>UTF-8</encoding>
-          </configuration>
-        </plugin>
-        <plugin>
-          <groupId>pl.project13.maven</groupId>
-          <artifactId>git-commit-id-plugin</artifactId>
-          <version>${git-commit-id-plugin.version}</version>
         </plugin>
       </plugins>
     </pluginManagement>
+
     <extensions>
       <extension>
         <groupId>org.apache.maven.wagon</groupId>
         <artifactId>wagon-ssh-external</artifactId>
-        <version>${wagon-ssh-external.version}</version>
-      </extension>
-      <extension>
-        <groupId>kr.motd.maven</groupId>
-        <artifactId>os-maven-plugin</artifactId>
-        <version>${os-maven-plugin.version}</version>
+        <version>2.10</version>
       </extension>
     </extensions>
+
   </build>
 
-  <profiles>
-    <profile>
-      <id>coverage</id>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>org.jacoco</groupId>
-            <artifactId>jacoco-maven-plugin</artifactId>
-            <version>${jacoco-maven-plugin.version}</version>
-            <executions>
-              <execution>
-                <id>pre-unit-test</id>
-                <goals>
-                  <goal>prepare-agent</goal>
-                </goals>
-              </execution>
-              <execution>
-                <id>post-test</id>
-                <phase>test</phase>
-                <goals>
-                  <goal>report</goal>
-                </goals>
-                <configuration>
-                  <outputDirectory>target/report</outputDirectory>
-                </configuration>
-              </execution>
-            </executions>
-          </plugin>
-        </plugins>
-      </build>
-      <reporting>
-        <plugins>
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-checkstyle-plugin</artifactId>
-            <configuration>
-              <configLocation>pulsar/checkstyle.xml</configLocation>
-              <suppressionsLocation>pulsar/suppressions.xml</suppressionsLocation>
-              <suppressionsFileExpression>checkstyle.suppressions.file</suppressionsFileExpression>
-            </configuration>
-          </plugin>
-          <plugin>
-            <artifactId>maven-javadoc-plugin</artifactId>
-            <configuration>
-              <doclint>none</doclint>
-            </configuration>
-          </plugin>
-          <plugin>
-            <groupId>org.jacoco</groupId>
-            <artifactId>jacoco-maven-plugin</artifactId>
-            <reportSets>
-              <reportSet>
-                <reports>
-                  <report>report</report>
-                </reports>
-              </reportSet>
-            </reportSets>
-          </plugin>
-        </plugins>
-      </reporting>
-    </profile>
-    <profile>
-      <id>docker</id>
-    </profile>
-
-    <profile>
-      <!-- Checks style and licensing requirements. This is a good
-           idea to run for contributions and for the release process. While it would
-           be nice to run always these plugins can considerably slow the build and have
-           proven to create unstable builds in our multi-module project and when building
-           using multiple threads. The stability issues seen with Checkstyle in multi-module
-           builds include false-positives and false negatives. -->
-      <id>contrib-check</id>
-         <build>
-            <plugins>
-                <plugin>
-                    <groupId>org.apache.rat</groupId>
-                    <artifactId>apache-rat-plugin</artifactId>
-                    <executions>
-                      <execution>
-                          <goals>
-                              <goal>check</goal>
-                          </goals>
-                          <phase>verify</phase>
-                      </execution>
-                   </executions>
-                </plugin>
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-checkstyle-plugin</artifactId>
-                    <executions>
-                       <execution>
-                          <id>check-style</id>
-                          <phase>verify</phase>
-                          <configuration>
-         					  <configLocation>./buildtools/src/main/resources/pulsar/checkstyle.xml</configLocation>
-         					  <suppressionsLocation>/buildtools/src/main/resources/pulsar/suppressions.xml</suppressionsLocation>
-                              <encoding>UTF-8</encoding>
-                          </configuration>
-                          <goals>
-                             <goal>check</goal>
-                          </goals>
-                       </execution>
-                    </executions>
-                </plugin>
-             </plugins>
-         </build>
-    </profile>
-
-    <profile>
-      <id>windows</id>
-      <activation>
-        <os>
-          <family>Windows</family>
-        </os>
-      </activation>
-      <properties>
-        <rename.netty.native.libs>rename-netty-native-libs.cmd</rename.netty.native.libs>
-      </properties>
-
-    <!-- Primary Module profile -->
-    </profile>
-    <profile>
-      <id>main</id>
-      <activation>
-        <activeByDefault>true</activeByDefault>
-      </activation>
-      <modules>
-        <module>buildtools</module>
-        <module>testmocks</module>
-        <module>managed-ledger</module>
-        <module>tiered-storage</module>
-        <module>pulsar-common</module>
-        <module>pulsar-broker-common</module>
-        <module>pulsar-broker</module>
-        <module>pulsar-broker-shaded</module>
-        <module>pulsar-client-api</module>
-        <module>pulsar-client</module>
-        <module>pulsar-client-shaded</module>
-        <module>pulsar-client-1x-base</module>
-        <module>pulsar-client-admin</module>
-        <module>pulsar-client-admin-shaded</module>
-        <module>pulsar-client-tools</module>
-        <module>pulsar-client-tools-test</module>
-        <module>pulsar-client-all</module>
-        <module>pulsar-websocket</module>
-        <module>pulsar-proxy</module>
-        <module>pulsar-discovery-service</module>
-        <module>pulsar-storm</module>
-        <module>pulsar-flink</module>
-        <module>pulsar-spark</module>
-        <module>pulsar-zookeeper-utils</module>
-        <module>pulsar-testclient</module>
-        <module>pulsar-broker-auth-athenz</module>
-        <module>pulsar-client-auth-athenz</module>
-        <module>pulsar-client-kafka-compat</module>
-        <module>pulsar-zookeeper</module>
-        <module>pulsar-log4j2-appender</module>
-        <module>pulsar-sql</module>
-        <module>dashboard</module>
-        <module>pulsar-broker-auth-sasl</module>
-        <module>pulsar-client-auth-sasl</module>
-
-        <!-- transaction related modules -->
-        <module>pulsar-transaction</module>
-
-        <!-- functions-related modules -->
-        <module>pulsar-functions</module>
-
-        <!-- connector-related modules -->
-        <module>pulsar-io</module>
-
-        <!-- kafka connect avro converter shaded, because version mismatch    -->
-        <module>kafka-connect-avro-converter-shaded</module>
-
-        <!-- examples -->
-        <module>examples</module>
-
-        <!-- Bouncy Castle Provider loaders-->
-        <module>bouncy-castle</module>
-
-        <module>pulsar-client-messagecrypto-bc</module>
-
-        <!-- all these 3 modules should be put at the end in this exact sequence -->
-        <module>distribution</module>
-        <module>docker</module>
-        <module>tests</module>
-        <module>pulsar-metadata</module>
-        <module>jclouds-shaded</module>
-      </modules>
-    </profile>
-
-    <!-- core profile focused of pulsar java modules -->
-    <profile>
-      <id>core-modules</id>
-      <modules>
-        <module>buildtools</module>
-        <module>testmocks</module>
-        <module>managed-ledger</module>
-        <module>pulsar-common</module>
-        <module>pulsar-broker-common</module>
-        <module>pulsar-broker</module>
-        <module>pulsar-broker-shaded</module>
-        <module>pulsar-client-api</module>
-        <module>pulsar-client</module>
-        <module>pulsar-client-admin</module>
-        <module>pulsar-client-admin-shaded</module>
-        <module>pulsar-client-tools</module>
-        <module>pulsar-client-tools-test</module>
-        <module>pulsar-client-all</module>
-        <module>pulsar-websocket</module>
-        <module>pulsar-proxy</module>
-        <module>pulsar-discovery-service</module>
-        <module>pulsar-zookeeper-utils</module>
-        <module>pulsar-testclient</module>
-        <module>pulsar-zookeeper</module>
-        <module>pulsar-broker-auth-sasl</module>
-        <module>pulsar-client-auth-sasl</module>
-
-        <!-- transaction related modules -->
-        <module>pulsar-transaction</module>
-
-        <!-- functions-related modules -->
-        <module>pulsar-functions</module>
-
-        <!-- connector-related modules -->
-        <module>pulsar-io</module>
-
-        <!-- Bouncy Castle Provider loaders-->
-        <module>bouncy-castle</module>
-
-        <module>pulsar-client-messagecrypto-bc</module>
-
-        <!-- all these modules should be put at the end in this exact sequence -->
-        <module>distribution</module>
-        <module>pulsar-metadata</module>
-      </modules>
-    </profile>
-
-  </profiles>
+  <reporting>
+    <plugins>
+      <plugin>
+        <artifactId>maven-javadoc-plugin</artifactId>
+        <configuration>
+          <additionalparam>-Xdoclint:none</additionalparam>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.jacoco</groupId>
+        <artifactId>jacoco-maven-plugin</artifactId>
+        <reportSets>
+          <reportSet>
+            <reports>
+              <report>report</report>
+            </reports>
+          </reportSet>
+        </reportSets>
+      </plugin>
+    </plugins>
+  </reporting>
 
   <repositories>
     <repository>
       <id>central</id>
       <layout>default</layout>
-      <url>https://repo1.maven.org/maven2</url>
+      <url>http://repo1.maven.org/maven2</url>
     </repository>
     <repository>
-      <snapshots>
-        <enabled>false</enabled>
-      </snapshots>
-      <id>bintray-yahoo-maven</id>
-      <name>bintray</name>
-      <url>https://yahoo.bintray.com/maven</url>
-    </repository>
-    <repository>
-      <id>spring-plugins-release</id>
-      <url>https://repo.spring.io/plugins-release/</url>
-    </repository>
-    <repository>
-      <id>confluent</id>
-      <url>http://packages.confluent.io/maven/</url>
+      <id>bookkeeper-yahoo-mvn-repo</id>
+      <url>https://raw.githubusercontent.com/yahoo/bookkeeper/mvn-repo</url>
     </repository>
   </repositories>
-  
 </project>
-

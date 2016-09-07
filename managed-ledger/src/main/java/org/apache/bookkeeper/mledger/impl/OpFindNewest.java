@@ -1,35 +1,31 @@
 /**
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
+ * Copyright 2016 Yahoo Inc.
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package org.apache.bookkeeper.mledger.impl;
 
-import com.google.common.base.Predicate;
-import org.apache.bookkeeper.mledger.AsyncCallbacks.FindEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
-
-import java.util.Optional;
-
+import org.apache.bookkeeper.mledger.AsyncCallbacks.FindEntryCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.PositionBound;
+import com.google.common.base.Predicate;
 
-class OpFindNewest implements ReadEntryCallback {
+/**
+ */
+public class OpFindNewest implements ReadEntryCallback {
     private final ManagedCursorImpl cursor;
     private final PositionImpl startPosition;
     private final FindEntryCallback callback;
@@ -63,17 +59,13 @@ class OpFindNewest implements ReadEntryCallback {
 
     @Override
     public void readEntryComplete(Entry entry, Object ctx) {
-        final Position position = entry.getPosition();
         switch (state) {
         case checkFirst:
             if (!condition.apply(entry)) {
-                // If no entry is found that matches the condition, it is expected to pass null to the callback.
-                // Otherwise, a message before the expiration date will be deleted due to message TTL.
-                // cf. https://github.com/apache/pulsar/issues/5579
                 callback.findEntryComplete(null, OpFindNewest.this.ctx);
                 return;
             } else {
-                lastMatchedPosition = position;
+                lastMatchedPosition = entry.getPosition();
 
                 // check last entry
                 state = State.checkLast;
@@ -83,7 +75,7 @@ class OpFindNewest implements ReadEntryCallback {
             break;
         case checkLast:
             if (condition.apply(entry)) {
-                callback.findEntryComplete(position, OpFindNewest.this.ctx);
+                callback.findEntryComplete(entry.getPosition(), OpFindNewest.this.ctx);
                 return;
             } else {
                 // start binary search
@@ -95,7 +87,7 @@ class OpFindNewest implements ReadEntryCallback {
         case searching:
             if (condition.apply(entry)) {
                 // mid - last
-                lastMatchedPosition = position;
+                lastMatchedPosition = entry.getPosition();
                 min = mid();
             } else {
                 // start - mid
@@ -113,7 +105,7 @@ class OpFindNewest implements ReadEntryCallback {
 
     @Override
     public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
-        callback.findEntryFailed(exception, Optional.ofNullable(searchPosition), OpFindNewest.this.ctx);
+        callback.findEntryFailed(exception, OpFindNewest.this.ctx);
     }
 
     public void find() {

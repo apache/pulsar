@@ -1,41 +1,31 @@
 /**
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
+ * Copyright 2016 Yahoo Inc.
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package org.apache.bookkeeper.test;
 
 import java.lang.reflect.Method;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
-import org.apache.bookkeeper.client.PulsarMockBookKeeper;
-import org.apache.bookkeeper.common.util.OrderedScheduler;
+import org.apache.bookkeeper.client.MockBookKeeper;
 import org.apache.bookkeeper.conf.ClientConfiguration;
-import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
+import org.apache.bookkeeper.util.OrderedSafeExecutor;
 import org.apache.bookkeeper.util.ZkUtils;
-import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.MockZooKeeper;
-import org.apache.zookeeper.ZooDefs;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 
 /**
@@ -49,15 +39,14 @@ public abstract class MockedBookKeeperTestCase {
     protected MockZooKeeper zkc;
 
     // BookKeeper related variables
-    protected PulsarMockBookKeeper bkc;
+    protected MockBookKeeper bkc;
     protected int numBookies;
 
     protected ManagedLedgerFactoryImpl factory;
 
     protected ClientConfiguration baseClientConf = new ClientConfiguration();
 
-    protected OrderedScheduler executor;
-    protected ExecutorService cachedExecutor;
+    protected OrderedSafeExecutor executor;
 
     public MockedBookKeeperTestCase() {
         // By default start a 3 bookies cluster
@@ -79,36 +68,21 @@ public abstract class MockedBookKeeperTestCase {
             throw e;
         }
 
-        ManagedLedgerFactoryConfig conf = new ManagedLedgerFactoryConfig();
-        factory = new ManagedLedgerFactoryImpl(bkc, zkc, conf);
-
-        zkc.create("/managed-ledgers", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+        executor = new OrderedSafeExecutor(2, "test");
+        factory = new ManagedLedgerFactoryImpl(bkc, zkc);
     }
 
-    @AfterMethod(alwaysRun = true)
-    public void tearDown(Method method) {
-        try {
-            LOG.info("@@@@@@@@@ stopping " + method);
-            factory.shutdown();
-            factory = null;
-            stopBookKeeper();
-            stopZooKeeper();
-            LOG.info("--------- stopped {}", method);
-        } catch (Exception e) {
-            LOG.error("tearDown Error", e);
-        }
-    }
-
-    @BeforeClass
-    public void setUpClass() {
-        executor = OrderedScheduler.newSchedulerBuilder().numThreads(2).name("test").build();
-        cachedExecutor = Executors.newCachedThreadPool();
-    }
-
-    @AfterClass
-    public void tearDownClass() {
+    @AfterMethod
+    public void tearDown(Method method) throws Exception {
+        LOG.info("@@@@@@@@@ stopping " + method);
+        System.gc();
+        factory.shutdown();
+        factory = null;
+        stopBookKeeper();
+        stopZooKeeper();
         executor.shutdown();
-        cachedExecutor.shutdown();
+        System.gc();
+        LOG.info("--------- stopped {}", method);
     }
 
     /**
@@ -125,7 +99,7 @@ public abstract class MockedBookKeeperTestCase {
 
         zkc.create("/ledgers/LAYOUT", "1\nflat:1".getBytes(), null, null);
 
-        bkc = new PulsarMockBookKeeper(zkc, executor.chooseThread(this));
+        bkc = new MockBookKeeper(baseClientConf, zkc);
     }
 
     protected void stopBookKeeper() throws Exception {

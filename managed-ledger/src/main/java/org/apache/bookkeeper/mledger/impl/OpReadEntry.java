@@ -1,40 +1,38 @@
 /**
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
+ * Copyright 2016 Yahoo Inc.
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package org.apache.bookkeeper.mledger.impl;
 
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 
-import com.google.common.collect.Lists;
-import io.netty.util.Recycler;
-import io.netty.util.Recycler.Handle;
 import java.util.List;
 
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
-import org.apache.bookkeeper.mledger.ManagedLedgerException.NonRecoverableLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
 import org.apache.bookkeeper.mledger.Position;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-class OpReadEntry implements ReadEntriesCallback {
+import com.google.common.collect.Lists;
+
+import io.netty.util.Recycler;
+import io.netty.util.Recycler.Handle;
+
+public class OpReadEntry implements ReadEntriesCallback {
 
     ManagedCursorImpl cursor;
     PositionImpl readPosition;
@@ -49,7 +47,7 @@ class OpReadEntry implements ReadEntriesCallback {
     public static OpReadEntry create(ManagedCursorImpl cursor, PositionImpl readPositionRef, int count,
             ReadEntriesCallback callback, Object ctx) {
         OpReadEntry op = RECYCLER.get();
-        op.readPosition = cursor.ledger.startReadOperationOnLedger(readPositionRef, op);
+        op.readPosition = cursor.ledger.startReadOperationOnLedger(readPositionRef);
         op.cursor = cursor;
         op.count = count;
         op.callback = callback;
@@ -62,14 +60,6 @@ class OpReadEntry implements ReadEntriesCallback {
     @Override
     public void readEntriesComplete(List<Entry> returnedEntries, Object ctx) {
         // Filter the returned entries for individual deleted messages
-        int entriesCount = returnedEntries.size();
-        long entriesSize = 0;
-        for (int i = 0; i < entriesCount; i++) {
-            entriesSize += returnedEntries.get(i).getLength();
-        }
-        cursor.updateReadStats(entriesCount, entriesSize);
-
-        final PositionImpl lastPosition = (PositionImpl) returnedEntries.get(entriesCount - 1).getPosition();
         if (log.isDebugEnabled()) {
             log.debug("[{}][{}] Read entries succeeded batch_size={} cumulative_size={} requested_count={}",
                     cursor.ledger.getName(), cursor.getName(), returnedEntries.size(), entries.size(), count);
@@ -77,41 +67,24 @@ class OpReadEntry implements ReadEntriesCallback {
         List<Entry> filteredEntries = cursor.filterReadEntries(returnedEntries);
         entries.addAll(filteredEntries);
 
-        // if entries have been filtered out then try to skip reading of already deletedMessages in that range
-        final Position nexReadPosition = entriesCount != filteredEntries.size()
-                ? cursor.getNextAvailablePosition(lastPosition) : lastPosition.getNext();
-        updateReadPosition(nexReadPosition);
+        updateReadPosition(returnedEntries.get(returnedEntries.size() - 1).getPosition().getNext());
         checkReadCompletion();
     }
 
     @Override
-    public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+    public void readEntriesFailed(ManagedLedgerException status, Object ctx) {
         cursor.readOperationCompleted();
 
         if (!entries.isEmpty()) {
             // There were already some entries that were read before, we can return them
-            cursor.ledger.getExecutor().execute(safeRun(() -> {
+            cursor.ledger.getExecutor().submit(safeRun(() -> {
                 callback.readEntriesComplete(entries, ctx);
                 recycle();
             }));
-        } else if (cursor.config.isAutoSkipNonRecoverableData() && exception instanceof NonRecoverableLedgerException) {
-            log.warn("[{}][{}] read failed from ledger at position:{} : {}", cursor.ledger.getName(), cursor.getName(),
-                    readPosition, exception.getMessage());
-            // try to find and move to next valid ledger
-            final Position nexReadPosition = cursor.getNextLedgerPosition(readPosition.getLedgerId());
-            // fail callback if it couldn't find next valid ledger
-            if (nexReadPosition == null) {
-                callback.readEntriesFailed(exception, ctx);
-                cursor.ledger.mbean.recordReadEntriesError();
-                recycle();
-                return;
-            }
-            updateReadPosition(nexReadPosition);
-            checkReadCompletion();
         } else {
-            if (!(exception instanceof TooManyRequestsException)) {
-                log.warn("[{}][{}] read failed from ledger at position:{} : {}", cursor.ledger.getName(),
-                        cursor.getName(), readPosition, exception.getMessage());
+            if (!(status instanceof TooManyRequestsException)) {
+                log.warn("[{}][{}] read failed from ledger at position:{} : {}", cursor.ledger.getName(), cursor.getName(),
+                        readPosition, status.getMessage());
             } else {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}][{}] read throttled failed from ledger at position:{}", cursor.ledger.getName(),
@@ -119,7 +92,7 @@ class OpReadEntry implements ReadEntriesCallback {
                 }
             }
 
-            callback.readEntriesFailed(exception, ctx);
+            callback.readEntriesFailed(status, ctx);
             cursor.ledger.mbean.recordReadEntriesError();
             recycle();
         }
@@ -134,25 +107,22 @@ class OpReadEntry implements ReadEntriesCallback {
         if (entries.size() < count && cursor.hasMoreEntries()) {
             // We still have more entries to read from the next ledger, schedule a new async operation
             if (nextReadPosition.getLedgerId() != readPosition.getLedgerId()) {
-                cursor.ledger.startReadOperationOnLedger(nextReadPosition, OpReadEntry.this);
+                cursor.ledger.startReadOperationOnLedger(nextReadPosition);
             }
 
             // Schedule next read in a different thread
-            cursor.ledger.getExecutor().execute(safeRun(() -> {
-                readPosition = cursor.ledger.startReadOperationOnLedger(nextReadPosition, OpReadEntry.this);
+            cursor.ledger.getExecutor().submit(safeRun(() -> {
+                readPosition = cursor.ledger.startReadOperationOnLedger(nextReadPosition);
                 cursor.ledger.asyncReadEntries(OpReadEntry.this);
             }));
         } else {
             // The reading was already completed, release resources and trigger callback
-            try {
-                cursor.readOperationCompleted();
+            cursor.readOperationCompleted();
 
-            } finally {
-                cursor.ledger.getExecutor().executeOrdered(cursor.ledger.getName(), safeRun(() -> {
-                    callback.readEntriesComplete(entries, ctx);
-                    recycle();
-                }));
-            }
+            cursor.ledger.getExecutor().submit(safeRun(() -> {
+                callback.readEntriesComplete(entries, ctx);
+                recycle();
+            }));
         }
     }
 
@@ -164,15 +134,14 @@ class OpReadEntry implements ReadEntriesCallback {
         return cursor.ledger.getSlowestConsumer() == cursor;
     }
 
-    private final Handle<OpReadEntry> recyclerHandle;
+    private final Handle recyclerHandle;
 
-    private OpReadEntry(Handle<OpReadEntry> recyclerHandle) {
+    private OpReadEntry(Handle recyclerHandle) {
         this.recyclerHandle = recyclerHandle;
     }
 
     private static final Recycler<OpReadEntry> RECYCLER = new Recycler<OpReadEntry>() {
-        @Override
-        protected OpReadEntry newObject(Recycler.Handle<OpReadEntry> recyclerHandle) {
+        protected OpReadEntry newObject(Recycler.Handle recyclerHandle) {
             return new OpReadEntry(recyclerHandle);
         }
     };
@@ -184,7 +153,7 @@ class OpReadEntry implements ReadEntriesCallback {
         ctx = null;
         entries = null;
         nextReadPosition = null;
-        recyclerHandle.recycle(this);
+        RECYCLER.recycle(this, recyclerHandle);
     }
 
     private static final Logger log = LoggerFactory.getLogger(OpReadEntry.class);

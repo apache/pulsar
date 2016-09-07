@@ -1,44 +1,20 @@
 /**
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
+ * Copyright 2016 Yahoo Inc.
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
-syntax = "proto2";
-
 option java_package = "org.apache.bookkeeper.mledger.proto";
 option optimize_for = SPEED;
-
-message KeyValue {
-	required string key = 1;
-	required string value = 2;
-}
-
-message OffloadDriverMetadata {
-    required string name = 1;
-    repeated KeyValue properties = 2;
-}
-
-message OffloadContext {
-    optional int64 uidMsb = 1;
-    optional int64 uidLsb = 2;
-    optional bool complete = 3;
-    optional bool bookkeeperDeleted = 4;
-    optional int64 timestamp = 5;
-    optional OffloadDriverMetadata driverMetadata = 6;
-}
 
 message ManagedLedgerInfo {
     message LedgerInfo {
@@ -46,52 +22,14 @@ message ManagedLedgerInfo {
     	optional int64 entries  = 2;
     	optional int64 size     = 3;
     	optional int64 timestamp = 4;
-        optional OffloadContext offloadContext = 5;
     }
     
     repeated LedgerInfo ledgerInfo = 1;
-
-    // If present, it signals the managed ledger has been
-    // terminated and this was the position of the last
-    // committed entry.
-    // No more entries can be written.
-    optional NestedPositionInfo terminatedPosition = 2;
-
-    repeated KeyValue properties = 3;
 }
 
 message PositionInfo {
 	required int64 ledgerId = 1;
 	required int64 entryId  = 2;
-    repeated MessageRange individualDeletedMessages = 3;
-
-    // Additional custom properties associated with
-	// the current cursor position
-	repeated LongProperty properties = 4;
-
-    // Store which index in the batch message has been deleted
-    repeated BatchedEntryDeletionIndexInfo batchedEntryDeletionIndexInfo = 5;
-}
-
-message NestedPositionInfo {
-    required int64 ledgerId = 1;
-    required int64 entryId  = 2;
-}
-
-message MessageRange {
-    required NestedPositionInfo lowerEndpoint = 1;
-    required NestedPositionInfo upperEndpoint = 2;
-}
-
-message BatchedEntryDeletionIndexInfo {
-    required NestedPositionInfo position = 1;
-    repeated int64 deleteSet = 2;
-}
-
-// Generic string and long tuple
-message LongProperty {
-    required string name = 1;
-    required int64 value  = 2;
 }
 
 message ManagedCursorInfo {
@@ -102,14 +40,4 @@ message ManagedCursorInfo {
 	// Last snapshot of the mark-delete position
 	optional int64 markDeleteLedgerId = 2;
 	optional int64 markDeleteEntryId  = 3;
-	repeated MessageRange individualDeletedMessages = 4;
-
-	// Additional custom properties associated with
-	// the current cursor position
-	repeated LongProperty properties = 5;
-
-    optional int64 lastActive = 6;
-
-    // Store which index in the batch message has been deleted
-    repeated BatchedEntryDeletionIndexInfo batchedEntryDeletionIndexInfo = 7;
 }

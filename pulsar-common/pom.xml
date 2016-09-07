@@ -1,22 +1,19 @@
 <?xml version="1.0"?>
 <!--
 
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
+    Copyright 2016 Yahoo Inc.
 
-      http://www.apache.org/licenses/LICENSE-2.0
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
 
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
 
 -->
 <project
@@ -24,9 +21,9 @@
   xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <modelVersion>4.0.0</modelVersion>
   <parent>
-    <groupId>org.apache.pulsar</groupId>
+    <groupId>com.yahoo.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>2.7.0-SNAPSHOT</version>
+    <version>1.14</version>
     <relativePath>..</relativePath>
   </parent>
 
@@ -35,17 +32,6 @@
   <description>Common libraries needed by client/broker/tools</description>
 
   <dependencies>
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>pulsar-client-api</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>io.swagger</groupId>
-      <artifactId>swagger-annotations</artifactId>
-    </dependency>
-
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
@@ -57,15 +43,8 @@
     </dependency>
 
     <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>protobuf-shaded</artifactId>
-      <version>${pulsar.protobuf.shaded.version}</version>
-      <exclusions>
-        <exclusion>
-          <groupId>com.google.protobuf</groupId>
-          <artifactId>protobuf-java</artifactId>
-        </exclusion>
-      </exclusions>
+      <groupId>com.google.protobuf</groupId>
+      <artifactId>protobuf-java</artifactId>
     </dependency>
 
     <dependency>
@@ -75,135 +54,19 @@
 
     <dependency>
       <groupId>io.netty</groupId>
-      <artifactId>netty-handler</artifactId>
+      <artifactId>netty-all</artifactId>
     </dependency>
 
     <dependency>
-      <groupId>io.netty</groupId>
-      <artifactId>netty-transport-native-epoll</artifactId>
-      <classifier>linux-x86_64</classifier>
+      <groupId>net.jpountz.lz4</groupId>
+      <artifactId>lz4</artifactId>
     </dependency>
-
+    
     <dependency>
-      <groupId>io.netty</groupId>
-      <artifactId>netty-transport-native-unix-common</artifactId>
-      <classifier>linux-x86_64</classifier>
-    </dependency>
-
-    <dependency>
-      <groupId>org.apache.bookkeeper</groupId>
-      <artifactId>bookkeeper-common-allocator</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>io.airlift</groupId>
-      <artifactId>aircompressor</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>org.apache.bookkeeper</groupId>
-      <artifactId>circe-checksum</artifactId>
-      <version>${bookkeeper.version}</version>
-      <exclusions>
-        <exclusion>
-          <groupId>io.netty</groupId>
-          <artifactId>netty-buffer</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>io.netty</groupId>
-          <artifactId>netty-common</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-
-    <dependency>
-      <groupId>io.netty</groupId>
-      <artifactId>netty-tcnative-boringssl-static</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>org.eclipse.jetty</groupId>
-      <artifactId>jetty-util</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>org.apache.commons</groupId>
-      <artifactId>commons-lang3</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>com.fasterxml.jackson.dataformat</groupId>
-      <artifactId>jackson-dataformat-yaml</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>javax.ws.rs</groupId>
-      <artifactId>javax.ws.rs-api</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>commons-io</groupId>
-      <artifactId>commons-io</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>org.lz4</groupId>
-      <artifactId>lz4-java</artifactId>
-      <version>1.5.0</version>
+      <groupId>com.yahoo.pulsar</groupId>
+      <artifactId>pulsar-checksum</artifactId>
+      <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
-
-    <dependency>
-      <groupId>com.github.luben</groupId>
-      <artifactId>zstd-jni</artifactId>
-      <version>1.3.7-3</version>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>org.xerial.snappy</groupId>
-      <artifactId>snappy-java</artifactId>
-      <version>1.1.1.3</version>
-      <scope>test</scope>
-    </dependency>
-
   </dependencies>
-
-  <build>
-  <plugins>
-    <plugin>
-      <groupId>org.codehaus.mojo</groupId>
-      <artifactId>templating-maven-plugin</artifactId>
-      <version>1.0.0</version>
-      <executions>
-        <execution>
-          <id>filtering-java-templates</id>
-          <goals>
-            <goal>filter-sources</goal>
-          </goals>
-        </execution>
-      </executions>
-    </plugin>
-
-    <plugin>
-      <groupId>org.apache.maven.plugins</groupId>
-      <artifactId>maven-checkstyle-plugin</artifactId>
-      <executions>
-        <execution>
-          <id>check-style</id>
-          <phase>verify</phase>
-          <configuration>
-            <configLocation>../buildtools/src/main/resources/pulsar/checkstyle.xml</configLocation>
-            <suppressionsLocation>../buildtools/src/main/resources/pulsar/suppressions.xml</suppressionsLocation>
-            <encoding>UTF-8</encoding>
-            <excludes>**/proto/*</excludes>
-          </configuration>
-          <goals>
-            <goal>check</goal>
-          </goals>
-        </execution>
-      </executions>
-    </plugin>
-  </plugins>
-  </build>
 </project>
