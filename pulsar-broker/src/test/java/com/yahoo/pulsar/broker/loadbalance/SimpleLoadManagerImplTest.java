@@ -66,6 +66,8 @@ import com.yahoo.pulsar.broker.loadbalance.impl.SimpleResourceUnit;
 import com.yahoo.pulsar.client.admin.BrokerStats;
 import com.yahoo.pulsar.client.admin.PulsarAdmin;
 import com.yahoo.pulsar.client.api.Authentication;
+import com.yahoo.pulsar.client.api.ClientConfiguration;
+import com.yahoo.pulsar.client.api.PulsarClient;
 import com.yahoo.pulsar.common.naming.NamespaceName;
 import com.yahoo.pulsar.common.policies.data.AutoFailoverPolicyData;
 import com.yahoo.pulsar.common.policies.data.AutoFailoverPolicyType;
@@ -485,4 +487,5 @@ public class SimpleLoadManagerImplTest {
         usage.reset();
         assertNotEquals(usage.getBandwidthIn().usage, usageLimit);
     }
+
 }

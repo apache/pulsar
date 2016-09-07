@@ -21,15 +21,23 @@ public class LookupData {
     private String brokerUrl;
     private String brokerUrlTls;
     private String httpUrl; // Web service HTTP address
+    private String httpUrlTls; // Web service HTTPS address
     private String nativeUrl;
 
     public LookupData() {
     }
 
-    public LookupData(String brokerUrl, String brokerUrlTls, String httpUrl) {
+    public LookupData(String brokerUrl, String brokerUrlTls, String httpUrl, String httpUrlTls) {
         this.brokerUrl = brokerUrl;
         this.brokerUrlTls = brokerUrlTls;
         this.httpUrl = httpUrl;
+        this.httpUrlTls = httpUrlTls;
+        this.nativeUrl = brokerUrl;
+    }
+    
+    public LookupData(String brokerUrl, String brokerUrlTls, boolean redirect, boolean authoritative) {
+        this.brokerUrl = brokerUrl;
+        this.brokerUrlTls = brokerUrlTls;
         this.nativeUrl = brokerUrl;
     }
 
@@ -44,6 +52,14 @@ public class LookupData {
     public String getHttpUrl() {
         return httpUrl;
     }
+    
+    public String getHttpUrlTls() {
+		return httpUrlTls;
+	}
+
+	public void setHttpUrlTls(String httpUrlTls) {
+		this.httpUrlTls = httpUrlTls;
+	}
 
     /**
      * Legacy name, but client libraries are still using it so it needs to be included in Json

@@ -20,6 +20,8 @@ import com.google.common.base.Objects;
 public class ClusterData {
     private String serviceUrl;
     private String serviceUrlTls;
+    private String brokerServiceUrl;
+    private String brokerServiceUrlTls;
 
     public ClusterData() {
     }
@@ -31,6 +33,13 @@ public class ClusterData {
     public ClusterData(String serviceUrl, String serviceUrlTls) {
         this.serviceUrl = serviceUrl;
         this.serviceUrlTls = serviceUrlTls;
+    }
+    
+    public ClusterData(String serviceUrl, String serviceUrlTls, String brokerServiceUrl, String brokerServiceUrlTls) {
+        this.serviceUrl = serviceUrl;
+        this.serviceUrlTls = serviceUrlTls;
+        this.brokerServiceUrl = brokerServiceUrl;
+        this.brokerServiceUrlTls = brokerServiceUrlTls;
     }
 
     public String getServiceUrl() {
@@ -48,12 +57,30 @@ public class ClusterData {
     public void setServiceUrlTls(String serviceUrlTls) {
         this.serviceUrlTls = serviceUrlTls;
     }
+    
+    public String getBrokerServiceUrl() {
+        return brokerServiceUrl;
+    }
+
+    public void setBrokerServiceUrl(String brokerServiceUrl) {
+        this.brokerServiceUrl = brokerServiceUrl;
+    }
+
+    public String getBrokerServiceUrlTls() {
+        return brokerServiceUrlTls;
+    }
+
+    public void setBrokerServiceUrlTls(String brokerServiceUrlTls) {
+        this.brokerServiceUrlTls = brokerServiceUrlTls;
+    }
 
     @Override
     public boolean equals(Object obj) {
         if (obj instanceof ClusterData) {
             ClusterData other = (ClusterData) obj;
-            return Objects.equal(serviceUrl, other.serviceUrl) && Objects.equal(serviceUrlTls, other.serviceUrlTls);
+            return Objects.equal(serviceUrl, other.serviceUrl) && Objects.equal(serviceUrlTls, other.serviceUrlTls)
+                    && Objects.equal(brokerServiceUrl, other.brokerServiceUrl)
+                    && Objects.equal(brokerServiceUrlTls, other.brokerServiceUrlTls);
         }
 
         return false;
@@ -61,19 +88,26 @@ public class ClusterData {
 
     @Override
     public int hashCode() {
-        if (serviceUrlTls != null && !serviceUrlTls.isEmpty()) {
-            return Objects.hashCode(serviceUrl + serviceUrlTls);
-        } else {
-            return Objects.hashCode(serviceUrl);
-        }
+       return Objects.hashCode(this.toString());
     }
 
     @Override
     public String toString() {
-        if (serviceUrlTls == null || serviceUrlTls.isEmpty()) {
-            return serviceUrl;
-        } else {
-            return serviceUrl + "," + serviceUrlTls;
+        StringBuilder str = new StringBuilder();
+        str.append(serviceUrl);
+        if (serviceUrlTls != null && !serviceUrlTls.isEmpty()) {
+            str.append(",");
+            str.append(serviceUrlTls);
         }
+        if (brokerServiceUrl != null && !brokerServiceUrl.isEmpty()) {
+            str.append(",");
+            str.append(brokerServiceUrl);
+        }
+        if (brokerServiceUrlTls != null && !brokerServiceUrlTls.isEmpty()) {
+            str.append(",");
+            str.append(brokerServiceUrlTls);
+        }
+        return str.toString();
     }
+    
 }

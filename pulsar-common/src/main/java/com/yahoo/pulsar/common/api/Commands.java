@@ -34,7 +34,12 @@ import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConnect;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConnected;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandError;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandFlow;
+import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandLookupTopic;
+import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse;
+import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse.LookupType;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandMessage;
+import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadata;
+import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadataResponse;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandPing;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandPong;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandProducer;
@@ -342,6 +347,99 @@ public class Commands {
         return res;
     }
 
+    public static ByteBuf newPartitionMetadataResponse(ServerError error, String errorMsg, long requestId) {
+        CommandPartitionedTopicMetadataResponse.Builder partitionMetadataResponseBuilder = CommandPartitionedTopicMetadataResponse
+                .newBuilder();
+        partitionMetadataResponseBuilder.setRequestId(requestId);
+        partitionMetadataResponseBuilder.setError(error);
+        if (errorMsg != null) {
+            partitionMetadataResponseBuilder.setMessage(errorMsg);
+        }
+
+        CommandPartitionedTopicMetadataResponse partitionMetadataResponse = partitionMetadataResponseBuilder.build();
+        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.PARTITIONED_METADATA_RESPONSE)
+                .setPartitionMetadataResponse(partitionMetadataResponse));
+        partitionMetadataResponseBuilder.recycle();
+        partitionMetadataResponse.recycle();
+        return res;
+    }
+    
+    public static ByteBuf newPartitionMetadataRequest(String topic, long requestId) {
+        CommandPartitionedTopicMetadata.Builder partitionMetadataBuilder = CommandPartitionedTopicMetadata.newBuilder();
+        partitionMetadataBuilder.setTopic(topic);
+        partitionMetadataBuilder.setRequestId(requestId);
+
+        CommandPartitionedTopicMetadata partitionMetadata = partitionMetadataBuilder.build();
+        ByteBuf res = serializeWithSize(
+                BaseCommand.newBuilder().setType(Type.PARTITIONED_METADATA).setPartitionMetadata(partitionMetadata));
+        partitionMetadataBuilder.recycle();
+        partitionMetadata.recycle();
+        return res;
+    }
+
+    public static ByteBuf newPartitionMetadataResponse(int partitions, long requestId) {
+        CommandPartitionedTopicMetadataResponse.Builder partitionMetadataResponseBuilder = CommandPartitionedTopicMetadataResponse
+                .newBuilder();
+        partitionMetadataResponseBuilder.setPartitions(partitions);
+        partitionMetadataResponseBuilder.setRequestId(requestId);
+
+        CommandPartitionedTopicMetadataResponse partitionMetadataResponse = partitionMetadataResponseBuilder.build();
+        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.PARTITIONED_METADATA_RESPONSE)
+                .setPartitionMetadataResponse(partitionMetadataResponse));
+        partitionMetadataResponseBuilder.recycle();
+        partitionMetadataResponse.recycle();
+        return res;
+    }
+    
+    public static ByteBuf newLookup(String topic, boolean authoritative, long requestId) {
+        CommandLookupTopic.Builder lookupTopicBuilder = CommandLookupTopic.newBuilder();
+        lookupTopicBuilder.setTopic(topic);
+        lookupTopicBuilder.setRequestId(requestId);
+        lookupTopicBuilder.setAuthoritative(authoritative);
+
+        CommandLookupTopic lookupBroker = lookupTopicBuilder.build();
+        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.LOOKUP).setLookupTopic(lookupBroker));
+        lookupTopicBuilder.recycle();
+        lookupBroker.recycle();
+        return res;
+    }
+    
+    
+    public static ByteBuf newLookupResponse(String brokerServiceUrl, String brokerServiceUrlTls, boolean authoritative,
+            LookupType response, long requestId) {
+        CommandLookupTopicResponse.Builder connectionBuilder = CommandLookupTopicResponse.newBuilder();
+        connectionBuilder.setBrokerServiceUrl(brokerServiceUrl);
+        if (brokerServiceUrlTls != null) {
+            connectionBuilder.setBrokerServiceUrlTls(brokerServiceUrlTls);    
+        }
+        connectionBuilder.setResponse(response);
+        connectionBuilder.setRequestId(requestId);
+        connectionBuilder.setAuthoritative(authoritative);
+
+        CommandLookupTopicResponse connectionLookupResponse = connectionBuilder.build();
+        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.LOOKUP_RESPONSE)
+                .setLookupTopicResponse(connectionLookupResponse));
+        connectionBuilder.recycle();
+        connectionLookupResponse.recycle();
+        return res;
+    }
+   
+    public static ByteBuf newLookupResponse(ServerError error, String errorMsg, long requestId) {
+        CommandLookupTopicResponse.Builder connectionBuilder = CommandLookupTopicResponse.newBuilder();
+        connectionBuilder.setRequestId(requestId);
+        connectionBuilder.setError(error);
+        if (errorMsg != null) {
+            connectionBuilder.setMessage(errorMsg);
+        }
+        connectionBuilder.setResponse(LookupType.Failed);
+
+        CommandLookupTopicResponse connectionBroker = connectionBuilder.build();
+        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.LOOKUP_RESPONSE).setLookupTopicResponse(connectionBroker));
+        connectionBuilder.recycle();
+        connectionBroker.recycle();
+        return res;
+    }
+    
     public static ByteBuf newAck(long consumerId, long ledgerId, long entryId, AckType ackType,
             ValidationError validationError) {
         CommandAck.Builder ackBuilder = CommandAck.newBuilder();

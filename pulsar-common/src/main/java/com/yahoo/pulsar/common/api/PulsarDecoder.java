@@ -28,7 +28,11 @@ import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConnect;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConnected;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandError;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandFlow;
+import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandLookupTopic;
+import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandMessage;
+import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadata;
+import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadataResponse;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandPing;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandPong;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandProducer;
@@ -79,6 +83,30 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
             messageReceived();
 
             switch (cmd.getType()) {
+            case PARTITIONED_METADATA:
+                checkArgument(cmd.hasPartitionMetadata());
+                handlePartitionMetadataRequest(cmd.getPartitionMetadata());
+                cmd.getPartitionMetadata().recycle();
+                break;
+                
+            case PARTITIONED_METADATA_RESPONSE:
+                checkArgument(cmd.hasPartitionMetadataResponse());
+                handlePartitionResponse(cmd.getPartitionMetadataResponse());
+                cmd.getPartitionMetadataResponse().recycle();
+                break;
+
+            case LOOKUP:
+                checkArgument(cmd.hasLookupTopic());
+                handleLookup(cmd.getLookupTopic());
+                cmd.getLookupTopic().recycle();
+                break;
+                
+            case LOOKUP_RESPONSE:
+                checkArgument(cmd.hasLookupTopicResponse());
+                handleLookupResponse(cmd.getLookupTopicResponse());
+                cmd.getLookupTopicResponse().recycle();
+                break;  
+                
             case ACK:
                 checkArgument(cmd.hasAck());
                 handleAck(cmd.getAck());
@@ -212,6 +240,22 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
 
     protected abstract void messageReceived();
 
+    protected void handlePartitionMetadataRequest(CommandPartitionedTopicMetadata response) {
+        throw new UnsupportedOperationException();
+    }
+    
+    protected void handlePartitionResponse(CommandPartitionedTopicMetadataResponse response) {
+        throw new UnsupportedOperationException();
+    }
+    
+    protected void handleLookup(CommandLookupTopic lookup) {
+        throw new UnsupportedOperationException();
+    }
+    
+    protected void handleLookupResponse(CommandLookupTopicResponse connection) {
+        throw new UnsupportedOperationException();
+    }
+    
     protected void handleConnect(CommandConnect connect) {
         throw new UnsupportedOperationException();
     }

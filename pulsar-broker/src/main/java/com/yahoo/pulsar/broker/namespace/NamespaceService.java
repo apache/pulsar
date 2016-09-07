@@ -22,11 +22,8 @@ import static com.yahoo.pulsar.broker.web.PulsarWebResource.joinPath;
 import static com.yahoo.pulsar.common.naming.NamespaceBundleFactory.getBundlesData;
 import static java.lang.String.format;
 
-import java.net.MalformedURLException;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.net.URL;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -37,6 +34,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.zookeeper.AsyncCallback.StatCallback;
 import org.apache.zookeeper.KeeperException;
@@ -51,6 +49,7 @@ import com.yahoo.pulsar.broker.PulsarService;
 import com.yahoo.pulsar.broker.ServiceConfiguration;
 import com.yahoo.pulsar.broker.admin.AdminResource;
 import com.yahoo.pulsar.broker.loadbalance.LoadManager;
+import com.yahoo.pulsar.common.policies.data.loadbalancer.LoadReport;
 import com.yahoo.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import com.yahoo.pulsar.broker.lookup.LookupResult;
 import com.yahoo.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
@@ -70,6 +69,8 @@ import com.yahoo.pulsar.common.policies.data.NamespaceOwnershipStatus;
 import com.yahoo.pulsar.common.policies.impl.NamespaceIsolationPolicies;
 import com.yahoo.pulsar.common.util.Codec;
 import com.yahoo.pulsar.common.util.ObjectMapperFactory;
+import com.yahoo.pulsar.zookeeper.ZooKeeperCache.Deserializer;
+import static com.yahoo.pulsar.broker.admin.AdminResource.jsonMapper;
 
 /**
  * The <code>NamespaceService</code> provides resource ownership lookup as well as resource ownership claiming services
@@ -147,56 +148,51 @@ public class NamespaceService {
         return bundleFactory.getFullBundle(fqnn);
     }
 
-    public URL getWebServiceUrl(ServiceUnitId suName, boolean authoritative, boolean readOnly) throws Exception {
+    private static final Deserializer<LoadReport> loadReportDeserializer = new Deserializer<LoadReport>() {
+        @Override
+        public LoadReport deserialize(String key, byte[] content) throws Exception {
+            return jsonMapper().readValue(content, LoadReport.class);
+        }
+    };
+    
+	public URL getWebServiceUrl(ServiceUnitId suName, boolean authoritative, boolean isRequestHttps, boolean readOnly)
+			throws Exception {
         if (suName instanceof DestinationName) {
             DestinationName name = (DestinationName) suName;
             if (LOG.isDebugEnabled()) {
                 LOG.debug("Getting web service URL of destination: {} - auth: {}", name, authoritative);
             }
-
-            return this.internalGetWebServiceUrl(getBundle(name), authoritative, readOnly).get();
+            return this.internalGetWebServiceUrl(getBundle(name), authoritative, isRequestHttps, readOnly).get();
         }
 
         if (suName instanceof NamespaceName) {
-            return this.internalGetWebServiceUrl(getFullBundle((NamespaceName) suName), authoritative, readOnly).get();
+            return this.internalGetWebServiceUrl(getFullBundle((NamespaceName) suName), authoritative, isRequestHttps, readOnly).get();
         }
 
         if (suName instanceof NamespaceBundle) {
-            return this.internalGetWebServiceUrl((NamespaceBundle) suName, authoritative, readOnly).get();
+            return this.internalGetWebServiceUrl((NamespaceBundle) suName, authoritative, isRequestHttps, readOnly).get();
         }
 
         throw new IllegalArgumentException("Unrecognized class of NamespaceBundle: " + suName.getClass().getName());
     }
 
     private CompletableFuture<URL> internalGetWebServiceUrl(NamespaceBundle bundle, boolean authoritative,
-            boolean readOnly) {
+            boolean isRequestHttps, boolean readOnly) {
 
         return findBrokerServiceUrl(bundle, authoritative, readOnly).thenApply(lookupResult -> {
-            if (lookupResult == null) {
-                return null;
-            }
-
-            try {
-                if (lookupResult.isBrokerUrl()) {
-                    // Somebody already owns the service unit
+            if (lookupResult != null) {
+                try {
                     LookupData lookupData = lookupResult.getLookupData();
-                    if (lookupData.getHttpUrl() != null) {
-                        // If the broker uses the new format, we know the correct address
-                        return new URL(lookupData.getHttpUrl());
-                    } else {
-                        // Fallback to use same port as current broker
-                        URI brokerAddress = new URI(lookupData.getBrokerUrl());
-                        String host = brokerAddress.getHost();
-                        int port = config.getWebServicePort();
-                        return new URL(String.format("http://%s:%s", host, port));
-                    }
-                } else {
-                    // We have the HTTP address to redirect to
-                    return lookupResult.getHttpRedirectAddress().toURL();
+                    final String redirectUrl = isRequestHttps ? lookupData.getHttpUrlTls() : lookupData.getHttpUrl();
+                    return new URL(redirectUrl);
+
+                } catch (Exception e) {
+                    // just log the exception, nothing else to do
+                    LOG.warn("internalGetWebServiceUrl [{}]", e.getMessage(), e);
                 }
-            } catch (MalformedURLException | URISyntaxException e) {
-                throw new RuntimeException(e);
+
             }
+            return null;
         });
     }
 
@@ -391,7 +387,12 @@ public class NamespaceService {
                 }
 
                 // Now setting the redirect url
-                lookupFuture.complete(new LookupResult(new URI(candidateBroker)));
+                createLookupResult(candidateBroker).thenAccept(lookupResult -> lookupFuture.complete(lookupResult))
+                        .exceptionally(ex -> {
+                            lookupFuture.completeExceptionally(ex);
+                            return null;
+                        });
+
             }
         } catch (Exception e) {
             LOG.warn("Error in trying to acquire namespace bundle ownership for {}: {}", bundle, e.getMessage(), e);
@@ -399,6 +400,32 @@ public class NamespaceService {
         }
     }
 
+    private CompletableFuture<LookupResult> createLookupResult(String candidateBroker) throws Exception {
+
+        CompletableFuture<LookupResult> lookupFuture = new CompletableFuture<>();
+        try {
+            checkArgument(StringUtils.isNotBlank(candidateBroker), "Lookup broker can't be null " + candidateBroker);
+            URI uri = new URI(candidateBroker);
+            String path = String.format("%s/%s:%s", SimpleLoadManagerImpl.LOADBALANCE_BROKERS_ROOT, uri.getHost(),
+                    uri.getPort());
+            pulsar.getLocalZkCache().getDataAsync(path, loadReportDeserializer).thenAccept(reportData -> {
+                if (reportData.isPresent()) {
+                    LoadReport report = reportData.get();
+                    lookupFuture.complete(new LookupResult(report.getWebServiceUrl(), report.getWebServiceUrlTls(),
+                            report.getPulsarServiceUrl(), report.getPulsarServieUrlTls()));
+                } else {
+                    lookupFuture.completeExceptionally(new KeeperException.NoNodeException(path));
+                }
+            }).exceptionally(ex -> {
+                lookupFuture.completeExceptionally(ex);
+                return null;
+            });
+        } catch (Exception e) {
+            lookupFuture.completeExceptionally(e);
+        }
+        return lookupFuture;
+    }
+    
     private boolean isBrokerActive(String candidateBroker) throws KeeperException, InterruptedException {
         Set<String> activeNativeBrokers = pulsar.getLocalZkCache()
                 .getChildren(SimpleLoadManagerImpl.LOADBALANCE_BROKERS_ROOT);
