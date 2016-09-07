@@ -15,17 +15,16 @@
  */
 package com.yahoo.pulsar.discovery.service.server;
 
-import java.io.IOException;
 import java.net.URI;
 import java.security.GeneralSecurityException;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Semaphore;
 
 import javax.net.ssl.SSLContext;
+import javax.servlet.Servlet;
 
-import org.eclipse.jetty.io.EndPoint;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
@@ -38,13 +37,11 @@ import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.eclipse.jetty.util.thread.ExecutorThreadPool;
-import org.glassfish.jersey.servlet.ServletContainer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
 import com.yahoo.pulsar.common.util.SecurityUtility;
-import com.yahoo.pulsar.discovery.service.DiscoveryService;
 import com.yahoo.pulsar.discovery.service.RestException;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -79,7 +76,8 @@ public class ServerManager {
             } catch (GeneralSecurityException e) {
                 throw new RestException(e);
             }
-            sslCtxFactory.setWantClientAuth(true);
+
+            sslCtxFactory.setWantClientAuth(false);
             ServerConnector tlsConnector = new ServerConnector(server, 1, 1, sslCtxFactory);
             tlsConnector.setPort(config.getWebServicePortTls());
             connectors.add(tlsConnector);
@@ -94,16 +92,13 @@ public class ServerManager {
         return this.server.getURI();
     }
 
-    public void addRestResources(String basePath, String javaPackages) {
-        ServletHolder servletHolder = new ServletHolder(ServletContainer.class);
-        servletHolder.setInitParameter("jersey.config.server.provider.packages", javaPackages);
-        addServlet(basePath, servletHolder);
-    }
-
-    public void addServlet(String path, ServletHolder servletHolder) {
+    public void addServlet(String path, Class<? extends Servlet> servlet, Map<String, String> initParameters) {
         ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
         context.setContextPath(path);
-        context.addServlet(servletHolder, "/*");
+
+        ServletHolder holder = new ServletHolder(servlet);
+        holder.setInitParameters(initParameters);
+        context.addServlet(holder, path);
         handlers.add(context);
     }
 
@@ -111,43 +106,32 @@ public class ServerManager {
         return externalServicePort;
     }
 
-    protected void start() throws Exception {
-        try {
-            RequestLogHandler requestLogHandler = new RequestLogHandler();
-            Slf4jRequestLog requestLog = new Slf4jRequestLog();
-            requestLog.setExtended(true);
-            requestLog.setLogTimeZone("GMT");
-            requestLog.setLogLatency(true);
-            requestLogHandler.setRequestLog(requestLog);
-            handlers.add(0, new ContextHandlerCollection());
-            handlers.add(requestLogHandler);
+    public void start() throws Exception {
+        RequestLogHandler requestLogHandler = new RequestLogHandler();
+        Slf4jRequestLog requestLog = new Slf4jRequestLog();
+        requestLog.setExtended(true);
+        requestLog.setLogTimeZone("GMT");
+        requestLog.setLogLatency(true);
+        requestLogHandler.setRequestLog(requestLog);
+        handlers.add(0, new ContextHandlerCollection());
+        handlers.add(requestLogHandler);
 
-            ContextHandlerCollection contexts = new ContextHandlerCollection();
-            contexts.setHandlers(handlers.toArray(new Handler[handlers.size()]));
+        ContextHandlerCollection contexts = new ContextHandlerCollection();
+        contexts.setHandlers(handlers.toArray(new Handler[handlers.size()]));
 
-            HandlerCollection handlerCollection = new HandlerCollection();
-            handlerCollection.setHandlers(new Handler[] { contexts, new DefaultHandler(), requestLogHandler });
-            server.setHandler(handlerCollection);
+        HandlerCollection handlerCollection = new HandlerCollection();
+        handlerCollection.setHandlers(new Handler[] { contexts, new DefaultHandler(), requestLogHandler });
+        server.setHandler(handlerCollection);
 
-            server.start();
+        server.start();
 
-        } catch (Exception e) {
-            throw new Exception(e);
-        }
+        log.info("Server started at end point {}", getServiceUri());
     }
 
     public void stop() throws Exception {
         server.stop();
         webServiceExecutor.shutdown();
         log.info("Server stopped successfully");
-    }
-
-    public void start(List<String> resources) throws Exception {
-        if (resources != null) {
-            resources.forEach(r -> this.addRestResources("/", DiscoveryService.class.getPackage().getName()));
-        }
-        this.start();
-        log.info("Server started at end point {}", getServiceUri().toString());
     }
 
     private static final Logger log = LoggerFactory.getLogger(ServerManager.class);

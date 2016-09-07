@@ -15,16 +15,14 @@
  */
 package com.yahoo.pulsar.discovery.service;
 
-import static com.yahoo.pulsar.discovery.service.DiscoveryService.LOADBALANCE_BROKERS_ROOT;
+import static com.yahoo.pulsar.discovery.service.ZookeeperCacheLoader.LOADBALANCE_BROKERS_ROOT;
 import static org.testng.Assert.fail;
 
 import java.io.IOException;
 import java.util.List;
 
-import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
-import org.apache.zookeeper.MockZooKeeper;
 import org.apache.zookeeper.ZooDefs;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -32,32 +30,33 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import com.beust.jcommander.internal.Lists;
-import com.yahoo.pulsar.discovery.service.ZookeeperCacheLoader;
+import com.yahoo.pulsar.common.policies.data.loadbalancer.LoadReport;
+import com.yahoo.pulsar.zookeeper.MockedZooKeeperClientFactoryImpl;
+import com.yahoo.pulsar.zookeeper.ZooKeeperClientFactory;
 
 public class ZookeeperCacheLoaderTest {
 
-    private MockZooKeeper mockZookKeeper;
+    private ZooKeeperClientFactory mockZookKeeperFactory;
 
     @BeforeMethod
     void setup() throws Exception {
-        mockZookKeeper = MockZooKeeper.newInstance();
+        mockZookKeeperFactory = new MockedZooKeeperClientFactoryImpl();
     }
 
     @AfterMethod
     void teardown() throws Exception {
-        mockZookKeeper.shutdown();
     }
 
     /**
      * Create znode for available broker in ZooKeeper and updates it again to verify ZooKeeper cache update
-     * 
+     *
      * @throws InterruptedException
      * @throws KeeperException
      * @throws IOException
      */
     @Test
-    public void testZookeeperCacheLoader() throws InterruptedException, KeeperException, IOException {
-        ZookeeperCacheLoader zkLoader = new ZookeeperCacheLoader(null);
+    public void testZookeeperCacheLoader() throws InterruptedException, KeeperException, Exception {
+        ZookeeperCacheLoader zkLoader = new ZookeeperCacheLoader(mockZookKeeperFactory, "");
 
         List<String> brokers = Lists.newArrayList("broker-1:15000", "broker-2:15000", "broker-3:15000");
         // 1. create znode for each broker
@@ -73,7 +72,7 @@ public class ZookeeperCacheLoaderTest {
         Thread.sleep(100); // wait for 100 msec: to get cache updated
 
         // 2. get available brokers from ZookeeperCacheLoader
-        List<String> list = zkLoader.getAvailableActiveBrokers();
+        List<LoadReport> list = zkLoader.getAvailableBrokers();
 
         // 3. verify retrieved broker list
         Assert.assertTrue(brokers.containsAll(list));
@@ -86,7 +85,7 @@ public class ZookeeperCacheLoaderTest {
         Thread.sleep(100); // wait for 100 msec: to get cache updated
 
         // 4.b. get available brokers from ZookeeperCacheLoader
-        list = zkLoader.getAvailableActiveBrokers();
+        list = zkLoader.getAvailableBrokers();
 
         // 4.c. verify retrieved broker list
         Assert.assertTrue(brokers.containsAll(list));

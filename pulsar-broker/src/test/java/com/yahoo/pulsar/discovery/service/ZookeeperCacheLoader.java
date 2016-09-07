@@ -32,7 +32,7 @@ public class ZookeeperCacheLoader {
         // dummy constructor
     }
 
-    public List<String> getAvailableActiveBrokers() {
+    public List<String> getAvailableBrokers() {
         return this.availableActiveBrokers;
     }
 

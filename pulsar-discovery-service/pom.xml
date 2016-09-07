@@ -141,6 +141,14 @@
       <artifactId>powermock-module-testng</artifactId>
       <scope>test</scope>
     </dependency>
+    
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-zookeeper-utils</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+      <type>test-jar</type>
+    </dependency>
 
   </dependencies>
 

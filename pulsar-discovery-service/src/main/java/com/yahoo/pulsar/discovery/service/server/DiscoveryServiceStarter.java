@@ -26,19 +26,18 @@ import static org.slf4j.bridge.SLF4JBridgeHandler.removeHandlersForRootLogger;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.TreeMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.collect.Lists;
-import com.yahoo.pulsar.discovery.service.DiscoveryService;
+import com.yahoo.pulsar.discovery.service.DiscoveryServiceServlet;
 
 /**
- * 
- * Starts jetty server and initialize {@link DiscoveryService} web-service
+ *
+ * Starts jetty server and initialize {@link DiscoveryServiceServlet} web-service
  *
  */
 public class DiscoveryServiceStarter {
@@ -65,17 +64,20 @@ public class DiscoveryServiceStarter {
                 }
             }
         });
+
         // add servlet
-        final List<String> servletPackages = Lists.newArrayList(DiscoveryService.class.getPackage().getName());
-        System.setProperty("zookeeperServers", config.getZookeeperServers());
+        Map<String, String> initParameters = new TreeMap<>();
+        initParameters.put("zookeeperServers", config.getZookeeperServers());
+        server.addServlet("/*", DiscoveryServiceServlet.class, initParameters);
+
         // start web-service
-        server.start(servletPackages);
+        server.start();
         log.info("Discovery service is started at {}", server.getServiceUri().toString());
     }
 
     public static void main(String[] args) {
-
         checkArgument(args.length == 1, "Need to specify a configuration file");
+
         try {
             // load config file and start server
             init(args[0]);
