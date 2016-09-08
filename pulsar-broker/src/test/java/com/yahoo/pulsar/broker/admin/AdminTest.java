@@ -30,12 +30,15 @@ import static org.testng.Assert.fail;
 
 import java.lang.reflect.Field;
 import java.net.URI;
+import java.security.Permissions;
+import java.security.acl.Permission;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
 
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.StreamingOutput;
@@ -605,6 +608,12 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         assertTrue(list.isEmpty());
         // create destination
         persistentTopics.createPartitionedTopic(property, cluster, namespace, destination, 5, false);
+
+        CountDownLatch notificationLatch = new CountDownLatch(2);
+        configurationCache.policiesCache().registerListener((path, data, stat) -> {
+            notificationLatch.countDown();
+        });
+
         // grant permission
         final Set<AuthAction> actions = Sets.newHashSet(AuthAction.produce);
         final String role = "test-role";
@@ -615,6 +624,10 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         assertEquals(permission.get(role), actions);
         // remove permission
         persistentTopics.revokePermissionsOnDestination(property, cluster, namespace, destination, role);
+
+        // Wait for cache to be updated
+        notificationLatch.await();
+
         // verify removed permission
         permission = persistentTopics.getPermissionsOnDestination(property, cluster, namespace, destination);
         assertTrue(permission.isEmpty());
