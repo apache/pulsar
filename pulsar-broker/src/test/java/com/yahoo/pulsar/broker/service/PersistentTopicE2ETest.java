@@ -238,7 +238,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
      * Validation: 1. validates active-cursor after active subscription 2. validate active-cursor with subscription 3.
      * unconsumed messages should be present into cache 4. cache and active-cursor should be empty once subscription is
      * closed
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -1033,13 +1033,14 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
         Consumer consumer = pulsarClient.subscribe(topicName, "my-sub");
 
+        Message msg1 = MessageBuilder.create().setContent("message-1".getBytes()).build();
+        CompletableFuture<MessageId> future1 = producer.sendAsync(msg1);
+
         // Stop the broker, and publishes messages. Messages are accumulated in the producer queue and they're checksums
         // would have already been computed. If we change the message content at that point, it should result in a
         // checksum validation error
         stopBroker();
 
-        Message msg1 = MessageBuilder.create().setContent("message-1".getBytes()).build();
-        CompletableFuture<MessageId> future1 = producer.sendAsync(msg1);
 
         Message msg2 = MessageBuilder.create().setContent("message-2".getBytes()).build();
         CompletableFuture<MessageId> future2 = producer.sendAsync(msg2);
