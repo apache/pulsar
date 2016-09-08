@@ -125,7 +125,9 @@ public class Clusters extends AdminResource {
         validatePoliciesReadOnlyAccess();
 
         try {
-            globalZk().setData(path("clusters", cluster), jsonMapper().writeValueAsBytes(clusterData), -1);
+            String clusterPath = path("clusters", cluster);
+            globalZk().setData(clusterPath, jsonMapper().writeValueAsBytes(clusterData), -1);
+            globalZkCache().invalidate(clusterPath);
             log.info("[{}] Updated cluster {}", clientAppId(), cluster);
         } catch (KeeperException.NoNodeException e) {
             log.warn("[{}] Failed to update cluster {}: Does not exist", clientAppId(), cluster);
@@ -186,8 +188,9 @@ public class Clusters extends AdminResource {
         }
 
         try {
-            globalZk().delete(path("clusters", cluster), -1);
-            clustersCache().invalidate(path("clusters", cluster));
+            String clusterPath = path("clusters", cluster);
+            globalZk().delete(clusterPath, -1);
+            globalZkCache().invalidate(clusterPath);
             log.info("[{}] Deleted cluster {}", clientAppId(), cluster);
         } catch (KeeperException.NoNodeException e) {
             log.warn("[{}] Failed to delete cluster {} - Does not exist", clientAppId(), cluster);
