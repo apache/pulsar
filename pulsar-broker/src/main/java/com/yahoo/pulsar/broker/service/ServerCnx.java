@@ -259,6 +259,7 @@ public class ServerCnx extends PulsarHandler {
                                 exception.getCause().getMessage()));
                     }
                     consumers.remove(consumerId, consumerFuture);
+
                     return null;
 
                 });
@@ -575,11 +576,11 @@ public class ServerCnx extends PulsarHandler {
         long producerId = producer.getProducerId();
         producers.remove(producerId);
         if(remoteEndpointProtocolVersion >= v5.getNumber()) {
-            ctx.writeAndFlush(Commands.newCloseProducer(producerId, -1L));    
+            ctx.writeAndFlush(Commands.newCloseProducer(producerId, -1L));
         } else {
             close();
         }
-        
+
     }
 
     public void closeConsumer(Consumer consumer) {
@@ -590,12 +591,12 @@ public class ServerCnx extends PulsarHandler {
         long consumerId = consumer.consumerId();
         consumers.remove(consumerId);
         if(remoteEndpointProtocolVersion >= v5.getNumber()) {
-            ctx.writeAndFlush(Commands.newCloseConsumer(consumerId, -1L));    
+            ctx.writeAndFlush(Commands.newCloseConsumer(consumerId, -1L));
         } else {
             close();
         }
     }
-    
+
     /**
      * It closes the connection with client which triggers {@code channelInactive()} which clears all producers and
      * consumers from connection-map
@@ -677,5 +678,9 @@ public class ServerCnx extends PulsarHandler {
 
     public String getRole() {
         return authRole;
+    }
+
+    boolean hasConsumer(long consumerId) {
+        return consumers.containsKey(consumerId);
     }
 }

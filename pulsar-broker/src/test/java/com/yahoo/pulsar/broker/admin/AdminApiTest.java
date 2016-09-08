@@ -155,7 +155,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void clusters() throws PulsarAdminException {
+    public void clusters() throws Exception {
         admin.clusters().createCluster("usw",
                 new ClusterData("http://broker.messaging.use.example.com" + ":" + BROKER_WEBSERVICE_PORT));
         assertEquals(admin.clusters().getClusters(), Lists.newArrayList("use", "usw"));
@@ -178,6 +178,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
                         "https://new-broker.messaging.usw.example.com" + ":" + BROKER_WEBSERVICE_PORT_TLS));
 
         admin.clusters().deleteCluster("usw");
+        Thread.sleep(300);
+
         assertEquals(admin.clusters().getClusters(), Lists.newArrayList("use"));
 
         admin.namespaces().deleteNamespace("prop-xyz/use/ns1");
