@@ -122,6 +122,8 @@ while (true) {
   // Acknowledge the message so that it can be deleted by broker
   consumer.acknowledge(msg);
 }
+
+client.close();
 ```
 
 
@@ -137,4 +139,6 @@ Producer producer = client.createProducer(
 for (int i = 0; i < 10; i++) {
     producer.send("my-message".getBytes());
 }
+
+client.close();
 ```
