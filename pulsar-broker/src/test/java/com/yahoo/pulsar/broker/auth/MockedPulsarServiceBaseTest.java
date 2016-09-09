@@ -37,6 +37,7 @@ import org.apache.zookeeper.MockZooKeeper;
 import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.data.ACL;
 
+import com.google.common.util.concurrent.MoreExecutors;
 import com.yahoo.pulsar.broker.BookKeeperClientFactory;
 import com.yahoo.pulsar.broker.PulsarService;
 import com.yahoo.pulsar.broker.ServiceConfiguration;
@@ -148,7 +149,7 @@ public abstract class MockedPulsarServiceBaseTest {
     }
 
     private MockZooKeeper createMockZooKeeper() throws Exception {
-        MockZooKeeper zk = MockZooKeeper.newInstance();
+        MockZooKeeper zk = MockZooKeeper.newInstance(MoreExecutors.sameThreadExecutor());
         List<ACL> dummyAclList = new ArrayList<ACL>(0);
 
         ZkUtils.createFullPathOptimistic(zk, "/ledgers/available/192.168.1.1:" + 5000,
