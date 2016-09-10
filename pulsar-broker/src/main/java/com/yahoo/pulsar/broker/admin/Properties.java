@@ -150,7 +150,9 @@ public class Properties extends AdminResource {
                     throw new RestException(Status.CONFLICT, msg);
                 }
             }
-            globalZk().setData(path("policies", property), jsonMapper().writeValueAsBytes(newPropertyAdmin), -1);
+            String propertyPath = path("policies", property);
+            globalZk().setData(propertyPath, jsonMapper().writeValueAsBytes(newPropertyAdmin), -1);
+            globalZkCache().invalidate(propertyPath);
             log.info("[{}] updated property {}", clientAppId(), property);
         } catch (RestException re) {
             throw re;

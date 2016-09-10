@@ -296,11 +296,12 @@ public class PersistentTopics extends AdminResource {
 
         try {
             // Write the new policies to zookeeper
-            globalZk().setData(path("policies", property, cluster, namespace), jsonMapper().writeValueAsBytes(policies),
-                    nodeStat.getVersion());
+            String namespacePath = path("policies", property, cluster, namespace);
+            globalZk().setData(namespacePath, jsonMapper().writeValueAsBytes(policies), nodeStat.getVersion());
 
             // invalidate the local cache to force update
-            policiesCache().invalidate(path("policies", property, cluster, namespace));
+            policiesCache().invalidate(namespacePath);
+            globalZkCache().invalidate(namespacePath);
 
             log.info("[{}] Successfully revoke access for role {} - destination {}", clientAppId(), role,
                     destinationUri);

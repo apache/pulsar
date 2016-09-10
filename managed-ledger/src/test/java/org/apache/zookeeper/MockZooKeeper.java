@@ -62,12 +62,16 @@ public class MockZooKeeper extends ZooKeeper {
     private long sessionId = 0L;
 
     public static MockZooKeeper newInstance() {
+        return newInstance(null);
+    }
+
+    public static MockZooKeeper newInstance(ExecutorService executor) {
         try {
             ReflectionFactory rf = ReflectionFactory.getReflectionFactory();
             Constructor objDef = Object.class.getDeclaredConstructor(new Class[0]);
             Constructor intConstr = rf.newConstructorForSerialization(MockZooKeeper.class, objDef);
             MockZooKeeper zk = MockZooKeeper.class.cast(intConstr.newInstance());
-            zk.init();
+            zk.init(executor);
             return zk;
         } catch (RuntimeException e) {
             throw e;
@@ -76,9 +80,13 @@ public class MockZooKeeper extends ZooKeeper {
         }
     }
 
-    private void init() {
+    private void init(ExecutorService executor) {
         tree = Maps.newTreeMap();
-        executor = Executors.newFixedThreadPool(1, new DefaultThreadFactory("mock-zookeeper"));
+        if (executor != null) {
+            this.executor = executor;
+        } else {
+            this.executor = Executors.newFixedThreadPool(1, new DefaultThreadFactory("mock-zookeeper"));
+        }
         SetMultimap<String, Watcher> w = HashMultimap.create();
         watchers = Multimaps.synchronizedSetMultimap(w);
         stopped = false;

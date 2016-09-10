@@ -23,6 +23,7 @@ import static org.testng.AssertJUnit.assertNull;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -41,6 +42,7 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import com.google.common.util.concurrent.MoreExecutors;
 
 @Test
 public class ZookeeperCacheTest {
@@ -48,7 +50,7 @@ public class ZookeeperCacheTest {
 
     @BeforeMethod
     void setup() throws Exception {
-        zkClient = MockZooKeeper.newInstance();
+        zkClient = MockZooKeeper.newInstance(MoreExecutors.sameThreadExecutor());
     }
 
     @AfterMethod
@@ -277,8 +279,6 @@ public class ZookeeperCacheTest {
         // seen by the cache
         zkClient.failAfter(-1, Code.OK);
         zkClient.delete("/my_test2", -1);
-        // Make sure it has not been updated yet
-        assertEquals(zkCache.get("/my_test2"), value);
         zkCacheService.process(new WatchedEvent(Event.EventType.None, KeeperState.SyncConnected, null));
         assertEquals(zkCache.get("/other"), newValue);
 

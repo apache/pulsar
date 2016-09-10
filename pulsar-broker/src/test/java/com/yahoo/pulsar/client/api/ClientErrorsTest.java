@@ -39,6 +39,7 @@ import com.yahoo.pulsar.client.api.ConsumerConfiguration;
 import com.yahoo.pulsar.client.api.Producer;
 import com.yahoo.pulsar.client.api.PulsarClient;
 import com.yahoo.pulsar.client.api.PulsarClientException;
+import com.yahoo.pulsar.client.api.PulsarClientException.LookupException;
 import com.yahoo.pulsar.client.api.SubscriptionType;
 import com.yahoo.pulsar.client.impl.ConsumerBase;
 import com.yahoo.pulsar.client.impl.ProducerBase;
@@ -374,7 +375,7 @@ public class ClientErrorsTest {
 
     private void subscribeFailAfterRetryTimeout(String topic) throws Exception {
         ClientConfiguration conf = new ClientConfiguration();
-        conf.setOperationTimeout(1, TimeUnit.SECONDS);
+        conf.setOperationTimeout(200, TimeUnit.MILLISECONDS);
 
         PulsarClient client = PulsarClient.create("http://127.0.0.1:" + WEB_SERVICE_PORT, conf);
         final AtomicInteger counter = new AtomicInteger(0);
@@ -382,7 +383,7 @@ public class ClientErrorsTest {
         mockBrokerService.setHandleSubscribe((ctx, subscribe) -> {
             if (counter.incrementAndGet() == 2) {
                 try {
-                    Thread.sleep(2000);
+                    Thread.sleep(500);
                 } catch (InterruptedException e) {
                     // do nothing
                 }
@@ -393,11 +394,11 @@ public class ClientErrorsTest {
         try {
             ConsumerConfiguration cConf = new ConsumerConfiguration();
             cConf.setSubscriptionType(SubscriptionType.Exclusive);
-            Consumer consumer = client.subscribe(topic, "sub1", cConf);
+            client.subscribe(topic, "sub1", cConf);
             fail("Should have failed");
         } catch (Exception e) {
             // we fail even on the retriable error
-            assertTrue(e instanceof PulsarClientException.LookupException);
+            assertEquals(e.getClass(), LookupException.class);
         }
 
         mockBrokerService.resetHandleSubscribe();
@@ -576,6 +577,7 @@ public class ClientErrorsTest {
 
         // close the cnx after creating the producer
         channelCtx.get().channel().close();
+        Thread.sleep(300);
 
         producer.send(new byte[0]);
 

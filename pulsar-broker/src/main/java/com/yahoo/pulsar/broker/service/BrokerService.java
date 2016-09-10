@@ -279,7 +279,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
         // unloads all namespaces gracefully without disrupting mutually
         unloadNamespaceBundlesGracefully();
-        
+
         // close replication clients
         replicationClients.forEach((cluster, client) -> {
             try {
@@ -307,12 +307,14 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
      * <li>Second it starts unloading namespace bundle one by one without closing the connection in order to avoid
      * disruption for other namespacebundles which are sharing the same connection from the same client.</li>
      * <ul>
-     * 
+     *
      */
     public void unloadNamespaceBundlesGracefully() {
         try {
             // make broker-node unavailable from the cluster
-            pulsar.getLoadManager().disableBroker();
+            if (pulsar.getLoadManager() != null) {
+                pulsar.getLoadManager().disableBroker();
+            }
 
             // unload all namespace-bundles gracefully
             long closeTopicsStartTime = System.nanoTime();

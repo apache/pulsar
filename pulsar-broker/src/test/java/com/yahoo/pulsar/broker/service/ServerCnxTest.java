@@ -32,6 +32,7 @@ import static org.testng.Assert.assertTrue;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import javax.naming.AuthenticationException;
@@ -113,6 +114,9 @@ public class ServerCnxTest {
     private final String successSubName = "successSub";
     private final String nonExistentTopicName = "persistent://nonexistent-prop/nonexistent-cluster/nonexistent-namespace/successNonExistentTopic";
     private final String topicWithNonLocalCluster = "persistent://prop/usw/ns-abc/successTopic";
+
+    private ManagedLedger ledgerMock = mock(ManagedLedger.class);
+    private ManagedCursor cursorMock = mock(ManagedCursor.class);
 
     @BeforeMethod
     public void setup() throws Exception {
@@ -611,6 +615,19 @@ public class ServerCnxTest {
         resetChannel();
         setChannelConnected();
 
+        // Delay the topic creation in a deterministic way
+        CountDownLatch successTopicCreationDelayLatch = new CountDownLatch(1);
+        doAnswer(new Answer<Object>() {
+            @Override
+            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+                successTopicCreationDelayLatch.await();
+
+                ((OpenLedgerCallback) invocationOnMock.getArguments()[2]).openLedgerComplete(ledgerMock, null);
+                return null;
+            }
+        }).when(mlFactoryMock).asyncOpen(matches(".*success.*"), any(ManagedLedgerConfig.class),
+                any(OpenLedgerCallback.class), anyObject());
+
         // In a create producer timeout from client side we expect to see this sequence of commands :
         // 1. create producer
         // 2. close producer (when the timeout is triggered, which may be before the producer was created on the broker
@@ -632,6 +649,8 @@ public class ServerCnxTest {
                 producerName);
         channel.writeInbound(createProducer2);
 
+        successTopicCreationDelayLatch.countDown();
+
         // Close succeeds
         Object response = getResponse();
         assertEquals(response.getClass(), CommandSuccess.class);
@@ -649,10 +668,23 @@ public class ServerCnxTest {
         channel.finish();
     }
 
-    @Test(timeOut = 30000)
+    @Test(timeOut = 30000, enabled = false)
     public void testCreateProducerMultipleTimeouts() throws Exception {
         resetChannel();
         setChannelConnected();
+
+        // Delay the topic creation in a deterministic way
+        CountDownLatch topicCreationDelayLatch = new CountDownLatch(1);
+        doAnswer(new Answer<Object>() {
+            @Override
+            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+                topicCreationDelayLatch.await();
+
+                ((OpenLedgerCallback) invocationOnMock.getArguments()[2]).openLedgerComplete(ledgerMock, null);
+                return null;
+            }
+        }).when(mlFactoryMock).asyncOpen(matches(".*success.*"), any(ManagedLedgerConfig.class),
+                any(OpenLedgerCallback.class), anyObject());
 
         // In a create producer timeout from client side we expect to see this sequence of commands :
         // 1. create producer
@@ -688,6 +720,9 @@ public class ServerCnxTest {
         assertEquals(response.getClass(), CommandSuccess.class);
         assertEquals(((CommandSuccess) response).getRequestId(), 2);
 
+        // Now allow topic creation to complete
+        topicCreationDelayLatch.countDown();
+
         // 1st producer it's not acked
 
         // 2nd producer fails
@@ -719,6 +754,31 @@ public class ServerCnxTest {
         resetChannel();
         setChannelConnected();
 
+        // Delay the topic creation in a deterministic way
+        CountDownLatch failedTopicCreationDelayLatch = new CountDownLatch(1);
+        doAnswer(new Answer<Object>() {
+            @Override
+            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+                failedTopicCreationDelayLatch.await();
+
+                ((OpenLedgerCallback) invocationOnMock.getArguments()[2]).openLedgerComplete(ledgerMock, null);
+                return null;
+            }
+        }).when(mlFactoryMock).asyncOpen(matches(".*fail.*"), any(ManagedLedgerConfig.class),
+                any(OpenLedgerCallback.class), anyObject());
+
+        CountDownLatch topicCreationDelayLatch = new CountDownLatch(1);
+        doAnswer(new Answer<Object>() {
+            @Override
+            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+                topicCreationDelayLatch.await();
+
+                ((OpenLedgerCallback) invocationOnMock.getArguments()[2]).openLedgerComplete(ledgerMock, null);
+                return null;
+            }
+        }).when(mlFactoryMock).asyncOpen(matches(".*success.*"), any(ManagedLedgerConfig.class),
+                any(OpenLedgerCallback.class), anyObject());
+
         // In a create producer timeout from client side we expect to see this sequence of commands :
         // 1. create a failure producer which will timeout creation after 100msec
         // 2. close producer
@@ -741,6 +801,9 @@ public class ServerCnxTest {
                 producerName);
         channel.writeInbound(createProducer2);
 
+        failedTopicCreationDelayLatch.countDown();
+        topicCreationDelayLatch.countDown();
+
         // Close succeeds
         Object response = getResponse();
         assertEquals(response.getClass(), CommandSuccess.class);
@@ -752,7 +815,7 @@ public class ServerCnxTest {
         assertEquals(((CommandError) response).getRequestId(), 3);
 
         // Wait till the failtopic timeout interval
-        Thread.sleep(200);
+        Thread.sleep(500);
         ByteBuf createProducer3 = Commands.newProducer(successTopicName, 1 /* producer id */, 4 /* request id */,
                 producerName);
         channel.writeInbound(createProducer3);
@@ -762,7 +825,7 @@ public class ServerCnxTest {
         assertEquals(response.getClass(), CommandProducerSuccess.class);
         assertEquals(((CommandProducerSuccess) response).getRequestId(), 4);
 
-        Thread.sleep(100);
+        Thread.sleep(500);
 
         // We should not receive response for 1st producer, since it was cancelled by the close
         assertTrue(channel.outboundMessages().isEmpty());
@@ -775,6 +838,21 @@ public class ServerCnxTest {
     public void testSubscribeTimeout() throws Exception {
         resetChannel();
         setChannelConnected();
+
+        // Delay the topic creation in a deterministic way
+        CountDownLatch topicCreationDelayLatch = new CountDownLatch(1);
+        doAnswer(new Answer<Object>() {
+            @Override
+            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+                topicCreationDelayLatch.await();
+
+                synchronized (ServerCnxTest.this) {
+                    ((OpenLedgerCallback) invocationOnMock.getArguments()[2]).openLedgerComplete(ledgerMock, null);
+                }
+                return null;
+            }
+        }).when(mlFactoryMock).asyncOpen(matches(".*success.*"), any(ManagedLedgerConfig.class),
+                any(OpenLedgerCallback.class), anyObject());
 
         // In a subscribe timeout from client side we expect to see this sequence of commands :
         // 1. Subscribe
@@ -803,31 +881,33 @@ public class ServerCnxTest {
                 successSubName, 1 /* consumer id */, 5 /* request id */, SubType.Exclusive, "test" /* consumer name */);
         channel.writeInbound(subscribe4);
 
+        topicCreationDelayLatch.countDown();
+
         Object response;
 
-        // Close succeeds
-        response = getResponse();
-        assertEquals(response.getClass(), CommandSuccess.class);
-        assertEquals(((CommandSuccess) response).getRequestId(), 2);
+        synchronized (this) {
+            // Close succeeds
+            response = getResponse();
+            assertEquals(response.getClass(), CommandSuccess.class);
+            assertEquals(((CommandSuccess) response).getRequestId(), 2);
 
-        // All other subscribe should fail
-        response = getResponse();
-        assertEquals(response.getClass(), CommandError.class);
-        assertEquals(((CommandError) response).getRequestId(), 3);
+            // All other subscribe should fail
+            response = getResponse();
+            assertEquals(response.getClass(), CommandError.class);
+            assertEquals(((CommandError) response).getRequestId(), 3);
 
-        response = getResponse();
-        assertEquals(response.getClass(), CommandError.class);
-        assertEquals(((CommandError) response).getRequestId(), 4);
+            response = getResponse();
+            assertEquals(response.getClass(), CommandError.class);
+            assertEquals(((CommandError) response).getRequestId(), 4);
 
-        response = getResponse();
-        assertEquals(response.getClass(), CommandError.class);
-        assertEquals(((CommandError) response).getRequestId(), 5);
+            response = getResponse();
+            assertEquals(response.getClass(), CommandError.class);
+            assertEquals(((CommandError) response).getRequestId(), 5);
 
-        Thread.sleep(100);
-
-        // We should not receive response for 1st producer, since it was cancelled by the close
-        assertTrue(channel.outboundMessages().isEmpty());
-        assertTrue(channel.isActive());
+            // We should not receive response for 1st producer, since it was cancelled by the close
+            assertTrue(channel.outboundMessages().isEmpty());
+            assertTrue(channel.isActive());
+        }
 
         channel.finish();
     }
@@ -837,6 +917,39 @@ public class ServerCnxTest {
         resetChannel();
         setChannelConnected();
 
+        // Delay the topic creation in a deterministic way
+        CountDownLatch successTopicCreationDelayLatch = new CountDownLatch(1);
+        doAnswer(new Answer<Object>() {
+            @Override
+            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+                successTopicCreationDelayLatch.await();
+
+                ((OpenLedgerCallback) invocationOnMock.getArguments()[2]).openLedgerComplete(ledgerMock, null);
+                return null;
+            }
+        }).when(mlFactoryMock).asyncOpen(matches(".*success.*"), any(ManagedLedgerConfig.class),
+                any(OpenLedgerCallback.class), anyObject());
+
+        CountDownLatch failedTopicCreationDelayLatch = new CountDownLatch(1);
+        doAnswer(new Answer<Object>() {
+            @Override
+            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+
+                new Thread(() -> {
+                    try {
+                        failedTopicCreationDelayLatch.await();
+                    } catch (InterruptedException e) {
+                    }
+
+                    ((OpenLedgerCallback) invocationOnMock.getArguments()[2])
+                            .openLedgerFailed(new ManagedLedgerException("Managed ledger failure"), null);
+                }).start();
+
+                return null;
+            }
+        }).when(mlFactoryMock).asyncOpen(matches(".*fail.*"), any(ManagedLedgerConfig.class),
+                any(OpenLedgerCallback.class), anyObject());
+
         // In a subscribe timeout from client side we expect to see this sequence of commands :
         // 1. Subscribe against failtopic which will fail after 100msec
         // 2. close consumer
@@ -845,7 +958,6 @@ public class ServerCnxTest {
 
         // These operations need to be serialized, to allow the last subscribe operation to finally succeed
         // (There can be more subscribe/close pairs in the sequence, depending on the client timeout
-
         ByteBuf subscribe1 = Commands.newSubscribe(failTopicName, //
                 successSubName, 1 /* consumer id */, 1 /* request id */, SubType.Exclusive, "test" /* consumer name */);
         channel.writeInbound(subscribe1);
@@ -856,6 +968,9 @@ public class ServerCnxTest {
         ByteBuf subscribe2 = Commands.newSubscribe(successTopicName, //
                 successSubName, 1 /* consumer id */, 3 /* request id */, SubType.Exclusive, "test" /* consumer name */);
         channel.writeInbound(subscribe2);
+
+        successTopicCreationDelayLatch.countDown();
+        failedTopicCreationDelayLatch.countDown();
 
         Object response;
 
@@ -869,8 +984,9 @@ public class ServerCnxTest {
         assertEquals(response.getClass(), CommandError.class);
         assertEquals(((CommandError) response).getRequestId(), 3);
 
-        // Wait till the failtopic timeout interval
-        Thread.sleep(200);
+        while (serverCnx.hasConsumer(1)) {
+            Thread.sleep(10);
+        }
 
         ByteBuf subscribe3 = Commands.newSubscribe(successTopicName, //
                 successSubName, 1 /* consumer id */, 4 /* request id */, SubType.Exclusive, "test" /* consumer name */);
@@ -1047,16 +1163,13 @@ public class ServerCnxTest {
     }
 
     private void setupMLAsyncCallbackMocks() {
-        final ManagedLedger ledgerMock = mock(ManagedLedger.class);
-        final ManagedCursor cursorMock = mock(ManagedCursor.class);
-
         doReturn(new ArrayList<Object>()).when(ledgerMock).getCursors();
 
         // call openLedgerComplete with ledgerMock on ML factory asyncOpen
         doAnswer(new Answer<Object>() {
             @Override
             public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-                Thread.sleep(100);
+                Thread.sleep(300);
                 ((OpenLedgerCallback) invocationOnMock.getArguments()[2]).openLedgerComplete(ledgerMock, null);
                 return null;
             }
@@ -1067,7 +1180,7 @@ public class ServerCnxTest {
         doAnswer(new Answer<Object>() {
             @Override
             public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-                Thread.sleep(100);
+                Thread.sleep(300);
                 new Thread(() -> {
                     ((OpenLedgerCallback) invocationOnMock.getArguments()[2])
                             .openLedgerFailed(new ManagedLedgerException("Managed ledger failure"), null);
@@ -1091,6 +1204,7 @@ public class ServerCnxTest {
         doAnswer(new Answer<Object>() {
             @Override
             public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+                Thread.sleep(300);
                 ((OpenCursorCallback) invocationOnMock.getArguments()[1]).openCursorComplete(cursorMock, null);
                 return null;
             }
@@ -1099,6 +1213,7 @@ public class ServerCnxTest {
         doAnswer(new Answer<Object>() {
             @Override
             public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+                Thread.sleep(300);
                 ((OpenCursorCallback) invocationOnMock.getArguments()[1])
                         .openCursorFailed(new ManagedLedgerException("Managed ledger failure"), null);
                 return null;
