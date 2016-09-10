@@ -846,7 +846,9 @@ public class ServerCnxTest {
             public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
                 topicCreationDelayLatch.await();
 
-                ((OpenLedgerCallback) invocationOnMock.getArguments()[2]).openLedgerComplete(ledgerMock, null);
+                synchronized (ServerCnxTest.this) {
+                    ((OpenLedgerCallback) invocationOnMock.getArguments()[2]).openLedgerComplete(ledgerMock, null);
+                }
                 return null;
             }
         }).when(mlFactoryMock).asyncOpen(matches(".*success.*"), any(ManagedLedgerConfig.class),
@@ -883,29 +885,29 @@ public class ServerCnxTest {
 
         Object response;
 
-        // Close succeeds
-        response = getResponse();
-        assertEquals(response.getClass(), CommandSuccess.class);
-        assertEquals(((CommandSuccess) response).getRequestId(), 2);
+        synchronized (this) {
+            // Close succeeds
+            response = getResponse();
+            assertEquals(response.getClass(), CommandSuccess.class);
+            assertEquals(((CommandSuccess) response).getRequestId(), 2);
 
-        // All other subscribe should fail
-        response = getResponse();
-        assertEquals(response.getClass(), CommandError.class);
-        assertEquals(((CommandError) response).getRequestId(), 3);
+            // All other subscribe should fail
+            response = getResponse();
+            assertEquals(response.getClass(), CommandError.class);
+            assertEquals(((CommandError) response).getRequestId(), 3);
 
-        response = getResponse();
-        assertEquals(response.getClass(), CommandError.class);
-        assertEquals(((CommandError) response).getRequestId(), 4);
+            response = getResponse();
+            assertEquals(response.getClass(), CommandError.class);
+            assertEquals(((CommandError) response).getRequestId(), 4);
 
-        response = getResponse();
-        assertEquals(response.getClass(), CommandError.class);
-        assertEquals(((CommandError) response).getRequestId(), 5);
+            response = getResponse();
+            assertEquals(response.getClass(), CommandError.class);
+            assertEquals(((CommandError) response).getRequestId(), 5);
 
-        Thread.sleep(100);
-
-        // We should not receive response for 1st producer, since it was cancelled by the close
-        assertTrue(channel.outboundMessages().isEmpty());
-        assertTrue(channel.isActive());
+            // We should not receive response for 1st producer, since it was cancelled by the close
+            assertTrue(channel.outboundMessages().isEmpty());
+            assertTrue(channel.isActive());
+        }
 
         channel.finish();
     }
