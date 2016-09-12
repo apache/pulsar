@@ -8,5 +8,6 @@
 * Features
   - [Authentication](Authentication.md)
   - [Authorization](Authorization.md)
+  - [Geo-Replication](GeoReplication.md)
   - [WebSocket API](WebSocket.md)
   - [Apache Storm adaptor](PulsarStorm.md)
