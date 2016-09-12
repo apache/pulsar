@@ -1024,7 +1024,8 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         assertTrue(msgInRate > 0);
     }
 
-    @Test
+    // TODO: Re-enable once header+payload checksum changes are merged
+    @Test(enabled = false)
     public void testPayloadCorruptionDetection() throws Exception {
         final String topicName = "persistent://prop/use/ns-abc/topic1";
 
