@@ -32,6 +32,7 @@ import static org.testng.Assert.assertTrue;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -616,15 +617,12 @@ public class ServerCnxTest {
         setChannelConnected();
 
         // Delay the topic creation in a deterministic way
-        CountDownLatch successTopicCreationDelayLatch = new CountDownLatch(1);
-        doAnswer(new Answer<Object>() {
-            @Override
-            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-                successTopicCreationDelayLatch.await();
-
+        CompletableFuture<Runnable> openTopicFuture = new CompletableFuture<>();
+        doAnswer(invocationOnMock -> {
+            openTopicFuture.complete(() -> {
                 ((OpenLedgerCallback) invocationOnMock.getArguments()[2]).openLedgerComplete(ledgerMock, null);
-                return null;
-            }
+            });
+            return null;
         }).when(mlFactoryMock).asyncOpen(matches(".*success.*"), any(ManagedLedgerConfig.class),
                 any(OpenLedgerCallback.class), anyObject());
 
@@ -649,7 +647,8 @@ public class ServerCnxTest {
                 producerName);
         channel.writeInbound(createProducer2);
 
-        successTopicCreationDelayLatch.countDown();
+        // Complete the topic opening
+        openTopicFuture.get().run();
 
         // Close succeeds
         Object response = getResponse();
@@ -749,34 +748,19 @@ public class ServerCnxTest {
         channel.finish();
     }
 
-    @Test(timeOut = 30000)
+    @Test(timeOut = 30000, invocationCount = 1, skipFailedInvocations = true)
     public void testCreateProducerBookieTimeout() throws Exception {
         resetChannel();
         setChannelConnected();
 
         // Delay the topic creation in a deterministic way
-        CountDownLatch failedTopicCreationDelayLatch = new CountDownLatch(1);
-        doAnswer(new Answer<Object>() {
-            @Override
-            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-                failedTopicCreationDelayLatch.await();
-
+        CompletableFuture<Runnable> openFailedTopic = new CompletableFuture<>();
+        doAnswer(invocationOnMock -> {
+            openFailedTopic.complete(() -> {
                 ((OpenLedgerCallback) invocationOnMock.getArguments()[2]).openLedgerComplete(ledgerMock, null);
-                return null;
-            }
+            });
+            return null;
         }).when(mlFactoryMock).asyncOpen(matches(".*fail.*"), any(ManagedLedgerConfig.class),
-                any(OpenLedgerCallback.class), anyObject());
-
-        CountDownLatch topicCreationDelayLatch = new CountDownLatch(1);
-        doAnswer(new Answer<Object>() {
-            @Override
-            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-                topicCreationDelayLatch.await();
-
-                ((OpenLedgerCallback) invocationOnMock.getArguments()[2]).openLedgerComplete(ledgerMock, null);
-                return null;
-            }
-        }).when(mlFactoryMock).asyncOpen(matches(".*success.*"), any(ManagedLedgerConfig.class),
                 any(OpenLedgerCallback.class), anyObject());
 
         // In a create producer timeout from client side we expect to see this sequence of commands :
@@ -801,8 +785,8 @@ public class ServerCnxTest {
                 producerName);
         channel.writeInbound(createProducer2);
 
-        failedTopicCreationDelayLatch.countDown();
-        topicCreationDelayLatch.countDown();
+        // Now the topic gets opened
+        openFailedTopic.get().run();
 
         // Close succeeds
         Object response = getResponse();
@@ -840,17 +824,13 @@ public class ServerCnxTest {
         setChannelConnected();
 
         // Delay the topic creation in a deterministic way
-        CountDownLatch topicCreationDelayLatch = new CountDownLatch(1);
-        doAnswer(new Answer<Object>() {
-            @Override
-            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-                topicCreationDelayLatch.await();
+        CompletableFuture<Runnable> openTopicTask = new CompletableFuture<>();
+        doAnswer(invocationOnMock -> {
+            openTopicTask.complete(() -> {
+                ((OpenLedgerCallback) invocationOnMock.getArguments()[2]).openLedgerComplete(ledgerMock, null);
+            });
 
-                synchronized (ServerCnxTest.this) {
-                    ((OpenLedgerCallback) invocationOnMock.getArguments()[2]).openLedgerComplete(ledgerMock, null);
-                }
-                return null;
-            }
+            return null;
         }).when(mlFactoryMock).asyncOpen(matches(".*success.*"), any(ManagedLedgerConfig.class),
                 any(OpenLedgerCallback.class), anyObject());
 
@@ -881,7 +861,7 @@ public class ServerCnxTest {
                 successSubName, 1 /* consumer id */, 5 /* request id */, SubType.Exclusive, "test" /* consumer name */);
         channel.writeInbound(subscribe4);
 
-        topicCreationDelayLatch.countDown();
+        openTopicTask.get().run();
 
         Object response;
 
@@ -918,35 +898,22 @@ public class ServerCnxTest {
         setChannelConnected();
 
         // Delay the topic creation in a deterministic way
-        CountDownLatch successTopicCreationDelayLatch = new CountDownLatch(1);
-        doAnswer(new Answer<Object>() {
-            @Override
-            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-                successTopicCreationDelayLatch.await();
-
+        CompletableFuture<Runnable> openTopicSuccess = new CompletableFuture<>();
+        doAnswer(invocationOnMock -> {
+            openTopicSuccess.complete(() -> {
                 ((OpenLedgerCallback) invocationOnMock.getArguments()[2]).openLedgerComplete(ledgerMock, null);
-                return null;
-            }
+            });
+            return null;
         }).when(mlFactoryMock).asyncOpen(matches(".*success.*"), any(ManagedLedgerConfig.class),
                 any(OpenLedgerCallback.class), anyObject());
 
-        CountDownLatch failedTopicCreationDelayLatch = new CountDownLatch(1);
-        doAnswer(new Answer<Object>() {
-            @Override
-            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-
-                new Thread(() -> {
-                    try {
-                        failedTopicCreationDelayLatch.await();
-                    } catch (InterruptedException e) {
-                    }
-
-                    ((OpenLedgerCallback) invocationOnMock.getArguments()[2])
-                            .openLedgerFailed(new ManagedLedgerException("Managed ledger failure"), null);
-                }).start();
-
-                return null;
-            }
+        CompletableFuture<Runnable> openTopicFail = new CompletableFuture<>();
+        doAnswer(invocationOnMock -> {
+            openTopicFail.complete(() -> {
+                ((OpenLedgerCallback) invocationOnMock.getArguments()[2])
+                        .openLedgerFailed(new ManagedLedgerException("Managed ledger failure"), null);
+            });
+            return null;
         }).when(mlFactoryMock).asyncOpen(matches(".*fail.*"), any(ManagedLedgerConfig.class),
                 any(OpenLedgerCallback.class), anyObject());
 
@@ -969,8 +936,7 @@ public class ServerCnxTest {
                 successSubName, 1 /* consumer id */, 3 /* request id */, SubType.Exclusive, "test" /* consumer name */);
         channel.writeInbound(subscribe2);
 
-        successTopicCreationDelayLatch.countDown();
-        failedTopicCreationDelayLatch.countDown();
+        openTopicFail.get().run();
 
         Object response;
 
@@ -991,6 +957,8 @@ public class ServerCnxTest {
         ByteBuf subscribe3 = Commands.newSubscribe(successTopicName, //
                 successSubName, 1 /* consumer id */, 4 /* request id */, SubType.Exclusive, "test" /* consumer name */);
         channel.writeInbound(subscribe3);
+
+        openTopicSuccess.get().run();
 
         // Subscribe succeeds
         response = getResponse();
