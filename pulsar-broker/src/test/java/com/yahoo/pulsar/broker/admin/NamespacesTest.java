@@ -491,16 +491,6 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 "test-bundled-namespace-1");
 
         assertEquals(responseData, bundle);
-
-        mockZookKeeper.failNow(Code.SESSIONEXPIRED);
-        pulsar.getConfigurationCache().policiesCache().invalidate(
-                AdminResource.path("policies", this.testProperty, this.testLocalCluster, "test-bundled-namespace-1"));
-        try {
-            namespaces.getBundlesData(this.testProperty, this.testLocalCluster, "test-bundled-namespace-1");
-            fail("should have failed");
-        } catch (RestException e) {
-            assertEquals(e.getResponse().getStatus(), Status.INTERNAL_SERVER_ERROR.getStatusCode());
-        }
     }
 
     @Test
