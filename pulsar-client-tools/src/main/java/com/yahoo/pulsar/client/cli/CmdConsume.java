@@ -130,10 +130,11 @@ public class CmdConsume {
 
             RateLimiter limiter = (this.consumeRate > 0) ? RateLimiter.create(this.consumeRate) : null;
             while (this.numMessagesToConsume == 0 || numMessagesConsumed < this.numMessagesToConsume) {
-                if (limiter != null)
+                if (limiter != null) {
                     limiter.acquire();
+                }
 
-                Message msg = consumer.receive(20, TimeUnit.SECONDS);
+                Message msg = consumer.receive(5, TimeUnit.SECONDS);
                 if (msg == null) {
                     LOG.warn("No message to consume after waiting for 20 seconds.");
                 } else {
