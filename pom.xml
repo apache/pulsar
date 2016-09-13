@@ -27,6 +27,8 @@
   <version>1.15-SNAPSHOT</version>
 
   <name>Pulsar</name>
+  <description>Pulsar is a distributed pub-sub messaging platform with a very
+flexible messaging model and an intuitive client API.</description>
   <url>https://github.com/yahoo/pulsar</url>
 
   <organization>
@@ -35,11 +37,31 @@
   </organization>
   <inceptionYear>2016</inceptionYear>
 
+  <developers>
+    <developer>
+      <organization>Yahoo Inc.</organization>
+      <organizationUrl>https://www.yahoo.com/</organizationUrl>
+    </developer>
+  </developers>
+
+  <licenses>
+    <license>
+      <name>Apache License, Version 2.0</name>
+      <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
+
   <scm>
     <url>https://github.com/yahoo/pulsar</url>
     <connection>scm:git:https://github.com/yahoo/pulsar.git</connection>
     <developerConnection>scm:git:ssh://git@github.com:yahoo/pulsar.git</developerConnection>
   </scm>
+
+  <ciManagement>
+    <system>Travis</system>
+    <url>https://travis-ci.org/yahoo/pulsar</url>
+  </ciManagement>
 
   <prerequisites>
     <maven>3.3</maven>
@@ -537,15 +559,6 @@
         </plugin>
       </plugins>
     </pluginManagement>
-
-    <extensions>
-      <extension>
-        <groupId>org.apache.maven.wagon</groupId>
-        <artifactId>wagon-ssh-external</artifactId>
-        <version>2.10</version>
-      </extension>
-    </extensions>
-
   </build>
 
   <profiles>
@@ -600,6 +613,66 @@
         </plugins>
       </reporting>
     </profile>
+
+    <profile>
+      <!-- For releases, attach javadoc, source jar and gpg signatures -->
+      <id>release</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-source-plugin</artifactId>
+            <version>2.2.1</version>
+            <executions>
+              <execution>
+                <id>attach-sources</id>
+                <goals>
+                  <goal>jar-no-fork</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-javadoc-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>attach-javadocs</id>
+                <goals>
+                  <goal>jar</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-gpg-plugin</artifactId>
+            <version>1.5</version>
+            <executions>
+              <execution>
+                <id>sign-artifacts</id>
+                <phase>verify</phase>
+                <goals>
+                  <goal>sign</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.sonatype.plugins</groupId>
+            <artifactId>nexus-staging-maven-plugin</artifactId>
+            <version>1.6.7</version>
+            <extensions>true</extensions>
+            <configuration>
+              <serverId>ossrh</serverId>
+              <nexusUrl>https://oss.sonatype.org/</nexusUrl>
+              <autoReleaseAfterClose>true</autoReleaseAfterClose>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+
+    </profile>
   </profiles>
 
   <repositories>
@@ -613,4 +686,15 @@
       <url>https://raw.githubusercontent.com/yahoo/bookkeeper/mvn-repo</url>
     </repository>
   </repositories>
+
+  <distributionManagement>
+    <snapshotRepository>
+      <id>ossrh</id>
+      <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+    </snapshotRepository>
+    <repository>
+      <id>ossrh</id>
+      <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+    </repository>
+  </distributionManagement>
 </project>
