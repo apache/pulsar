@@ -179,6 +179,7 @@ a backoff period.
 ## Examples
 
 ### Python
+in this example you need to install `websocket-client` package , you can install it using `pip install websocket-client` or download it from [Pypi page](https://pypi.python.org/pypi/websocket-client) .
 
 #### Python producer
 
