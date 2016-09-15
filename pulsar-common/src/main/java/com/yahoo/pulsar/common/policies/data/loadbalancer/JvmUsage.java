@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.yahoo.pulsar.broker.loadbalance.data;
+package com.yahoo.pulsar.common.policies.data.loadbalancer;
 
 import java.util.Map;
 

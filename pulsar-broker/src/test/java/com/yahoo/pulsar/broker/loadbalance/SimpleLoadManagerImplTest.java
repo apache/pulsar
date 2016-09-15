@@ -57,12 +57,6 @@ import com.google.common.collect.Sets;
 import com.yahoo.pulsar.broker.PulsarService;
 import com.yahoo.pulsar.broker.ServiceConfiguration;
 import com.yahoo.pulsar.broker.admin.AdminResource;
-import com.yahoo.pulsar.broker.loadbalance.data.BrokerUsage;
-import com.yahoo.pulsar.broker.loadbalance.data.JvmUsage;
-import com.yahoo.pulsar.broker.loadbalance.data.NamespaceBundleStats;
-import com.yahoo.pulsar.broker.loadbalance.data.ResourceUnitRanking;
-import com.yahoo.pulsar.broker.loadbalance.data.ResourceUsage;
-import com.yahoo.pulsar.broker.loadbalance.data.SystemResourceUsage;
 import com.yahoo.pulsar.broker.loadbalance.impl.PulsarLoadReportImpl;
 import com.yahoo.pulsar.broker.loadbalance.impl.PulsarResourceDescription;
 import com.yahoo.pulsar.broker.loadbalance.impl.ResourceAvailabilityRanker;
@@ -77,6 +71,12 @@ import com.yahoo.pulsar.common.policies.data.AutoFailoverPolicyData;
 import com.yahoo.pulsar.common.policies.data.AutoFailoverPolicyType;
 import com.yahoo.pulsar.common.policies.data.NamespaceIsolationData;
 import com.yahoo.pulsar.common.policies.data.ResourceQuota;
+import com.yahoo.pulsar.common.policies.data.loadbalancer.BrokerUsage;
+import com.yahoo.pulsar.common.policies.data.loadbalancer.JvmUsage;
+import com.yahoo.pulsar.common.policies.data.loadbalancer.NamespaceBundleStats;
+import com.yahoo.pulsar.common.policies.data.loadbalancer.ResourceUnitRanking;
+import com.yahoo.pulsar.common.policies.data.loadbalancer.ResourceUsage;
+import com.yahoo.pulsar.common.policies.data.loadbalancer.SystemResourceUsage;
 import com.yahoo.pulsar.common.policies.impl.NamespaceIsolationPolicies;
 import com.yahoo.pulsar.common.util.ObjectMapperFactory;
 import com.yahoo.pulsar.zookeeper.LocalBookkeeperEnsemble;
@@ -243,8 +243,8 @@ public class SimpleLoadManagerImplTest {
         LoadRanker lr = new ResourceAvailabilityRanker();
 
         // inject the load report and rankings
-        Map<ResourceUnit, com.yahoo.pulsar.broker.loadbalance.data.LoadReport> loadReports = new HashMap<>();
-        com.yahoo.pulsar.broker.loadbalance.data.LoadReport loadReport = new com.yahoo.pulsar.broker.loadbalance.data.LoadReport();
+        Map<ResourceUnit, com.yahoo.pulsar.common.policies.data.loadbalancer.LoadReport> loadReports = new HashMap<>();
+        com.yahoo.pulsar.common.policies.data.loadbalancer.LoadReport loadReport = new com.yahoo.pulsar.common.policies.data.loadbalancer.LoadReport();
         loadReport.setSystemResourceUsage(new SystemResourceUsage());
         loadReports.put(ru1, loadReport);
         setObjectField(SimpleLoadManagerImpl.class, loadManager, "currentLoadReports", loadReports);
@@ -349,7 +349,7 @@ public class SimpleLoadManagerImplTest {
     public void testLoadReportParsing() throws Exception {
 
         ObjectMapper mapper = ObjectMapperFactory.create();
-        com.yahoo.pulsar.broker.loadbalance.data.LoadReport reportData = new com.yahoo.pulsar.broker.loadbalance.data.LoadReport();
+        com.yahoo.pulsar.common.policies.data.loadbalancer.LoadReport reportData = new com.yahoo.pulsar.common.policies.data.loadbalancer.LoadReport();
         reportData.setName("b1");
         SystemResourceUsage resource = new SystemResourceUsage();
         ResourceUsage resourceUsage = new ResourceUsage();
@@ -398,11 +398,11 @@ public class SimpleLoadManagerImplTest {
         stats.put("property/cluster/namespace1/0x00000000_0xFFFFFFFF", nsb1);
         stats.put("property/cluster/namespace2/0x00000000_0xFFFFFFFF", nsb2);
 
-        Map<ResourceUnit, com.yahoo.pulsar.broker.loadbalance.data.LoadReport> loadReports = new HashMap<>();
-        com.yahoo.pulsar.broker.loadbalance.data.LoadReport loadReport1 = new com.yahoo.pulsar.broker.loadbalance.data.LoadReport();
+        Map<ResourceUnit, com.yahoo.pulsar.common.policies.data.loadbalancer.LoadReport> loadReports = new HashMap<>();
+        com.yahoo.pulsar.common.policies.data.loadbalancer.LoadReport loadReport1 = new com.yahoo.pulsar.common.policies.data.loadbalancer.LoadReport();
         loadReport1.setSystemResourceUsage(systemResource);
         loadReport1.setBundleStats(stats);
-        com.yahoo.pulsar.broker.loadbalance.data.LoadReport loadReport2 = new com.yahoo.pulsar.broker.loadbalance.data.LoadReport();
+        com.yahoo.pulsar.common.policies.data.loadbalancer.LoadReport loadReport2 = new com.yahoo.pulsar.common.policies.data.loadbalancer.LoadReport();
         loadReport2.setSystemResourceUsage(new SystemResourceUsage());
         loadReport2.setBundleStats(stats);
         loadReports.put(ru1, loadReport1);

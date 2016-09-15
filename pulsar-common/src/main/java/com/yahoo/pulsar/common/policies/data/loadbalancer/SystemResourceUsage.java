@@ -13,9 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.yahoo.pulsar.broker.loadbalance.data;
-
-import com.yahoo.pulsar.broker.ServiceConfiguration;
+package com.yahoo.pulsar.common.policies.data.loadbalancer;
 
 /**
  * This class represents a object which reflects system resource usage per resource and the upper limit on the resource.

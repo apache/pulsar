@@ -13,16 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.yahoo.pulsar.broker.loadbalance.data;
+package com.yahoo.pulsar.common.policies.data.loadbalancer;
 
-import java.util.Map;
 import java.util.Set;
 
 import com.yahoo.pulsar.common.policies.data.ResourceQuota;
 
 public class ResourceUnitRanking implements Comparable<ResourceUnitRanking> {
 
-    private static final long MBytes = 1024 * 1024;
     private static final long KBITS_TO_BYTES = 1024 / 8;
     private static final double PERCENTAGE_DIFFERENCE_THRESHOLD = 5.0;
     private static double cpuUsageByMsgRate = 0.05;
@@ -71,9 +69,9 @@ public class ResourceUnitRanking implements Comparable<ResourceUnitRanking> {
      */
     private void estimateLoadPercentage() {
         double cpuUsed = this.systemResourceUsage.cpu.usage;
-        double cpuAllocated = this.cpuUsageByMsgRate
+        double cpuAllocated = cpuUsageByMsgRate
                 * (this.allocatedQuota.getMsgRateIn() + this.allocatedQuota.getMsgRateOut());
-        double cpuPreAllocated = this.cpuUsageByMsgRate
+        double cpuPreAllocated = cpuUsageByMsgRate
                 * (this.preAllocatedQuota.getMsgRateIn() + this.preAllocatedQuota.getMsgRateOut());
         this.allocatedLoadPercentageCPU = (this.systemResourceUsage.cpu.limit <= 0) ? 0
                 : Math.min(100, 100 * cpuAllocated / this.systemResourceUsage.cpu.limit);

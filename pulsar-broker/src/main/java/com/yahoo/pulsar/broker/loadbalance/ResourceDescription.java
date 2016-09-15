@@ -17,7 +17,7 @@ package com.yahoo.pulsar.broker.loadbalance;
 
 import java.util.Map;
 
-import com.yahoo.pulsar.broker.loadbalance.data.ResourceUsage;
+import com.yahoo.pulsar.common.policies.data.loadbalancer.ResourceUsage;
 
 /*
     ResourceDescription is an abstraction to represent resources like memory, cpu, network and io combined;
