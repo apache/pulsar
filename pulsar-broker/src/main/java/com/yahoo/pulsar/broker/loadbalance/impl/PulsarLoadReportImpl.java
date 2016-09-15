@@ -27,7 +27,7 @@ import com.yahoo.pulsar.broker.loadbalance.ResourceDescription;
 import com.yahoo.pulsar.broker.loadbalance.ResourceUnit;
 import com.yahoo.pulsar.broker.loadbalance.ServiceRequest;
 import com.yahoo.pulsar.broker.loadbalance.ServiceUnit;
-import com.yahoo.pulsar.broker.loadbalance.data.SystemResourceUsage;
+import com.yahoo.pulsar.common.policies.data.loadbalancer.SystemResourceUsage;
 import com.yahoo.pulsar.common.util.ObjectMapperFactory;
 
 public class PulsarLoadReportImpl implements LoadReport {
@@ -50,8 +50,8 @@ public class PulsarLoadReportImpl implements LoadReport {
         PulsarLoadReportImpl pulsarLoadReport = new PulsarLoadReportImpl();
         ObjectMapper mapper = ObjectMapperFactory.create();
         try {
-            com.yahoo.pulsar.broker.loadbalance.data.LoadReport report = mapper.readValue(loadReportJson,
-                    com.yahoo.pulsar.broker.loadbalance.data.LoadReport.class);
+            com.yahoo.pulsar.common.policies.data.loadbalancer.LoadReport report = mapper.readValue(loadReportJson,
+                    com.yahoo.pulsar.common.policies.data.loadbalancer.LoadReport.class);
             SystemResourceUsage sru = report.getSystemResourceUsage();
             String resourceUnitName = report.getName();
             pulsarLoadReport.resourceDescription = new PulsarResourceDescription();

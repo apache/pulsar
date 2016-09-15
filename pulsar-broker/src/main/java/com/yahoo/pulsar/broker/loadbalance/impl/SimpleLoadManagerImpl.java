@@ -58,6 +58,11 @@ import com.google.common.collect.TreeMultimap;
 import com.yahoo.pulsar.common.naming.NamespaceName;
 import com.yahoo.pulsar.common.naming.ServiceUnitId;
 import com.yahoo.pulsar.common.policies.data.ResourceQuota;
+import com.yahoo.pulsar.common.policies.data.loadbalancer.LoadReport;
+import com.yahoo.pulsar.common.policies.data.loadbalancer.NamespaceBundleStats;
+import com.yahoo.pulsar.common.policies.data.loadbalancer.ResourceUnitRanking;
+import com.yahoo.pulsar.common.policies.data.loadbalancer.SystemResourceUsage;
+import com.yahoo.pulsar.common.policies.data.loadbalancer.SystemResourceUsage.ResourceType;
 import com.yahoo.pulsar.common.util.ObjectMapperFactory;
 import com.yahoo.pulsar.broker.PulsarService;
 import com.yahoo.pulsar.broker.PulsarServerException;
@@ -68,11 +73,6 @@ import com.yahoo.pulsar.broker.loadbalance.LoadManager;
 import com.yahoo.pulsar.broker.loadbalance.LoadRanker;
 import com.yahoo.pulsar.broker.loadbalance.PlacementStrategy;
 import com.yahoo.pulsar.broker.loadbalance.ResourceUnit;
-import com.yahoo.pulsar.broker.loadbalance.data.LoadReport;
-import com.yahoo.pulsar.broker.loadbalance.data.NamespaceBundleStats;
-import com.yahoo.pulsar.broker.loadbalance.data.ResourceUnitRanking;
-import com.yahoo.pulsar.broker.loadbalance.data.SystemResourceUsage;
-import com.yahoo.pulsar.broker.loadbalance.data.SystemResourceUsage.ResourceType;
 import com.yahoo.pulsar.broker.stats.Metrics;
 import com.yahoo.pulsar.client.admin.PulsarAdmin;
 import com.yahoo.pulsar.client.api.Authentication;
@@ -177,7 +177,8 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
         this.realtimeResourceQuotas.set(new HashMap<>());
         this.realtimeAvgResourceQuota = new ResourceQuota();
         placementStrategy = new WRRPlacementStrategy();
-        lastLoadReport = new LoadReport();
+        lastLoadReport = new LoadReport(pulsar.getWebServiceAddress(), pulsar.getWebServiceAddressTls(),
+                pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
         brokerHostUsage = new BrokerHostUsage(pulsar);
         loadReportCacheZk = new ZooKeeperDataCache<LoadReport>(pulsar.getLocalZkCache()) {
             @Override
@@ -279,7 +280,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
             throw new PulsarServerException(e);
         }
     }
-    
+
     @Override
     public void disableBroker() throws Exception {
         if (isNotEmpty(brokerZnodePath)) {
@@ -625,7 +626,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
      * - Available capacity for weighted random selection (weightedRandomSelection): ranks ResourceUnits units based on
      * estimation of their capacity which is basically how many bundles each ResourceUnit is able can handle with its
      * available resources (CPU, memory, network, etc);
-     * 
+     *
      * - Load percentage for least loaded server (leastLoadedServer): ranks ResourceUnits units based on estimation of
      * their load percentage which is basically how many percent of resource is allocated which is
      * max(resource_actually_used, resource_quota)
@@ -1091,7 +1092,8 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
         }
 
         try {
-            LoadReport loadReport = new LoadReport();
+            LoadReport loadReport = new LoadReport(pulsar.getWebServiceAddress(), pulsar.getWebServiceAddressTls(),
+                    pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
             loadReport.setName(String.format("%s:%s", pulsar.getHost(), pulsar.getConfiguration().getWebServicePort()));
             SystemResourceUsage systemResourceUsage = this.getSystemResourceUsage();
             loadReport.setOverLoaded(
