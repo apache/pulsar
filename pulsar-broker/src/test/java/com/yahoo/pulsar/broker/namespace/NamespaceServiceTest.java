@@ -54,7 +54,7 @@ import com.yahoo.pulsar.common.naming.NamespaceBundle;
 import com.yahoo.pulsar.common.naming.NamespaceBundleFactory;
 import com.yahoo.pulsar.common.naming.NamespaceBundles;
 import com.yahoo.pulsar.common.naming.NamespaceName;
-import com.yahoo.pulsar.common.naming.ServiceUnitId;
+import com.yahoo.pulsar.common.naming.NamespaceBundle;
 import com.yahoo.pulsar.common.policies.data.Policies;
 import com.yahoo.pulsar.common.util.ObjectMapperFactory;
 
@@ -76,7 +76,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
     public void testSplitAndOwnBundles() throws Exception {
 
         OwnershipCache MockOwnershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
-        doNothing().when(MockOwnershipCache).disableOwnership(any(ServiceUnitId.class));
+        doNothing().when(MockOwnershipCache).disableOwnership(any(NamespaceBundle.class));
         Field ownership = NamespaceService.class.getDeclaredField("ownershipCache");
         ownership.setAccessible(true);
         ownership.set(pulsar.getNamespaceService(), MockOwnershipCache);
@@ -145,7 +145,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         ManagedLedger ledger = mock(ManagedLedger.class);
         when(ledger.getCursors()).thenReturn(Lists.newArrayList());
 
-        doNothing().when(MockOwnershipCache).disableOwnership(any(ServiceUnitId.class));
+        doNothing().when(MockOwnershipCache).disableOwnership(any(NamespaceBundle.class));
         Field ownership = NamespaceService.class.getDeclaredField("ownershipCache");
         ownership.setAccessible(true);
         ownership.set(pulsar.getNamespaceService(), MockOwnershipCache);
@@ -184,7 +184,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         }
 
         // status-map should be updated with new split bundles
-        ServiceUnitId splitBundle = pulsar.getNamespaceService().getBundle(dn);
+        NamespaceBundle splitBundle = pulsar.getNamespaceService().getBundle(dn);
         assertTrue(!CollectionUtils.isEmpty(
                 this.pulsar.getBrokerService().getAllTopicsFromNamespaceBundle(nspace, splitBundle.toString())));
 
@@ -198,7 +198,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         ManagedLedger ledger = mock(ManagedLedger.class);
         when(ledger.getCursors()).thenReturn(Lists.newArrayList());
 
-        doNothing().when(MockOwnershipCache).disableOwnership(any(ServiceUnitId.class));
+        doNothing().when(MockOwnershipCache).disableOwnership(any(NamespaceBundle.class));
         Field ownership = NamespaceService.class.getDeclaredField("ownershipCache");
         ownership.setAccessible(true);
         ownership.set(pulsar.getNamespaceService(), MockOwnershipCache);
@@ -221,7 +221,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         ManagedLedger ledger = mock(ManagedLedger.class);
         when(ledger.getCursors()).thenReturn(Lists.newArrayList());
 
-        doNothing().when(ownershipCache).disableOwnership(any(ServiceUnitId.class));
+        doNothing().when(ownershipCache).disableOwnership(any(NamespaceBundle.class));
         Field ownership = NamespaceService.class.getDeclaredField("ownershipCache");
         ownership.setAccessible(true);
         ownership.set(pulsar.getNamespaceService(), ownershipCache);
@@ -231,10 +231,10 @@ public class NamespaceServiceTest extends BrokerTestBase {
         NamespaceBundles bundles = namespaceService.getNamespaceBundleFactory().getBundles(nsname);
 
         NamespaceBundle bundle = bundles.getBundles().get(0);
-        assertNotNull(ownershipCache.getOrSetOwner(bundle));
-        assertNotNull(ownershipCache.getOwnedServiceUnit(bundle));
+        assertNotNull(ownershipCache.tryAcquiringOwnership(bundle));
+        assertNotNull(ownershipCache.getOwnedBundle(bundle));
         ownershipCache.removeOwnership(bundles);
-        assertNull(ownershipCache.getOwnedServiceUnit(bundle));
+        assertNull(ownershipCache.getOwnedBundle(bundle));
     }
 
     @SuppressWarnings("unchecked")

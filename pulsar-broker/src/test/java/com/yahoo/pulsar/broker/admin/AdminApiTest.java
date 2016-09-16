@@ -28,10 +28,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.bookkeeper.test.PortManager;
-import org.apache.zookeeper.KeeperException.NoNodeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -459,11 +459,11 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         int i = 0;
         for (; i < 10; i++) {
             try {
-                NamespaceEphemeralData data1 = pulsar.getNamespaceService().getOwnershipCache().getOwner(defaultBundle);
+                NamespaceEphemeralData data1 = pulsar.getNamespaceService().getOwnershipCache().getOwnerAsync(defaultBundle).get();
                 LOG.info("Waiting for unload namespace {} to complete. Current service unit isDisabled: {}",
                         defaultBundle, data1.isDisabled());
                 Thread.sleep(1000);
-            } catch (NoNodeException nne) {
+            } catch (ExecutionException nne) {
                 break;
             }
         }

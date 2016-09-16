@@ -37,7 +37,7 @@ import com.yahoo.pulsar.client.api.ProducerConsumerBase;
 import com.yahoo.pulsar.client.impl.HandlerBase.State;
 import com.yahoo.pulsar.common.naming.DestinationName;
 import com.yahoo.pulsar.common.naming.NamespaceBundle;
-import com.yahoo.pulsar.common.naming.ServiceUnitId;
+import com.yahoo.pulsar.common.naming.NamespaceBundle;
 import com.yahoo.pulsar.common.util.collections.ConcurrentLongHashMap;
 
 public class BrokerClientIntegrationTest extends ProducerConsumerBase {
@@ -102,8 +102,8 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         // disable this broker to avoid any new requests
         pulsar.getLoadManager().disableBroker();
 
-        ServiceUnitId bundle1 = pulsar.getNamespaceService().getBundle(DestinationName.get(dn1));
-        ServiceUnitId bundle2 = pulsar.getNamespaceService().getBundle(DestinationName.get(dn2));
+        NamespaceBundle bundle1 = pulsar.getNamespaceService().getBundle(DestinationName.get(dn1));
+        NamespaceBundle bundle2 = pulsar.getNamespaceService().getBundle(DestinationName.get(dn2));
 
         // unload ns-bundle:1
         pulsar.getNamespaceService().unloadNamespaceBundle((NamespaceBundle) bundle1);
@@ -181,7 +181,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
 
         // [1] OwnershipCache should not contain any more namespaces
         OwnershipCache ownershipCache = pulsar.getNamespaceService().getOwnershipCache();
-        assertTrue(ownershipCache.getOwnedServiceUnits().keySet().isEmpty());
+        assertTrue(ownershipCache.getOwnedBundles().keySet().isEmpty());
         
         // [2] All clients must be disconnected and in connecting state
         // producer1 must not be able to connect again

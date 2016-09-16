@@ -22,13 +22,16 @@ import static com.yahoo.pulsar.common.naming.NamespaceBundleFactory.getBundlesDa
 import static com.yahoo.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
 import static java.lang.String.format;
 
+import java.net.MalformedURLException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -124,14 +127,19 @@ public class NamespaceService {
         ServiceUnitZkUtils.initZK(pulsar.getLocalZkCache().getZooKeeper(), pulsar.getBrokerServiceUrl());
         this.bundleFactory = new NamespaceBundleFactory(pulsar, Hashing.crc32());
         this.ownershipCache = new OwnershipCache(pulsar, bundleFactory);
-        LOG.info("namespace service is ready ...");
     }
 
-    public LookupResult getBrokerServiceUrl(DestinationName fqdn, boolean authoritative) throws Exception {
-        return findBrokerServiceUrl(getBundle(fqdn), authoritative, false);
+    public CompletableFuture<LookupResult> getBrokerServiceUrlAsync(DestinationName topic, boolean authoritative) {
+        return getBundleAsync(topic)
+                .thenCompose(bundle -> findBrokerServiceUrl(bundle, authoritative, false /* read-only */));
     }
 
-    public ServiceUnitId getBundle(DestinationName destination) throws Exception {
+    public CompletableFuture<NamespaceBundle> getBundleAsync(DestinationName topic) {
+        return bundleFactory.getBundlesAsync(topic.getNamespaceObject())
+                .thenApply(bundles -> bundles.findBundle(topic));
+    }
+
+    public NamespaceBundle getBundle(DestinationName destination) throws Exception {
         return bundleFactory.getBundles(destination.getNamespaceObject()).findBundle(destination);
     }
 
@@ -139,36 +147,43 @@ public class NamespaceService {
         return bundleFactory.getBundles(namespace).size();
     }
 
-    private ServiceUnitId getFullBundle(NamespaceName fqnn) throws Exception {
+    private NamespaceBundle getFullBundle(NamespaceName fqnn) throws Exception {
         return bundleFactory.getFullBundle(fqnn);
     }
 
     public URL getWebServiceUrl(ServiceUnitId suName, boolean authoritative, boolean readOnly) throws Exception {
         if (suName instanceof DestinationName) {
             DestinationName name = (DestinationName) suName;
-            LOG.debug("Getting web service URL of destination: {} - auth: {}", name, authoritative);
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Getting web service URL of destination: {} - auth: {}", name, authoritative);
+            }
 
-            return this.internalGetWebServiceUrl(getBundle(name), authoritative, readOnly);
+            return this.internalGetWebServiceUrl(getBundle(name), authoritative, readOnly).get();
         }
 
         if (suName instanceof NamespaceName) {
-            return this.internalGetWebServiceUrl(getFullBundle((NamespaceName) suName), authoritative, readOnly);
+            return this.internalGetWebServiceUrl(getFullBundle((NamespaceName) suName), authoritative, readOnly).get();
         }
 
         if (suName instanceof NamespaceBundle) {
-            return this.internalGetWebServiceUrl(suName, authoritative, readOnly);
+            return this.internalGetWebServiceUrl((NamespaceBundle) suName, authoritative, readOnly).get();
         }
 
-        throw new IllegalArgumentException("Unrecognized class of ServiceUnitId: " + suName.getClass().getName());
+        throw new IllegalArgumentException("Unrecognized class of NamespaceBundle: " + suName.getClass().getName());
     }
 
-    private URL internalGetWebServiceUrl(ServiceUnitId suName, boolean authoritative, boolean readOnly) {
-        try {
-            LookupResult result = findBrokerServiceUrl(suName, authoritative, readOnly);
-            if (result != null) {
-                if (result.isBrokerUrl()) {
+    private CompletableFuture<URL> internalGetWebServiceUrl(NamespaceBundle bundle, boolean authoritative,
+            boolean readOnly) {
+
+        return findBrokerServiceUrl(bundle, authoritative, readOnly).thenApply(lookupResult -> {
+            if (lookupResult == null) {
+                return null;
+            }
+
+            try {
+                if (lookupResult.isBrokerUrl()) {
                     // Somebody already owns the service unit
-                    LookupData lookupData = result.getLookupData();
+                    LookupData lookupData = lookupResult.getLookupData();
                     if (lookupData.getHttpUrl() != null) {
                         // If the broker uses the new format, we know the correct address
                         return new URL(lookupData.getHttpUrl());
@@ -181,15 +196,12 @@ public class NamespaceService {
                     }
                 } else {
                     // We have the HTTP address to redirect to
-                    return result.getHttpRedirectAddress().toURL();
+                    return lookupResult.getHttpRedirectAddress().toURL();
                 }
+            } catch (MalformedURLException | URISyntaxException e) {
+                throw new RuntimeException(e);
             }
-        } catch (Exception e) {
-            // just log the exception, nothing else to do
-            LOG.warn("internalGetWebServiceUrl [{}]", e.getMessage(), e);
-        }
-
-        return null;
+        });
     }
 
     /**
@@ -237,7 +249,7 @@ public class NamespaceService {
             // all pre-registered namespace is assumed to have bundles disabled
             nsFullBundle = bundleFactory.getFullBundle(nsname);
             // v2 namespace will always use full bundle object
-            otherUrl = ownershipCache.getOrSetOwner(nsFullBundle).getNativeUrl();
+            otherUrl = ownershipCache.tryAcquiringOwnership(nsFullBundle).get().getNativeUrl();
 
             if (myUrl.equals(otherUrl)) {
                 if (nsFullBundle != null) {
@@ -267,55 +279,62 @@ public class NamespaceService {
     /**
      * Main internal method to lookup and setup ownership of service unit to a broker
      *
-     * @param suName
+     * @param bundle
      * @param authoritative
      * @param readOnly
      * @return
      * @throws PulsarServerException
      */
-    private LookupResult findBrokerServiceUrl(ServiceUnitId suName, boolean authoritative, boolean readOnly)
-            throws PulsarServerException {
-
+    private CompletableFuture<LookupResult> findBrokerServiceUrl(NamespaceBundle bundle, boolean authoritative,
+            boolean readOnly) {
         if (LOG.isDebugEnabled()) {
-            LOG.debug("findBrokerServiceUrl: {} - read-only: {}", suName, readOnly);
+            LOG.debug("findBrokerServiceUrl: {} - read-only: {}", bundle, readOnly);
         }
-        // First do a read-only lookup for the ownership info
-        try {
-            NamespaceEphemeralData ownerInfo = checkNotNull(ownershipCache.getOwner(suName));
-            if (ownerInfo.isDisabled()) {
-                throw new IllegalStateException(String.format("ServiceUnit %s is tentatively out-of-service.", suName));
+
+        CompletableFuture<LookupResult> future = new CompletableFuture<>();
+
+        // First check if we or someone else already owns the bundle
+        ownershipCache.getOwnerAsync(bundle).thenAccept(nsData -> {
+            if (nsData.isDisabled()) {
+                future.completeExceptionally(new IllegalStateException(
+                        String.format("Namespace bundle %s is tentatively out-of-service.", bundle)));
+            } else {
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("Namespace bundle {} already owned by {} ", bundle, nsData);
+                }
+                future.complete(new LookupResult(nsData));
+            }
+        }).exceptionally(exception -> {
+            if (exception instanceof NoNodeException) {
+                // No one owns this bundle
+
+                if (readOnly) {
+                    // Do not attempt to acquire ownership
+                    future.completeExceptionally(
+                            new IllegalStateException(String.format("Can't find owner of ServiceUnit: %s", bundle)));
+                } else {
+                    // Now, no one owns the namespace yet. Hence, we will try to dynamically assign it
+                    searchForCandidateBroker(bundle, future, authoritative);
+                }
+                return null;
             }
 
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("SU {} already owned by {} ", suName, ownerInfo.toString());
-            }
-            return new LookupResult(ownerInfo);
-        } catch (NoNodeException nne) {
-            // no owner ship found in the cache
-            LOG.debug("NoNodeException ", nne);
-        } catch (NullPointerException npe) {
-            // no owner ship found in the cache
-            LOG.debug("NullPointerException ", npe);
-        } catch (IllegalStateException ise) {
-            LOG.warn("ServiceUnit {} is tentatively out-of-service.", suName);
-            throw ise;
-        } catch (Exception e) {
-            LOG.error("Failed to get ownership info from ZooKeeper cache for ServiceUnit {}", suName);
-            throw new PulsarServerException(e);
-        }
+            LOG.warn("Failed to check owner for bundle {}: {}", bundle, exception.getMessage(), exception);
+            future.completeExceptionally(exception);
+            return null;
+        });
 
-        if (readOnly) {
-            // This lookup is a read-only call. If not found, just throw exception out
-            throw new IllegalStateException(String.format("Can't find owner of ServiceUnit: %s", suName));
-        }
+        return future;
+    }
 
-        // Now, no one owns the namespace yet. Hence, we will try to dynamically assign it
+    private void searchForCandidateBroker(NamespaceBundle bundle, CompletableFuture<LookupResult> lookupFuture,
+            boolean authoritative) {
         String candidateBroker = null;
         try {
             // check if this is Heartbeat or SLAMonitor namespace
-            candidateBroker = checkHeartbeatNamespace(suName);
+            candidateBroker = checkHeartbeatNamespace(bundle);
             if (candidateBroker == null) {
-                String broker = getSLAMonitorBrokerName(suName);
+                String broker = getSLAMonitorBrokerName(bundle);
                 // checking if the broker is up and running
                 if (broker != null && isBrokerActive(broker)) {
                     candidateBroker = broker;
@@ -324,7 +343,7 @@ public class NamespaceService {
 
             if (candidateBroker == null) {
                 if (!this.loadManager.isCentralized() || pulsar.getLeaderElectionService().isLeader()) {
-                    candidateBroker = getLeastLoadedFromLoadManager(suName);
+                    candidateBroker = getLeastLoadedFromLoadManager(bundle);
                 } else {
                     if (authoritative) {
                         // leader broker already assigned the current broker as owner
@@ -335,47 +354,53 @@ public class NamespaceService {
                     }
                 }
             }
-        } catch (IllegalStateException ise) {
-            // The error has already been logged.
-            throw ise;
-        } catch (Exception oe) {
-            LOG.warn(String.format("Cannot find candidate broker for ServiceUnit %s in findBrokerServiceUrl:[%s]",
-                    suName, oe.getMessage()), oe);
+        } catch (Exception e) {
+            LOG.warn("Error when searching for candidate broker to acquire {}: {}", bundle, e.getMessage(), e);
+            lookupFuture.completeExceptionally(e);
+            return;
         }
-        checkNotNull(candidateBroker);
 
         try {
-            if (pulsar.getWebServiceAddress().equals(candidateBroker)) {
-                // Load manager decided that the local broker should be the owner. Acquiring the ownership
-                NamespaceEphemeralData ownerInfo = checkNotNull(ownershipCache.getOrSetOwner(suName));
-                if (ownerInfo.isDisabled()) {
-                    LOG.warn("ServiceUnit {} is tentatively out-of-service", suName);
-                    throw new IllegalStateException(
-                            String.format("ServiceUnit %s is tentatively out-of-service", suName));
-                }
-                // schedule the task to pre-load destinations
-                pulsar.loadNamespaceDestinations(suName);
+            checkNotNull(candidateBroker);
 
-                // Now, whatever returned in the ownerInfo is the owner of the namespace
-                return new LookupResult(ownerInfo);
+            if (pulsar.getWebServiceAddress().equals(candidateBroker)) {
+                // Load manager decided that the local broker should try to become the owner
+                ownershipCache.tryAcquiringOwnership(bundle).thenAccept(ownerInfo -> {
+                    if (ownerInfo.isDisabled()) {
+                        if (LOG.isDebugEnabled()) {
+                            LOG.debug("Namespace bundle {} is currently being unloaded", bundle);
+                        }
+                        lookupFuture.completeExceptionally(new IllegalStateException(
+                                String.format("Namespace bundle %s is currently being unloaded", bundle)));
+                    } else {
+                        // Found owner for the namespace bundle
+
+                        // Schedule the task to pre-load destinations
+                        pulsar.loadNamespaceDestinations(bundle);
+
+                        lookupFuture.complete(new LookupResult(ownerInfo));
+                    }
+                }).exceptionally(exception -> {
+                    LOG.warn("Failed to acquire ownership for namespace bundle {}: ", bundle, exception.getMessage(),
+                            exception);
+                    lookupFuture.completeExceptionally(new PulsarServerException(
+                            "Failed to acquire ownership for namespace bundle " + bundle, exception));
+                    return null;
+                });
+
             } else {
+                // Load managed decider some other broker should try to acquire ownership
+
                 if (LOG.isDebugEnabled()) {
-                    LOG.debug(
-                            "My BrokerServiceUrl{}, WebServiceAddress[{}] : other instance owns the namespace, owner "
-                                    + "address={} suName={}",
-                            pulsar.getBrokerServiceUrl(), pulsar.getWebServiceAddress(), candidateBroker, suName);
+                    LOG.debug("Redirecting to broker {} to acquire ownership of bundle {}", candidateBroker, bundle);
                 }
+
                 // Now setting the redirect url
-                return new LookupResult(new URI(candidateBroker));
+                lookupFuture.complete(new LookupResult(new URI(candidateBroker)));
             }
-        } catch (IllegalStateException ise) {
-            // already logged the exception
-            throw ise;
-        } catch (Exception e2) {
-            // in this case addresses should be Null so we reply on NPE thrown by checkNotNull
-            LOG.warn(String.format("Failed to acquire the ServiceUnit %s in findBrokerServiceUrl:[%s]", suName,
-                    e2.getMessage()), e2);
-            throw new PulsarServerException(e2);
+        } catch (Exception e) {
+            LOG.warn("Error in trying to acquire namespace bundle ownership for {}: {}", bundle, e.getMessage(), e);
+            lookupFuture.completeExceptionally(e);
         }
     }
 
@@ -385,12 +410,17 @@ public class NamespaceService {
 
         for (String brokerHostPort : activeNativeBrokers) {
             if (candidateBroker.equals("http://" + brokerHostPort)) {
-                LOG.debug("Broker {} found for SLA Monitoring Namespace", brokerHostPort);
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("Broker {} found for SLA Monitoring Namespace", brokerHostPort);
+                }
                 return true;
             }
         }
-        LOG.debug("Broker not found for SLA Monitoring Namespace {}",
-                candidateBroker + ":" + config.getWebServicePort());
+
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("Broker not found for SLA Monitoring Namespace {}",
+                    candidateBroker + ":" + config.getWebServicePort());
+        }
         return false;
     }
 
@@ -412,31 +442,27 @@ public class NamespaceService {
     }
 
     public void unloadNamespace(NamespaceName ns) throws Exception {
-        ServiceUnitId nsFullBundle = getFullBundle(ns);
-        unloadServiceUnit(nsFullBundle);
+        NamespaceBundle nsFullBundle = getFullBundle(ns);
+        unloadNamespaceBundle(nsFullBundle);
     }
 
-    public void unloadNamespaceBundle(NamespaceBundle nsBundle) throws Exception {
-        unloadServiceUnit(nsBundle);
-    }
-
-    private void unloadServiceUnit(ServiceUnitId suName) throws Exception {
-        checkNotNull(ownershipCache.getOwnedServiceUnit(suName)).handleUnloadRequest(pulsar);
+    public void unloadNamespaceBundle(NamespaceBundle bundle) throws Exception {
+        checkNotNull(ownershipCache.getOwnedBundle(bundle)).handleUnloadRequest(pulsar);
     }
 
     public Map<String, NamespaceOwnershipStatus> getOwnedNameSpacesStatus() throws Exception {
         NamespaceIsolationPolicies nsIsolationPolicies = this.getLocalNamespaceIsolationPolicies();
         Map<String, NamespaceOwnershipStatus> ownedNsStatus = new HashMap<String, NamespaceOwnershipStatus>();
-        for (OwnedServiceUnit nsObj : this.ownershipCache.getOwnedServiceUnits().values()) {
+        for (OwnedBundle nsObj : this.ownershipCache.getOwnedBundles().values()) {
             NamespaceOwnershipStatus nsStatus = this.getNamespaceOwnershipStatus(nsObj,
-                    nsIsolationPolicies.getPolicyByNamespace(nsObj.getServiceUnitId().getNamespaceObject()));
-            ownedNsStatus.put(nsObj.getServiceUnitId().toString(), nsStatus);
+                    nsIsolationPolicies.getPolicyByNamespace(nsObj.getNamespaceBundle().getNamespaceObject()));
+            ownedNsStatus.put(nsObj.getNamespaceBundle().toString(), nsStatus);
         }
 
         return ownedNsStatus;
     }
 
-    private NamespaceOwnershipStatus getNamespaceOwnershipStatus(OwnedServiceUnit nsObj,
+    private NamespaceOwnershipStatus getNamespaceOwnershipStatus(OwnedBundle nsObj,
             NamespaceIsolationPolicy nsIsolationPolicy) {
         NamespaceOwnershipStatus nsOwnedStatus = new NamespaceOwnershipStatus(BrokerAssignment.shared, false,
                 nsObj.isActive());
@@ -466,30 +492,24 @@ public class NamespaceService {
         }
     }
 
-    public boolean isServiceUnitDisabled(ServiceUnitId suName) throws Exception {
-        checkArgument(suName instanceof NamespaceName || suName instanceof NamespaceBundle,
-                "Only support NamespaceName or NamespaceBundle in service unit ownership");
-
-        ServiceUnitId serviceUnit = null;
-        if (suName instanceof NamespaceName) {
-            serviceUnit = getFullBundle(suName.getNamespaceObject());
-        }
-        if (suName instanceof NamespaceBundle) {
-            serviceUnit = suName;
-        }
-        checkNotNull(serviceUnit);
-
+    public boolean isServiceUnitDisabled(NamespaceBundle bundle) throws Exception {
         try {
             // Does ZooKeeper says that the namespace is disabled?
-            return checkNotNull(ownershipCache.getOwner(serviceUnit)).isDisabled();
-        } catch (NullPointerException npe) {
-            // if namespace is not owned, it is not considered disabled
-            return false;
-        } catch (NoNodeException nne) {
-            // if no node exists, that means the namespace is not owned
-            return false;
+            CompletableFuture<NamespaceEphemeralData> nsDataFuture = ownershipCache.getOwnerAsync(bundle);
+            if (nsDataFuture != null) {
+                NamespaceEphemeralData nsData = nsDataFuture.getNow(null);
+                return nsData != null ? nsData.isDisabled() : false;
+            } else {
+                // if namespace is not owned, it is not considered disabled
+                return false;
+            }
         } catch (Exception e) {
-            LOG.warn(String.format("Exception in getting ownership info for service unit %s", serviceUnit), e);
+            if (e instanceof ExecutionException && e.getCause() instanceof NoNodeException) {
+                // if no node exists, that means the namespace is not owned
+                return false;
+            }
+
+            LOG.warn("Exception in getting ownership info for service unit {}: {}", bundle, e.getMessage(), e);
         }
 
         return false;
@@ -517,7 +537,7 @@ public class NamespaceService {
             try {
                 // take ownership of newly split bundles
                 for (NamespaceBundle sBundle : splittedBundles.getRight()) {
-                    checkNotNull(ownershipCache.getOrSetOwner(sBundle));
+                    checkNotNull(ownershipCache.tryAcquiringOwnership(sBundle));
                 }
                 updateNamespaceBundles(nsname, splittedBundles.getLeft(), new StatCallback() {
                     public void processResult(int rc, String path, Object zkCtx, Stat stat) {
@@ -591,13 +611,12 @@ public class NamespaceService {
     }
 
     public int getTotalServiceUnitsLoaded() {
-        return ownershipCache.getOwnedServiceUnits().size() - this.uncountedNamespaces;
+        return ownershipCache.getOwnedBundles().size() - this.uncountedNamespaces;
     }
-    
-    public Set<ServiceUnitId> getOwnedServiceUnits() {
-        return ownershipCache.getOwnedServiceUnits().values().stream().map(su -> {
-            return su.getServiceUnitId();
-        }).collect(Collectors.toSet());
+
+    public Set<NamespaceBundle> getOwnedServiceUnits() {
+        return ownershipCache.getOwnedBundles().values().stream().map(OwnedBundle::getNamespaceBundle)
+                .collect(Collectors.toSet());
     }
 
     public boolean isServiceUnitOwned(ServiceUnitId suName) throws Exception {
@@ -610,27 +629,31 @@ public class NamespaceService {
         }
 
         if (suName instanceof NamespaceBundle) {
-            return ownershipCache.getOwnedServiceUnit(suName) != null;
+            return ownershipCache.isNamespaceBundleOwned((NamespaceBundle) suName);
         }
 
-        throw new IllegalArgumentException("Invalid class of ServiceUnitId: " + suName.getClass().getName());
+        throw new IllegalArgumentException("Invalid class of NamespaceBundle: " + suName.getClass().getName());
     }
 
     public boolean isServiceUnitActive(DestinationName fqdn) {
         try {
-            return ownershipCache.getOwnedServiceUnit(getBundle(fqdn)).isActive();
+            return ownershipCache.getOwnedBundle(getBundle(fqdn)).isActive();
         } catch (Exception e) {
-            LOG.warn("Unable to find OwnedServiceUnit for fqdn - [{}]", fqdn.toString());
+            LOG.warn("Unable to find OwnedBundle for fqdn - [{}]", fqdn.toString());
             return false;
         }
     }
 
     private boolean isNamespaceOwned(NamespaceName fqnn) throws Exception {
-        return ownershipCache.getOwnedServiceUnit(getFullBundle(fqnn)) != null;
+        return ownershipCache.getOwnedBundle(getFullBundle(fqnn)) != null;
+    }
+
+    private CompletableFuture<Boolean> isDestinationOwnedAsync(DestinationName topic) {
+        return getBundleAsync(topic).thenApply(bundle -> ownershipCache.isNamespaceBundleOwned(bundle));
     }
 
     private boolean isDestinationOwned(DestinationName fqdn) throws Exception {
-        return ownershipCache.getOwnedServiceUnit(getBundle(fqdn)) != null;
+        return ownershipCache.getOwnedBundle(getBundle(fqdn)) != null;
     }
 
     public void removeOwnedServiceUnit(NamespaceName nsName) throws Exception {
@@ -672,13 +695,21 @@ public class NamespaceService {
         return destinations;
     }
 
-    public NamespaceEphemeralData getOwner(ServiceUnitId suname) throws Exception {
+    public NamespaceEphemeralData getOwner(NamespaceBundle bundle) throws Exception {
         try {
-            return ownershipCache.getOwner(suname);
-        } catch (KeeperException.NoNodeException e) {
-            // if there is no znode for the service unit, it is not owned by any broker
-            return null;
+            return getOwnerAsync(bundle).get();
+        } catch (ExecutionException e) {
+            if (e.getCause() instanceof KeeperException.NoNodeException) {
+                // if there is no znode for the service unit, it is not owned by any broker
+                return null;
+            } else {
+                throw e;
+            }
         }
+    }
+
+    public CompletableFuture<NamespaceEphemeralData> getOwnerAsync(NamespaceBundle bundle) {
+        return ownershipCache.getOwnerAsync(bundle);
     }
 
     public void unloadSLANamespace() throws Exception {
@@ -689,7 +720,7 @@ public class NamespaceService {
             LOG.debug("Trying to unload SLA namespace {}", namespaceName);
         }
 
-        ServiceUnitId nsFullBundle = getFullBundle(new NamespaceName(namespaceName));
+        NamespaceBundle nsFullBundle = getFullBundle(new NamespaceName(namespaceName));
         if (getOwner(nsFullBundle) == null) {
             // No one owns the namespace so no point trying to unload it
             return;

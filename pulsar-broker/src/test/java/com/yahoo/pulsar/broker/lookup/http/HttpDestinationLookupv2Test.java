@@ -116,7 +116,7 @@ public class HttpDestinationLookupv2Test {
         doReturn(uri).when(uriInfo).getRequestUri();
         doReturn(true).when(config).isAuthorizationEnabled();
         try {
-            destLookup.lookupDestination("myprop", "usc", "ns2", "topic1", false);
+            destLookup.lookupDestinationAsync("myprop", "usc", "ns2", "topic1", false);
             fail("Should have raised exception to redirect request");
         } catch (WebApplicationException wae) {
             // OK
@@ -146,14 +146,14 @@ public class HttpDestinationLookupv2Test {
         uriField.set(destLookup, uriInfo);
         doReturn(false).when(config).isAuthorizationEnabled();
         try {
-            destLookup.lookupDestination(property, cluster, ns1, "empty-cluster", false);
+            destLookup.lookupDestinationAsync(property, cluster, ns1, "empty-cluster", false);
             fail("Should have raised exception to redirect request");
         } catch (RestException e) {
             // OK
         }
 
         try {
-            destLookup.lookupDestination(property, cluster, ns2, "invalid-localCluster", false);
+            destLookup.lookupDestinationAsync(property, cluster, ns2, "invalid-localCluster", false);
             fail("Should have raised exception for invalid cluster");
         } catch (RestException e) {
             // OK

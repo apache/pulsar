@@ -54,8 +54,8 @@ import com.yahoo.pulsar.broker.web.WebService;
 import com.yahoo.pulsar.client.admin.PulsarAdmin;
 import com.yahoo.pulsar.client.util.FutureUtil;
 import com.yahoo.pulsar.common.naming.DestinationName;
+import com.yahoo.pulsar.common.naming.NamespaceBundle;
 import com.yahoo.pulsar.common.naming.NamespaceName;
-import com.yahoo.pulsar.common.naming.ServiceUnitId;
 import com.yahoo.pulsar.common.policies.data.ClusterData;
 import com.yahoo.pulsar.websocket.WebSocketConsumerServlet;
 import com.yahoo.pulsar.websocket.WebSocketProducerServlet;
@@ -416,40 +416,43 @@ public class PulsarService implements AutoCloseable {
     /**
      * Load all the destination contained in a namespace
      *
-     * @param suName
-     *            <code>ServiceUnitId</code> to identify the service unit
+     * @param bundle
+     *            <code>NamespaceBundle</code> to identify the service unit
      * @throws Exception
      */
-    public void loadNamespaceDestinations(ServiceUnitId suName) throws Exception {
-        LOG.info("Loading all topics on service unit: {}", suName);
+    public void loadNamespaceDestinations(NamespaceBundle bundle) {
+        executor.submit(() -> {
+            LOG.info("Loading all topics on bundle: {}", bundle);
 
-        NamespaceName nsName = suName.getNamespaceObject();
-        List<CompletableFuture<Topic>> persistentTopics = Lists.newArrayList();
-        long topicLoadStart = System.nanoTime();
+            NamespaceName nsName = bundle.getNamespaceObject();
+            List<CompletableFuture<Topic>> persistentTopics = Lists.newArrayList();
+            long topicLoadStart = System.nanoTime();
 
-        for (String topic : getNamespaceService().getListOfDestinations(nsName.getProperty(), nsName.getCluster(),
-                nsName.getLocalName())) {
-            try {
-                DestinationName dn = DestinationName.get(topic);
-                if (suName.includes(dn)) {
-                    CompletableFuture<Topic> future = brokerService.getTopic(topic);
-                    if (future != null) {
-                        persistentTopics.add(future);
+            for (String topic : getNamespaceService().getListOfDestinations(nsName.getProperty(), nsName.getCluster(),
+                    nsName.getLocalName())) {
+                try {
+                    DestinationName dn = DestinationName.get(topic);
+                    if (bundle.includes(dn)) {
+                        CompletableFuture<Topic> future = brokerService.getTopic(topic);
+                        if (future != null) {
+                            persistentTopics.add(future);
+                        }
                     }
+                } catch (Throwable t) {
+                    LOG.warn("Failed to preload topic {}", topic, t);
                 }
-            } catch (Throwable t) {
-                LOG.warn("Failed to preload topic {}", topic, t);
             }
-        }
 
-        if (!persistentTopics.isEmpty()) {
-            FutureUtil.waitForAll(persistentTopics).thenRun(() -> {
-                double topicLoadTimeSeconds = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - topicLoadStart)
-                        / 1000.0;
-                LOG.info("Loaded {} topics on {} -- time taken: {} seconds", persistentTopics.size(), suName,
-                        topicLoadTimeSeconds);
-            });
-        }
+            if (!persistentTopics.isEmpty()) {
+                FutureUtil.waitForAll(persistentTopics).thenRun(() -> {
+                    double topicLoadTimeSeconds = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - topicLoadStart)
+                            / 1000.0;
+                    LOG.info("Loaded {} topics on {} -- time taken: {} seconds", persistentTopics.size(), bundle,
+                            topicLoadTimeSeconds);
+                });
+            }
+            return null;
+        });
     }
 
     // No need to synchronize since config is only init once

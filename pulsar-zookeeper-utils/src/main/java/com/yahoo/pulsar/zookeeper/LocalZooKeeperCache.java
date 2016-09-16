@@ -25,7 +25,7 @@ import org.slf4j.LoggerFactory;
  * Per ZK client ZooKeeper cache supporting ZNode data and children list caches. A cache entry is identified, accessed
  * and invalidated by the ZNode path. For the data cache, ZNode data parsing is done at request time with the given
  * {@link Deserializer} argument.
- * 
+ *
  * @param <T>
  */
 public class LocalZooKeeperCache extends ZooKeeperCache {
@@ -47,7 +47,7 @@ public class LocalZooKeeperCache extends ZooKeeperCache {
             case Expired:
                 // in case of expired, the zkSession is no longer good
                 LOG.warn("Lost connection from local ZK. Invalidating the whole cache.");
-                dataCache.invalidateAll();
+                dataCache.synchronous().invalidateAll();
                 childrenCache.invalidateAll();
                 return;
             default:

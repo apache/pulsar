@@ -375,6 +375,12 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>javax.servlet-api</artifactId>
         <version>3.1.0</version>
       </dependency>
+
+      <dependency>
+        <groupId>com.github.ben-manes.caffeine</groupId>
+        <artifactId>caffeine</artifactId>
+        <version>2.3.3</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 

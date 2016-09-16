@@ -118,19 +118,6 @@ public abstract class AdminResource extends PulsarWebResource {
 
     // This is a stub method for Mockito
     @Override
-    protected void validateNamespaceOwnership(String property, String cluster, String namespace) {
-        super.validateNamespaceOwnership(property, cluster, namespace);
-    }
-
-    // This is a stub method for Mockito
-    @Override
-    protected void validateNamespaceOwnership(String property, String cluster, String namespace, boolean authoritative,
-            boolean readOnly) {
-        super.validateNamespaceOwnership(property, cluster, namespace, authoritative, readOnly);
-    }
-
-    // This is a stub method for Mockito
-    @Override
     protected void validateNamespaceOwnershipWithBundles(String property, String cluster, String namespace,
             boolean authoritative, boolean readOnly, BundlesData bundleData) {
         super.validateNamespaceOwnershipWithBundles(property, cluster, namespace, authoritative, readOnly, bundleData);

@@ -71,7 +71,6 @@ import com.yahoo.pulsar.common.naming.DestinationName;
 import com.yahoo.pulsar.common.naming.NamespaceBundle;
 import com.yahoo.pulsar.common.naming.NamespaceBundleFactory;
 import com.yahoo.pulsar.common.naming.NamespaceName;
-import com.yahoo.pulsar.common.naming.ServiceUnitId;
 import com.yahoo.pulsar.common.policies.data.ClusterData;
 import com.yahoo.pulsar.common.policies.data.PersistencePolicies;
 import com.yahoo.pulsar.common.policies.data.PersistentOfflineTopicStats;
@@ -316,7 +315,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
             // unload all namespace-bundles gracefully
             long closeTopicsStartTime = System.nanoTime();
-            Set<ServiceUnitId> serviceUnits = pulsar.getNamespaceService().getOwnedServiceUnits();
+            Set<NamespaceBundle> serviceUnits = pulsar.getNamespaceService().getOwnedServiceUnits();
             serviceUnits.forEach(su -> {
                 if (su instanceof NamespaceBundle) {
                     try {
@@ -521,11 +520,11 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
     private void addTopicToStatsMaps(DestinationName topicName, PersistentTopic topic) {
         try {
-            ServiceUnitId serviceUnitId = pulsar.getNamespaceService().getBundle(topicName);
+            NamespaceBundle namespaceBundle = pulsar.getNamespaceService().getBundle(topicName);
 
-            if (serviceUnitId != null) {
+            if (namespaceBundle != null) {
                 synchronized (multiLayerTopicsMap) {
-                    String serviceUnit = serviceUnitId.toString();
+                    String serviceUnit = namespaceBundle.toString();
                     multiLayerTopicsMap //
                             .computeIfAbsent(topicName.getNamespace(), k -> new ConcurrentOpenHashMap<>()) //
                             .computeIfAbsent(serviceUnit, k -> new ConcurrentOpenHashMap<>()) //
@@ -691,7 +690,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
      * @param serviceUnit
      * @return
      */
-    public CompletableFuture<Integer> unloadServiceUnit(ServiceUnitId serviceUnit) {
+    public CompletableFuture<Integer> unloadServiceUnit(NamespaceBundle serviceUnit) {
         CompletableFuture<Integer> result = new CompletableFuture<Integer>();
         List<CompletableFuture<Void>> closeFutures = Lists.newArrayList();
         topics.forEach((name, topicFuture) -> {
@@ -717,10 +716,10 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     public void removeTopicFromCache(String topic) {
         try {
             DestinationName destination = DestinationName.get(topic);
-            ServiceUnitId serviceUnitId = pulsar.getNamespaceService().getBundle(destination);
-            checkArgument(serviceUnitId instanceof NamespaceBundle);
+            NamespaceBundle namespaceBundle = pulsar.getNamespaceService().getBundle(destination);
+            checkArgument(namespaceBundle instanceof NamespaceBundle);
 
-            String bundleName = serviceUnitId.toString();
+            String bundleName = namespaceBundle.toString();
             String namespaceName = destination.getNamespaceObject().toString();
 
             synchronized (multiLayerTopicsMap) {
