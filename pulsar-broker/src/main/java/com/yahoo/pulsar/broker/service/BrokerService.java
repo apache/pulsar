@@ -37,6 +37,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
@@ -591,8 +592,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         }
     }
 
-    public ByteBuf getDimensionMetrics() {
-        return pulsarStats.getDimensionMetrics();
+    public void getDimensionMetrics(Consumer<ByteBuf> consumer) {
+        pulsarStats.getDimensionMetrics(consumer);
     }
 
     public List<Metrics> getDestinationMetrics() {
