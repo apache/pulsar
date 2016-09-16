@@ -15,7 +15,6 @@
  */
 package com.yahoo.pulsar.broker.admin;
 
-import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Collection;
 import java.util.Map;
@@ -33,13 +32,6 @@ import org.apache.bookkeeper.mledger.proto.PendingBookieOpsStats;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.swagger.annotations.Api;
-import io.swagger.annotations.ApiOperation;
-import io.swagger.annotations.ApiResponse;
-import io.swagger.annotations.ApiResponses;
-import com.yahoo.pulsar.common.naming.NamespaceName;
-import com.yahoo.pulsar.common.policies.data.loadbalancer.LoadReport;
-import com.yahoo.pulsar.common.stats.AllocatorStats;
 import com.yahoo.pulsar.broker.loadbalance.ResourceUnit;
 import com.yahoo.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import com.yahoo.pulsar.broker.stats.AllocatorStatsGenerator;
@@ -47,9 +39,14 @@ import com.yahoo.pulsar.broker.stats.BookieClientStatsGenerator;
 import com.yahoo.pulsar.broker.stats.MBeanStatsGenerator;
 import com.yahoo.pulsar.broker.stats.Metrics;
 import com.yahoo.pulsar.broker.web.RestException;
+import com.yahoo.pulsar.common.naming.NamespaceName;
+import com.yahoo.pulsar.common.policies.data.loadbalancer.LoadReport;
+import com.yahoo.pulsar.common.stats.AllocatorStats;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.util.ReferenceCountUtil;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiResponse;
+import io.swagger.annotations.ApiResponses;
 
 @Path("/broker-stats")
 @Api(value = "/broker-stats", description = "Stats for broker", tags = "broker-stats")
@@ -99,19 +96,13 @@ public class BrokerStats extends AdminResource {
     public StreamingOutput getDestinations2() throws Exception {
         // Ensure super user access only
         validateSuperUserAccess();
-        return new StreamingOutput() {
-            public void write(OutputStream output) throws IOException, WebApplicationException {
-                ByteBuf statsBuf = null;
-                try {
-                    statsBuf = pulsar().getBrokerService().getDimensionMetrics();
-                    output.write(statsBuf.array(), statsBuf.arrayOffset(), statsBuf.readableBytes());
-                } catch (Exception e) {
-                    throw new WebApplicationException(e);
-                } finally {
-                    ReferenceCountUtil.release(statsBuf);
-                }
+        return output -> pulsar().getBrokerService().getDimensionMetrics(statsBuf -> {
+            try {
+                output.write(statsBuf.array(), statsBuf.arrayOffset(), statsBuf.readableBytes());
+            } catch (Exception e) {
+                throw new WebApplicationException(e);
             }
-        };
+        });
     }
 
     @GET

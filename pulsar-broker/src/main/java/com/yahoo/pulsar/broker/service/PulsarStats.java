@@ -18,6 +18,8 @@ package com.yahoo.pulsar.broker.service;
 import java.io.Closeable;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.function.Consumer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,6 +52,8 @@ public class PulsarStats implements Closeable {
     private List<Metrics> tempMetricsCollection;
     private List<Metrics> metricsCollection;
     private final BrokerOperabilityMetrics brokerOperabilityMetrics;
+
+    private final ReentrantReadWriteLock bufferLock = new ReentrantReadWriteLock();
 
     public PulsarStats(PulsarService pulsar) {
         this.topicStatsBuf = PooledByteBufAllocator.DEFAULT.heapBuffer(16 * 1024);
@@ -148,21 +152,23 @@ public class PulsarStats implements Closeable {
         metricsCollection = tempMetricsCollection;
         tempMetricsCollection = tempRefMetrics;
 
-        ByteBuf tmp = topicStatsBuf;
-        topicStatsBuf = tempTopicStatsBuf;
-        tempTopicStatsBuf = tmp;
+        bufferLock.writeLock().lock();
+        try {
+            ByteBuf tmp = topicStatsBuf;
+            topicStatsBuf = tempTopicStatsBuf;
+            tempTopicStatsBuf = tmp;
+            tempTopicStatsBuf.clear();
+        } finally {
+            bufferLock.writeLock().unlock();
+        }
     }
 
-    public ByteBuf getDimensionMetrics() {
-        while (true) {
-            ByteBuf topicStatsBuf = this.topicStatsBuf;
-            try {
-                topicStatsBuf.retain();
-                return topicStatsBuf;
-            } catch (Exception e) {
-                // Re-fetch the buffer, since it have been swapped and release
-                continue;
-            }
+    public void getDimensionMetrics(Consumer<ByteBuf> consumer) {
+        bufferLock.readLock().lock();
+        try {
+            consumer.accept(topicStatsBuf);
+        } finally {
+            bufferLock.readLock().unlock();
         }
     }
 
