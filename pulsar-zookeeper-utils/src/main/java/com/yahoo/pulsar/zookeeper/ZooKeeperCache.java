@@ -19,6 +19,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.AbstractMap;
 import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
@@ -199,8 +200,8 @@ public abstract class ZooKeeperCache implements Watcher {
      * @return
      * @throws Exception
      */
-    public <T> T getData(final String path, final Deserializer<T> deserializer) throws Exception {
-        return getData(path, this, deserializer).getKey();
+    public <T> Optional<T> getData(final String path, final Deserializer<T> deserializer) throws Exception {
+        return getData(path, this, deserializer).map(e -> e.getKey());
     }
 
     /**
@@ -214,8 +215,8 @@ public abstract class ZooKeeperCache implements Watcher {
      * @return
      * @throws Exception
      */
-    public <T> Entry<T, Stat> getData(final String path, final Watcher watcher, final Deserializer<T> deserializer)
-            throws Exception {
+    public <T> Optional<Entry<T, Stat>> getData(final String path, final Watcher watcher,
+            final Deserializer<T> deserializer) throws Exception {
         try {
             return getDataAsync(path, watcher, deserializer).get();
         } catch (ExecutionException e) {
@@ -233,12 +234,12 @@ public abstract class ZooKeeperCache implements Watcher {
     }
 
     @SuppressWarnings({ "unchecked", "deprecation" })
-    public <T> CompletableFuture<Entry<T, Stat>> getDataAsync(final String path, final Watcher watcher,
+    public <T> CompletableFuture<Optional<Entry<T, Stat>>> getDataAsync(final String path, final Watcher watcher,
             final Deserializer<T> deserializer) {
         checkNotNull(path);
         checkNotNull(deserializer);
 
-        CompletableFuture<Entry<T, Stat>> future = new CompletableFuture<>();
+        CompletableFuture<Optional<Entry<T, Stat>>> future = new CompletableFuture<>();
 
         dataCache.get(path, (p, executor) -> {
             // Return a future for the z-node to be fetched from ZK
@@ -252,6 +253,9 @@ public abstract class ZooKeeperCache implements Watcher {
                     } catch (Exception e) {
                         zkFuture.completeExceptionally(e);
                     }
+                } else if (rc == Code.NONODE.intValue()) {
+                    // Return null values for missing z-nodes, as this is not "exceptional" condition
+                    zkFuture.complete(null);
                 } else {
                     zkFuture.completeExceptionally(KeeperException.create(rc));
                 }
@@ -259,7 +263,12 @@ public abstract class ZooKeeperCache implements Watcher {
 
             return zkFuture;
         }).thenAccept(result -> {
-            future.complete(new AbstractMap.SimpleImmutableEntry<T, Stat>((T) result.getKey(), result.getValue()));
+            if (result != null) {
+                future.complete(Optional
+                        .of(new AbstractMap.SimpleImmutableEntry<T, Stat>((T) result.getKey(), result.getValue())));
+            } else {
+                future.complete(Optional.empty());
+            }
         }).exceptionally(ex -> {
             future.completeExceptionally(ex);
             return null;

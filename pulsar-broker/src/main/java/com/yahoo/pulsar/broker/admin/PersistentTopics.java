@@ -166,7 +166,8 @@ public class PersistentTopics extends AdminResource {
         String destinationUri = DestinationName.get(domain(), property, cluster, namespace, destination).toString();
 
         try {
-            Policies policies = policiesCache().get(path("policies", property, cluster, namespace));
+            Policies policies = policiesCache().get(path("policies", property, cluster, namespace))
+                    .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Namespace does not exist"));
 
             Map<String, Set<AuthAction>> permissions = Maps.newTreeMap();
             AuthPolicies auth = policies.auth_policies;
@@ -193,11 +194,6 @@ public class PersistentTopics extends AdminResource {
             }
 
             return permissions;
-
-        } catch (KeeperException.NoNodeException e) {
-            log.warn("[{}] Failed to get permissions for destination {}: Namespace does not exist", clientAppId(),
-                    destinationUri);
-            throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
         } catch (Exception e) {
             log.error("[{}] Failed to get permissions for destination {}", clientAppId(), destinationUri, e);
             throw new RestException(e);
@@ -369,10 +365,11 @@ public class PersistentTopics extends AdminResource {
                 public PartitionedTopicMetadata deserialize(String key, byte[] content) throws Exception {
                     return jsonMapper().readValue(content, PartitionedTopicMetadata.class);
                 }
-            });
+            }).orElse(
+                    // if the partitioned topic is not found in zk, then the topic is not partitioned
+                    new PartitionedTopicMetadata());
         } catch (Exception e) {
-            // if the partitioned topic is not found in zk cache, it returns zero
-            partitionMetadata = new PartitionedTopicMetadata();
+            throw new RestException(e);
         }
 
         if (log.isDebugEnabled()) {

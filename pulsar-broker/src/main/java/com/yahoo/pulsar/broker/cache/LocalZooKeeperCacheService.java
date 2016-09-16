@@ -15,8 +15,12 @@
  */
 package com.yahoo.pulsar.broker.cache;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 import static com.yahoo.pulsar.broker.cache.ConfigurationCacheService.POLICIES_ROOT;
 import static com.yahoo.pulsar.broker.web.PulsarWebResource.joinPath;
+
+import java.util.Optional;
 
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.zookeeper.CreateMode;
@@ -34,8 +38,6 @@ import com.yahoo.pulsar.common.util.ObjectMapperFactory;
 import com.yahoo.pulsar.zookeeper.ZooKeeperCache;
 import com.yahoo.pulsar.zookeeper.ZooKeeperChildrenCache;
 import com.yahoo.pulsar.zookeeper.ZooKeeperDataCache;
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
 
 public class LocalZooKeeperCacheService {
     private static final Logger LOG = LoggerFactory.getLogger(LocalZooKeeperCacheService.class);
@@ -74,12 +76,12 @@ public class LocalZooKeeperCacheService {
             }
 
             @Override
-            public LocalPolicies get(final String path) throws Exception {
-                try {
-                    return super.get(path);
-                } catch (KeeperException.NoNodeException ke) {
-                    // create new policies node under LocalZk by coping it from
-                    // GlobalZk
+            public Optional<LocalPolicies> get(final String path) throws Exception {
+                Optional<LocalPolicies> localPolicies = super.get(path);
+                if (localPolicies.isPresent()) {
+                    return localPolicies;
+                } else {
+                    // create new policies node under LocalZk by coping it from GlobalZk
                     createPolicies(path, true);
                     return super.get(path);
                 }
@@ -132,7 +134,8 @@ public class LocalZooKeeperCacheService {
             if (readFromGlobal) {
                 String globalPath = joinPath(POLICIES_ROOT,
                         path.substring(path.indexOf(LOCAL_POLICIES_ROOT) + LOCAL_POLICIES_ROOT.length() + 1));
-                Policies glbPolicies = configurationCacheService.policiesCache().get(globalPath);
+                Policies glbPolicies = configurationCacheService.policiesCache().get(globalPath)
+                        .orElseThrow(() -> new IllegalStateException("Global policies not found at " + globalPath));
                 localPolicies.bundles = glbPolicies.bundles;
             }
             ZooKeeper zk = cache.getZooKeeper();
@@ -143,8 +146,6 @@ public class LocalZooKeeperCacheService {
             } catch (KeeperException.NodeExistsException e) {
                 // Ok
             }
-        } catch (KeeperException.NoNodeException e) {
-            throw e;
         } catch (Exception e) {
             LOG.error("Failed to create policies for {} in local zookeeper: {}", path, e.getMessage(), e);
             throw new PulsarServerException(e);

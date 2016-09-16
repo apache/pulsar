@@ -17,6 +17,7 @@ package com.yahoo.pulsar.zookeeper;
 
 import java.util.List;
 import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.zookeeper.KeeperException;
@@ -47,10 +48,10 @@ public abstract class ZooKeeperDataCache<T> implements Deserializer<T>, CacheUpd
         this.cache = cache;
     }
 
-    public CompletableFuture<T> getAsync(String path) {
-        CompletableFuture<T> future = new CompletableFuture<>();
+    public CompletableFuture<Optional<T>> getAsync(String path) {
+        CompletableFuture<Optional<T>> future = new CompletableFuture<>();
         cache.getDataAsync(path, this, this).thenAccept(entry -> {
-            future.complete(entry.getKey());
+            future.complete(entry.map(Entry::getKey));
         }).exceptionally(ex -> {
             future.completeExceptionally(ex);
             return null;
@@ -59,11 +60,20 @@ public abstract class ZooKeeperDataCache<T> implements Deserializer<T>, CacheUpd
         return future;
     }
 
-    public T get(final String path) throws Exception {
-        return getWithStat(path).getKey();
+    /**
+     * Return an item from the cache
+     *
+     * If node doens't exist, the value will be not present.s
+     *
+     * @param path
+     * @return
+     * @throws Exception
+     */
+    public Optional<T> get(final String path) throws Exception {
+        return getWithStat(path).map(Entry::getKey);
     }
 
-    public Entry<T, Stat> getWithStat(final String path) throws Exception {
+    public Optional<Entry<T, Stat>> getWithStat(final String path) throws Exception {
         return cache.getData(path, this, this);
     }
 

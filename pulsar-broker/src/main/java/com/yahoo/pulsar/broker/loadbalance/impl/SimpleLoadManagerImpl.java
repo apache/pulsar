@@ -310,15 +310,12 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
     }
 
     private String getDynamicConfigurationFromZK(String zkPath, String settingName, String defaultValue) {
-        String value = null;
         try {
-            if (pulsar.getLocalZkCache().exists(zkPath)) {
-                value = this.dynamicConfigurationCache.get(zkPath).get(settingName);
-            }
+            return dynamicConfigurationCache.get(zkPath).map(c -> c.get(settingName)).orElse(defaultValue);
         } catch (Exception e) {
             log.warn("Got exception when reading ZooKeeper path [{}]:", zkPath, e);
+            return defaultValue;
         }
-        return (value != null) ? value : defaultValue;
     }
 
     private double getDynamicConfigurationDouble(String zkPath, String settingName, double defaultValue) {
@@ -1014,7 +1011,8 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
                 for (String broker : activeBrokers) {
                     try {
                         String key = String.format("%s/%s", LOADBALANCE_BROKERS_ROOT, broker);
-                        LoadReport lr = loadReportCacheZk.get(key);
+                        LoadReport lr = loadReportCacheZk.get(key)
+                                .orElseThrow(() -> new KeeperException.NoNodeException());
                         ResourceUnit ru = new SimpleResourceUnit(String.format("http://%s", lr.getName()),
                                 fromLoadReport(lr));
                         this.currentLoadReports.put(ru, lr);

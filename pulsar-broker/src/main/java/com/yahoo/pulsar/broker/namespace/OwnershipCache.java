@@ -18,6 +18,7 @@ package com.yahoo.pulsar.broker.namespace;
 import static com.google.common.base.Preconditions.checkState;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
@@ -184,14 +185,14 @@ public class OwnershipCache {
      * @throws Exception
      *             throws exception if no ownership info is found
      */
-    public CompletableFuture<NamespaceEphemeralData> getOwnerAsync(NamespaceBundle suname) {
+    public CompletableFuture<Optional<NamespaceEphemeralData>> getOwnerAsync(NamespaceBundle suname) {
         String path = ServiceUnitZkUtils.path(suname);
         CompletableFuture<OwnedBundle> ownedBundleFuture = ownedBundlesCache.getIfPresent(suname);
         if (ownedBundleFuture != null) {
             // Either we're the owners or we're trying to become the owner.
             return ownedBundleFuture.thenApply(serviceUnit -> {
                 // We are the owner of the service unit
-                return serviceUnit.isActive() ? selfOwnerInfo : selfOwnerInfoDisabled;
+                return Optional.of(serviceUnit.isActive() ? selfOwnerInfo : selfOwnerInfoDisabled);
             });
         }
 
@@ -227,7 +228,18 @@ public class OwnershipCache {
                     if (LOG.isDebugEnabled()) {
                         LOG.debug("Found owner for {} at {}", bundle, ownerData);
                     }
-                    future.complete(ownerData);
+
+                    if (ownerData.isPresent()) {
+                        future.complete(ownerData.get());
+                    } else {
+                        // Strange scenario: we couldn't create a z-node because it was already existing, but when we
+                        // try to read it, it's not there anymore
+                        future.completeExceptionally(exception);
+                    }
+                }).exceptionally(ex -> {
+                    LOG.warn("Failed to check ownership of {}: {}", bundle, ex.getMessage(), ex);
+                    future.completeExceptionally(exception);
+                    return null;
                 });
             } else {
                 // Other ZK error, bailing out for now

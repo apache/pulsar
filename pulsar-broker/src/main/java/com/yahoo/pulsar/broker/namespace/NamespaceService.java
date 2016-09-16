@@ -17,9 +17,9 @@ package com.yahoo.pulsar.broker.namespace;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
-import static com.yahoo.pulsar.common.naming.NamespaceBundleFactory.getBundlesData;
 import static com.yahoo.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
+import static com.yahoo.pulsar.broker.web.PulsarWebResource.joinPath;
+import static com.yahoo.pulsar.common.naming.NamespaceBundleFactory.getBundlesData;
 import static java.lang.String.format;
 
 import java.net.MalformedURLException;
@@ -30,9 +30,9 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
+import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -40,15 +40,14 @@ import java.util.stream.Collectors;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.zookeeper.AsyncCallback.StatCallback;
 import org.apache.zookeeper.KeeperException;
-import org.apache.zookeeper.KeeperException.NoNodeException;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
 import com.google.common.hash.Hashing;
-import com.yahoo.pulsar.broker.PulsarService;
 import com.yahoo.pulsar.broker.PulsarServerException;
+import com.yahoo.pulsar.broker.PulsarService;
 import com.yahoo.pulsar.broker.ServiceConfiguration;
 import com.yahoo.pulsar.broker.admin.AdminResource;
 import com.yahoo.pulsar.broker.loadbalance.LoadManager;
@@ -56,7 +55,6 @@ import com.yahoo.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import com.yahoo.pulsar.broker.lookup.LookupResult;
 import com.yahoo.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import com.yahoo.pulsar.client.admin.PulsarAdmin;
-import com.yahoo.pulsar.client.admin.PulsarAdminException;
 import com.yahoo.pulsar.common.lookup.data.LookupData;
 import com.yahoo.pulsar.common.naming.DestinationName;
 import com.yahoo.pulsar.common.naming.NamespaceBundle;
@@ -69,11 +67,9 @@ import com.yahoo.pulsar.common.policies.data.BrokerAssignment;
 import com.yahoo.pulsar.common.policies.data.BundlesData;
 import com.yahoo.pulsar.common.policies.data.LocalPolicies;
 import com.yahoo.pulsar.common.policies.data.NamespaceOwnershipStatus;
-import com.yahoo.pulsar.common.policies.data.Policies;
 import com.yahoo.pulsar.common.policies.impl.NamespaceIsolationPolicies;
 import com.yahoo.pulsar.common.util.Codec;
 import com.yahoo.pulsar.common.util.ObjectMapperFactory;
-import static com.yahoo.pulsar.broker.web.PulsarWebResource.joinPath;
 
 /**
  * The <code>NamespaceService</code> provides resource ownership lookup as well as resource ownership claiming services
@@ -295,17 +291,7 @@ public class NamespaceService {
 
         // First check if we or someone else already owns the bundle
         ownershipCache.getOwnerAsync(bundle).thenAccept(nsData -> {
-            if (nsData.isDisabled()) {
-                future.completeExceptionally(new IllegalStateException(
-                        String.format("Namespace bundle %s is tentatively out-of-service.", bundle)));
-            } else {
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug("Namespace bundle {} already owned by {} ", bundle, nsData);
-                }
-                future.complete(new LookupResult(nsData));
-            }
-        }).exceptionally(exception -> {
-            if (exception instanceof NoNodeException) {
+            if (!nsData.isPresent()) {
                 // No one owns this bundle
 
                 if (readOnly) {
@@ -316,9 +302,16 @@ public class NamespaceService {
                     // Now, no one owns the namespace yet. Hence, we will try to dynamically assign it
                     searchForCandidateBroker(bundle, future, authoritative);
                 }
-                return null;
+            } else if (nsData.get().isDisabled()) {
+                future.completeExceptionally(
+                        new IllegalStateException(String.format("Namespace bundle %s is being unloaded", bundle)));
+            } else {
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("Namespace bundle {} already owned by {} ", bundle, nsData);
+                }
+                future.complete(new LookupResult(nsData.get()));
             }
-
+        }).exceptionally(exception -> {
             LOG.warn("Failed to check owner for bundle {}: {}", bundle, exception.getMessage(), exception);
             future.completeExceptionally(exception);
             return null;
@@ -482,33 +475,30 @@ public class NamespaceService {
     }
 
     private NamespaceIsolationPolicies getLocalNamespaceIsolationPolicies() throws Exception {
-        try {
-            String localCluster = pulsar.getConfiguration().getClusterName();
-            return pulsar.getConfigurationCache().namespaceIsolationPoliciesCache()
-                    .get(AdminResource.path("clusters", localCluster, "namespaceIsolationPolicies"));
-        } catch (KeeperException.NoNodeException nne) {
-            // the namespace isolation policies are empty/undefined = an empty object
-            return new NamespaceIsolationPolicies();
-        }
+        String localCluster = pulsar.getConfiguration().getClusterName();
+        return pulsar.getConfigurationCache().namespaceIsolationPoliciesCache()
+                .get(AdminResource.path("clusters", localCluster, "namespaceIsolationPolicies")).orElseGet(() -> {
+                    // the namespace isolation policies are empty/undefined = an empty object
+                    return new NamespaceIsolationPolicies();
+                });
     }
 
     public boolean isServiceUnitDisabled(NamespaceBundle bundle) throws Exception {
         try {
             // Does ZooKeeper says that the namespace is disabled?
-            CompletableFuture<NamespaceEphemeralData> nsDataFuture = ownershipCache.getOwnerAsync(bundle);
+            CompletableFuture<Optional<NamespaceEphemeralData>> nsDataFuture = ownershipCache.getOwnerAsync(bundle);
             if (nsDataFuture != null) {
-                NamespaceEphemeralData nsData = nsDataFuture.getNow(null);
-                return nsData != null ? nsData.isDisabled() : false;
+                Optional<NamespaceEphemeralData> nsData = nsDataFuture.getNow(null);
+                if (nsData != null && nsData.isPresent()) {
+                    return nsData.get().isDisabled();
+                } else {
+                    return false;
+                }
             } else {
                 // if namespace is not owned, it is not considered disabled
                 return false;
             }
         } catch (Exception e) {
-            if (e instanceof ExecutionException && e.getCause() instanceof NoNodeException) {
-                // if no node exists, that means the namespace is not owned
-                return false;
-            }
-
             LOG.warn("Exception in getting ownership info for service unit {}: {}", bundle, e.getMessage(), e);
         }
 
@@ -593,17 +583,17 @@ public class NamespaceService {
         checkNotNull(nsname);
         checkNotNull(nsBundles);
         String path = joinPath(LOCAL_POLICIES_ROOT, nsname.toString());
-        LocalPolicies policies = null;
-        try {
-            policies = this.pulsar.getLocalZkCacheService().policiesCache().get(path);
-        } catch (KeeperException.NoNodeException ne) {
+        Optional<LocalPolicies> policies = pulsar.getLocalZkCacheService().policiesCache().get(path);
+
+        if (!policies.isPresent()) {
             // if policies is not present into localZk then create new policies
             this.pulsar.getLocalZkCacheService().createPolicies(path, false);
             policies = this.pulsar.getLocalZkCacheService().policiesCache().get(path);
         }
-        policies.bundles = getBundlesData(nsBundles);
+
+        policies.get().bundles = getBundlesData(nsBundles);
         this.pulsar.getLocalZkCache().getZooKeeper().setData(path,
-                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(policies), -1, callback, null);
+                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(policies.get()), -1, callback, null);
     }
 
     public OwnershipCache getOwnershipCache() {
@@ -695,20 +685,12 @@ public class NamespaceService {
         return destinations;
     }
 
-    public NamespaceEphemeralData getOwner(NamespaceBundle bundle) throws Exception {
-        try {
-            return getOwnerAsync(bundle).get();
-        } catch (ExecutionException e) {
-            if (e.getCause() instanceof KeeperException.NoNodeException) {
-                // if there is no znode for the service unit, it is not owned by any broker
-                return null;
-            } else {
-                throw e;
-            }
-        }
+    public Optional<NamespaceEphemeralData> getOwner(NamespaceBundle bundle) throws Exception {
+        // if there is no znode for the service unit, it is not owned by any broker
+        return getOwnerAsync(bundle).get();
     }
 
-    public CompletableFuture<NamespaceEphemeralData> getOwnerAsync(NamespaceBundle bundle) {
+    public CompletableFuture<Optional<NamespaceEphemeralData>> getOwnerAsync(NamespaceBundle bundle) {
         return ownershipCache.getOwnerAsync(bundle);
     }
 

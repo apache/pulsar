@@ -41,6 +41,7 @@ import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
+import com.google.common.base.Optional;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Range;
 import com.google.common.hash.HashFunction;
@@ -69,23 +70,15 @@ public class NamespaceBundleFactory implements ZooKeeperCacheListener<LocalPolic
                     .getAsync(AdminResource.joinPath(LOCAL_POLICIES_ROOT, namespace.toString()))
                     .thenAccept(policies -> {
                         try {
-                            NamespaceBundles namespaceBundles = getBundles(namespace, policies.bundles);
+                            // If no policies defined for namespace, assume 1 single bundle
+                            NamespaceBundles namespaceBundles = getBundles(namespace,
+                                    policies != null ? policies.bundles : null);
                             future.complete(namespaceBundles);
                         } catch (Exception e) {
                             future.completeExceptionally(e);
                         }
                     }).exceptionally(ex -> {
-                        if (ex instanceof NoNodeException) {
-                            // No policies defined for the corresponding namespace
-                            try {
-                                NamespaceBundles namespaceBundles = getBundles(namespace, null);
-                                future.complete(namespaceBundles);
-                            } catch (Exception e) {
-                                future.completeExceptionally(e);
-                            }
-                        } else {
-                            future.completeExceptionally(ex);
-                        }
+                        future.completeExceptionally(ex);
                         return null;
                     });
             return future;

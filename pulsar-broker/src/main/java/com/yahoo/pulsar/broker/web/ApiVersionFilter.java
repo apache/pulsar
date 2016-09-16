@@ -27,6 +27,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpServletResponseWrapper;
 
+import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,7 +37,7 @@ import com.yahoo.pulsar.zookeeper.Deserializers;
 /**
  * Implementation of a servlet {@code Filter} which rejects requests from clients older than the configured minimum
  * version.
- * 
+ *
  */
 public class ApiVersionFilter implements Filter {
     // Needed constants.
@@ -63,7 +64,7 @@ public class ApiVersionFilter implements Filter {
             throws IOException, ServletException {
         try {
             String minApiVersion = pulsar.getLocalZkCache().getData(MIN_API_VERSION_PATH,
-                    Deserializers.STRING_DESERIALIZER);
+                    Deserializers.STRING_DESERIALIZER).orElseThrow(() -> new KeeperException.NoNodeException());
             String requestApiVersion = getRequestApiVersion(req);
             if (shouldAllowRequest(req.getRemoteAddr(), minApiVersion, requestApiVersion)) {
                 // Allow the request to continue by invoking the next filter in
@@ -97,10 +98,10 @@ public class ApiVersionFilter implements Filter {
      * Checks to see if {@code requestApiVersion} is greater than {@code minApiVersion}. Does that by converting both
      * {@code minApiVersion} and {@code requestApiVersion} to a floating point number. Assumes that version are properly
      * formatted floating point numbers.
-     * 
+     *
      * Note that this scheme implies that version numbers cannot be of the format x.y.z or any other format which is not
      * a valid floating point number.
-     * 
+     *
      * @param minApiVersion
      * @param requestApiVersion
      * @return true if requestApiVersion is greater than or equal to minApiVersion
