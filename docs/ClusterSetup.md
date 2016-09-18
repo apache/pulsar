@@ -35,9 +35,9 @@ Add all ZK servers the quorum configuration. Edit `conf/zookeeper.conf` and add
 the following lines in all the ZK servers:
 
 ```
-server.1=zk1.us-west.example.com:2181
-server.2=zk2.us-west.example.com:2181
-server.3=zk3.us-west.example.com:2181
+server.1=zk1.us-west.example.com:2888:3888
+server.2=zk2.us-west.example.com:2888:3888
+server.3=zk3.us-west.example.com:2888:3888
 ...
 ```
 
@@ -133,11 +133,11 @@ for the first time. The following command will prepare both the BookKeeper
 as well as the Pulsar metadata.
 
 ```shell
-$ bin/pulsar --cluster us-west \
-             --zookeeper zk1.us-west.example.com:2181 \
-             --global-zookeeper zk1.us-west.example.com:2184 \
-             --service-url http://pulsar.us-west.example.com:8080/ \
-						 --service-url-tls https://pulsar.us-west.example.com:8443/
+$ bin/pulsar initialize-cluster-metadata --cluster us-west \
+                                         --zookeeper zk1.us-west.example.com:2181 \
+                                         --global-zookeeper zk1.us-west.example.com:2184 \
+                                         --service-url http://pulsar.us-west.example.com:8080/ \
+						                             --service-url-tls https://pulsar.us-west.example.com:8443/
 ```
 
 #### BookKeeper
@@ -183,6 +183,9 @@ ledgerDirectories=data/bookkeeper/ledgers
 
 # Point to local ZK quorum
 zkServers=zk1.example.com:2181,zk2.example.com:2181,zk3.example.com:2181
+
+# Change the ledger manager type
+ledgerManagerType=hierarchical
 ```
 
 Please consult [http://bookkeeper.apache.org/]() for more extensive documentation
@@ -221,6 +224,7 @@ zookeeperServers=zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.u
 globalZookeeperServers=zk1.us-west.example.com:2184,zk2.us-west.example.com:2184,zk3.us-west.example.com:2184
 
 clusterName=us-west
+statusFilePath=broker-status-file
 ```
 
 ##### Start broker service
