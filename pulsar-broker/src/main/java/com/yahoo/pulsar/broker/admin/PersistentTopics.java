@@ -147,7 +147,7 @@ public class PersistentTopics extends AdminResource {
             throw new RestException(e);
         }
 
-        Collections.sort(destinations);
+        destinations.sort(null);
         return destinations;
     }
 

@@ -58,7 +58,7 @@ public class Properties extends AdminResource {
 
         try {
             List<String> properties = globalZk().getChildren(path("policies"), false);
-            Collections.sort(properties);
+            properties.sort(null);
             return properties;
         } catch (Exception e) {
             log.error("[{}] Failed to get properties list", clientAppId(), e);

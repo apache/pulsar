@@ -44,7 +44,7 @@ public class EntryCacheDefaultEvictionPolicy implements EntryCacheEvictionPolicy
         checkArgument(sizeToFree > 0);
         checkArgument(!caches.isEmpty());
 
-        Collections.sort(caches, reverseOrder());
+        caches.sort(reverseOrder());
 
         long totalSize = 0;
         for (EntryCache cache : caches) {

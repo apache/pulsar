@@ -19,7 +19,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import java.net.MalformedURLException;
 import java.net.URI;
-import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
@@ -207,7 +206,7 @@ public abstract class AdminResource extends PulsarWebResource {
             }
         }
 
-        Collections.sort(namespaces);
+        namespaces.sort(null);
         return namespaces;
     }
 

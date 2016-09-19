@@ -668,7 +668,7 @@ public class NamespaceService {
             // NoNode means there are no persistent topics for this namespace
         }
 
-        Collections.sort(destinations);
+        destinations.sort(null);
         return destinations;
     }
 
