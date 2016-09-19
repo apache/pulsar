@@ -132,7 +132,7 @@ public class Namespaces extends AdminResource {
             throw new RestException(e);
         }
 
-        Collections.sort(namespaces);
+        namespaces.sort(null);
         return namespaces;
     }
 

@@ -253,21 +253,21 @@ public class ConcurrentLongHashMapTest {
         map.put(2, "two");
 
         List<Long> keys = map.keys();
-        Collections.sort(keys);
+        keys.sort(null);
         assertEquals(keys, Lists.newArrayList(0l, 1l, 2l));
 
         List<String> values = map.values();
-        Collections.sort(values);
+        values.sort(null);
         assertEquals(values, Lists.newArrayList("one", "two", "zero"));
 
         map.put(1, "uno");
 
         keys = map.keys();
-        Collections.sort(keys);
+        keys.sort(null);
         assertEquals(keys, Lists.newArrayList(0l, 1l, 2l));
 
         values = map.values();
-        Collections.sort(values);
+        values.sort(null);
         assertEquals(values, Lists.newArrayList("two", "uno", "zero"));
 
         map.clear();
