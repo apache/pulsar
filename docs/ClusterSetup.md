@@ -137,7 +137,7 @@ $ bin/pulsar initialize-cluster-metadata --cluster us-west \
                                          --zookeeper zk1.us-west.example.com:2181 \
                                          --global-zookeeper zk1.us-west.example.com:2184 \
                                          --service-url http://pulsar.us-west.example.com:8080/ \
-						                             --service-url-tls https://pulsar.us-west.example.com:8443/
+                                         --service-url-tls https://pulsar.us-west.example.com:8443/
 ```
 
 #### BookKeeper
