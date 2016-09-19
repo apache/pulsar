@@ -72,7 +72,7 @@ public final class PersistentDispatcherSingleActiveConsumer implements Dispatche
     private void pickAndScheduleActiveConsumer() {
         checkArgument(!consumers.isEmpty());
 
-        Collections.sort(consumers, (c1, c2) -> c1.consumerName().compareTo(c2.consumerName()));
+        consumers.sort((c1, c2) -> c1.consumerName().compareTo(c2.consumerName()));
 
         int index = partitionIndex % consumers.size();
         Consumer prevConsumer = activeConsumer.getAndSet(consumers.get(index));

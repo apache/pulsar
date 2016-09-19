@@ -198,12 +198,12 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
     public void testGetNamespaces() throws Exception {
         List<String> expectedList = Lists.newArrayList(this.testLocalNamespaces.get(0).toString(),
                 this.testLocalNamespaces.get(1).toString());
-        Collections.sort(expectedList);
+        expectedList.sort(null);
         assertEquals(namespaces.getNamespacesForCluster(this.testProperty, this.testLocalCluster), expectedList);
         expectedList = Lists.newArrayList(this.testLocalNamespaces.get(0).toString(),
                 this.testLocalNamespaces.get(1).toString(), this.testLocalNamespaces.get(2).toString(),
                 this.testGlobalNamespaces.get(0).toString());
-        Collections.sort(expectedList);
+        expectedList.sort(null);
         assertEquals(namespaces.getPropertyNamespaces(this.testProperty), expectedList);
 
         try {
@@ -620,7 +620,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         namespaces.deleteNamespace(testNs.getProperty(), testNs.getCluster(), testNs.getLocalName(), false);
         List<String> nsList = Lists.newArrayList(this.testLocalNamespaces.get(1).toString(),
                 this.testLocalNamespaces.get(2).toString());
-        Collections.sort(nsList);
+        nsList.sort(null);
         assertEquals(namespaces.getPropertyNamespaces(this.testProperty), nsList);
 
         testNs = this.testLocalNamespaces.get(1);

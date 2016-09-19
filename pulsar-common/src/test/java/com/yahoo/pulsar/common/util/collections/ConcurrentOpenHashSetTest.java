@@ -226,7 +226,7 @@ public class ConcurrentOpenHashSetTest {
         set.add(2l);
 
         List<Long> values = set.values();
-        Collections.sort(values);
+        values.sort(null);
         assertEquals(values, Lists.newArrayList(0l, 1l, 2l));
 
         set.clear();
@@ -244,14 +244,14 @@ public class ConcurrentOpenHashSetTest {
         set.add(7);
 
         List<Integer> values = set.values();
-        Collections.sort(values);
+        values.sort(null);
         assertEquals(values, Lists.newArrayList(0, 1, 3, 6, 7));
 
         int numOfItemsDeleted = set.removeIf(i -> i < 5);
         assertEquals(numOfItemsDeleted, 3);
         assertEquals(set.size(), values.size() - numOfItemsDeleted);
         values = set.values();
-        Collections.sort(values);
+        values.sort(null);
         assertEquals(values, Lists.newArrayList(6, 7));
     }
 
