@@ -302,15 +302,6 @@ public class ServiceConfiguration {
     }
 
     public String getBindAddress() {
-        if (this.bindAddress == null) {
-            try {
-                LOG.debug("bindAddress not set, attempting default configuration.");
-                this.setBindAddress(InetAddress.getLocalHost().getHostName());
-            } catch (UnknownHostException ex) {
-                LOG.warn(ex.getMessage(), "Using localhost as bindAddress.");
-                this.setAdvertisedAddress("localhost");
-            }
-        }
         return this.bindAddress;
     }
 
@@ -319,9 +310,6 @@ public class ServiceConfiguration {
     }
 
     public String getAdvertisedAddress() {
-        if (this.advertisedAddress == null) {
-            return this.getBindAddress();
-        }
         return this.advertisedAddress;
     }
 

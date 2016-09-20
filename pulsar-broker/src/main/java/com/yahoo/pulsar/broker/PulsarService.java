@@ -18,6 +18,7 @@ package com.yahoo.pulsar.broker;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.URL;
+import java.net.UnknownHostException;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
@@ -570,6 +571,14 @@ public class PulsarService implements AutoCloseable {
      * @return Hostname or IP address the service binds on.
      */
     public static String host(ServiceConfiguration config) {
+        if (config.getBindAddress() == null) {
+            try {
+                return InetAddress.getLocalHost().getHostName();
+            } catch (UnknownHostException ex) {
+                LOG.error(ex.getMessage(), ex);
+                throw new IllegalStateException("Failed to resolve localhost name.", ex);
+            }
+        }
         return config.getBindAddress();
     }
 
@@ -579,6 +588,14 @@ public class PulsarService implements AutoCloseable {
      * @return Hostname or IP address the service advertises to the outside world.
      */
     public static String advertisedHost(ServiceConfiguration config) {
+        if (config.getAdvertisedAddress() == null) {
+            try {
+                return InetAddress.getLocalHost().getHostName();
+            } catch (UnknownHostException ex) {
+                LOG.error(ex.getMessage(), ex);
+                throw new IllegalStateException("Failed to resolve localhost name.", ex);
+            }
+        }
         return config.getAdvertisedAddress();
     }
 
