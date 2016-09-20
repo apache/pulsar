@@ -98,6 +98,7 @@ public class PulsarService implements AutoCloseable {
     private PulsarAdmin adminClient = null;
     private ZooKeeperClientFactory zkClientFactory = null;
     private final String host;
+    private final String advertisedAddress;
     private final String webServiceAddress;
     private final String webServiceAddressTls;
     private final String brokerServiceUrl;
@@ -119,6 +120,7 @@ public class PulsarService implements AutoCloseable {
     public PulsarService(ServiceConfiguration config) {
         state = State.Init;
         this.host = host(config);
+        this.advertisedAddress = advertisedHost(config);
         this.webServiceAddress = webAddress(config);
         this.webServiceAddressTls = webAddressTls(config);
         this.brokerServiceUrl = brokerUrl(config);
@@ -565,41 +567,40 @@ public class PulsarService implements AutoCloseable {
     /**
      * Derive the host
      *
-     * @param isBindOnLocalhost
-     * @return
+     * @return Hostname or IP address the service binds on.
      */
     public static String host(ServiceConfiguration config) {
-        try {
-            if (!config.isBindOnLocalhost()) {
-                return InetAddress.getLocalHost().getHostName();
-            } else {
-                return "localhost";
-            }
-        } catch (Exception e) {
-            LOG.error(e.getMessage(), e);
-            throw new IllegalStateException("failed to find host", e);
-        }
+        return config.getBindAddress();
+    }
+
+    /**
+     * Advertised service host.
+     *
+     * @return Hostname or IP address the service advertises to the outside world.
+     */
+    public static String advertisedHost(ServiceConfiguration config) {
+        return config.getAdvertisedAddress();
     }
 
     public static String brokerUrl(ServiceConfiguration config) {
-        return "pulsar://" + host(config) + ":" + config.getBrokerServicePort();
+        return "pulsar://" + advertisedHost(config) + ":" + config.getBrokerServicePort();
     }
 
     public static String brokerUrlTls(ServiceConfiguration config) {
         if (config.isTlsEnabled()) {
-            return "pulsar://" + host(config) + ":" + config.getBrokerServicePortTls();
+            return "pulsar://" + advertisedHost(config) + ":" + config.getBrokerServicePortTls();
         } else {
             return "";
         }
     }
 
     public static String webAddress(ServiceConfiguration config) {
-        return String.format("http://%s:%d", host(config), config.getWebServicePort());
+        return String.format("http://%s:%d", advertisedHost(config), config.getWebServicePort());
     }
 
     public static String webAddressTls(ServiceConfiguration config) {
         if (config.isTlsEnabled()) {
-            return String.format("https://%s:%d", host(config), config.getWebServicePortTls());
+            return String.format("https://%s:%d", advertisedHost(config), config.getWebServicePortTls());
         } else {
             return "";
         }
@@ -607,6 +608,10 @@ public class PulsarService implements AutoCloseable {
 
     public String getHost() {
         return host;
+    }
+
+    public String getAdvertisedAddress() {
+        return advertisedAddress;
     }
 
     public String getWebServiceAddress() {

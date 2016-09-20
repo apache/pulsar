@@ -120,7 +120,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         otherconfig.setBrokerServicePort(SECONDARY_BROKER_PORT);
         otherconfig.setWebServicePort(SECONDARY_BROKER_WEBSERVICE_PORT);
         otherconfig.setLoadBalancerEnabled(false);
-        otherconfig.setBindOnLocalhost(true);
+        otherconfig.setBindAddress("localhost");
         otherconfig.setClusterName("test");
 
         otherPulsar = startBroker(otherconfig);

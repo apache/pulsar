@@ -15,6 +15,8 @@
  */
 package com.yahoo.pulsar.broker;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
@@ -22,6 +24,8 @@ import java.util.Set;
 
 import com.google.common.collect.Sets;
 import com.yahoo.pulsar.client.impl.auth.AuthenticationDisabled;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
@@ -29,6 +33,8 @@ import com.yahoo.pulsar.client.impl.auth.AuthenticationDisabled;
  *
  */
 public class ServiceConfiguration {
+
+    private static final Logger LOG = LoggerFactory.getLogger(ServiceConfiguration.class);
 
     /***** --- pulsar configuration --- ****/
     // Zookeeper quorum connection string
@@ -43,9 +49,13 @@ public class ServiceConfiguration {
     private int webServicePort = 8080;
     // Port to use to server HTTPS request
     private int webServicePortTls = 8443;
-    // Control whether to bind directly on localhost rather than on normal
-    // hostname
-    private boolean bindOnLocalhost = false;
+
+    // Hostname or IP address the service binds on.
+    // If not set, InetAddress.getLocalHost().getHostName() will be used.
+    private String bindAddress;
+    // Controls which hostname is advertised to the discovery service via ZooKeeper.
+    // If not set, bindAddress is used.
+    private String advertisedAddress;
 
     // Enable the WebSocket API service
     private boolean webSocketServiceEnabled = false;
@@ -291,12 +301,32 @@ public class ServiceConfiguration {
         this.webServicePortTls = webServicePortTls;
     }
 
-    public boolean isBindOnLocalhost() {
-        return bindOnLocalhost;
+    public String getBindAddress() {
+        if (this.bindAddress == null) {
+            try {
+                LOG.debug("bindAddress not set, attempting default configuration.");
+                this.setBindAddress(InetAddress.getLocalHost().getHostName());
+            } catch (UnknownHostException ex) {
+                LOG.warn(ex.getMessage(), "Using localhost as bindAddress.");
+                this.setAdvertisedAddress("localhost");
+            }
+        }
+        return this.bindAddress;
     }
 
-    public void setBindOnLocalhost(boolean bindOnLocalhost) {
-        this.bindOnLocalhost = bindOnLocalhost;
+    public void setBindAddress(String bindAddress) {
+        this.bindAddress = bindAddress;
+    }
+
+    public String getAdvertisedAddress() {
+        if (this.advertisedAddress == null) {
+            return this.getBindAddress();
+        }
+        return this.advertisedAddress;
+    }
+
+    public void setAdvertisedAddress(String advertisedAddress) {
+        this.advertisedAddress = advertisedAddress;
     }
 
     public boolean isWebSocketServiceEnabled() {
