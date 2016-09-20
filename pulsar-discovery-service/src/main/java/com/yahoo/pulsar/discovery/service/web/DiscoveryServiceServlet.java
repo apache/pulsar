@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.yahoo.pulsar.discovery.service;
+package com.yahoo.pulsar.discovery.service.web;
 
 import java.io.IOException;
 import java.net.URI;
@@ -129,8 +129,9 @@ public class DiscoveryServiceServlet extends HttpServlet {
             if (request.getQueryString() != null) {
                 location.append('?').append(request.getQueryString());
             }
-
-            log.info("Redirecting to {}", location);
+            if (log.isDebugEnabled()) {
+            	log.info("Redirecting to {}", location);	
+            }
             response.sendRedirect(location.toString());
         } catch (URISyntaxException e) {
             log.warn("No broker found in zookeeper {}", e.getMessage(), e);

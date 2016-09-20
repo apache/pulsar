@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.yahoo.pulsar.discovery.service;
+package com.yahoo.pulsar.discovery.service.web;
 
-import static com.yahoo.pulsar.discovery.service.ZookeeperCacheLoader.LOADBALANCE_BROKERS_ROOT;
+import static com.yahoo.pulsar.discovery.service.web.ZookeeperCacheLoader.LOADBALANCE_BROKERS_ROOT;
 import static org.testng.Assert.fail;
 
 import java.io.IOException;
@@ -31,20 +31,17 @@ import org.testng.annotations.Test;
 
 import com.beust.jcommander.internal.Lists;
 import com.yahoo.pulsar.common.policies.data.loadbalancer.LoadReport;
-import com.yahoo.pulsar.zookeeper.MockedZooKeeperClientFactoryImpl;
-import com.yahoo.pulsar.zookeeper.ZooKeeperClientFactory;
 
-public class ZookeeperCacheLoaderTest {
-
-    private ZooKeeperClientFactory mockZookKeeperFactory;
+public class ZookeeperCacheLoaderTest extends BaseZKStarterTest {
 
     @BeforeMethod
-    void setup() throws Exception {
-        mockZookKeeperFactory = new MockedZooKeeperClientFactoryImpl();
+    private void init() throws Exception {
+        start();
     }
 
     @AfterMethod
-    void teardown() throws Exception {
+    private void cleanup() throws Exception {
+        close();
     }
 
     /**
@@ -56,7 +53,10 @@ public class ZookeeperCacheLoaderTest {
      */
     @Test
     public void testZookeeperCacheLoader() throws InterruptedException, KeeperException, Exception {
-        ZookeeperCacheLoader zkLoader = new ZookeeperCacheLoader(mockZookKeeperFactory, "");
+
+        DiscoveryZooKeeperClientFactoryImpl.zk = mockZookKeeper;
+
+        ZookeeperCacheLoader zkLoader = new ZookeeperCacheLoader(new DiscoveryZooKeeperClientFactoryImpl(), "");
 
         List<String> brokers = Lists.newArrayList("broker-1:15000", "broker-2:15000", "broker-3:15000");
         // 1. create znode for each broker
