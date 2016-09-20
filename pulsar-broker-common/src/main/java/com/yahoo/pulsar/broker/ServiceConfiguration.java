@@ -24,8 +24,6 @@ import java.util.Set;
 
 import com.google.common.collect.Sets;
 import com.yahoo.pulsar.client.impl.auth.AuthenticationDisabled;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  *
@@ -33,8 +31,6 @@ import org.slf4j.LoggerFactory;
  *
  */
 public class ServiceConfiguration {
-
-    private static final Logger LOG = LoggerFactory.getLogger(ServiceConfiguration.class);
 
     /***** --- pulsar configuration --- ****/
     // Zookeeper quorum connection string
