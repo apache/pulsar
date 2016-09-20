@@ -45,10 +45,9 @@ public class ServiceConfiguration {
     private int webServicePortTls = 8443;
 
     // Hostname or IP address the service binds on.
-    // If not set, InetAddress.getLocalHost().getHostName() will be used.
     private String bindAddress;
+
     // Controls which hostname is advertised to the discovery service via ZooKeeper.
-    // If not set, bindAddress is used.
     private String advertisedAddress;
 
     // Enable the WebSocket API service
