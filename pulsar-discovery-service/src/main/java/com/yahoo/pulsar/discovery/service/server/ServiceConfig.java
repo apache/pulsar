@@ -15,10 +15,10 @@
  */
 package com.yahoo.pulsar.discovery.service.server;
 
-import com.yahoo.pulsar.discovery.service.DiscoveryService;
+import com.yahoo.pulsar.discovery.service.web.DiscoveryServiceServlet;
 
 /**
- * Service Configuration to start :{@link DiscoveryService}
+ * Service Configuration to start :{@link DiscoveryServiceServlet}
  *
  */
 public class ServiceConfig {
