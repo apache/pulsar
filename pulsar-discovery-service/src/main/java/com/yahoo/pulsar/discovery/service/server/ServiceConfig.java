@@ -15,7 +15,7 @@
  */
 package com.yahoo.pulsar.discovery.service.server;
 
-import com.yahoo.pulsar.discovery.service.DiscoveryServiceServlet;
+import com.yahoo.pulsar.discovery.service.web.DiscoveryServiceServlet;
 
 /**
  * Service Configuration to start :{@link DiscoveryServiceServlet}

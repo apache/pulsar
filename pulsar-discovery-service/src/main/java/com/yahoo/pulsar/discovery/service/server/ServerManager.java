@@ -42,7 +42,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
 import com.yahoo.pulsar.common.util.SecurityUtility;
-import com.yahoo.pulsar.discovery.service.RestException;
+import com.yahoo.pulsar.discovery.service.web.RestException;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
 

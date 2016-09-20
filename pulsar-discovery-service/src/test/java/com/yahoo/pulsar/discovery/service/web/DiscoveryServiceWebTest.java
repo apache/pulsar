@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.yahoo.pulsar.discovery.service;
+package com.yahoo.pulsar.discovery.service.web;
 
-import static com.yahoo.pulsar.discovery.service.ZookeeperCacheLoader.LOADBALANCE_BROKERS_ROOT;
+import static com.yahoo.pulsar.discovery.service.web.ZookeeperCacheLoader.LOADBALANCE_BROKERS_ROOT;
 import static javax.ws.rs.core.Response.Status.BAD_GATEWAY;
 import static javax.ws.rs.core.Response.Status.INTERNAL_SERVER_ERROR;
 import static org.apache.bookkeeper.test.PortManager.nextFreePort;
@@ -23,17 +23,14 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.InputStream;
-import java.io.OutputStreamWriter;
-import java.io.PrintWriter;
 import java.lang.reflect.Field;
-import java.net.InetAddress;
 import java.net.URL;
 import java.net.UnknownHostException;
 import java.security.SecureRandom;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 import javax.net.ssl.HttpsURLConnection;
@@ -47,21 +44,25 @@ import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.Invocation;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
 
+import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZooDefs;
-import org.apache.zookeeper.ZooKeeper;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.filter.LoggingFilter;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.collect.Lists;
 import com.yahoo.pulsar.common.policies.data.BundlesData;
-import com.yahoo.pulsar.discovery.service.server.DiscoveryServiceStarter;
+import com.yahoo.pulsar.common.policies.data.loadbalancer.LoadReport;
+import com.yahoo.pulsar.common.util.ObjectMapperFactory;
 import com.yahoo.pulsar.discovery.service.server.ServerManager;
 import com.yahoo.pulsar.discovery.service.server.ServiceConfig;
+import com.yahoo.pulsar.zookeeper.ZookeeperClientFactoryImpl;
 
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 
@@ -71,74 +72,90 @@ import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
  * with redirected broker
  *
  */
-public class DiscoveryServiceTest {
+public class DiscoveryServiceWebTest extends BaseZKStarterTest{
 
     private Client client = ClientBuilder.newClient(new ClientConfig().register(LoggingFilter.class));
     private static final String TLS_SERVER_CERT_FILE_PATH = "./src/test/resources/certificate/server.crt";
     private static final String TLS_SERVER_KEY_FILE_PATH = "./src/test/resources/certificate/server.key";
+    
+    
+    @BeforeMethod
+    private void init() throws Exception {
+        start();
+    }
 
+    @AfterMethod
+    private void cleanup() throws Exception {
+        close();
+    }
+    
     @Test
     public void testNextBroker() throws Exception {
 
-        List<String> brokers = Lists.newArrayList("broker-1:15000", "broker-2:15000", "broker-3:15000");
-        System.setProperty("zookeeperServers", "dummy-value");
-
-        DiscoveryServiceServlet discovery = new DiscoveryServiceServlet();
-        Field zkCacheField = DiscoveryServiceServlet.class.getDeclaredField("zkCache");
-        zkCacheField.setAccessible(true);
-        ZooKeeper zk = ((ZookeeperCacheLoader) zkCacheField.get(discovery)).getLocalZkCache().getZooKeeper();
-
         // 1. create znode for each broker
-        brokers.stream().forEach(b -> {
+        List<String> brokers = Lists.newArrayList("broker-1", "broker-2", "broker-3");
+        brokers.stream().forEach(broker -> {
             try {
-                zk.create(LOADBALANCE_BROKERS_ROOT + "/" + b, new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE,
+                LoadReport report = new LoadReport(broker, null, null, null);
+                String reportData = ObjectMapperFactory.getThreadLocal().writeValueAsString(report);
+                ZkUtils.createFullPathOptimistic(mockZookKeeper, LOADBALANCE_BROKERS_ROOT + "/" + broker,
+                        reportData.getBytes(ZookeeperClientFactoryImpl.ENCODING_SCHEME), ZooDefs.Ids.OPEN_ACL_UNSAFE,
                         CreateMode.PERSISTENT);
             } catch (KeeperException.NodeExistsException ne) {
                 // Ok
             } catch (KeeperException | InterruptedException e) {
-                fail("failed while creating broker znodes");
+                fail("failed while creating broker znodes", e);
+            } catch (JsonProcessingException e) {
+                fail("failed while creating broker znodes", e);
             }
         });
 
-        Thread.sleep(200);
+        // 2. Setup discovery-zkcache
+        DiscoveryServiceServlet discovery = new DiscoveryServiceServlet();
+        DiscoveryZooKeeperClientFactoryImpl.zk = mockZookKeeper;
+        Field zkCacheField = DiscoveryServiceServlet.class.getDeclaredField("zkCache");
+        zkCacheField.setAccessible(true);
+        ZookeeperCacheLoader zkCache = new ZookeeperCacheLoader(new DiscoveryZooKeeperClientFactoryImpl(),
+                "zk-test-servers");
+        zkCacheField.set(discovery, zkCache);
 
-        // 2. verify nextBroker functionality : round-robin in broker list
+        // 3. verify nextBroker functionality : round-robin in broker list
         for (String broker : brokers) {
-            assertEquals(broker, discovery.nextBroker());
+            assertEquals(broker, discovery.nextBroker().getWebServiceUrl());
         }
-
-        zk.close();
     }
 
     @Test
     public void testRiderectUrlWithServerStarted() throws Exception {
 
         // 1. start server
-        List<String> resources = Lists.newArrayList(DiscoveryServiceServlet.class.getPackage().getName());
-        System.setProperty("zookeeperServers", "dummy-value");
         int port = nextFreePort();
         ServiceConfig config = new ServiceConfig();
         config.setWebServicePort(port);
         ServerManager server = new ServerManager(config);
+        DiscoveryZooKeeperClientFactoryImpl.zk = mockZookKeeper;
+        Map<String, String> params = new TreeMap<>();
+        params.put("zookeeperServers", "dummy-value");
+        params.put("zookeeperClientFactoryClass", DiscoveryZooKeeperClientFactoryImpl.class.getName());
+        server.addServlet("/", DiscoveryServiceServlet.class, params);
         server.start();
 
-        // 2. get ZookeeperCacheLoader to add more brokers
-        DiscoveryServiceServlet discovery = new DiscoveryServiceServlet();
-        Field zkCacheField = DiscoveryServiceServlet.class.getDeclaredField("zkCache");
-        zkCacheField.setAccessible(true);
-        ZooKeeper zk = ((ZookeeperCacheLoader) zkCacheField.get(discovery)).getLocalZkCache().getZooKeeper();
-
+        // 2. create znode for each broker
         List<String> brokers = Lists.newArrayList("broker-1", "broker-2", "broker-3");
-        // 3. create znode for each broker
         brokers.stream().forEach(b -> {
             try {
-                zk.create(LOADBALANCE_BROKERS_ROOT + "/" + b + ":15000", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE,
+                final String broker = b + ":15000";
+                LoadReport report = new LoadReport("http://" + broker, null, null, null);
+                String reportData = ObjectMapperFactory.getThreadLocal().writeValueAsString(report);
+                ZkUtils.createFullPathOptimistic(mockZookKeeper, LOADBALANCE_BROKERS_ROOT + "/" + broker,
+                        reportData.getBytes(ZookeeperClientFactoryImpl.ENCODING_SCHEME), ZooDefs.Ids.OPEN_ACL_UNSAFE,
                         CreateMode.PERSISTENT);
             } catch (KeeperException.NodeExistsException ne) {
                 // Ok
             } catch (KeeperException | InterruptedException e) {
-                e.printStackTrace();
-                fail("failed while creating broker znodes");
+                fail("failed while creating broker znodes", e);
+            } catch (JsonProcessingException e) {
+                fail("failed while creating broker znodes", e);
             }
         });
 
@@ -146,8 +163,8 @@ public class DiscoveryServiceTest {
         String requestUrl = serviceUrl + "admin/namespaces/p1/c1/n1";
 
         /**
-         * verify : every time when vip receives a request: it redirects to above brokers sequentially and client must
-         * get unknown host exception with above brokers in a sequential manner.
+         * 3. verify : every time when vip receives a request: it redirects to above brokers sequentially and client
+         * must get unknown host exception with above brokers in a sequential manner.
          **/
 
         assertEquals(brokers, validateRequest(brokers, HttpMethod.PUT, requestUrl, new BundlesData(1)),
@@ -158,32 +175,8 @@ public class DiscoveryServiceTest {
 
         server.stop();
 
-        zk.close();
-
     }
 
-    @Test
-    public void testDiscoveryServiceStarter() throws Exception {
-
-        int port = nextFreePort();
-        File testConfigFile = new File("tmp." + System.currentTimeMillis() + ".properties");
-        if (testConfigFile.exists()) {
-            testConfigFile.delete();
-        }
-        PrintWriter printWriter = new PrintWriter(new OutputStreamWriter(new FileOutputStream(testConfigFile)));
-        printWriter.println("zookeeperServers=z1.yahoo.com,z2.yahoo.com,z3.yahoo.com");
-        printWriter.println("webServicePort=" + port);
-        printWriter.close();
-        testConfigFile.deleteOnExit();
-        DiscoveryServiceStarter.main(new String[] { testConfigFile.getAbsolutePath() });
-        String host = InetAddress.getLocalHost().getHostAddress();
-        String requestUrl = String.format("http://%s:%d/%s", host, port, "admin/namespaces/p1/c1/n1");
-        WebTarget webTarget = client.target(requestUrl);
-        Invocation.Builder invocationBuilder = webTarget.request(MediaType.APPLICATION_JSON);
-        Response response = invocationBuilder.get();
-        assertEquals(response.getStatus(), 503);
-        testConfigFile.delete();
-    }
 
     @Test
     public void testTlsEnable() throws Exception {
@@ -198,29 +191,36 @@ public class DiscoveryServiceTest {
         config.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         config.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
         ServerManager server = new ServerManager(config);
+        DiscoveryZooKeeperClientFactoryImpl.zk = mockZookKeeper;
+        Map<String, String> params = new TreeMap<>();
+        params.put("zookeeperServers", "dummy-value");
+        params.put("zookeeperClientFactoryClass", DiscoveryZooKeeperClientFactoryImpl.class.getName());
+        server.addServlet("/", DiscoveryServiceServlet.class, params);
         server.start();
 
         // 2. get ZookeeperCacheLoader to add more brokers
-        DiscoveryServiceServlet discovery = new DiscoveryServiceServlet();
-        Field zkCacheField = DiscoveryServiceServlet.class.getDeclaredField("zkCache");
-        zkCacheField.setAccessible(true);
-        ZooKeeper zk = ((ZookeeperCacheLoader) zkCacheField.get(discovery)).getLocalZkCache().getZooKeeper();
         final String redirect_broker_host = "broker-1";
         List<String> brokers = Lists.newArrayList(redirect_broker_host);
-        // 3. create znode for each broker
         brokers.stream().forEach(b -> {
             try {
-                zk.create(LOADBALANCE_BROKERS_ROOT + "/" + b + ":" + tlsPort, new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE,
+                final String brokerUrl = b + ":" + port;
+                final String brokerUrlTls = b + ":" + tlsPort;
+
+                LoadReport report = new LoadReport("http://" + brokerUrl, "https://" + brokerUrlTls, null, null);
+                String reportData = ObjectMapperFactory.getThreadLocal().writeValueAsString(report);
+                ZkUtils.createFullPathOptimistic(mockZookKeeper, LOADBALANCE_BROKERS_ROOT + "/" + brokerUrl,
+                        reportData.getBytes(ZookeeperClientFactoryImpl.ENCODING_SCHEME), ZooDefs.Ids.OPEN_ACL_UNSAFE,
                         CreateMode.PERSISTENT);
             } catch (KeeperException.NodeExistsException ne) {
                 // Ok
             } catch (KeeperException | InterruptedException e) {
-                e.printStackTrace();
+				fail("failed while creating broker znodes", e);
+            } catch (JsonProcessingException e) {
                 fail("failed while creating broker znodes");
             }
         });
 
-        // 4. https request with tls enable at server side
+        // 3. https request with tls enable at server side
         String serviceUrl = String.format("https://localhost:%s/", tlsPort);
         String requestUrl = serviceUrl + "admin/namespaces/p1/c1/n1";
 
@@ -234,7 +234,7 @@ public class DiscoveryServiceTest {
             fail("it should give unknown host exception as: discovery service redirects request to: "
                     + redirect_broker_host);
         } catch (Exception e) {
-            // 5. Verify: server accepts https request and redirected to one of the available broker host defined into
+            // 4. Verify: server accepts https request and redirected to one of the available broker host defined into
             // zk. and as broker-service is not up: it should give "UnknownHostException with host=broker-url"
             String host = e.getLocalizedMessage();
             assertEquals(e.getClass(), UnknownHostException.class);
@@ -246,7 +246,6 @@ public class DiscoveryServiceTest {
 
     @Test
     public void testException() {
-
         RestException exception1 = new RestException(BAD_GATEWAY, "test-msg");
         assertTrue(exception1.getMessage().contains(BAD_GATEWAY.toString()));
         RestException exception2 = new RestException(BAD_GATEWAY.getStatusCode(), "test-msg");
