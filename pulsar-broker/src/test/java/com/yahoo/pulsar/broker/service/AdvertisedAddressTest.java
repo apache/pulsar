@@ -20,18 +20,12 @@ import com.yahoo.pulsar.broker.ServiceConfiguration;
 import com.yahoo.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.zookeeper.data.Stat;
 import org.json.JSONObject;
-import org.json.JSONStringer;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
 
 import java.nio.charset.StandardCharsets;
-import java.util.Properties;
-
-import static com.yahoo.pulsar.broker.ServiceConfigurationLoader.create;
 
 public class AdvertisedAddressTest {
 
@@ -49,7 +43,7 @@ public class AdvertisedAddressTest {
     public void setup() throws Exception {
         bkEnsemble = new LocalBookkeeperEnsemble(3, ZOOKEEPER_PORT, 5001);
         bkEnsemble.start();
-        ServiceConfiguration config = create(new Properties(System.getProperties()));
+        ServiceConfiguration config = new ServiceConfiguration();
         config.setZookeeperServers("127.0.0.1" + ":" + ZOOKEEPER_PORT);
         config.setWebServicePort(BROKER_WEBSERVICE_PORT);
         config.setClusterName("usc");
