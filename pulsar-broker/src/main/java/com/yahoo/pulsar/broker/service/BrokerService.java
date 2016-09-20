@@ -22,6 +22,7 @@ import static org.apache.commons.collections.CollectionUtils.isEmpty;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.net.URI;
 import java.util.HashMap;
 import java.util.List;
@@ -220,13 +221,13 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
         bootstrap.childHandler(new PulsarChannelInitializer(this, serviceConfig, false));
         // Bind and start to accept incoming connections.
-        bootstrap.bind(port).sync();
+        bootstrap.bind(new InetSocketAddress(pulsar.getHost(), port)).sync();
         log.info("Started Pulsar Broker service on port {}", port);
 
         if (serviceConfig.isTlsEnabled()) {
             ServerBootstrap tlsBootstrap = bootstrap.clone();
             tlsBootstrap.childHandler(new PulsarChannelInitializer(this, serviceConfig, true));
-            tlsBootstrap.bind(tlsPort).sync();
+            tlsBootstrap.bind(new InetSocketAddress(pulsar.getHost(), tlsPort)).sync();
             log.info("Started Pulsar Broker TLS service on port {}", tlsPort);
         }
 
