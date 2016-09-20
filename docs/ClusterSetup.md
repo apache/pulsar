@@ -224,7 +224,6 @@ zookeeperServers=zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.u
 globalZookeeperServers=zk1.us-west.example.com:2184,zk2.us-west.example.com:2184,zk3.us-west.example.com:2184
 
 clusterName=us-west
-statusFilePath=broker-status-file
 ```
 
 ##### Start broker service
