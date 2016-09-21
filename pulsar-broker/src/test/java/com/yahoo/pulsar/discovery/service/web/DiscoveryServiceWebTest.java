@@ -13,12 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.yahoo.pulsar.discovery.service;
+package com.yahoo.pulsar.discovery.service.web;
 
-import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.fail;
 
-import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
+import java.util.concurrent.CompletableFuture;
 
 import javax.ws.rs.HttpMethod;
 import javax.ws.rs.client.Client;
@@ -30,6 +32,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
 import org.apache.bookkeeper.test.PortManager;
+import org.apache.zookeeper.ZooKeeper;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.filter.LoggingFilter;
 import org.json.JSONException;
@@ -43,8 +46,10 @@ import com.yahoo.pulsar.client.api.ProducerConsumerBase;
 import com.yahoo.pulsar.common.policies.data.BundlesData;
 import com.yahoo.pulsar.discovery.service.server.ServerManager;
 import com.yahoo.pulsar.discovery.service.server.ServiceConfig;
+import com.yahoo.pulsar.discovery.service.web.DiscoveryServiceServlet;
+import com.yahoo.pulsar.zookeeper.ZooKeeperClientFactory;
 
-public class DiscoveryServiceTest extends ProducerConsumerBase {
+public class DiscoveryServiceWebTest extends ProducerConsumerBase {
 
     private Client client = ClientBuilder.newClient(new ClientConfig().register(LoggingFilter.class));
 
@@ -64,56 +69,52 @@ public class DiscoveryServiceTest extends ProducerConsumerBase {
     /**
      * 1. Start : Broker and Discovery service. 2. Provide started broker server as active broker to Discovery service
      * 3. Call GET, PUT, POST request to discovery service that redirects to Broker service and receives response
-     * 
+     *
      * @throws Exception
      */
     @Test
     public void testRiderectUrlWithServerStarted() throws Exception {
-
         // 1. start server
-        List<String> resources = Lists.newArrayList(DiscoveryService.class.getPackage().getName());
-        System.setProperty("zookeeperServers", "dummy-value");
-        System.setProperty("zooKeeperSessionTimeoutMillis", "1000");
-
         int port = PortManager.nextFreePort();
         ServiceConfig config = new ServiceConfig();
         config.setWebServicePort(port);
         ServerManager server = new ServerManager(config);
-        server.start(resources);
-
-        ZookeeperCacheLoader.availableActiveBrokers.add(super.brokerUrl.getHost() + ":" + super.brokerUrl.getPort());
-
-        Thread.sleep(200);
+        DiscoveryZooKeeperClientFactoryImpl.zk = mockZookKeeper;
+        Map<String, String> params = new TreeMap<>();
+        params.put("zookeeperServers", "");
+        params.put("zookeeperClientFactoryClass", DiscoveryZooKeeperClientFactoryImpl.class.getName());
+        server.addServlet("/", DiscoveryServiceServlet.class, params);
+        server.start();
 
         String serviceUrl = server.getServiceUri().toString();
         String putRequestUrl = serviceUrl + "admin/namespaces/p1/c1/n1";
-        String postRequestUrl = serviceUrl + "admin/namespaces/p1/c1/n1/permissions/test-role";
+        String postRequestUrl = serviceUrl + "admin/namespaces/p1/c1/n1/replication";
         String getRequestUrl = serviceUrl + "admin/namespaces/p1";
 
         /**
          * verify : every time when vip receives a request: it redirects to above brokers sequentially and broker
          * returns appropriate response which must not be null.
          **/
-        assertNotNull(hitBrokerService(HttpMethod.POST, postRequestUrl, null));
-        assertNotNull(hitBrokerService(HttpMethod.PUT, putRequestUrl, new BundlesData(1)));
-        assertNotNull(hitBrokerService(HttpMethod.GET, getRequestUrl, null));
-
+        assertEquals("Cannot get the replication clusters for a non-global namespace", hitBrokerService(HttpMethod.POST, postRequestUrl, Lists.newArrayList("use")));
+        assertEquals("Property does not exist", hitBrokerService(HttpMethod.PUT, putRequestUrl, new BundlesData(1)));
+        assertEquals("Property does not exist", hitBrokerService(HttpMethod.GET, getRequestUrl, null));
+        
         server.stop();
 
     }
 
-    public String hitBrokerService(String method, String url, BundlesData bundle) throws JSONException {
+    public String hitBrokerService(String method, String url, Object data) throws JSONException {
 
         Response response = null;
         try {
             WebTarget webTarget = client.target(url);
             Invocation.Builder invocationBuilder = webTarget.request(MediaType.APPLICATION_JSON);
             if (HttpMethod.PUT.equals(method)) {
-                response = (Response) invocationBuilder.put(Entity.entity(bundle, MediaType.APPLICATION_JSON));
+                response = (Response) invocationBuilder.put(Entity.entity(data, MediaType.APPLICATION_JSON));
             } else if (HttpMethod.GET.equals(method)) {
                 response = (Response) invocationBuilder.get();
             } else if (HttpMethod.POST.equals(method)) {
-                response = (Response) invocationBuilder.post(Entity.entity(bundle, MediaType.APPLICATION_JSON));
+                response = (Response) invocationBuilder.post(Entity.entity(data, MediaType.APPLICATION_JSON));
             } else {
                 fail("Unsupported http method");
             }
@@ -125,6 +126,16 @@ public class DiscoveryServiceTest extends ProducerConsumerBase {
         JSONObject jsonObject = new JSONObject(response.readEntity(String.class));
         String serviceResponse = jsonObject.getString("reason");
         return serviceResponse;
+    }
+    
+    static class DiscoveryZooKeeperClientFactoryImpl implements ZooKeeperClientFactory {
+    	static ZooKeeper zk;
+    	
+		@Override
+		public CompletableFuture<ZooKeeper> create(String serverList, SessionType sessionType,
+				int zkSessionTimeoutMillis) {
+    		return CompletableFuture.completedFuture(zk);
+		}
     }
 
 }
