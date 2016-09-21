@@ -115,7 +115,7 @@ authenticationProviders=com.yahoo.pulsar.broker.authentication.AuthenticationPro
 #### Configure discovery service
 
 Since discovery service is redirecting the HTTPS requests, it needs to be trusted
-by the client as well. Add TLS configuration in in `conf/discovery.conf`:
+by the client as well. Add TLS configuration in `conf/discovery.conf`:
 
 ```shell
 tlsEnabled=true
