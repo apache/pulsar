@@ -38,7 +38,7 @@ Pulsar is a multi-tenant, high-performance solution for server to server messagi
 
 ## Architecture
 
-At a high level, a Pulsar instance is composed of one or multiple clusters, each could reside in different geographical regions. A single Pulsar cluster is composed of a set of message brokers and bookeepers, plus zookeeper ensembles for coordination and configuration management. Finally, a client library is provided with easy-to-use APIs.
+At a high level, a Pulsar instance is composed of one or multiple clusters, each could reside in different geographical regions. A single Pulsar cluster is composed of a set of message brokers and bookkeepers, plus zookeeper ensembles for coordination and configuration management. Finally, a client library is provided with easy-to-use APIs.
 
 ![Architecture Diagram](img/pulsar_system_architecture.png)
 
@@ -58,7 +58,7 @@ Pulsar uses Apache Bookkeeper as durable storage which is a distributed write-ah
 
 The main strength of Bookkeeper is to guarantee the read consistency of the ledger in the presence of failures. Since the ledger can only be written by a single process, this process is free to append entries very efficiently (without need for further consensus) and after a failure, the ledger will go through a recovery process that will finalize the state of the ledger and establish which entry was last committed to the log. After that point, all readers of the ledger are guaranteed to see the exact same content.
 
-Pulsar uses Bookeeper since it is a very efficient sequential store that handles entry replication, node failures, and it is horizontally scalable in capacity and throughput. From an operational perspective, the capacity could be immediatelly increased by simply adding more bookies to a Pulsar cluster. The other strength of Bookkeeper is that the bookies are designed to handle thousands of ledgers with concurrent reads and writes and, by using multiple disk devices (one for journal and another for general storage) are able to isolate the effects of read operations from the latency of ongoing write operations.
+Pulsar uses BookKeeper since it is a very efficient sequential store that handles entry replication, node failures, and it is horizontally scalable in capacity and throughput. From an operational perspective, the capacity could be immediately increased by simply adding more bookies to a Pulsar cluster. The other strength of Bookkeeper is that the bookies are designed to handle thousands of ledgers with concurrent reads and writes and, by using multiple disk devices (one for journal and another for general storage) are able to isolate the effects of read operations from the latency of ongoing write operations.
 
 ### Managed Ledger
 
@@ -69,8 +69,8 @@ Internally, a single managed ledger uses multiple Bookkeeper ledgers to store th
 ### Metadata Store
 
 Pulsar uses Apache Zookeeper for metadata, cluster configuration and coordination.
-- *Global Zookeeper* stores stores user provisioning data like properties, namespaces and policies which should be global consistent.
-- Each cluster has a *local zookeeper* ensemble which stores cluster specific configuration and coordination data, like ownership metadata, broker load reports, bookeeper ledgers' metadata.
+- *Global Zookeeper* stores user provisioning data like properties, namespaces and policies which should be global consistent.
+- Each cluster has a *local zookeeper* ensemble which stores cluster specific configuration and coordination data, like ownership metadata, broker load reports, bookkeeper ledgers' metadata.
 
 
 ## Design
@@ -129,7 +129,7 @@ A producer attaches to a topic and produces messages.
 **sync vs. async send** - message could be sent to broker in sync or async manner:
 
 - sync: producer will wait for broker acknowledgement after sending each message.
-- async: producer will put the message in a blocking queue and return immediatelly, client library will send the messages to broker in background. If the queue is full (max size configurable) producer could be blocked or fail immediatelly when calling send API, depending on arguments passed to producer.
+- async: producer will put the message in a blocking queue and return immediately, client library will send the messages to broker in background. If the queue is full (max size configurable) producer could be blocked or fail immediately when calling send API, depending on arguments passed to producer.
 
 **compression** - message could be compressed during transportation to save bandwidth (compression and de-compression both are performed by client), below types of compression are supported:
 
@@ -143,9 +143,9 @@ A producer attaches to a topic and produces messages.
 
 A consumer attaches to a subscription and receives messages.
 
-**sync vs. async receive** - sync receive will be blocked until a message is avaiable. Async receive will return immediatelly with an instance of CompletableFuture, which completes with received message once new message is avaiable.
+**sync vs. async receive** - sync receive will be blocked until a message is available. Async receive will return immediately with an instance of CompletableFuture, which completes with received message once new message is available.
 
-**acknowledgement** - message could be acknowledged individully one by one or cumulatively. With cumulative acknowledgement consumer only need to acknowledge the last message it received, all messages in the stream up to (and include) the provided message will not be re-delivered to this consumer. Cumulative acknowledgement cannot be used with Shared subscription mode.
+**acknowledgement** - message could be acknowledged individually one by one or cumulatively. With cumulative acknowledgement consumer only need to acknowledge the last message it received, all messages in the stream up to (and include) the provided message will not be re-delivered to this consumer. Cumulative acknowledgement cannot be used with Shared subscription mode.
 
 **listener** - a customized MessageListener implementation could be passed to consumer, client library will call the listener whenever a new message is received (no need to call consumer receive).
 
