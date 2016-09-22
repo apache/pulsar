@@ -68,6 +68,8 @@ public abstract class MockedPulsarServiceBaseTest {
     protected MockZooKeeper mockZookKeeper;
     protected NonClosableMockBookKeeper mockBookKeeper;
 
+    private SameThreadOrderedSafeExecutor sameThreadOrderedSafeExecutor;
+
     public MockedPulsarServiceBaseTest() {
         this.conf = new ServiceConfiguration();
         this.conf.setBrokerServicePort(BROKER_PORT);
@@ -96,6 +98,8 @@ public abstract class MockedPulsarServiceBaseTest {
         mockZookKeeper = createMockZooKeeper();
         mockBookKeeper = new NonClosableMockBookKeeper(new ClientConfiguration(), mockZookKeeper);
 
+        sameThreadOrderedSafeExecutor = new SameThreadOrderedSafeExecutor();
+
         startBroker();
 
         brokerUrl = new URL("http://localhost:" + BROKER_WEBSERVICE_PORT);
@@ -110,6 +114,7 @@ public abstract class MockedPulsarServiceBaseTest {
         pulsar.close();
         mockBookKeeper.reallyShutdow();
         mockZookKeeper.shutdown();
+        sameThreadOrderedSafeExecutor.shutdown();
     }
 
     protected abstract void setup() throws Exception;
@@ -146,6 +151,8 @@ public abstract class MockedPulsarServiceBaseTest {
 
         Supplier<NamespaceService> namespaceServiceSupplier = () -> spy(new NamespaceService(pulsar));
         doReturn(namespaceServiceSupplier).when(pulsar).getNamespaceServiceProvider();
+
+        doReturn(sameThreadOrderedSafeExecutor).when(pulsar).getOrderedExecutor();
     }
 
     private MockZooKeeper createMockZooKeeper() throws Exception {
