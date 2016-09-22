@@ -180,7 +180,7 @@ public class PulsarService implements AutoCloseable {
                 adminClient.close();
                 adminClient = null;
             }
-            
+
             nsservice = null;
 
             // executor is not initialized in mocks even when real close method is called
@@ -357,10 +357,10 @@ public class PulsarService implements AutoCloseable {
 
         LOG.info("starting configuration cache service");
 
-        this.localZkCache = new LocalZooKeeperCache(getZkClient(), this.orderedExecutor);
+        this.localZkCache = new LocalZooKeeperCache(getZkClient(), getOrderedExecutor());
         this.globalZkCache = new GlobalZooKeeperCache(getZooKeeperClientFactory(),
                 (int) config.getZooKeeperSessionTimeoutMillis(), config.getGlobalZookeeperServers(),
-                this.orderedExecutor, this.executor);
+                getOrderedExecutor(), this.executor);
         try {
             this.globalZkCache.start();
         } catch (IOException e) {
