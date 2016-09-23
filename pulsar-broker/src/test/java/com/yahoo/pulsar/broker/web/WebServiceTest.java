@@ -288,6 +288,8 @@ public class WebServiceTest {
         config.setTlsAllowInsecureConnection(allowInsecure);
         config.setTlsTrustCertsFilePath(allowInsecure ? "" : TLS_CLIENT_CERT_FILE_PATH);
         config.setClusterName("local");
+        config.setBindAddress("localhost");
+        config.setAdvertisedAddress("localhost");
         pulsar = spy(new PulsarService(config));
         doReturn(new MockedZooKeeperClientFactoryImpl()).when(pulsar).getZooKeeperClientFactory();
         pulsar.start();

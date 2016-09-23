@@ -67,7 +67,6 @@ public class SLAMonitoringTest {
     private int[] brokerWebServicePorts = new int[BROKER_COUNT];
     private int[] brokerNativeBrokerPorts = new int[BROKER_COUNT];
     private URL[] brokerUrls = new URL[BROKER_COUNT];
-    private String[] lookupAddresses = new String[BROKER_COUNT];
     private PulsarService[] pulsarServices = new PulsarService[BROKER_COUNT];
     private PulsarAdmin[] pulsarAdmins = new PulsarAdmin[BROKER_COUNT];
     private ServiceConfiguration[] configurations = new ServiceConfiguration[BROKER_COUNT];
@@ -90,13 +89,14 @@ public class SLAMonitoringTest {
             config.setWebServicePort(brokerWebServicePorts[i]);
             config.setZookeeperServers("127.0.0.1" + ":" + ZOOKEEPER_PORT);
             config.setBrokerServicePort(brokerNativeBrokerPorts[i]);
+            config.setBindAddress("localhost");
+            config.setAdvertisedAddress("localhost");
             configurations[i] = config;
 
             pulsarServices[i] = new PulsarService(config);
             pulsarServices[i].start();
 
             brokerUrls[i] = new URL("http://127.0.0.1" + ":" + brokerWebServicePorts[i]);
-            lookupAddresses[i] = pulsarServices[i].getHost() + ":" + config.getWebServicePort();
             pulsarAdmins[i] = new PulsarAdmin(brokerUrls[i], (Authentication) null);
         }
 

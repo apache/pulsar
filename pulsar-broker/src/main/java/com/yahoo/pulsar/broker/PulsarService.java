@@ -543,8 +543,7 @@ public class PulsarService implements AutoCloseable {
     public synchronized PulsarAdmin getAdminClient() throws PulsarServerException {
         if (this.adminClient == null) {
             try {
-                String adminApiUrl = "http://" + InetAddress.getLocalHost().getHostName() + ":"
-                        + this.getConfiguration().getWebServicePort();
+                String adminApiUrl = webAddress(config);
                 this.adminClient = new PulsarAdmin(new URL(adminApiUrl),
                         this.getConfiguration().getBrokerClientAuthenticationPlugin(),
                         this.getConfiguration().getBrokerClientAuthenticationParameters());
