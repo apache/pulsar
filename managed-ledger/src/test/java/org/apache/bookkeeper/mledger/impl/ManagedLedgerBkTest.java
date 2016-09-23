@@ -273,6 +273,9 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
             future.get();
         }
 
+        // Since in this test we roll-over the cursor ledger every 10 entries acknowledged, the background roll back
+        // might still be happening when the futures are completed.
+        Thread.sleep(1000);
         factory.shutdown();
     }
 

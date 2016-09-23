@@ -80,7 +80,6 @@ public class ServiceConfiguration {
     private boolean clientLibraryVersionCheckAllowUnversioned = true;
     // Path for the file used to determine the rotation status for the broker
     // when responding to service discovery health checks
-    @FieldContext(required = true)
     private String statusFilePath;
 
     /***** --- TLS --- ****/

@@ -328,8 +328,10 @@ public class Producer {
     public CompletableFuture<Void> disconnect() {
         if (!closeFuture.isDone()) {
             log.info("Disconnecting producer: {}", this);
-            cnx.closeProducer(this);
-            closeNow();
+            cnx.ctx().executor().execute(() -> {
+                cnx.closeProducer(this);
+                closeNow();
+            });
         }
         return closeFuture;
     }
