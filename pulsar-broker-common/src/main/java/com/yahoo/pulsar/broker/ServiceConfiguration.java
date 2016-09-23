@@ -45,7 +45,7 @@ public class ServiceConfiguration {
     private int webServicePortTls = 8443;
 
     // Hostname or IP address the service binds on.
-    private String bindAddress;
+    private String bindAddress = "0.0.0.0";
 
     // Controls which hostname is advertised to the discovery service via ZooKeeper.
     private String advertisedAddress;

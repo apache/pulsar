@@ -120,8 +120,6 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         otherconfig.setBrokerServicePort(SECONDARY_BROKER_PORT);
         otherconfig.setWebServicePort(SECONDARY_BROKER_WEBSERVICE_PORT);
         otherconfig.setLoadBalancerEnabled(false);
-        otherconfig.setBindAddress("localhost");
-        otherconfig.setAdvertisedAddress("localhost");
         otherconfig.setClusterName("test");
 
         otherPulsar = startBroker(otherconfig);
@@ -354,7 +352,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(1, nsMap.size());
         for (String ns : nsMap.keySet()) {
             NamespaceOwnershipStatus nsStatus = nsMap.get(ns);
-            if (ns.equals(NamespaceService.getHeartbeatNamespace(pulsar.getHost(), pulsar.getConfiguration())
+            if (ns.equals(NamespaceService.getHeartbeatNamespace(pulsar.getAdvertisedAddress(), pulsar.getConfiguration())
                     + "/0x00000000_0xffffffff")) {
                 assertEquals(nsStatus.broker_assignment, BrokerAssignment.shared);
                 assertFalse(nsStatus.is_controlled);

@@ -500,7 +500,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
 
         Set<String> activeBrokers = brokers.getActiveBrokers("use");
         assertEquals(activeBrokers.size(), 1);
-        assertEquals(activeBrokers, Sets.newHashSet("localhost:" + BROKER_WEBSERVICE_PORT));
+        assertEquals(activeBrokers, Sets.newHashSet(pulsar.getAdvertisedAddress() + ":" + BROKER_WEBSERVICE_PORT));
     }
 
     @Test

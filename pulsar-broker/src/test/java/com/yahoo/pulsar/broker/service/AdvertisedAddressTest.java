@@ -36,7 +36,6 @@ public class AdvertisedAddressTest {
     private final int BROKER_WEBSERVICE_PORT = 15782;
     private final int BROKER_SERVICE_PORT = 16650;
 
-    private final String bindAddress = "127.0.0.1";
     private final String advertisedAddress = "pulsar-usc.example.com";
 
     @Before
@@ -48,8 +47,6 @@ public class AdvertisedAddressTest {
         config.setWebServicePort(BROKER_WEBSERVICE_PORT);
         config.setClusterName("usc");
         config.setBrokerServicePort(BROKER_SERVICE_PORT);
-        config.setBindAddress(bindAddress);
-        config.setAdvertisedAddress(bindAddress);
         config.setAdvertisedAddress(advertisedAddress);
         config.setManagedLedgerMaxEntriesPerLedger(5);
         config.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
@@ -65,11 +62,10 @@ public class AdvertisedAddressTest {
 
     @Test
     public void testAdvertisedAddress() throws Exception {
-        Assert.assertEquals( pulsar.getHost(), bindAddress );
         Assert.assertEquals( pulsar.getAdvertisedAddress(), advertisedAddress );
         Assert.assertEquals( pulsar.getBrokerServiceUrl(), String.format("pulsar://%s:%d", advertisedAddress, BROKER_SERVICE_PORT) );
         Assert.assertEquals( pulsar.getWebServiceAddress(), String.format("http://%s:%d", advertisedAddress, BROKER_WEBSERVICE_PORT) );
-        String brokerZkPath = String.format("/loadbalance/brokers/%s:%d", bindAddress, BROKER_WEBSERVICE_PORT);
+        String brokerZkPath = String.format("/loadbalance/brokers/%s:%d", pulsar.getAdvertisedAddress(), BROKER_WEBSERVICE_PORT);
         String bkBrokerData = new String(bkEnsemble.getZkClient().getData(brokerZkPath, false, new Stat()), StandardCharsets.UTF_8);
         JSONObject jsonBkBrokerData = new JSONObject(bkBrokerData);
         Assert.assertEquals( jsonBkBrokerData.get("pulsarServiceUrl"), pulsar.getBrokerServiceUrl() );

@@ -5,6 +5,8 @@ test-results
 dependency-reduced-pom.xml
 logs
 /data
+pulsar-broker/tmp.*
+pulsar-broker/src/test/resources/log4j.properties
 
 *.versionsBackup
 

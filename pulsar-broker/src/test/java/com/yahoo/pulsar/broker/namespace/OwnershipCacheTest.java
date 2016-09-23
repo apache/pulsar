@@ -80,7 +80,7 @@ public class OwnershipCacheTest {
         doReturn(nsService).when(pulsar).getNamespaceService();
         doReturn(port).when(config).getBrokerServicePort();
         doReturn(brokerService).when(pulsar).getBrokerService();
-        doReturn(host(config)).when(pulsar).getHost();
+        doReturn(host(config)).when(pulsar).getAdvertisedAddress();
         doReturn(webAddress(config)).when(pulsar).getWebServiceAddress();
         doReturn(selfBrokerUrl).when(pulsar).getBrokerServiceUrl();
     }

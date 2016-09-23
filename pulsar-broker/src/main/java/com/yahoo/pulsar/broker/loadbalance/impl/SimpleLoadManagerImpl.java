@@ -241,7 +241,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
                 }
             }
 
-            String lookupServiceAddress = pulsar.getHost() + ":" + conf.getWebServicePort();
+            String lookupServiceAddress = pulsar.getAdvertisedAddress() + ":" + conf.getWebServicePort();
             brokerZnodePath = LOADBALANCE_BROKERS_ROOT + "/" + lookupServiceAddress;
             LoadReport loadReport = null;
             try {
@@ -637,7 +637,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
      */
     private synchronized void doLoadRanking() {
         ResourceUnitRanking.setCpuUsageByMsgRate(this.realtimeCpuLoadFactor);
-        String hostname = pulsar.getHost();
+        String hostname = pulsar.getAdvertisedAddress();
         String strategy = this.getLoadBalancerPlacementStrategy();
         log.info("doLoadRanking - load balancing strategy: {}", strategy);
         if (!currentLoadReports.isEmpty()) {
@@ -1094,7 +1094,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
         try {
             LoadReport loadReport = new LoadReport(pulsar.getWebServiceAddress(), pulsar.getWebServiceAddressTls(),
                     pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
-            loadReport.setName(String.format("%s:%s", pulsar.getHost(), pulsar.getConfiguration().getWebServicePort()));
+            loadReport.setName(String.format("%s:%s", pulsar.getAdvertisedAddress(), pulsar.getConfiguration().getWebServicePort()));
             SystemResourceUsage systemResourceUsage = this.getSystemResourceUsage();
             loadReport.setOverLoaded(
                     isAboveLoadLevel(systemResourceUsage, this.getLoadBalancerBrokerOverloadedThresholdPercentage()));

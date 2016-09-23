@@ -84,8 +84,6 @@ public class BacklogQuotaManagerTest {
             config.setBrokerServicePort(BROKER_SERVICE_PORT);
             config.setAuthorizationEnabled(false);
             config.setAuthenticationEnabled(false);
-            config.setBindAddress("localhost");
-            config.setAdvertisedAddress("localhost");
             config.setBacklogQuotaCheckIntervalInSeconds(TIME_TO_CHECK_BACKLOG_QUOTA);
             config.setManagedLedgerMaxEntriesPerLedger(5);
             config.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
