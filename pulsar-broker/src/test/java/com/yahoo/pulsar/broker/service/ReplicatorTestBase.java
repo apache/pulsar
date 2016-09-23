@@ -114,6 +114,7 @@ public class ReplicatorTestBase {
                 inSec(getBrokerServicePurgeInactiveFrequency(), TimeUnit.SECONDS));
         config1.setBrokerServicePort(PortManager.nextFreePort());
         config1.setBindAddress("localhost");
+        config1.setAdvertisedAddress("localhost");
         pulsar1 = new PulsarService(config1);
         pulsar1.start();
         ns1 = pulsar1.getBrokerService();
@@ -139,6 +140,7 @@ public class ReplicatorTestBase {
                 inSec(getBrokerServicePurgeInactiveFrequency(), TimeUnit.SECONDS));
         config2.setBrokerServicePort(PortManager.nextFreePort());
         config2.setBindAddress("localhost");
+        config2.setAdvertisedAddress("localhost");
         pulsar2 = new PulsarService(config2);
         pulsar2.start();
         ns2 = pulsar2.getBrokerService();
@@ -164,6 +166,7 @@ public class ReplicatorTestBase {
                 inSec(getBrokerServicePurgeInactiveFrequency(), TimeUnit.SECONDS));
         config3.setBrokerServicePort(PortManager.nextFreePort());
         config3.setBindAddress("localhost");
+        config3.setAdvertisedAddress("localhost");
         pulsar3 = new PulsarService(config3);
         pulsar3.start();
         ns3 = pulsar3.getBrokerService();

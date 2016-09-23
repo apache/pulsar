@@ -49,6 +49,7 @@ public class AdvertisedAddressTest {
         config.setClusterName("usc");
         config.setBrokerServicePort(BROKER_SERVICE_PORT);
         config.setBindAddress(bindAddress);
+        config.setAdvertisedAddress(bindAddress);
         config.setAdvertisedAddress(advertisedAddress);
         config.setManagedLedgerMaxEntriesPerLedger(5);
         config.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
