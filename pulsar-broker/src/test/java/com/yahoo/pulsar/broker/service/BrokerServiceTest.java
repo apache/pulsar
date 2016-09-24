@@ -213,11 +213,8 @@ public class BrokerServiceTest extends BrokerTestBase {
         JSONArray metrics = brokerStatsClient.getMetrics();
         assertEquals(metrics.length(), 4, metrics.toString());
 
-        JSONObject obj = metrics.getJSONObject(2);
-        assertTrue(obj.getString("dimensions").contains("prop/use/ns-abc"));
-
-        obj = metrics.getJSONObject(1);
-        assertTrue(obj.getString("dimensions").contains("topic_load_times"));
+        assertTrue(metrics.getJSONObject(1).getString("dimensions").contains("prop/use/ns-abc"));
+        assertTrue(metrics.getJSONObject(2).getString("dimensions").contains("topic_load_times"));
 
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
     }
