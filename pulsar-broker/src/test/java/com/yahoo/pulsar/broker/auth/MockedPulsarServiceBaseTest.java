@@ -76,8 +76,8 @@ public abstract class MockedPulsarServiceBaseTest {
         this.conf.setBrokerServicePortTls(BROKER_PORT_TLS);
         this.conf.setWebServicePort(BROKER_WEBSERVICE_PORT);
         this.conf.setWebServicePortTls(BROKER_WEBSERVICE_PORT_TLS);
-        this.conf.setBindOnLocalhost(true);
         this.conf.setClusterName("test");
+        this.conf.setAdvertisedAddress("localhost"); // there are TLS tests in here, they need to use localhost because of the certificate
     }
 
     protected final void internalSetup() throws Exception {
@@ -102,8 +102,8 @@ public abstract class MockedPulsarServiceBaseTest {
 
         startBroker();
 
-        brokerUrl = new URL("http://localhost:" + BROKER_WEBSERVICE_PORT);
-        brokerUrlTls = new URL("https://localhost:" + BROKER_WEBSERVICE_PORT_TLS);
+        brokerUrl = new URL("http://" + pulsar.getAdvertisedAddress() + ":" + BROKER_WEBSERVICE_PORT);
+        brokerUrlTls = new URL("https://" + pulsar.getAdvertisedAddress() + ":" + BROKER_WEBSERVICE_PORT_TLS);
 
         admin = spy(new PulsarAdmin(brokerUrl, (Authentication) null));
     }

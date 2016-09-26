@@ -18,6 +18,7 @@ package com.yahoo.pulsar.broker;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.URL;
+import java.net.UnknownHostException;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
@@ -97,7 +98,8 @@ public class PulsarService implements AutoCloseable {
     private LoadManager loadManager = null;
     private PulsarAdmin adminClient = null;
     private ZooKeeperClientFactory zkClientFactory = null;
-    private final String host;
+    private final String bindAddress;
+    private final String advertisedAddress;
     private final String webServiceAddress;
     private final String webServiceAddressTls;
     private final String brokerServiceUrl;
@@ -118,7 +120,8 @@ public class PulsarService implements AutoCloseable {
 
     public PulsarService(ServiceConfiguration config) {
         state = State.Init;
-        this.host = host(config);
+        this.bindAddress = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(config.getBindAddress());
+        this.advertisedAddress = advertisedAddress(config);
         this.webServiceAddress = webAddress(config);
         this.webServiceAddressTls = webAddressTls(config);
         this.brokerServiceUrl = brokerUrl(config);
@@ -319,7 +322,7 @@ public class PulsarService implements AutoCloseable {
         try {
             // Namespace not created hence no need to unload it
             if (!this.globalZkCache.exists(
-                    AdminResource.path("policies") + "/" + NamespaceService.getSLAMonitorNamespace(host, config))) {
+                    AdminResource.path("policies") + "/" + NamespaceService.getSLAMonitorNamespace(getAdvertisedAddress(), config))) {
                 return;
             }
             if (!this.nsservice.registerSLANamespace()) {
@@ -540,8 +543,7 @@ public class PulsarService implements AutoCloseable {
     public synchronized PulsarAdmin getAdminClient() throws PulsarServerException {
         if (this.adminClient == null) {
             try {
-                String adminApiUrl = "http://" + InetAddress.getLocalHost().getHostName() + ":"
-                        + this.getConfiguration().getWebServicePort();
+                String adminApiUrl = webAddress(config);
                 this.adminClient = new PulsarAdmin(new URL(adminApiUrl),
                         this.getConfiguration().getBrokerClientAuthenticationPlugin(),
                         this.getConfiguration().getBrokerClientAuthenticationParameters());
@@ -563,50 +565,44 @@ public class PulsarService implements AutoCloseable {
     }
 
     /**
-     * Derive the host
+     * Advertised service address.
      *
-     * @param isBindOnLocalhost
-     * @return
+     * @return Hostname or IP address the service advertises to the outside world.
      */
-    public static String host(ServiceConfiguration config) {
-        try {
-            if (!config.isBindOnLocalhost()) {
-                return InetAddress.getLocalHost().getHostName();
-            } else {
-                return "localhost";
-            }
-        } catch (Exception e) {
-            LOG.error(e.getMessage(), e);
-            throw new IllegalStateException("failed to find host", e);
-        }
+    public static String advertisedAddress(ServiceConfiguration config) {
+        return ServiceConfigurationUtils.getDefaultOrConfiguredAddress(config.getAdvertisedAddress());
     }
 
     public static String brokerUrl(ServiceConfiguration config) {
-        return "pulsar://" + host(config) + ":" + config.getBrokerServicePort();
+        return "pulsar://" + advertisedAddress(config) + ":" + config.getBrokerServicePort();
     }
 
     public static String brokerUrlTls(ServiceConfiguration config) {
         if (config.isTlsEnabled()) {
-            return "pulsar://" + host(config) + ":" + config.getBrokerServicePortTls();
+            return "pulsar://" + advertisedAddress(config) + ":" + config.getBrokerServicePortTls();
         } else {
             return "";
         }
     }
 
     public static String webAddress(ServiceConfiguration config) {
-        return String.format("http://%s:%d", host(config), config.getWebServicePort());
+        return String.format("http://%s:%d", advertisedAddress(config), config.getWebServicePort());
     }
 
     public static String webAddressTls(ServiceConfiguration config) {
         if (config.isTlsEnabled()) {
-            return String.format("https://%s:%d", host(config), config.getWebServicePortTls());
+            return String.format("https://%s:%d", advertisedAddress(config), config.getWebServicePortTls());
         } else {
             return "";
         }
     }
 
-    public String getHost() {
-        return host;
+    public String getBindAddress() {
+        return bindAddress;
+    }
+
+    public String getAdvertisedAddress() {
+        return advertisedAddress;
     }
 
     public String getWebServiceAddress() {
