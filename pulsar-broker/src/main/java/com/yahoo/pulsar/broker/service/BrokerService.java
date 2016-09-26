@@ -29,15 +29,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
@@ -73,7 +70,6 @@ import com.yahoo.pulsar.client.util.FutureUtil;
 import com.yahoo.pulsar.common.naming.DestinationName;
 import com.yahoo.pulsar.common.naming.NamespaceBundle;
 import com.yahoo.pulsar.common.naming.NamespaceBundleFactory;
-import com.yahoo.pulsar.common.naming.NamespaceBundles;
 import com.yahoo.pulsar.common.naming.NamespaceName;
 import com.yahoo.pulsar.common.naming.ServiceUnitId;
 import com.yahoo.pulsar.common.policies.data.ClusterData;
@@ -221,13 +217,13 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
         bootstrap.childHandler(new PulsarChannelInitializer(this, serviceConfig, false));
         // Bind and start to accept incoming connections.
-        bootstrap.bind(new InetSocketAddress(pulsar.getHost(), port)).sync();
+        bootstrap.bind(new InetSocketAddress(pulsar.getBindAddress(), port)).sync();
         log.info("Started Pulsar Broker service on port {}", port);
 
         if (serviceConfig.isTlsEnabled()) {
             ServerBootstrap tlsBootstrap = bootstrap.clone();
             tlsBootstrap.childHandler(new PulsarChannelInitializer(this, serviceConfig, true));
-            tlsBootstrap.bind(new InetSocketAddress(pulsar.getHost(), tlsPort)).sync();
+            tlsBootstrap.bind(new InetSocketAddress(pulsar.getBindAddress(), tlsPort)).sync();
             log.info("Started Pulsar Broker TLS service on port {}", tlsPort);
         }
 

@@ -85,7 +85,7 @@ public class WebService implements AutoCloseable {
 
         ServerConnector connector = new PulsarServerConnector(server, 1, 1);
         connector.setPort(config.getWebServicePort());
-        connector.setHost(pulsar.getHost());
+        connector.setHost(pulsar.getBindAddress());
         connectors.add(connector);
 
         if (config.isTlsEnabled()) {
@@ -103,7 +103,7 @@ public class WebService implements AutoCloseable {
             sslCtxFactory.setWantClientAuth(true);
             ServerConnector tlsConnector = new PulsarServerConnector(server, 1, 1, sslCtxFactory);
             tlsConnector.setPort(config.getWebServicePortTls());
-            tlsConnector.setHost(pulsar.getHost());
+            tlsConnector.setHost(pulsar.getBindAddress());
             connectors.add(tlsConnector);
         }
 

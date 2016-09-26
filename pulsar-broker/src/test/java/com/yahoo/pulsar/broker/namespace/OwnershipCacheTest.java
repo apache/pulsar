@@ -16,7 +16,6 @@
 package com.yahoo.pulsar.broker.namespace;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-import static com.yahoo.pulsar.broker.PulsarService.host;
 import static com.yahoo.pulsar.broker.PulsarService.webAddress;
 import static org.mockito.Matchers.anyObject;
 import static org.mockito.Mockito.doReturn;
@@ -80,7 +79,6 @@ public class OwnershipCacheTest {
         doReturn(nsService).when(pulsar).getNamespaceService();
         doReturn(port).when(config).getBrokerServicePort();
         doReturn(brokerService).when(pulsar).getBrokerService();
-        doReturn(host(config)).when(pulsar).getAdvertisedAddress();
         doReturn(webAddress(config)).when(pulsar).getWebServiceAddress();
         doReturn(selfBrokerUrl).when(pulsar).getBrokerServiceUrl();
     }

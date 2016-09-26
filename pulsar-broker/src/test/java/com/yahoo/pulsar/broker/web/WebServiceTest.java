@@ -38,7 +38,6 @@ import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 
-import com.yahoo.pulsar.utils.AddressUtils;
 import org.apache.bookkeeper.test.PortManager;
 import org.apache.zookeeper.CreateMode;
 import org.testng.Assert;

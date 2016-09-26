@@ -98,7 +98,7 @@ public class PulsarService implements AutoCloseable {
     private LoadManager loadManager = null;
     private PulsarAdmin adminClient = null;
     private ZooKeeperClientFactory zkClientFactory = null;
-    private final String host;
+    private final String bindAddress;
     private final String advertisedAddress;
     private final String webServiceAddress;
     private final String webServiceAddressTls;
@@ -120,8 +120,8 @@ public class PulsarService implements AutoCloseable {
 
     public PulsarService(ServiceConfiguration config) {
         state = State.Init;
-        this.host = host(config);
-        this.advertisedAddress = advertisedHost(config);
+        this.bindAddress = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(config.getBindAddress());
+        this.advertisedAddress = advertisedAddress(config);
         this.webServiceAddress = webAddress(config);
         this.webServiceAddressTls = webAddressTls(config);
         this.brokerServiceUrl = brokerUrl(config);
@@ -565,65 +565,40 @@ public class PulsarService implements AutoCloseable {
     }
 
     /**
-     * Derive the host
-     *
-     * @return Hostname or IP address the service binds on.
-     */
-    public static String host(ServiceConfiguration config) {
-        if (config.getBindAddress() == null) {
-            try {
-                return InetAddress.getLocalHost().getHostName();
-            } catch (UnknownHostException ex) {
-                LOG.error(ex.getMessage(), ex);
-                throw new IllegalStateException("Failed to resolve localhost name.", ex);
-            }
-        }
-        return config.getBindAddress();
-    }
-
-    /**
-     * Advertised service host.
+     * Advertised service address.
      *
      * @return Hostname or IP address the service advertises to the outside world.
      */
-    public static String advertisedHost(ServiceConfiguration config) {
-        if (config.getAdvertisedAddress() == null) {
-            try {
-                return InetAddress.getLocalHost().getHostName();
-            } catch (UnknownHostException ex) {
-                LOG.error(ex.getMessage(), ex);
-                throw new IllegalStateException("Failed to resolve localhost name.", ex);
-            }
-        }
-        return config.getAdvertisedAddress();
+    public static String advertisedAddress(ServiceConfiguration config) {
+        return ServiceConfigurationUtils.getDefaultOrConfiguredAddress(config.getAdvertisedAddress());
     }
 
     public static String brokerUrl(ServiceConfiguration config) {
-        return "pulsar://" + advertisedHost(config) + ":" + config.getBrokerServicePort();
+        return "pulsar://" + advertisedAddress(config) + ":" + config.getBrokerServicePort();
     }
 
     public static String brokerUrlTls(ServiceConfiguration config) {
         if (config.isTlsEnabled()) {
-            return "pulsar://" + advertisedHost(config) + ":" + config.getBrokerServicePortTls();
+            return "pulsar://" + advertisedAddress(config) + ":" + config.getBrokerServicePortTls();
         } else {
             return "";
         }
     }
 
     public static String webAddress(ServiceConfiguration config) {
-        return String.format("http://%s:%d", advertisedHost(config), config.getWebServicePort());
+        return String.format("http://%s:%d", advertisedAddress(config), config.getWebServicePort());
     }
 
     public static String webAddressTls(ServiceConfiguration config) {
         if (config.isTlsEnabled()) {
-            return String.format("https://%s:%d", advertisedHost(config), config.getWebServicePortTls());
+            return String.format("https://%s:%d", advertisedAddress(config), config.getWebServicePortTls());
         } else {
             return "";
         }
     }
 
-    public String getHost() {
-        return host;
+    public String getBindAddress() {
+        return bindAddress;
     }
 
     public String getAdvertisedAddress() {

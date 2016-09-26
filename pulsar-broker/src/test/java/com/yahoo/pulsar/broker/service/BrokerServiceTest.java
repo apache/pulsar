@@ -31,6 +31,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -213,8 +214,23 @@ public class BrokerServiceTest extends BrokerTestBase {
         JSONArray metrics = brokerStatsClient.getMetrics();
         assertEquals(metrics.length(), 4, metrics.toString());
 
-        assertTrue(metrics.getJSONObject(1).getString("dimensions").contains("prop/use/ns-abc"));
-        assertTrue(metrics.getJSONObject(2).getString("dimensions").contains("topic_load_times"));
+        // these metrics seem to be arriving in different order at different times...
+        // is the order really relevant here?
+        boolean namespaceDimensionFound = false;
+        boolean topicLoadTimesDimensionFound = false;
+        for ( int i=0; i<metrics.length(); i++ ) {
+            try {
+                String data = metrics.getJSONObject(i).getString("dimensions");
+                if (!namespaceDimensionFound && data.contains("prop/use/ns-abc")) {
+                    namespaceDimensionFound = true;
+                }
+                if (!topicLoadTimesDimensionFound && data.contains("prop/use/ns-abc")) {
+                    topicLoadTimesDimensionFound = true;
+                }
+            } catch (JSONException e) { /* it's possible there's no dimensions */ }
+        }
+
+        assertTrue(namespaceDimensionFound && topicLoadTimesDimensionFound);
 
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
     }
