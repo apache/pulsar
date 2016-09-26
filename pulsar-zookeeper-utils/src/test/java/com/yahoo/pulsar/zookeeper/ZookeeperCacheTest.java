@@ -16,6 +16,7 @@
 package com.yahoo.pulsar.zookeeper;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.fail;
 import static org.testng.AssertJUnit.assertNotNull;
 import static org.testng.AssertJUnit.assertNull;
@@ -23,7 +24,6 @@ import static org.testng.AssertJUnit.assertNull;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -71,7 +71,7 @@ public class ZookeeperCacheTest {
         String value = "test";
         zkClient.create("/my_test", value.getBytes(), null, null);
 
-        assertEquals(zkCache.get("/my_test"), value);
+        assertEquals(zkCache.get("/my_test").get(), value);
 
         String newValue = "test2";
 
@@ -80,14 +80,14 @@ public class ZookeeperCacheTest {
         // Wait for the watch to be triggered
         Thread.sleep(100);
 
-        assertEquals(zkCache.get("/my_test"), newValue);
+        assertEquals(zkCache.get("/my_test").get(), newValue);
 
         zkCacheService.process(new WatchedEvent(Event.EventType.None, KeeperState.Expired, null));
-        assertEquals(zkCache.get("/my_test"), newValue);
+        assertEquals(zkCache.get("/my_test").get(), newValue);
 
         zkClient.failNow(Code.SESSIONEXPIRED);
 
-        assertEquals(zkCache.get("/my_test"), newValue);
+        assertEquals(zkCache.get("/my_test").get(), newValue);
         try {
             zkCache.get("/other");
             fail("shuld have thrown exception");
@@ -236,7 +236,7 @@ public class ZookeeperCacheTest {
         String value = "test";
         zkClient.create("/my_test", value.getBytes(), null, null);
 
-        assertEquals(zkCache.get("/my_test"), value);
+        assertEquals(zkCache.get("/my_test").get(), value);
 
         String newValue = "test2";
 
@@ -251,23 +251,23 @@ public class ZookeeperCacheTest {
         }
 
         // retrieve the data from the cache and verify it is the updated/new data
-        assertEquals(zkCache.get("/my_test"), newValue);
-        assertEquals(zkCache.get("/my_test2"), value);
+        assertEquals(zkCache.get("/my_test").get(), newValue);
+        assertEquals(zkCache.get("/my_test2").get(), value);
 
         // The callback method should be called just only once
         assertEquals(notificationCount.get(), 1);
 
         // case 2: force the ZooKeeper session to be expired and verify that the data is still accessible
         zkCacheService.process(new WatchedEvent(Event.EventType.None, KeeperState.Expired, null));
-        assertEquals(zkCache.get("/my_test"), newValue);
-        assertEquals(zkCache.get("/my_test2"), value);
+        assertEquals(zkCache.get("/my_test").get(), newValue);
+        assertEquals(zkCache.get("/my_test2").get(), value);
 
         // case 3: update the znode directly while the client session is marked as expired. Verify that the new updates
         // is not seen in the cache
         zkClient.create("/other", newValue.getBytes(), null, null);
         zkClient.failNow(Code.SESSIONEXPIRED);
-        assertEquals(zkCache.get("/my_test"), newValue);
-        assertEquals(zkCache.get("/my_test2"), value);
+        assertEquals(zkCache.get("/my_test").get(), newValue);
+        assertEquals(zkCache.get("/my_test2").get(), value);
         try {
             zkCache.get("/other");
             fail("shuld have thrown exception");
@@ -280,15 +280,10 @@ public class ZookeeperCacheTest {
         zkClient.failAfter(-1, Code.OK);
         zkClient.delete("/my_test2", -1);
         zkCacheService.process(new WatchedEvent(Event.EventType.None, KeeperState.SyncConnected, null));
-        assertEquals(zkCache.get("/other"), newValue);
+        assertEquals(zkCache.get("/other").get(), newValue);
 
         // Make sure that the value is now directly from ZK and deleted
-        try {
-            zkCache.get("/my_test2");
-            fail("should have thrown exception");
-        } catch (Exception e) {
-            // OK
-        }
+        assertFalse(zkCache.get("/my_test2").isPresent());
 
         // case 5: trigger a ZooKeeper disconnected event and make sure the cache content is not changed.
         zkCacheService.process(new WatchedEvent(Event.EventType.None, KeeperState.Disconnected, null));
@@ -298,7 +293,7 @@ public class ZookeeperCacheTest {
         // can see the updated content now
         zkCacheService.process(new WatchedEvent(Event.EventType.None, KeeperState.SyncConnected, null));
         // make sure that we get it
-        assertEquals(zkCache.get("/other2"), newValue);
+        assertEquals(zkCache.get("/other2").get(), newValue);
 
         zkCacheService.close();
         executor.shutdown();

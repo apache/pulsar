@@ -240,7 +240,6 @@ public abstract class ZooKeeperCache implements Watcher {
         checkNotNull(deserializer);
 
         CompletableFuture<Optional<Entry<T, Stat>>> future = new CompletableFuture<>();
-
         dataCache.get(path, (p, executor) -> {
             // Return a future for the z-node to be fetched from ZK
             CompletableFuture<Entry<Object, Stat>> zkFuture = new CompletableFuture<>();

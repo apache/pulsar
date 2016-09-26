@@ -26,6 +26,7 @@ import javax.servlet.ServletException;
 import javax.websocket.DeploymentException;
 
 import org.apache.bookkeeper.util.OrderedSafeExecutor;
+import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -164,7 +165,9 @@ public class WebSocketService implements Closeable {
 
     private ClusterData retrieveClusterData() throws PulsarServerException {
         try {
-            return configurationCacheService.clustersCache().get("/admin/clusters/" + config.getClusterName());
+            String path = "/admin/clusters/" + config.getClusterName();
+            return localCluster = configurationCacheService.clustersCache().get(path)
+                    .orElseThrow(() -> new KeeperException.NoNodeException(path));
         } catch (Exception e) {
             throw new PulsarServerException(e);
         }

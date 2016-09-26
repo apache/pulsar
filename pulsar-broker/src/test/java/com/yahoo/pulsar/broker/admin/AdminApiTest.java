@@ -26,9 +26,9 @@ import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.bookkeeper.test.PortManager;
@@ -311,7 +311,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
                 admin.clusters().getNamespaceIsolationPolicies("usc");
                 fail("should have raised exception");
             } catch (PulsarAdminException e) {
-                assertTrue(e instanceof PreconditionFailedException);
+                assertTrue(e instanceof NotFoundException);
             }
 
             try {
@@ -458,14 +458,15 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         NamespaceBundle defaultBundle = bundleFactory.getFullBundle(ns);
         int i = 0;
         for (; i < 10; i++) {
-            try {
-                NamespaceEphemeralData data1 = pulsar.getNamespaceService().getOwnershipCache().getOwnerAsync(defaultBundle).get();
-                LOG.info("Waiting for unload namespace {} to complete. Current service unit isDisabled: {}",
-                        defaultBundle, data1.isDisabled());
-                Thread.sleep(1000);
-            } catch (ExecutionException nne) {
+            Optional<NamespaceEphemeralData> data1 = pulsar.getNamespaceService().getOwnershipCache()
+                    .getOwnerAsync(defaultBundle).get();
+            if (!data1.isPresent()) {
+                // Already unloaded
                 break;
             }
+            LOG.info("Waiting for unload namespace {} to complete. Current service unit isDisabled: {}", defaultBundle,
+                    data1.get().isDisabled());
+            Thread.sleep(1000);
         }
         assertTrue(i < 10);
 
@@ -1372,8 +1373,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
      * 1. Created multiple shared subscriptions and publisher on topic
      * 2. Publish messages on the topic
      * 3. expire message on sub-1 : backlog for sub-1 must be 0
-     * 4. expire message on all subscriptions: backlog for all subscription must be 0 
-     * 
+     * 4. expire message on all subscriptions: backlog for all subscription must be 0
+     *
      * @throws Exception
      */
     @Test
@@ -1398,7 +1399,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(admin.persistentTopics().getSubscriptions("persistent://prop-xyz/use/ns1/ds2").size(), 3);
 
         publishMessagesOnPersistentTopic("persistent://prop-xyz/use/ns1/ds2", 10);
-        
+
         PersistentTopicStats topicStats = admin.persistentTopics().getStats("persistent://prop-xyz/use/ns1/ds2");
         assertEquals(topicStats.subscriptions.get("my-sub1").msgBacklog, 10);
         assertEquals(topicStats.subscriptions.get("my-sub2").msgBacklog, 10);
@@ -1407,29 +1408,29 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         Thread.sleep(1000); // wait for 1 seconds to expire message
         admin.persistentTopics().expireMessages("persistent://prop-xyz/use/ns1/ds2", "my-sub1", 1);
         Thread.sleep(1000); // wait for 1 seconds to execute expire message as it is async
-        
+
         topicStats = admin.persistentTopics().getStats("persistent://prop-xyz/use/ns1/ds2");
         assertEquals(topicStats.subscriptions.get("my-sub1").msgBacklog, 0);
         assertEquals(topicStats.subscriptions.get("my-sub2").msgBacklog, 10);
         assertEquals(topicStats.subscriptions.get("my-sub3").msgBacklog, 10);
-        
+
         admin.persistentTopics().expireMessagesForAllSubscriptions("persistent://prop-xyz/use/ns1/ds2", 1);
         Thread.sleep(1000); // wait for 1 seconds to execute expire message as it is async
-        
+
         topicStats = admin.persistentTopics().getStats("persistent://prop-xyz/use/ns1/ds2");
         assertEquals(topicStats.subscriptions.get("my-sub1").msgBacklog, 0);
         assertEquals(topicStats.subscriptions.get("my-sub2").msgBacklog, 0);
         assertEquals(topicStats.subscriptions.get("my-sub3").msgBacklog, 0);
-        
+
         consumer1.close();
         consumer2.close();
         consumer3.close();
-    
+
     }
-    
+
     /**
      * Verify: PersistentTopics.expireMessages()/expireMessagesForAllSubscriptions() for PartitionTopic
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -1469,7 +1470,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         Thread.sleep(1000);
         admin.persistentTopics().expireMessagesForAllSubscriptions("persistent://prop-xyz/use/ns1/ds1", 1);
         Thread.sleep(1000);
-        
+
         topicStats = admin.persistentTopics()
                 .getPartitionedStats("persistent://prop-xyz/use/ns1/ds1", true);
         partitionStatsPartition0 = topicStats.partitions
@@ -1482,7 +1483,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         producer.close();
         consumer.close();
         client.close();
-       
+
     }
-    
+
 }

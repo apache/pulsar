@@ -30,8 +30,6 @@ import static org.testng.Assert.fail;
 
 import java.lang.reflect.Field;
 import java.net.URI;
-import java.security.Permissions;
-import java.security.acl.Permission;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -50,7 +48,6 @@ import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException.Code;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooDefs.Ids;
-import org.mockito.Mockito;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -71,18 +68,9 @@ import com.yahoo.pulsar.common.policies.data.ClusterData;
 import com.yahoo.pulsar.common.policies.data.NamespaceIsolationData;
 import com.yahoo.pulsar.common.policies.data.Policies;
 import com.yahoo.pulsar.common.policies.data.PropertyAdmin;
-import com.yahoo.pulsar.common.stats.AllocatorStats;
-import com.yahoo.pulsar.broker.admin.Brokers;
-import com.yahoo.pulsar.broker.admin.Clusters;
-import com.yahoo.pulsar.broker.admin.Namespaces;
-import com.yahoo.pulsar.broker.admin.PersistentTopics;
-import com.yahoo.pulsar.broker.admin.Properties;
-import com.yahoo.pulsar.broker.auth.MockedPulsarServiceBaseTest;
-import com.yahoo.pulsar.broker.cache.ConfigurationCacheService;
-import com.yahoo.pulsar.broker.web.PulsarWebResource;
-import com.yahoo.pulsar.broker.web.RestException;
 import com.yahoo.pulsar.common.policies.data.ResourceQuota;
 import com.yahoo.pulsar.common.policies.data.loadbalancer.LoadReport;
+import com.yahoo.pulsar.common.stats.AllocatorStats;
 import com.yahoo.pulsar.common.util.ObjectMapperFactory;
 
 @Test
@@ -141,12 +129,6 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         doNothing().when(namespaces).validateAdminAccessOnProperty("my-property");
         doNothing().when(namespaces).validateAdminAccessOnProperty("other-property");
         doNothing().when(namespaces).validateAdminAccessOnProperty("new-property");
-        doNothing().when(namespaces).validateNamespaceOwnership(Mockito.eq("my-property"), Mockito.anyString(),
-                Mockito.anyString(), Mockito.anyBoolean(), Mockito.anyBoolean());
-        doNothing().when(namespaces).validateNamespaceOwnership(Mockito.eq("other-property"), Mockito.anyString(),
-                Mockito.anyString(), Mockito.anyBoolean(), Mockito.anyBoolean());
-        doNothing().when(namespaces).validateNamespaceOwnership(Mockito.eq("repl-property"), Mockito.anyString(),
-                Mockito.anyString(), Mockito.anyBoolean(), Mockito.anyBoolean());
 
         brokers = spy(new Brokers());
         brokers.setServletContext(new MockServletContext());
@@ -285,7 +267,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
             clusters.getNamespaceIsolationPolicies("use");
             fail("should have failed");
         } catch (RestException e) {
-            assertEquals(e.getResponse().getStatus(), 412);
+            assertEquals(e.getResponse().getStatus(), 404);
         }
 
         // Test zk failures

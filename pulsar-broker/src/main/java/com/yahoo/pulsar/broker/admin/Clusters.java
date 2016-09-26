@@ -206,13 +206,15 @@ public class Clusters extends AdminResource {
 
     @GET
     @Path("/{cluster}/namespaceIsolationPolicies")
-    @ApiOperation(value = "GGet the namespace isolation policies assigned in the cluster", response = NamespaceIsolationData.class, responseContainer = "Map")
+    @ApiOperation(value = "Get the namespace isolation policies assigned in the cluster", response = NamespaceIsolationData.class, responseContainer = "Map")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Cluster doesn't exist") })
     public Map<String, NamespaceIsolationData> getNamespaceIsolationPolicies(@PathParam("cluster") String cluster)
             throws Exception {
         validateSuperUserAccess();
-        validateClusterExists(cluster);
+        if (!clustersCache().get(path("clusters", cluster)).isPresent()) {
+            throw new RestException(Status.NOT_FOUND, "Cluster " + cluster + " does not exist.");
+        }
 
         try {
             NamespaceIsolationPolicies nsIsolationPolicies = namespaceIsolationPoliciesCache()
@@ -229,9 +231,11 @@ public class Clusters extends AdminResource {
 
     private void validateClusterExists(String cluster) {
         try {
-            clustersCache().get(path("clusters", cluster));
+            if (!clustersCache().get(path("clusters", cluster)).isPresent()) {
+                throw new RestException(Status.PRECONDITION_FAILED, "Cluster " + cluster + " does not exist.");
+            }
         } catch (Exception e) {
-            throw new RestException(Status.PRECONDITION_FAILED, "Cluster " + cluster + " does not exist.");
+            throw new RestException(e);
         }
     }
 

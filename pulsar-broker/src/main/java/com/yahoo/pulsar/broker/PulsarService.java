@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.net.URL;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -326,7 +327,15 @@ public class PulsarService implements AutoCloseable {
                     AdminResource.path("policies") + "/" + NamespaceService.getSLAMonitorNamespace(getAdvertisedAddress(), config))) {
                 return;
             }
-            if (!this.nsservice.registerSLANamespace()) {
+
+            boolean acquiredSLANamespace;
+            try {
+                acquiredSLANamespace = nsservice.registerSLANamespace();
+            } catch (PulsarServerException e) {
+                acquiredSLANamespace = false;
+            }
+
+            if (!acquiredSLANamespace) {
                 this.nsservice.unloadSLANamespace();
             }
         } catch (Exception ex) {

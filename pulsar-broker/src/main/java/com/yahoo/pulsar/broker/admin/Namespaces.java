@@ -1210,12 +1210,13 @@ public class Namespaces extends AdminResource {
             for (NamespaceBundle nsBundle : bundles.getBundles()) {
                 try {
                     // check if the bundle is owned by any broker, if not then there are no subscriptions
-                    if (pulsar().getNamespaceService().getOwner(nsBundle) != null) {
+                    if (pulsar().getNamespaceService().getOwner(nsBundle).isPresent()) {
                         // TODO: make this admin call asynchronous
                         pulsar().getAdminClient().namespaces().unsubscribeNamespaceBundle(nsName.toString(),
                                 nsBundle.getBundleRange(), subscription);
                     }
                 } catch (Exception e) {
+                    e.printStackTrace();
                     if (exception == null) {
                         exception = e;
                     }

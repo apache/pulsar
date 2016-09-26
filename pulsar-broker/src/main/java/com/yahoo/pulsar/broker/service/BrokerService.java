@@ -44,6 +44,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.commons.lang.SystemUtils;
+import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -137,6 +138,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     private final PulsarStats pulsarStats;
     private final AuthenticationService authenticationService;
 
+    private final Policies defaultPolicies;
+
     public BrokerService(PulsarService pulsar) throws Exception {
         this.pulsar = pulsar;
         this.managedLedgerFactory = pulsar.getManagedLedgerFactory();
@@ -149,6 +152,14 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         this.multiLayerTopicsMap = new ConcurrentOpenHashMap<>();
         this.pulsarStats = new PulsarStats(pulsar);
         this.offlineTopicStatCache = new ConcurrentOpenHashMap<>();
+
+        ServiceConfiguration serviceConfig = pulsar.getConfiguration();
+        this.defaultPolicies = new Policies();
+        this.defaultPolicies.persistence = new PersistencePolicies(serviceConfig.getManagedLedgerDefaultEnsembleSize(),
+                serviceConfig.getManagedLedgerDefaultWriteQuorum(), serviceConfig.getManagedLedgerDefaultAckQuorum(),
+                serviceConfig.getManagedLedgerDefaultMarkDeleteRateLimit());
+        this.defaultPolicies.retention_policies = new RetentionPolicies(
+                serviceConfig.getDefaultRetentionTimeInMinutes(), serviceConfig.getDefaultRetentionSizeInMB());
 
         final DefaultThreadFactory acceptorThreadFactory = new DefaultThreadFactory("pulsar-acceptor");
         final DefaultThreadFactory workersThreadFactory = new DefaultThreadFactory("pulsar-io");
@@ -300,7 +311,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     /**
      * It unloads all owned namespacebundles gracefully.
      * <ul>
-     * <li>First it makes current broker unavailable and isolates from the clusters so, it will not serve any new requests.</li>
+     * <li>First it makes current broker unavailable and isolates from the clusters so, it will not serve any new
+     * requests.</li>
      * <li>Second it starts unloading namespace bundle one by one without closing the connection in order to avoid
      * disruption for other namespacebundles which are sharing the same connection from the same client.</li>
      * <ul>
@@ -328,7 +340,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
             double closeTopicsTimeSeconds = TimeUnit.NANOSECONDS.toMillis((System.nanoTime() - closeTopicsStartTime))
                     / 1000.0;
-            log.info("Unloading {} namespace-bundles completed in {} seconds", serviceUnits.size(), closeTopicsTimeSeconds);
+            log.info("Unloading {} namespace-bundles completed in {} seconds", serviceUnits.size(),
+                    closeTopicsTimeSeconds);
         } catch (Exception e) {
             log.error("Failed to disable broker from loadbalancer list {}", e.getMessage(), e);
         }
@@ -370,8 +383,9 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
         return replicationClients.computeIfAbsent(cluster, key -> {
             try {
-                ClusterData data = this.pulsar.getConfigurationCache().clustersCache()
-                        .get(PulsarWebResource.path("clusters", cluster));
+                String path = PulsarWebResource.path("clusters", cluster);
+                ClusterData data = this.pulsar.getConfigurationCache().clustersCache().get(path)
+                        .orElseThrow(() -> new KeeperException.NoNodeException(path));
                 ClientConfiguration configuration = new ClientConfiguration();
                 configuration.setUseTcpNoDelay(false);
                 configuration.setConnectionsPerBroker(pulsar.getConfiguration().getReplicationConnectionsPerBroker());
@@ -459,22 +473,24 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         // Execute in background thread, since getting the policies might block if the z-node wasn't already cached
         pulsar.getOrderedExecutor().submitOrdered(topicName, safeRun(() -> {
             NamespaceName namespace = topicName.getNamespaceObject();
+            ServiceConfiguration serviceConfig = pulsar.getConfiguration();
 
             // Get persistence policy for this destination
-            PersistencePolicies persistencePolicies = null;
-            Policies policies = null;
-            RetentionPolicies retentionPolicies = null;
+            Policies policies;
             try {
-                policies = pulsar.getConfigurationCache().policiesCache().get(AdminResource.path("policies",
-                        namespace.getProperty(), namespace.getCluster(), namespace.getLocalName()));
-                persistencePolicies = policies.persistence;
-                retentionPolicies = policies.retention_policies;
+                policies = pulsar
+                        .getConfigurationCache().policiesCache().get(AdminResource.path("policies",
+                                namespace.getProperty(), namespace.getCluster(), namespace.getLocalName()))
+                        .orElse(null);
             } catch (Throwable t) {
                 // Ignoring since if we don't have policies, we fallback on the default
-                log.debug("Got exception when reading persistence policy: {}", t.getMessage());
+                log.warn("Got exception when reading persistence policy for {}: {}", topicName, t.getMessage(), t);
+                future.completeExceptionally(t);
+                return;
             }
 
-            ServiceConfiguration serviceConfig = pulsar.getConfiguration();
+            PersistencePolicies persistencePolicies = policies != null ? policies.persistence : null;
+            RetentionPolicies retentionPolicies = policies != null ? policies.retention_policies : null;
 
             if (persistencePolicies == null) {
                 // Apply default values

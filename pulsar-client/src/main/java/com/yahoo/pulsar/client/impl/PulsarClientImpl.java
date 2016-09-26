@@ -27,6 +27,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.apache.commons.lang3.SystemUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -401,12 +402,17 @@ public class PulsarClientImpl implements PulsarClient {
         int numThreads = conf.getIoThreads();
         ThreadFactory threadFactory = new DefaultThreadFactory("pulsar-client-io");
 
-        try {
-            return new EpollEventLoopGroup(numThreads, threadFactory);
-        } catch (ExceptionInInitializerError | NoClassDefFoundError | UnsatisfiedLinkError e) {
-            if (log.isDebugEnabled()) {
-                log.debug("Unable to load EpollEventLoop", e);
+        if (SystemUtils.IS_OS_LINUX) {
+            try {
+                return new EpollEventLoopGroup(numThreads, threadFactory);
+            } catch (ExceptionInInitializerError | NoClassDefFoundError | UnsatisfiedLinkError e) {
+                if (log.isDebugEnabled()) {
+                    log.debug("Unable to load EpollEventLoop", e);
+                }
+
+                return new NioEventLoopGroup(numThreads, threadFactory);
             }
+        } else {
             return new NioEventLoopGroup(numThreads, threadFactory);
         }
     }

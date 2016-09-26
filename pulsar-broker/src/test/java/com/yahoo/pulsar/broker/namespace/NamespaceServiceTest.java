@@ -44,7 +44,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import com.google.common.cache.LoadingCache;
+import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.google.common.collect.Lists;
 import com.google.common.hash.Hashing;
 import com.yahoo.pulsar.broker.service.BrokerTestBase;
@@ -54,7 +54,6 @@ import com.yahoo.pulsar.common.naming.NamespaceBundle;
 import com.yahoo.pulsar.common.naming.NamespaceBundleFactory;
 import com.yahoo.pulsar.common.naming.NamespaceBundles;
 import com.yahoo.pulsar.common.naming.NamespaceName;
-import com.yahoo.pulsar.common.naming.NamespaceBundle;
 import com.yahoo.pulsar.common.policies.data.Policies;
 import com.yahoo.pulsar.common.util.ObjectMapperFactory;
 
@@ -242,7 +241,8 @@ public class NamespaceServiceTest extends BrokerTestBase {
             NamespaceName nsname, NamespaceBundles bundles, NamespaceBundle targetBundle) throws Exception {
         Field bCacheField = NamespaceBundleFactory.class.getDeclaredField("bundlesCache");
         bCacheField.setAccessible(true);
-        ((LoadingCache<NamespaceName, NamespaceBundles>) bCacheField.get(utilityFactory)).put(nsname, bundles);
+        ((AsyncLoadingCache<NamespaceName, NamespaceBundles>) bCacheField.get(utilityFactory)).put(nsname,
+                CompletableFuture.completedFuture(bundles));
         return utilityFactory.splitBundles(targetBundle, 2);
     }
 }

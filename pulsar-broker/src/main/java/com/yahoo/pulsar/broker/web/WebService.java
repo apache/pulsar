@@ -24,7 +24,6 @@ import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import javax.net.ssl.SSLContext;
 import javax.servlet.DispatcherType;
 
 import org.eclipse.jetty.server.Handler;
@@ -127,6 +126,7 @@ public class WebService implements AutoCloseable {
         config.packages("jersey.config.server.provider.packages", javaPackages);
         config.register(provider);
         ServletHolder servletHolder = new ServletHolder(new ServletContainer(config));
+        servletHolder.setAsyncSupported(true);
         addServlet(basePath, servletHolder, requiresAuthentication);
     }
 

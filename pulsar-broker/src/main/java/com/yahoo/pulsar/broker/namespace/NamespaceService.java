@@ -300,7 +300,9 @@ public class NamespaceService {
                             new IllegalStateException(String.format("Can't find owner of ServiceUnit: %s", bundle)));
                 } else {
                     // Now, no one owns the namespace yet. Hence, we will try to dynamically assign it
-                    searchForCandidateBroker(bundle, future, authoritative);
+                    pulsar.getExecutor().execute(() -> {
+                        searchForCandidateBroker(bundle, future, authoritative);
+                    });
                 }
             } else if (nsData.get().isDisabled()) {
                 future.completeExceptionally(
@@ -587,7 +589,7 @@ public class NamespaceService {
 
         if (!policies.isPresent()) {
             // if policies is not present into localZk then create new policies
-            this.pulsar.getLocalZkCacheService().createPolicies(path, false);
+            this.pulsar.getLocalZkCacheService().createPolicies(path, false).get();
             policies = this.pulsar.getLocalZkCacheService().policiesCache().get(path);
         }
 
@@ -703,7 +705,7 @@ public class NamespaceService {
         }
 
         NamespaceBundle nsFullBundle = getFullBundle(new NamespaceName(namespaceName));
-        if (getOwner(nsFullBundle) == null) {
+        if (!getOwner(nsFullBundle).isPresent()) {
             // No one owns the namespace so no point trying to unload it
             return;
         }

@@ -111,7 +111,7 @@ public class ZookeeperCacheLoader implements Closeable {
     private void updateBrokerList(Set<String> brokerNodes) throws Exception {
         List<LoadReport> availableBrokers = new ArrayList<>(brokerNodes.size());
         for (String broker : brokerNodes) {
-            availableBrokers.add(brokerInfo.get(LOADBALANCE_BROKERS_ROOT + '/' + broker));
+            availableBrokers.add(brokerInfo.get(LOADBALANCE_BROKERS_ROOT + '/' + broker).get());
         }
 
         this.availableBrokers = availableBrokers;

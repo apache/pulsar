@@ -189,6 +189,8 @@ public class SLAMonitoringTest {
     public void testUnloadIfBrokerCrashes() {
         int crashIndex = BROKER_COUNT / 2;
         log.info("Trying to close the broker at index = {}", crashIndex);
+        System.err.println("KILLING BROKER: " + pulsarServices[crashIndex].getAdvertisedAddress() + ":"
+                + brokerWebServicePorts[crashIndex]);
 
         try {
             pulsarServices[crashIndex].close();
@@ -202,6 +204,8 @@ public class SLAMonitoringTest {
 
         log.info("Lookup for namespace {}", destination);
 
+        System.err.println("CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC");
+
         String broker = null;
         try {
             broker = pulsarAdmins[BROKER_COUNT - 1].lookups().lookupDestination(destination);
@@ -213,6 +217,8 @@ public class SLAMonitoringTest {
             fail("The SLA Monitor namespace should be owned by some other broker");
         }
 
+        System.err.println("CHECK");
+
         // Check if the namespace is properly unloaded and reowned by the broker
         try {
             pulsarServices[crashIndex] = new PulsarService(configurations[crashIndex]);
@@ -223,6 +229,8 @@ public class SLAMonitoringTest {
             e.printStackTrace();
             fail("The broker should be able to start without exception");
         }
+
+        System.err.println("LOOKUP");
 
         try {
             broker = pulsarAdmins[0].lookups().lookupDestination(destination);

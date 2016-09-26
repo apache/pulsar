@@ -48,16 +48,21 @@ public class RestException extends WebApplicationException {
         super(Response.status(code).entity(new ErrorData(message)).type(MediaType.APPLICATION_JSON).build());
     }
 
-    public RestException(RestException e) {
-        super(Response.status(e.getResponse().getStatus()).entity(e.getResponse().getEntity())
-                .type(e.getResponse().getMediaType()).build());
-    }
-
     public RestException(Throwable t) {
-        super(Response.status(500).entity(getExceptionData(t)).type(MediaType.TEXT_PLAIN).build());
+        super(getResponse(t));
     }
 
     public RestException(PulsarAdminException cae) {
         this(cae.getStatusCode(), cae.getHttpError());
+    }
+
+    private static Response getResponse(Throwable t) {
+        if (t instanceof RestException) {
+            RestException e = (RestException) t;
+            return Response.status(e.getResponse().getStatus()).entity(e.getResponse().getEntity())
+                    .type(e.getResponse().getMediaType()).build();
+        } else {
+            return Response.status(500).entity(getExceptionData(t)).type(MediaType.TEXT_PLAIN).build();
+        }
     }
 }

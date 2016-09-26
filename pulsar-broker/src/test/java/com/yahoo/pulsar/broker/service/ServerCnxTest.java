@@ -32,6 +32,7 @@ import static org.testng.Assert.assertTrue;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -139,6 +140,7 @@ public class ServerCnxTest {
         configCacheService = mock(ConfigurationCacheService.class);
         @SuppressWarnings("unchecked")
         ZooKeeperDataCache<Policies> zkDataCache = mock(ZooKeeperDataCache.class);
+        doReturn(Optional.empty()).when(zkDataCache).get(anyObject());
         doReturn(zkDataCache).when(configCacheService).policiesCache();
         doReturn(configCacheService).when(pulsar).getConfigurationCache();
 

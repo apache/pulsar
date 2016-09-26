@@ -161,10 +161,8 @@ public abstract class PulsarWebResource {
                 PropertyAdmin propertyAdmin;
 
                 try {
-                    propertyAdmin = pulsar().getConfigurationCache().propertiesCache().get(path("policies", property));
-                } catch (KeeperException.NoNodeException e) {
-                    log.warn("Failed to get property admin data for non existing property {}", property);
-                    throw new RestException(Status.UNAUTHORIZED, "Property does not exist");
+                    propertyAdmin = pulsar().getConfigurationCache().propertiesCache().get(path("policies", property))
+                            .orElseThrow(() -> new RestException(Status.UNAUTHORIZED, "Property does not exist"));
                 } catch (Exception e) {
                     log.error("Failed to get property admin data for property");
                     throw new RestException(e);
@@ -183,10 +181,8 @@ public abstract class PulsarWebResource {
     protected void validateClusterForProperty(String property, String cluster) {
         PropertyAdmin propertyAdmin;
         try {
-            propertyAdmin = pulsar().getConfigurationCache().propertiesCache().get(path("policies", property));
-        } catch (KeeperException.NoNodeException e) {
-            log.warn("Failed to get property admin data for non existing property [{}]", property);
-            throw new RestException(Status.NOT_FOUND, "Property does not exist");
+            propertyAdmin = pulsar().getConfigurationCache().propertiesCache().get(path("policies", property))
+                    .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Property does not exist"));
         } catch (Exception e) {
             log.error("Failed to get property admin data for property");
             throw new RestException(e);
@@ -232,7 +228,8 @@ public abstract class PulsarWebResource {
             if (!config().getClusterName().equals(cluster)) {
                 // redirect to the cluster requested
                 ClusterData clusterData = pulsar().getConfigurationCache().clustersCache()
-                        .get(path("clusters", cluster));
+                        .get(path("clusters", cluster)).orElseThrow(() -> new RestException(Status.NOT_FOUND,
+                                "Cluster does not exist: cluster=" + cluster));
                 URL webUrl;
                 if (config().isTlsEnabled() && !clusterData.getServiceUrlTls().isEmpty()) {
                     webUrl = new URL(clusterData.getServiceUrlTls());
@@ -269,7 +266,7 @@ public abstract class PulsarWebResource {
             NamespaceBundles bundles = pulsar().getNamespaceService().getNamespaceBundleFactory().getBundles(fqnn,
                     bundleData);
             for (NamespaceBundle bundle : bundles.getBundles()) {
-                validateServiceUnitOwnership(bundle, authoritative, readOnly);
+                validateBundleOwnership(bundle, authoritative, readOnly);
             }
         } catch (WebApplicationException wae) {
             // propagate already wrapped-up WebApplicationExceptions
@@ -285,7 +282,7 @@ public abstract class PulsarWebResource {
         NamespaceName fqnn = new NamespaceName(property, cluster, namespace);
 
         try {
-            validateServiceUnitOwnership(bundle, authoritative, readOnly);
+            validateBundleOwnership(bundle, authoritative, readOnly);
         } catch (WebApplicationException wae) {
             // propagate already wrapped-up WebApplicationExceptions
             throw wae;
@@ -320,7 +317,7 @@ public abstract class PulsarWebResource {
             String bundleRange, boolean authoritative, boolean readOnly) {
         try {
             NamespaceBundle nsBundle = validateNamespaceBundleRange(fqnn, bundles, bundleRange);
-            validateServiceUnitOwnership(nsBundle, authoritative, readOnly);
+            validateBundleOwnership(nsBundle, authoritative, readOnly);
             return nsBundle;
         } catch (WebApplicationException wae) {
             throw wae;
@@ -330,7 +327,7 @@ public abstract class PulsarWebResource {
         }
     }
 
-    public void validateServiceUnitOwnership(NamespaceBundle bundle, boolean authoritative, boolean readOnly)
+    public void validateBundleOwnership(NamespaceBundle bundle, boolean authoritative, boolean readOnly)
             throws Exception {
         NamespaceService nsService = pulsar().getNamespaceService();
 
@@ -447,8 +444,10 @@ public abstract class PulsarWebResource {
             String localCluster = pulsar().getConfiguration().getClusterName();
             Policies policies;
             try {
-                policies = pulsar().getConfigurationCache().policiesCache().get(AdminResource.path("policies",
-                        namespace.getProperty(), namespace.getCluster(), namespace.getLocalName()));
+                String path = AdminResource.path("policies", namespace.getProperty(), namespace.getCluster(),
+                        namespace.getLocalName());
+                policies = pulsar().getConfigurationCache().policiesCache().get(path)
+                        .orElseThrow(() -> new KeeperException.NoNodeException(path));
 
                 if (policies.replication_clusters.isEmpty()) {
                     String msg = String.format(

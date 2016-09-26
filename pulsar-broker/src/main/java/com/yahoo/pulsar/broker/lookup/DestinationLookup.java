@@ -58,6 +58,7 @@ public class DestinationLookup extends PulsarWebResource {
             validateReplicationSettingsOnNamespace(topic.getNamespaceObject());
         } catch (Throwable t) {
             // Validation checks failed
+            log.error("Validation check failed: {}", t.getMessage());
             asyncResponse.resume(t);
             return;
         }
@@ -92,6 +93,9 @@ public class DestinationLookup extends PulsarWebResource {
                 asyncResponse.resume(new WebApplicationException(Response.temporaryRedirect(redirect).build()));
             } else {
                 // Found broker owning the topic
+                if (log.isDebugEnabled()) {
+                    log.debug("Lookup succeeded for topic {} -- broker: {}", topic, result.getLookupData());
+                }
                 asyncResponse.resume(result.getLookupData());
             }
         }).exceptionally(exception -> {
