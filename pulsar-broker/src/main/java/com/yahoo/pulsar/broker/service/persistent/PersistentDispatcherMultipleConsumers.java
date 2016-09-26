@@ -26,6 +26,7 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -165,7 +166,10 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
                 }
 
                 havePendingReplayRead = true;
-                cursor.asyncReplayEntries(messagesToReplayNow, this, ReadType.Replay);
+                Set<? extends Position> deletedMessages = cursor.asyncReplayEntries(messagesToReplayNow, this,
+                        ReadType.Replay);
+                // clear already acked positions from replay bucket
+                messagesToReplay.removeAll(deletedMessages);
             } else if (!havePendingRead) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Schedule read of {} messages for {} consumers", name, messagesToRead,

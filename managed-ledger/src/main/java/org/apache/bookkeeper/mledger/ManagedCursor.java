@@ -369,8 +369,10 @@ public interface ManagedCursor {
      *            callback object returning the list of entries
      * @param ctx
      *            opaque context
+     * @return skipped positions 
+     *              set of positions which are already deleted/acknowledged and skipped while replaying them
      */
-    public void asyncReplayEntries(Set<? extends Position> positions, ReadEntriesCallback callback, Object ctx);
+    public Set<? extends Position> asyncReplayEntries(Set<? extends Position> positions, ReadEntriesCallback callback, Object ctx);
 
     /**
      * Close the cursor and releases the associated resources.

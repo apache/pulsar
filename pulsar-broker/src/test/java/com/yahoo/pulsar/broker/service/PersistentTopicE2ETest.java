@@ -25,6 +25,7 @@ import static org.testng.Assert.fail;
 import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeSet;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -38,12 +39,15 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.impl.EntryCacheImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+import com.google.common.collect.Sets;
+import com.yahoo.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import com.yahoo.pulsar.broker.service.persistent.PersistentSubscription;
 import com.yahoo.pulsar.broker.service.persistent.PersistentTopic;
 import com.yahoo.pulsar.broker.stats.Metrics;
@@ -1069,4 +1073,98 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
             assertEquals(new String(msg.getData()), "message-1");
         }
     }
+    
+    /**
+     * Verify: Broker should not replay already acknowledged messages again and should clear them from messageReplay bucket
+     * 
+     * 1. produce messages
+     * 2. consume messages and ack all except 1 msg
+     * 3. add already acked messages to PersistentDispatcherMultipleConsumers.messagesToReplay bucket
+     * 4. replay messages present into messagesToReplay bucket
+     * 5. Verification
+     *  a. should replay only 1 unacked message
+     *  b. messagesToReplay should not have previously added acked messages
+     * 
+     * 
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testMessageReplay() throws Exception {
+        
+        final String topicName = "persistent://prop/use/ns-abc/topic2";
+        final String subName = "sub2";
+
+        Message msg;
+        int totalMessages = 10;
+        int replayIndex = totalMessages / 2;
+
+        ConsumerConfiguration conf = new ConsumerConfiguration();
+        conf.setSubscriptionType(SubscriptionType.Shared);
+
+        Consumer consumer = pulsarClient.subscribe(topicName, subName, conf);
+        Producer producer = pulsarClient.createProducer(topicName);
+
+        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);
+        assertNotNull(topicRef);
+        PersistentSubscription subRef = topicRef.getPersistentSubscription(subName);
+        PersistentDispatcherMultipleConsumers dispatcher = (PersistentDispatcherMultipleConsumers) subRef
+                .getDispatcher();
+        Field replayMap = PersistentDispatcherMultipleConsumers.class.getDeclaredField("messagesToReplay");
+        replayMap.setAccessible(true);
+        TreeSet<PositionImpl> messagesToReplay = Sets.newTreeSet();
+
+        assertNotNull(subRef);
+
+        // (1) Produce messages
+        for (int i = 0; i < totalMessages; i++) {
+            String message = "my-message-" + i;
+            producer.send(message.getBytes());
+        }
+
+        //(2) Consume and ack messages except first message
+        Message unAckedMsg = null;
+        for (int i = 0; i < totalMessages; i++) {
+            msg = consumer.receive();
+            if (i == 0) {
+                unAckedMsg = msg;
+            } else {
+                consumer.acknowledge(msg);
+                MessageIdImpl msgId = (MessageIdImpl) msg.getMessageId();
+                if (i < replayIndex) {
+                    // (3) accumulate acked messages for replay
+                    messagesToReplay.add(new PositionImpl(msgId.getLedgerId(), msgId.getEntryId()));
+                }
+            }
+        }
+
+        /**
+         * 1. Now: ManagedCursorImpl.individualDeletedMessages => (L:0,L9] 
+         * 2. dispatcher.redeliverUnacknowledgedMessages replays => unackMsg (L:0) + position presents into messagesToReplay 
+         * 3. ManagedCursorImpl.asyncReplayEntries will skip replays for already acked messages and those will be deleted 
+         * from messagesToReplay 
+         * 4. Verify: 
+         *  A. dispatcher redelivers msg [L:0] and deletes [L:0] from messagesToReplay bucket 
+         *  B. messagesToReplay must be empty
+         */
+        assertEquals(replayIndex - 1, messagesToReplay.size());
+        replayMap.set(dispatcher, messagesToReplay);
+        //(4) redeliver : replay-msg + unAcked-msg
+        dispatcher.redeliverUnacknowledgedMessages(dispatcher.getConsumers().get(0));
+        
+        // Verify: [4.A]  msg [L:0] must be redelivered
+        try {
+            msg = consumer.receive(1, TimeUnit.SECONDS);
+            assertEquals(msg.getData(), unAckedMsg.getData());
+        } catch (Exception e) {
+            fail("msg should be redelivered ", e);
+        }
+
+        // Verify: [4.B]  messagesToReplay must be empty
+        assertEquals(messagesToReplay.size(), 0);
+
+        consumer.close();
+        producer.close();
+    }
+    
 }

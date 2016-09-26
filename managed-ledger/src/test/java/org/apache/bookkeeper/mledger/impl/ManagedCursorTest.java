@@ -2072,10 +2072,10 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         c1.markDelete(p2);
 
         try {
-            c1.replayEntries(positions);
-            fail("Should fail");
+            // as mark-delete is at position: p2 it should read entry : p3
+            assertEquals(1, c1.replayEntries(positions).size());
         } catch (ManagedLedgerException e) {
-            // ok
+            fail("Should have not failed");
         }
     }
 

@@ -38,6 +38,7 @@ import org.testng.annotations.Test;
 
 import com.google.common.base.Predicate;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 
 @Test
 public class ManagedCursorContainerTest {
@@ -184,7 +185,8 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
-        public void asyncReplayEntries(Set<? extends Position> positions, ReadEntriesCallback callback, Object ctx) {
+        public Set<? extends Position> asyncReplayEntries(Set<? extends Position> positions, ReadEntriesCallback callback, Object ctx) {
+            return Sets.newConcurrentHashSet();
         }
 
         @Override
