@@ -322,7 +322,7 @@ public class PulsarService implements AutoCloseable {
         try {
             // Namespace not created hence no need to unload it
             if (!this.globalZkCache.exists(
-                    AdminResource.path("policies") + "/" + NamespaceService.getSLAMonitorNamespace(host, config))) {
+                    AdminResource.path("policies") + "/" + NamespaceService.getSLAMonitorNamespace(getAdvertisedAddress(), config))) {
                 return;
             }
             if (!this.nsservice.registerSLANamespace()) {
