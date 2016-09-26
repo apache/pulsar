@@ -29,6 +29,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.stream.Collectors;
 
 import org.apache.bookkeeper.client.AsyncCallback.AddCallback;
 import org.apache.bookkeeper.client.AsyncCallback.CloseCallback;
@@ -66,6 +67,7 @@ import com.google.common.collect.Collections2;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import com.google.common.collect.RangeSet;
+import com.google.common.collect.Sets;
 import com.google.common.collect.TreeRangeSet;
 import com.google.common.util.concurrent.RateLimiter;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -802,15 +804,23 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     @Override
-    public void asyncReplayEntries(final Set<? extends Position> positions, ReadEntriesCallback callback, Object ctx) {
+    public Set<? extends Position> asyncReplayEntries(final Set<? extends Position> positions, ReadEntriesCallback callback, Object ctx) {
         List<Entry> entries = Lists.newArrayListWithExpectedSize(positions.size());
         if (positions.isEmpty()) {
             callback.readEntriesComplete(entries, ctx);
         }
 
+        // filters out messages which are already acknowledged
+        Set<Position> alreadyAcknowledgedPositions = Sets.newHashSet();
+        positions.stream().filter(position -> {
+            return individualDeletedMessages.contains((PositionImpl) position)
+                    || ((PositionImpl) position).compareTo(markDeletePosition) < 0;
+        }).forEach(pos -> alreadyAcknowledgedPositions.add(pos));
+        
+        final int totalValidPositions = positions.size() - alreadyAcknowledgedPositions.size();
         final AtomicReference<ManagedLedgerException> exception = new AtomicReference<>();
         ReadEntryCallback cb = new ReadEntryCallback() {
-            int pendingCallbacks = positions.size();
+            int pendingCallbacks = totalValidPositions;
 
             @Override
             public synchronized void readEntryComplete(Entry entry, Object ctx) {
@@ -842,25 +852,11 @@ public class ManagedCursorImpl implements ManagedCursor {
             }
         };
 
-        positions.forEach(p -> {
-            PositionImpl position = (PositionImpl) p;
-            if (position.compareTo(markDeletePosition) > 0 && hasMoreEntries(position)) {
-                ledger.asyncReadEntry(position, cb, ctx);
-            } else {
-                String msg = String.format("[%s][%s] No entries to read from position %s for replay.", ledger.getName(),
-                        name, position);
-                lock.readLock().lock();
-                try {
-                    log.warn(
-                            "[{}][{}] No entries to read from position {} for replay. - md: {} - rd: {} - last-position: {} - individually-deleted: {}",
-                            ledger.getName(), name, position, markDeletePosition, readPosition,
-                            ledger.lastConfirmedEntry, individualDeletedMessages);
-                } finally {
-                    lock.readLock().unlock();
-                }
-                cb.readEntryFailed(new ManagedLedgerException.InvalidReplayPositionException(msg), ctx);
-            }
+        positions.stream().filter(position -> !alreadyAcknowledgedPositions.contains(position)).forEach(p -> {
+            ledger.asyncReadEntry((PositionImpl) p, cb, ctx);
         });
+        
+        return alreadyAcknowledgedPositions;
     }
 
     private long getNumberOfEntries(Range<PositionImpl> range) {
