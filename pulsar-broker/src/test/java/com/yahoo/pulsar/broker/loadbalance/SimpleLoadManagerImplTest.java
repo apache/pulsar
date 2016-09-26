@@ -174,7 +174,7 @@ public class SimpleLoadManagerImplTest {
         policyData.namespaces = new ArrayList<String>();
         policyData.namespaces.add("pulsar/use/primary-ns.*");
         policyData.primary = new ArrayList<String>();
-        policyData.primary.add(pulsar1.getHost() + "*");
+        policyData.primary.add(pulsar1.getAdvertisedAddress() + "*");
         policyData.secondary = new ArrayList<String>();
         policyData.secondary.add("prod2-broker([78]).messaging.usw.example.co.*");
         policyData.auto_failover_policy = new AutoFailoverPolicyData();
@@ -237,7 +237,7 @@ public class SimpleLoadManagerImplTest {
         rd.put("bandwidthOut", new ResourceUsage(550 * 1024, 1024 * 1024));
 
         ResourceUnit ru1 = new SimpleResourceUnit(
-                "http://" + pulsar1.getHost() + ":" + pulsar1.getConfiguration().getWebServicePort(), rd);
+                "http://" + pulsar1.getAdvertisedAddress() + ":" + pulsar1.getConfiguration().getWebServicePort(), rd);
         Set<ResourceUnit> rus = new HashSet<ResourceUnit>();
         rus.add(ru1);
         LoadRanker lr = new ResourceAvailabilityRanker();

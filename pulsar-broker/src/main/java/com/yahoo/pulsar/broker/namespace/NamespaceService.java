@@ -118,7 +118,7 @@ public class NamespaceService {
      */
     public NamespaceService(PulsarService pulsar) {
         this.pulsar = pulsar;
-        host = pulsar.getHost();
+        host = pulsar.getAdvertisedAddress();
         this.config = pulsar.getConfiguration();
         this.loadManager = pulsar.getLoadManager();
         ServiceUnitZkUtils.initZK(pulsar.getLocalZkCache().getZooKeeper(), pulsar.getBrokerServiceUrl());
@@ -446,9 +446,9 @@ public class NamespaceService {
         }
         // found corresponding policy, set the status to controlled
         nsOwnedStatus.is_controlled = true;
-        if (nsIsolationPolicy.isPrimaryBroker(pulsar.getHost())) {
+        if (nsIsolationPolicy.isPrimaryBroker(pulsar.getAdvertisedAddress())) {
             nsOwnedStatus.broker_assignment = BrokerAssignment.primary;
-        } else if (nsIsolationPolicy.isSecondaryBroker(pulsar.getHost())) {
+        } else if (nsIsolationPolicy.isSecondaryBroker(pulsar.getAdvertisedAddress())) {
             nsOwnedStatus.broker_assignment = BrokerAssignment.secondary;
         }
 

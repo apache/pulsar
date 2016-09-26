@@ -21,6 +21,7 @@ import static org.mockito.Mockito.spy;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.net.InetAddress;
 import java.net.URL;
 import java.security.KeyStore;
 import java.security.PrivateKey;
@@ -68,8 +69,8 @@ public class WebServiceTest {
     private PulsarService pulsar;
     private final static int BROKER_WEBSERVICE_PORT = PortManager.nextFreePort();
     private final static int BROKER_WEBSERVICE_PORT_TLS = PortManager.nextFreePort();
-    private static final String BROKER_URL_BASE = "http://localhost" + ":" + BROKER_WEBSERVICE_PORT;
-    private static final String BROKER_URL_BASE_TLS = "https://localhost" + ":" + BROKER_WEBSERVICE_PORT_TLS;
+    private static final String BROKER_URL_BASE = "http://localhost:" + BROKER_WEBSERVICE_PORT;
+    private static final String BROKER_URL_BASE_TLS = "https://localhost:" + BROKER_WEBSERVICE_PORT_TLS;
     private static final String BROKER_LOOKUP_URL = BROKER_URL_BASE
             + "/lookup/v2/destination/persistent/my-property/local/my-namespace/my-topic";
     private static final String BROKER_LOOKUP_URL_TLS = BROKER_URL_BASE_TLS
@@ -288,6 +289,7 @@ public class WebServiceTest {
         config.setTlsAllowInsecureConnection(allowInsecure);
         config.setTlsTrustCertsFilePath(allowInsecure ? "" : TLS_CLIENT_CERT_FILE_PATH);
         config.setClusterName("local");
+        config.setAdvertisedAddress("localhost"); // TLS certificate expects localhost
         pulsar = spy(new PulsarService(config));
         doReturn(new MockedZooKeeperClientFactoryImpl()).when(pulsar).getZooKeeperClientFactory();
         pulsar.start();

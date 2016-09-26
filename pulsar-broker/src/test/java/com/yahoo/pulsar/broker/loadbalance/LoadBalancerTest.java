@@ -140,7 +140,7 @@ public class LoadBalancerTest {
             pulsarServices[i].start();
 
             brokerUrls[i] = new URL("http://127.0.0.1" + ":" + brokerWebServicePorts[i]);
-            lookupAddresses[i] = pulsarServices[i].getHost() + ":" + config.getWebServicePort();
+            lookupAddresses[i] = pulsarServices[i].getAdvertisedAddress() + ":" + config.getWebServicePort();
             pulsarAdmins[i] = new PulsarAdmin(brokerUrls[i], (Authentication) null);
         }
 

@@ -43,9 +43,12 @@ public class ServiceConfiguration {
     private int webServicePort = 8080;
     // Port to use to server HTTPS request
     private int webServicePortTls = 8443;
-    // Control whether to bind directly on localhost rather than on normal
-    // hostname
-    private boolean bindOnLocalhost = false;
+
+    // Hostname or IP address the service binds on.
+    private String bindAddress = "0.0.0.0";
+
+    // Controls which hostname is advertised to the discovery service via ZooKeeper.
+    private String advertisedAddress;
 
     // Enable the WebSocket API service
     private boolean webSocketServiceEnabled = false;
@@ -290,12 +293,20 @@ public class ServiceConfiguration {
         this.webServicePortTls = webServicePortTls;
     }
 
-    public boolean isBindOnLocalhost() {
-        return bindOnLocalhost;
+    public String getBindAddress() {
+        return this.bindAddress;
     }
 
-    public void setBindOnLocalhost(boolean bindOnLocalhost) {
-        this.bindOnLocalhost = bindOnLocalhost;
+    public void setBindAddress(String bindAddress) {
+        this.bindAddress = bindAddress;
+    }
+
+    public String getAdvertisedAddress() {
+        return this.advertisedAddress;
+    }
+
+    public void setAdvertisedAddress(String advertisedAddress) {
+        this.advertisedAddress = advertisedAddress;
     }
 
     public boolean isWebSocketServiceEnabled() {
