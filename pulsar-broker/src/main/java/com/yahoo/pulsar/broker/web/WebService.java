@@ -116,8 +116,10 @@ public class WebService implements AutoCloseable {
         }
 
         // Limit number of concurrent HTTP connections to avoid getting out of file descriptors
-        connectors.stream().forEach(c -> c.setAcceptQueueSize(WebService.MAX_CONCURRENT_REQUESTES / connectors.size()));
-        server.setConnectors(connectors.toArray(new ServerConnector[connectors.size()]));
+        connectors.forEach(c -> {
+            c.setAcceptQueueSize(WebService.MAX_CONCURRENT_REQUESTES / connectors.size());
+            server.addConnector(c);
+        });
     }
 
     public void addRestResources(String basePath, String javaPackages, boolean requiresAuthentication) {
