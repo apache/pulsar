@@ -246,7 +246,7 @@ public class PulsarService implements AutoCloseable {
             LOG.info("Starting Pulsar Broker service");
             brokerService.start();
 
-            this.webService = new WebService(config, this);
+            this.webService = new WebService(this);
             this.webService.addRestResources("/", "com.yahoo.pulsar.broker.web", false);
             this.webService.addRestResources("/admin", "com.yahoo.pulsar.broker.admin", true);
             this.webService.addRestResources("/lookup", "com.yahoo.pulsar.broker.lookup", true);
