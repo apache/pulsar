@@ -73,7 +73,7 @@ public abstract class PulsarWebResource {
 
     protected PulsarService pulsar() {
         if (pulsar == null) {
-            pulsar = (PulsarService) servletContext.getAttribute("pulsar");
+            pulsar = (PulsarService) servletContext.getAttribute(WebService.ATTRIBUTE_PULSAR_NAME);
         }
 
         return pulsar;
