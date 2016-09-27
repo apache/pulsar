@@ -47,7 +47,6 @@ public class ConsumerStats implements Serializable {
     private final LongAdder numReceiveFailed;
     private final LongAdder numAcksSent;
     private final LongAdder numAcksFailed;
-    private final LongAdder numAcksTracker;
     private final LongAdder totalMsgsReceived;
     private final LongAdder totalBytesReceived;
     private final LongAdder totalReceiveFailed;
@@ -64,7 +63,6 @@ public class ConsumerStats implements Serializable {
         numReceiveFailed = null;
         numAcksSent = null;
         numAcksFailed = null;
-        numAcksTracker = null;
         totalMsgsReceived = null;
         totalBytesReceived = null;
         totalReceiveFailed = null;
@@ -82,7 +80,6 @@ public class ConsumerStats implements Serializable {
         numReceiveFailed = new LongAdder();
         numAcksSent = new LongAdder();
         numAcksFailed = new LongAdder();
-        numAcksTracker = new LongAdder();
         totalMsgsReceived = new LongAdder();
         totalBytesReceived = new LongAdder();
         totalReceiveFailed = new LongAdder();
@@ -156,10 +153,6 @@ public class ConsumerStats implements Serializable {
         }
     }
 
-    void incrementNumAcksSent() {
-        numAcksSent.increment();
-    }
-
     void incrementNumAcksSent(long numAcks) {
         numAcksSent.add(numAcks);
     }
@@ -174,18 +167,6 @@ public class ConsumerStats implements Serializable {
 
     Timeout getStatTimeout() {
         return statTimeout;
-    }
-
-    void resetNumAckTracker() {
-        numAcksTracker.reset();
-    }
-
-    void incrementNumAcksTracker(final int numMessages) {
-        numAcksTracker.add(numMessages);
-    }
-
-    long getNumAcksTrackerSumThenReset() {
-        return numAcksTracker.sumThenReset();
     }
 
     void reset() {
