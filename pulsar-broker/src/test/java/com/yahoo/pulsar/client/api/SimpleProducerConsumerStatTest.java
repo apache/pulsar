@@ -71,6 +71,8 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         log.info("-- Starting {} test --", methodName);
         ConsumerConfiguration conf = new ConsumerConfiguration();
         conf.setSubscriptionType(SubscriptionType.Exclusive);
+        // Cumulative Ack-counter works if ackTimeOutTimer-task is enabled
+        boolean isAckTimeoutTaskEnabledForCumulativeAck = ackTimeoutSec > 0;
         if (ackTimeoutSec > 0) {
             conf.setAckTimeout(ackTimeoutSec, TimeUnit.SECONDS);
         }
@@ -107,7 +109,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         Thread.sleep(2000);
         consumer.close();
         producer.close();
-        validatingLogInfo(consumer, producer);
+        validatingLogInfo(consumer, producer, isAckTimeoutTaskEnabledForCumulativeAck);
         log.info("-- Exiting {} test --", methodName);
     }
 
@@ -115,6 +117,8 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
     public void testAsyncProducerAndAsyncAck(int batchMessageDelayMs, int ackTimeoutSec) throws Exception {
         log.info("-- Starting {} test --", methodName);
         ConsumerConfiguration conf = new ConsumerConfiguration();
+        // Cumulative Ack-counter works if ackTimeOutTimer-task is enabled
+        boolean isAckTimeoutTaskEnabledForCumulativeAck = ackTimeoutSec > 0;
         conf.setSubscriptionType(SubscriptionType.Exclusive);
         if (ackTimeoutSec > 0) {
             conf.setAckTimeout(ackTimeoutSec, TimeUnit.SECONDS);
@@ -165,7 +169,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         Thread.sleep(2000);
         consumer.close();
         producer.close();
-        validatingLogInfo(consumer, producer);
+        validatingLogInfo(consumer, producer, isAckTimeoutTaskEnabledForCumulativeAck);
         log.info("-- Exiting {} test --", methodName);
     }
 
@@ -174,6 +178,8 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
             throws Exception {
         log.info("-- Starting {} test --", methodName);
         ConsumerConfiguration conf = new ConsumerConfiguration();
+        // Cumulative Ack-counter works if ackTimeOutTimer-task is enabled
+        boolean isAckTimeoutTaskEnabledForCumulativeAck = ackTimeoutSec > 0;
         conf.setSubscriptionType(SubscriptionType.Exclusive);
         if (ackTimeoutSec > 0) {
             conf.setAckTimeout(ackTimeoutSec, TimeUnit.SECONDS);
@@ -224,7 +230,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         Thread.sleep(5000);
         consumer.close();
         producer.close();
-        validatingLogInfo(consumer, producer);
+        validatingLogInfo(consumer, producer, isAckTimeoutTaskEnabledForCumulativeAck);
         log.info("-- Exiting {} test --", methodName);
     }
 
@@ -232,6 +238,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
     public void testMessageListener(int batchMessageDelayMs) throws Exception {
         log.info("-- Starting {} test --", methodName);
         ConsumerConfiguration conf = new ConsumerConfiguration();
+        conf.setAckTimeout(100, TimeUnit.SECONDS);
         conf.setSubscriptionType(SubscriptionType.Exclusive);
 
         int numMessages = 100;
@@ -272,7 +279,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         assertEquals(latch.await(numMessages, TimeUnit.SECONDS), true, "Timed out waiting for message listener acks");
         consumer.close();
         producer.close();
-        validatingLogInfo(consumer, producer);
+        validatingLogInfo(consumer, producer, true);
         log.info("-- Exiting {} test --", methodName);
     }
 
@@ -324,7 +331,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    public void validatingLogInfo(Consumer consumer, Producer producer) throws InterruptedException {
+    public void validatingLogInfo(Consumer consumer, Producer producer, boolean verifyAckCount) throws InterruptedException {
         // Waiting for recording last stat info
         Thread.sleep(1000);
         ConsumerStats cStat = consumer.getStats();
@@ -332,7 +339,9 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         assertEquals(pStat.getTotalMsgsSent(), cStat.getTotalMsgsReceived());
         assertEquals(pStat.getTotalBytesSent(), cStat.getTotalBytesReceived());
         assertEquals(pStat.getTotalMsgsSent(), pStat.getTotalAcksReceived());
-        assertEquals(cStat.getTotalMsgsReceived(), cStat.getTotalAcksSent());
+        if (verifyAckCount) {
+        	assertEquals(cStat.getTotalMsgsReceived(), cStat.getTotalAcksSent());	
+        }
     }
 
 }

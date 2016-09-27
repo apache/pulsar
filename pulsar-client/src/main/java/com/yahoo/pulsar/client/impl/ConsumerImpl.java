@@ -23,6 +23,8 @@ import java.io.IOException;
 import java.util.BitSet;
 import java.util.NavigableMap;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -287,6 +289,7 @@ public class ConsumerImpl extends ConsumerBase {
             return true;
         }
         int batchIndex = batchMessageId.getBatchIndex();
+        int batchSize = bitSet.length();
         if (ackType == AckType.Individual) {
             bitSet.clear(batchIndex);
         } else {
@@ -303,6 +306,11 @@ public class ConsumerImpl extends ConsumerBase {
                 batchMessageAckTracker.keySet().removeIf(m -> (m.compareTo(message) <= 0));
             }
             batchMessageAckTracker.remove(message);
+            // increment Acknowledge-msg counter with number of messages in batch only if AckType is Individual. 
+            // CumulativeAckType is handled while sending ack to broker 
+            if (ackType == AckType.Individual) {
+                stats.incrementNumAcksSent(batchSize);
+            }
             return true;
         } else {
             // we cannot ack this message to broker. but prior message may be ackable
@@ -396,16 +404,17 @@ public class ConsumerImpl extends ConsumerBase {
                             if (unAckedMessageTracker != null) {
                                 unAckedMessageTracker.remove(msgId);
                             }
-                            stats.incrementNumAcksSent(stats.getNumAcksTrackerSumThenReset());
+                            // increment counter by 1 for non-batch msg
+                            if (!(messageId instanceof BatchMessageIdImpl)) {
+                                stats.incrementNumAcksSent(1);
+                            }
                         } else if (ackType == AckType.Cumulative) {
                             if (unAckedMessageTracker != null) {
-                                stats.incrementNumAcksSent(unAckedMessageTracker.removeMessagesTill(msgId));
-                            } else {
-                                stats.incrementNumAcksSent(stats.getNumAcksTrackerSumThenReset());
+                                int ackedMessages = unAckedMessageTracker.removeMessagesTill(msgId);
+                                stats.incrementNumAcksSent(ackedMessages);
                             }
                         }
                         ackFuture.complete(null);
-                        stats.resetNumAckTracker();
                     } else {
                         stats.incrementNumAcksFailed();
                         ackFuture.completeExceptionally(new PulsarClientException(future.cause()));
@@ -637,8 +646,6 @@ public class ConsumerImpl extends ConsumerBase {
             uncompressedPayload.release();
             msgMetadata.recycle();
         }
-
-        stats.incrementNumAcksTracker(numMessages);
 
         if (listener != null) {
             // Trigger the notification on the message listener in a separate thread to avoid blocking the networking

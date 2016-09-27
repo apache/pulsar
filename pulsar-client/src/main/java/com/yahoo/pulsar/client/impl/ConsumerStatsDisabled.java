@@ -31,11 +31,6 @@ public class ConsumerStatsDisabled extends ConsumerStats {
     }
 
     @Override
-    void incrementNumAcksSent() {
-        // Do nothing
-    }
-
-    @Override
     void incrementNumAcksSent(long numAcks) {
         // Do nothing
     }
@@ -43,22 +38,6 @@ public class ConsumerStatsDisabled extends ConsumerStats {
     @Override
     void incrementNumAcksFailed() {
         // Do nothing
-    }
-
-    @Override
-    void resetNumAckTracker() {
-        // Do nothing
-    }
-
-    @Override
-    void incrementNumAcksTracker(final int numMessages) {
-        // Do nothing
-    }
-
-    @Override
-    long getNumAcksTrackerSumThenReset() {
-        // Do nothing
-        return -1;
     }
 
 }
