@@ -23,6 +23,14 @@ This product contains a modified portion of and depends on 'Protocol Buffers',
 Google's data interchange format, which can be obtained at:
 
   * LICENSE:
-    * license/LICENSE.protobuf.txt (New BSD License)
+    * protobuf/LICENSE.protobuf.txt
   * HOMEPAGE:
     * http://code.google.com/p/protobuf/
+
+This product contains a modified portion of and depends on 'circe',
+Hash Algorithm Framework & Library, which can be obtained at:
+
+  * LICENSE : Apache License, Version 2.0
+  * HOMEPAGE:
+    * https://github.com/trevorr/circe
+    

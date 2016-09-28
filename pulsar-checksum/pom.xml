@@ -53,29 +53,11 @@
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
     </dependency>
-
+    
     <dependency>
-      <groupId>com.scurrilous</groupId>
-      <artifactId>circe-api</artifactId>
-      <version>1.1-20140603.044855-1</version>
-    </dependency>
-
-    <dependency>
-      <groupId>com.scurrilous</groupId>
-      <artifactId>circe-impl</artifactId>
-      <version>1.1-20140603.044907-1</version>
-    </dependency>
-
-    <dependency>
-      <groupId>com.scurrilous</groupId>
-      <artifactId>circe-common</artifactId>
-      <version>1.1-20140603.044903-1</version>
-    </dependency>
-
-    <dependency>
-      <groupId>com.scurrilous</groupId>
-      <artifactId>circe-crc</artifactId>
-      <version>1.1-20140603.044857-1</version>
+      <groupId>com.googlecode.jmockit</groupId>
+      <artifactId>jmockit</artifactId>
+      <scope>test</scope>
     </dependency>
 
   </dependencies>
@@ -182,12 +164,5 @@
       </build>
     </profile>
   </profiles>
-
-  <repositories>
-    <repository>
-      <id>circe-crc-repo</id>
-      <url>https://oss.sonatype.org/content/repositories/staging</url>
-    </repository>
-  </repositories>
 
 </project>

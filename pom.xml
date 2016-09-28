@@ -132,6 +132,12 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>powermock-module-testng</artifactId>
         <version>1.6.5</version>
       </dependency>
+      
+      <dependency>
+    	<groupId>com.googlecode.jmockit</groupId>
+    	<artifactId>jmockit</artifactId>
+        <version>1.7</version>
+      </dependency>
 
       <dependency>
         <groupId>org.apache.zookeeper</groupId>
