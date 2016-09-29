@@ -21,12 +21,14 @@ import org.slf4j.LoggerFactory;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
+import static org.apache.commons.lang3.StringUtils.isBlank;
+
 public class ServiceConfigurationUtils {
 
     private static final Logger LOG = LoggerFactory.getLogger(ServiceConfigurationUtils.class);
 
     public static String getDefaultOrConfiguredAddress(String configuredAddress) {
-        if ( configuredAddress == null ) {
+        if (isBlank(configuredAddress)) {
             return unsafeLocalhostResolve();
         }
         return configuredAddress;
