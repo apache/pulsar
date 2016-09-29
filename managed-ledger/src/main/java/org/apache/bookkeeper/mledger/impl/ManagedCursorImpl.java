@@ -812,10 +812,15 @@ public class ManagedCursorImpl implements ManagedCursor {
 
         // filters out messages which are already acknowledged
         Set<Position> alreadyAcknowledgedPositions = Sets.newHashSet();
-        positions.stream().filter(position -> {
-            return individualDeletedMessages.contains((PositionImpl) position)
-                    || ((PositionImpl) position).compareTo(markDeletePosition) < 0;
-        }).forEach(pos -> alreadyAcknowledgedPositions.add(pos));
+        lock.readLock().lock();
+        try {
+            positions.stream().filter(position -> {
+                return individualDeletedMessages.contains((PositionImpl) position)
+                        || ((PositionImpl) position).compareTo(markDeletePosition) < 0;
+            }).forEach(pos -> alreadyAcknowledgedPositions.add(pos));
+        } finally {
+            lock.readLock().unlock();
+        }
         
         final int totalValidPositions = positions.size() - alreadyAcknowledgedPositions.size();
         final AtomicReference<ManagedLedgerException> exception = new AtomicReference<>();
