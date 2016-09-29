@@ -16,6 +16,7 @@
 package com.yahoo.pulsar.client.cli;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.commons.lang3.StringUtils.isBlank;
 
 import java.io.FileInputStream;
 import java.net.MalformedURLException;
@@ -90,7 +91,7 @@ public class PulsarClientTool {
 
     public int run(String[] args) {
         try {
-            if (this.serviceURL == null && this.serviceURL.isEmpty()) {
+            if (isBlank(this.serviceURL)) {
                 commandParser.usage();
                 return -1;
             }
