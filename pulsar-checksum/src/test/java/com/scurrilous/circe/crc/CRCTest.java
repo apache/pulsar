@@ -31,6 +31,7 @@ import java.nio.charset.Charset;
 import org.testng.annotations.Test;
 
 import com.scurrilous.circe.HashProvider;
+import com.scurrilous.circe.IncrementalIntHash;
 import com.scurrilous.circe.params.CrcParameters;
 
 /**
@@ -159,5 +160,21 @@ public class CRCTest {
     @Test
     public void testCRC64_XZ() {
         assertEquals(0x995dc9bbdf1939faL, PROVIDER.getIncrementalLong(CRC64_XZ).calculate(DIGITS));
+    }
+    
+    @Test
+    public void testCRC32CIncremental() {
+        // reflected
+        testIncremental(PROVIDER.getIncrementalInt(CRC32C));
+    }
+
+    private void testIncremental(IncrementalIntHash hash) {
+        final String data = "data";
+        final String combined = data + data;
+
+        final int dataChecksum = hash.calculate(data.getBytes(ASCII));
+        final int combinedChecksum = hash.calculate(combined.getBytes(ASCII));
+        final int incrementalChecksum = hash.resume(dataChecksum, data.getBytes(ASCII));
+        assertEquals(combinedChecksum, incrementalChecksum);
     }
 }
