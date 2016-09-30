@@ -96,4 +96,60 @@ public class Crc32cChecksumTest {
         payload.release();
         assertEquals(checksum, expectedChecksum);
     }
+    
+    @Test
+    public void testCrc32cIncremental() {
+        if (HARDWARE_CRC32C_HASH == null) {
+            return;
+        }
+
+        String data = "data-abcd-data-123-$%#";
+
+        for (int i = 0; i < 20; i++) {
+            String doubleData = data + data;
+
+            int doubleDataCrcHW = HARDWARE_CRC32C_HASH.calculate(doubleData.getBytes());
+            int data1CrcHW = HARDWARE_CRC32C_HASH.calculate(data.getBytes());
+            int data2CrcHW = HARDWARE_CRC32C_HASH.resume(data1CrcHW, data.getBytes());
+            assertEquals(doubleDataCrcHW, data2CrcHW);
+
+            int doubleDataCrcSW = SOFTWARE_CRC32C_HASH.calculate(doubleData.getBytes());
+            int data1CrcSW = SOFTWARE_CRC32C_HASH.calculate(data.getBytes());
+            int data2CrcSW = SOFTWARE_CRC32C_HASH.resume(data1CrcSW, data.getBytes());
+            assertEquals(doubleDataCrcSW, data2CrcSW);
+
+            assertEquals(doubleDataCrcHW, doubleDataCrcSW);
+
+            data += data;
+        }
+    }
+    
+    @Test
+    public void testCrc32cIncrementalUsingProvider() {
+
+        final byte[] data = "data".getBytes();
+        final byte[] doubleData = "datadata".getBytes();
+        ByteBuf payload = Unpooled.wrappedBuffer(data);
+        ByteBuf doublePayload = Unpooled.wrappedBuffer(doubleData);
+
+        int expectedChecksum = Crc32cChecksum.computeChecksum(doublePayload);
+        
+        // (1) heap-memory
+        int checksum = Crc32cChecksum.computeChecksum(payload);
+        int incrementalChecksum = Crc32cChecksum.resumeChecksum(checksum, payload);
+        assertEquals(expectedChecksum, incrementalChecksum);
+        payload.release();
+        doublePayload.release();
+        
+        // (2) direct-memory
+        payload = ByteBufAllocator.DEFAULT.directBuffer(data.length);
+        payload.writeBytes(data);
+        checksum = Crc32cChecksum.computeChecksum(payload);
+        incrementalChecksum = Crc32cChecksum.resumeChecksum(checksum, payload);
+        assertEquals(expectedChecksum, incrementalChecksum);
+        payload.release();
+        
+    
+    }
+    
 }

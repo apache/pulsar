@@ -46,12 +46,25 @@ public class Crc32cChecksum {
      */
     public static int computeChecksum(ByteBuf payload) {
         if (payload.hasMemoryAddress() && (CRC32C_HASH instanceof Sse42Crc32C)) {
-            return CRC32C_HASH.calculate(payload.memoryAddress(), payload.readableBytes());
+            return CRC32C_HASH.calculate(payload.memoryAddress() + payload.readerIndex(), payload.readableBytes());
         } else if (payload.hasArray()) {
             return CRC32C_HASH.calculate(payload.array(), payload.arrayOffset() + payload.readerIndex(),
                     payload.readableBytes());
         } else {
             return CRC32C_HASH.calculate(payload.nioBuffer());
+        }
+    }
+    
+    
+    public static int resumeChecksum(int previousChecksum, ByteBuf payload) {
+        if (payload.hasMemoryAddress() && (CRC32C_HASH instanceof Sse42Crc32C)) {
+            return CRC32C_HASH.resume(previousChecksum, payload.memoryAddress() + payload.readerIndex(),
+                    payload.readableBytes());
+        } else if (payload.hasArray()) {
+            return CRC32C_HASH.resume(previousChecksum, payload.array(), payload.arrayOffset() + payload.readerIndex(),
+                    payload.readableBytes());
+        } else {
+            return CRC32C_HASH.resume(previousChecksum, payload.nioBuffer());
         }
     }
 

@@ -36,8 +36,12 @@ final class ReflectedIntCrc extends AbstractIntCrc {
     }
 
     @Override
+    protected int initial() {
+        return reflect(super.initial());
+    }
+
+    @Override
     protected int resumeRaw(int crc, byte[] input, int index, int length) {
-        crc = reflect(crc);
         for (int i = 0; i < length; ++i)
             crc = table[(crc ^ input[index + i]) & 0xff] ^ (crc >>> 8);
         return crc;
