@@ -15,7 +15,7 @@
  ******************************************************************************/
 #include <stddef.h> // size_t
 
-#ifdef _MSC_VER
+#if defined(_MSC_VER) && _MSC_VER < 1600 // stdint.h added in MSVC 2010
 
 typedef __int8 int8_t;
 typedef __int16 int16_t;
@@ -26,11 +26,17 @@ typedef unsigned __int16 uint16_t;
 typedef unsigned __int32 uint32_t;
 typedef unsigned __int64 uint64_t;
 
-# define SIZE_T_FORMAT "%Iu"
-
 #else
 
 # include <stdint.h>
+
+#endif
+
+#if defined(_MSC_VER) && _MSC_VER < 1900 // MSVC 2015
+
+# define SIZE_T_FORMAT "%Iu"
+
+#else
 
 # define SIZE_T_FORMAT "%zu"
 
