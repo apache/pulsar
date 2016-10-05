@@ -140,7 +140,7 @@ message CommandProducer {
 message CommandSend {
 	required uint64 producer_id   = 1;
 	required uint64 sequence_id   = 2;
-	optional int32 num_messages = 3 [default = 1];;
+	optional int32 num_messages = 3 [default = 1];
 }
 
 message CommandSendReceipt {
@@ -209,6 +209,7 @@ message CommandCloseConsumer {
 
 message CommandRedeliverUnacknowledgedMessages {
 	required uint64 consumer_id = 1;
+	repeated MessageIdData message_ids = 2;
 }
 
 message CommandSuccess {

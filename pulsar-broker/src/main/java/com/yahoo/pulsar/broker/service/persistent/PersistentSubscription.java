@@ -15,10 +15,12 @@
  */
 package com.yahoo.pulsar.broker.service.persistent;
 
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import com.yahoo.pulsar.common.api.proto.PulsarApi;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
@@ -584,6 +586,11 @@ public class PersistentSubscription implements Subscription {
     @Override
     public synchronized void redeliverUnacknowledgedMessages(Consumer consumer) {
         dispatcher.redeliverUnacknowledgedMessages(consumer);
+    }
+
+    @Override
+    public synchronized void redeliverUnacknowledgedMessages(Consumer consumer, List<PositionImpl> positions) {
+        dispatcher.redeliverUnacknowledgedMessages(consumer, positions);
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentSubscription.class);

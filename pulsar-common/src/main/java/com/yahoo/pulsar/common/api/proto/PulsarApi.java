@@ -9525,6 +9525,12 @@ public final class PulsarApi {
     // required uint64 consumer_id = 1;
     boolean hasConsumerId();
     long getConsumerId();
+    
+    // repeated .com.yahoo.pulsar.common.api.proto.MessageIdData message_ids = 2;
+    java.util.List<com.yahoo.pulsar.common.api.proto.PulsarApi.MessageIdData> 
+        getMessageIdsList();
+    com.yahoo.pulsar.common.api.proto.PulsarApi.MessageIdData getMessageIds(int index);
+    int getMessageIdsCount();
   }
   public static final class CommandRedeliverUnacknowledgedMessages extends
       com.google.protobuf.GeneratedMessageLite
@@ -9571,8 +9577,30 @@ public final class PulsarApi {
       return consumerId_;
     }
     
+    // repeated .com.yahoo.pulsar.common.api.proto.MessageIdData message_ids = 2;
+    public static final int MESSAGE_IDS_FIELD_NUMBER = 2;
+    private java.util.List<com.yahoo.pulsar.common.api.proto.PulsarApi.MessageIdData> messageIds_;
+    public java.util.List<com.yahoo.pulsar.common.api.proto.PulsarApi.MessageIdData> getMessageIdsList() {
+      return messageIds_;
+    }
+    public java.util.List<? extends com.yahoo.pulsar.common.api.proto.PulsarApi.MessageIdDataOrBuilder> 
+        getMessageIdsOrBuilderList() {
+      return messageIds_;
+    }
+    public int getMessageIdsCount() {
+      return messageIds_.size();
+    }
+    public com.yahoo.pulsar.common.api.proto.PulsarApi.MessageIdData getMessageIds(int index) {
+      return messageIds_.get(index);
+    }
+    public com.yahoo.pulsar.common.api.proto.PulsarApi.MessageIdDataOrBuilder getMessageIdsOrBuilder(
+        int index) {
+      return messageIds_.get(index);
+    }
+    
     private void initFields() {
       consumerId_ = 0L;
+      messageIds_ = java.util.Collections.emptyList();
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -9582,6 +9610,12 @@ public final class PulsarApi {
       if (!hasConsumerId()) {
         memoizedIsInitialized = 0;
         return false;
+      }
+      for (int i = 0; i < getMessageIdsCount(); i++) {
+        if (!getMessageIds(i).isInitialized()) {
+          memoizedIsInitialized = 0;
+          return false;
+        }
       }
       memoizedIsInitialized = 1;
       return true;
@@ -9598,6 +9632,9 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000001) == 0x00000001)) {
         output.writeUInt64(1, consumerId_);
       }
+      for (int i = 0; i < messageIds_.size(); i++) {
+        output.writeMessage(2, messageIds_.get(i));
+      }
     }
     
     private int memoizedSerializedSize = -1;
@@ -9609,6 +9646,10 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000001) == 0x00000001)) {
         size += com.google.protobuf.CodedOutputStream
           .computeUInt64Size(1, consumerId_);
+      }
+      for (int i = 0; i < messageIds_.size(); i++) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeMessageSize(2, messageIds_.get(i));
       }
       memoizedSerializedSize = size;
       return size;
@@ -9725,6 +9766,8 @@ public final class PulsarApi {
         super.clear();
         consumerId_ = 0L;
         bitField0_ = (bitField0_ & ~0x00000001);
+        messageIds_ = java.util.Collections.emptyList();
+        bitField0_ = (bitField0_ & ~0x00000002);
         return this;
       }
       
@@ -9762,6 +9805,11 @@ public final class PulsarApi {
           to_bitField0_ |= 0x00000001;
         }
         result.consumerId_ = consumerId_;
+        if (((bitField0_ & 0x00000002) == 0x00000002)) {
+          messageIds_ = java.util.Collections.unmodifiableList(messageIds_);
+          bitField0_ = (bitField0_ & ~0x00000002);
+        }
+        result.messageIds_ = messageIds_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -9771,6 +9819,16 @@ public final class PulsarApi {
         if (other.hasConsumerId()) {
           setConsumerId(other.getConsumerId());
         }
+        if (!other.messageIds_.isEmpty()) {
+          if (messageIds_.isEmpty()) {
+            messageIds_ = other.messageIds_;
+            bitField0_ = (bitField0_ & ~0x00000002);
+          } else {
+            ensureMessageIdsIsMutable();
+            messageIds_.addAll(other.messageIds_);
+          }
+          
+        }
         return this;
       }
       
@@ -9778,6 +9836,12 @@ public final class PulsarApi {
         if (!hasConsumerId()) {
           
           return false;
+        }
+        for (int i = 0; i < getMessageIdsCount(); i++) {
+          if (!getMessageIds(i).isInitialized()) {
+            
+            return false;
+          }
         }
         return true;
       }
@@ -9809,6 +9873,12 @@ public final class PulsarApi {
               consumerId_ = input.readUInt64();
               break;
             }
+            case 18: {
+              com.yahoo.pulsar.common.api.proto.PulsarApi.MessageIdData.Builder subBuilder = com.yahoo.pulsar.common.api.proto.PulsarApi.MessageIdData.newBuilder();
+              input.readMessage(subBuilder, extensionRegistry);
+              addMessageIds(subBuilder.buildPartial());
+              break;
+            }
           }
         }
       }
@@ -9832,6 +9902,95 @@ public final class PulsarApi {
       public Builder clearConsumerId() {
         bitField0_ = (bitField0_ & ~0x00000001);
         consumerId_ = 0L;
+        
+        return this;
+      }
+      
+      // repeated .com.yahoo.pulsar.common.api.proto.MessageIdData message_ids = 2;
+      private java.util.List<com.yahoo.pulsar.common.api.proto.PulsarApi.MessageIdData> messageIds_ =
+        java.util.Collections.emptyList();
+      private void ensureMessageIdsIsMutable() {
+        if (!((bitField0_ & 0x00000002) == 0x00000002)) {
+          messageIds_ = new java.util.ArrayList<com.yahoo.pulsar.common.api.proto.PulsarApi.MessageIdData>(messageIds_);
+          bitField0_ |= 0x00000002;
+         }
+      }
+      
+      public java.util.List<com.yahoo.pulsar.common.api.proto.PulsarApi.MessageIdData> getMessageIdsList() {
+        return java.util.Collections.unmodifiableList(messageIds_);
+      }
+      public int getMessageIdsCount() {
+        return messageIds_.size();
+      }
+      public com.yahoo.pulsar.common.api.proto.PulsarApi.MessageIdData getMessageIds(int index) {
+        return messageIds_.get(index);
+      }
+      public Builder setMessageIds(
+          int index, com.yahoo.pulsar.common.api.proto.PulsarApi.MessageIdData value) {
+        if (value == null) {
+          throw new NullPointerException();
+        }
+        ensureMessageIdsIsMutable();
+        messageIds_.set(index, value);
+        
+        return this;
+      }
+      public Builder setMessageIds(
+          int index, com.yahoo.pulsar.common.api.proto.PulsarApi.MessageIdData.Builder builderForValue) {
+        ensureMessageIdsIsMutable();
+        messageIds_.set(index, builderForValue.build());
+        
+        return this;
+      }
+      public Builder addMessageIds(com.yahoo.pulsar.common.api.proto.PulsarApi.MessageIdData value) {
+        if (value == null) {
+          throw new NullPointerException();
+        }
+        ensureMessageIdsIsMutable();
+        messageIds_.add(value);
+        
+        return this;
+      }
+      public Builder addMessageIds(
+          int index, com.yahoo.pulsar.common.api.proto.PulsarApi.MessageIdData value) {
+        if (value == null) {
+          throw new NullPointerException();
+        }
+        ensureMessageIdsIsMutable();
+        messageIds_.add(index, value);
+        
+        return this;
+      }
+      public Builder addMessageIds(
+          com.yahoo.pulsar.common.api.proto.PulsarApi.MessageIdData.Builder builderForValue) {
+        ensureMessageIdsIsMutable();
+        messageIds_.add(builderForValue.build());
+        
+        return this;
+      }
+      public Builder addMessageIds(
+          int index, com.yahoo.pulsar.common.api.proto.PulsarApi.MessageIdData.Builder builderForValue) {
+        ensureMessageIdsIsMutable();
+        messageIds_.add(index, builderForValue.build());
+        
+        return this;
+      }
+      public Builder addAllMessageIds(
+          java.lang.Iterable<? extends com.yahoo.pulsar.common.api.proto.PulsarApi.MessageIdData> values) {
+        ensureMessageIdsIsMutable();
+        super.addAll(values, messageIds_);
+        
+        return this;
+      }
+      public Builder clearMessageIds() {
+        messageIds_ = java.util.Collections.emptyList();
+        bitField0_ = (bitField0_ & ~0x00000002);
+        
+        return this;
+      }
+      public Builder removeMessageIds(int index) {
+        ensureMessageIdsIsMutable();
+        messageIds_.remove(index);
         
         return this;
       }

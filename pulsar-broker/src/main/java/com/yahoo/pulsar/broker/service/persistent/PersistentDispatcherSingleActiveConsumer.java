@@ -30,6 +30,7 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -260,6 +261,12 @@ public final class PersistentDispatcherSingleActiveConsumer implements Dispatche
             log.info("[{}] Ignoring reDeliverUnAcknowledgedMessages: cancelPendingRequest on cursor failed", consumer);
         }
 
+    }
+
+    @Override
+    public void redeliverUnacknowledgedMessages(Consumer consumer, List<PositionImpl> positions) {
+        // We cannot redeliver single messages to single consumers to preserve ordering.
+        redeliverUnacknowledgedMessages(consumer);
     }
 
     private void readMoreEntries(Consumer consumer) {

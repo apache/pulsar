@@ -22,6 +22,7 @@ import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
+import com.yahoo.pulsar.common.api.proto.PulsarApi;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -29,6 +30,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -394,6 +396,15 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
         consumer.getPendingAcks().forEach((pendingMessages, totalMsg) -> {
             messagesToReplay.add(pendingMessages);
         });
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] Redelivering unacknowledged messages for consumer ", consumer);
+        }
+        readMoreEntries();
+    }
+
+    @Override
+    public synchronized void redeliverUnacknowledgedMessages(Consumer consumer, List<PositionImpl> positions) {
+        messagesToReplay.addAll(positions);
         if (log.isDebugEnabled()) {
             log.debug("[{}] Redelivering unacknowledged messages for consumer ", consumer);
         }

@@ -23,6 +23,7 @@ import java.time.Instant;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -424,5 +425,14 @@ public class Consumer {
             pendingAcks.clear();
         }
 
+    }
+
+    public void redeliverUnacknowledgedMessages(List<MessageIdData> messageIds) {
+        List<PositionImpl> pendingPositions = messageIds.stream()
+                .map(messageIdData -> PositionImpl.get(messageIdData.getLedgerId(), messageIdData.getEntryId()))
+                .filter(position -> pendingAcks.remove(position) != null)
+                .collect(Collectors.toList());
+
+        subscription.redeliverUnacknowledgedMessages(this, pendingPositions);
     }
 }
