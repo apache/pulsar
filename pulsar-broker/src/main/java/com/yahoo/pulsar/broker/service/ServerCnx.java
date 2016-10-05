@@ -455,7 +455,12 @@ public class ServerCnx extends PulsarHandler {
         CompletableFuture<Consumer> consumerFuture = consumers.get(redeliver.getConsumerId());
 
         if (consumerFuture != null && consumerFuture.isDone() && !consumerFuture.isCompletedExceptionally()) {
-            consumerFuture.getNow(null).redeliverUnacknowledgedMessages();
+            Consumer consumer = consumerFuture.getNow(null);
+            if (redeliver.getMessageIdsCount() > 0 && consumer.subType() == SubType.Shared) {
+                consumer.redeliverUnacknowledgedMessages(redeliver.getMessageIdsList());
+            } else {
+                consumer.redeliverUnacknowledgedMessages();
+            }
         }
     }
 
