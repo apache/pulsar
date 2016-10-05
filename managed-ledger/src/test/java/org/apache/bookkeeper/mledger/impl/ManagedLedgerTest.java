@@ -31,10 +31,12 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 
 import org.apache.bookkeeper.client.BKException;
@@ -2055,6 +2057,63 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         // verify: cursor2 has not consumed messages so, above maxBacklog threshold => inactive
         assertFalse(cursor2.isActive());
+
+        ledger.close();
+    }
+
+    @Test
+    public void testConcurrentOpenCursor() throws Exception {
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("testConcurrentOpenCursor");
+
+        final AtomicReference<ManagedCursor> cursor1 = new AtomicReference<>(null);
+        final AtomicReference<ManagedCursor> cursor2 = new AtomicReference<>(null);
+        final CyclicBarrier barrier = new CyclicBarrier(2);
+        final CountDownLatch latch = new CountDownLatch(2);
+
+        cachedExecutor.execute(() -> {
+            try {
+                barrier.await();
+            } catch (Exception e) {
+            }
+            ledger.asyncOpenCursor("c1", new OpenCursorCallback() {
+
+                @Override
+                public void openCursorFailed(ManagedLedgerException exception, Object ctx) {
+                    latch.countDown();
+                }
+
+                @Override
+                public void openCursorComplete(ManagedCursor cursor, Object ctx) {
+                    cursor1.set(cursor);
+                    latch.countDown();
+                }
+            }, null);
+        });
+
+        cachedExecutor.execute(() -> {
+            try {
+                barrier.await();
+            } catch (Exception e) {
+            }
+            ledger.asyncOpenCursor("c1", new OpenCursorCallback() {
+
+                @Override
+                public void openCursorFailed(ManagedLedgerException exception, Object ctx) {
+                    latch.countDown();
+                }
+
+                @Override
+                public void openCursorComplete(ManagedCursor cursor, Object ctx) {
+                    cursor2.set(cursor);
+                    latch.countDown();
+                }
+            }, null);
+        });
+
+        latch.await();
+        assertNotNull(cursor1.get());
+        assertNotNull(cursor2.get());
+        assertEquals(cursor1.get(), cursor2.get());
 
         ledger.close();
     }
