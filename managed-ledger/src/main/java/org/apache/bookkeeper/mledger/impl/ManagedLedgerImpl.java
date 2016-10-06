@@ -21,6 +21,7 @@ import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.NavigableMap;
 import java.util.Queue;
 import java.util.Random;
@@ -70,6 +71,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Queues;
 import com.google.common.collect.Range;
 import com.google.common.util.concurrent.RateLimiter;
@@ -110,6 +112,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     // Cursors that are waiting to be notified when new entries are persisted
     final ConcurrentLinkedQueue<ManagedCursorImpl> waitingCursors;
+
+    // This map is used for concurrent open cursor requests, where the 2nd request will attach a listener to the
+    // uninitialized cursor future from the 1st request
+    final Map<String, CompletableFuture<ManagedCursor>> uninitializedCursors;
 
     final EntryCache entryCache;
 
@@ -184,6 +190,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         this.mbean = new ManagedLedgerMBeanImpl(this);
         this.entryCache = factory.getEntryCacheManager().getEntryCache(this);
         this.waitingCursors = Queues.newConcurrentLinkedQueue();
+        this.uninitializedCursors = Maps.newHashMap();
         this.updateCursorRateLimit = RateLimiter.create(1);
 
         // Get the next rollover time. Add a random value upto 5% to avoid rollover multiple ledgers at the same time
@@ -540,6 +547,15 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return;
         }
 
+        if (uninitializedCursors.containsKey(cursorName)) {
+            uninitializedCursors.get(cursorName).thenAccept(cursor -> {
+                callback.openCursorComplete(cursor, ctx);
+            }).exceptionally(ex -> {
+                callback.openCursorFailed((ManagedLedgerException) ex, ctx);
+                return null;
+            });
+            return;
+        }
         ManagedCursor cachedCursor = cursors.get(cursorName);
         if (cachedCursor != null) {
             if (log.isDebugEnabled()) {
@@ -554,21 +570,30 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             log.debug("[{}] Creating new cursor: {}", name, cursorName);
         }
         final ManagedCursorImpl cursor = new ManagedCursorImpl(bookKeeper, config, this, cursorName);
+        CompletableFuture<ManagedCursor> cursorFuture = new CompletableFuture<>();
+        uninitializedCursors.put(cursorName, cursorFuture);
         cursor.initialize(getLastPosition(), new VoidCallback() {
             @Override
             public void operationComplete() {
                 log.info("[{}] Opened new cursor: {}", name, cursor);
                 cursor.setActive();
-                cursors.add(cursor);
-
                 // Update the ack position (ignoring entries that were written while the cursor was being created)
                 cursor.initializeCursorPosition(getLastPositionAndCounter());
+
+                synchronized (this) {
+                    cursors.add(cursor);
+                    uninitializedCursors.remove(cursorName).complete(cursor);
+                }
                 callback.openCursorComplete(cursor, ctx);
             }
 
             @Override
             public void operationFailed(ManagedLedgerException exception) {
                 log.warn("[{}] Failed to open cursor: {}", name, cursor);
+
+                synchronized (this) {
+                    uninitializedCursors.remove(cursorName).completeExceptionally(exception);
+                }
                 callback.openCursorFailed(exception, ctx);
             }
         });
