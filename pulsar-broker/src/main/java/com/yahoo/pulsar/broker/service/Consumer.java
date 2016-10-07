@@ -261,7 +261,7 @@ public class Consumer {
             checkArgument(ack.getAckType() == AckType.Individual);
 
             // Only ack a single message
-            pendingAcks.remove(position);
+            removePendingAcks(position);
             subscription.acknowledgeMessage(position, AckType.Individual);
         } else {
             subscription.acknowledgeMessage(position, ack.getAckType());
@@ -328,6 +328,25 @@ public class Consumer {
         return consumerName.hashCode() + 31 * cnx.hashCode();
     }
 
+    /**
+     * first try to remove ack-position from the current_consumer's pendingAcks.
+     * if ack-message doesn't present into current_consumer's pendingAcks
+     *  a. try to remove from other connected subscribed consumers (It happens when client
+     * tries to acknowledge message through different consumer under the same subscription)
+     * 
+     * 
+     * @param position
+     */
+    private void removePendingAcks(PositionImpl position) {
+        if (!pendingAcks.remove(position)) {
+            for (Consumer consumer : subscription.getConsumers()) {
+                if (!consumer.equals(this) && consumer.getPendingAcks().remove(position)) {
+                    break;
+                }
+            }
+        }
+    }
+    
     public ConcurrentOpenHashSet<PositionImpl> getPendingAcks() {
         return pendingAcks;
     }

@@ -860,6 +860,75 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             assertEquals(message.getBytes().length, msgLength.get());
         }
     }
+    
+    /**
+     * consume message from consumer1 and send acknowledgement from different consumer subscribed under same
+     * subscription-name
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testSharedConsumerAckDifferentConsumer() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        ConsumerConfiguration conf = new ConsumerConfiguration();
+        conf.setReceiverQueueSize(5);
+        conf.setSubscriptionType(SubscriptionType.Shared);
+        Consumer consumer1 = pulsarClient.subscribe("persistent://my-property/use/my-ns/my-topic1", "my-subscriber-name",
+                conf);
+        Consumer consumer2 = pulsarClient.subscribe("persistent://my-property/use/my-ns/my-topic1", "my-subscriber-name",
+                conf);
+
+        ProducerConfiguration producerConf = new ProducerConfiguration();
+
+        Producer producer = pulsarClient.createProducer("persistent://my-property/use/my-ns/my-topic1", producerConf);
+        for (int i = 0; i < 10; i++) {
+            String message = "my-message-" + i;
+            producer.send(message.getBytes());
+        }
+
+        Message msg = null;
+        Set<Message> consumerMsgSet1 = Sets.newHashSet();
+        Set<Message> consumerMsgSet2 = Sets.newHashSet();
+        for (int i = 0; i < 5; i++) {
+            msg = consumer1.receive(1, TimeUnit.SECONDS);
+            consumerMsgSet1.add(msg);
+
+        }
+        for (int i = 0; i < 5; i++) {
+            msg = consumer2.receive(1, TimeUnit.SECONDS);
+            consumerMsgSet2.add(msg);
+
+        }
+        consumerMsgSet1.stream().forEach(m -> {
+            try {
+                consumer2.acknowledge(m);
+            } catch (PulsarClientException e) {
+                fail();
+            }
+        });
+        consumerMsgSet2.stream().forEach(m -> {
+            try {
+                consumer1.acknowledge(m);
+            } catch (PulsarClientException e) {
+                fail();
+            }
+        });
+
+        consumer1.redeliverUnacknowledgedMessages();
+        consumer2.redeliverUnacknowledgedMessages();
+
+        try {
+            if (consumer1.receive(1, TimeUnit.SECONDS) != null || consumer2.receive(1, TimeUnit.SECONDS) != null) {
+                fail();
+            }
+        } finally {
+            consumer1.close();
+            consumer2.close();
+        }
+
+        log.info("-- Exiting {} test --", methodName);
+    }
 
     private void receiveAsync(Consumer consumer, int totalMessage, int currentMessage, CountDownLatch latch,
             final Set<String> consumeMsg, ExecutorService executor) throws PulsarClientException {
