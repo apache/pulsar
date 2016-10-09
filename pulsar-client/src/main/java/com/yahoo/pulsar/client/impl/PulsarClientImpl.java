@@ -418,7 +418,7 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     void cleanupConsumer(ConsumerBase consumer) {
-        synchronized (consumer) {
+        synchronized (consumers) {
             consumers.remove(consumer);
         }
     }
