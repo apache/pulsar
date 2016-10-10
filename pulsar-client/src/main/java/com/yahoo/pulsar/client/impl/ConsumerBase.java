@@ -52,7 +52,6 @@ public abstract class ConsumerBase extends HandlerBase implements Consumer {
     protected final ExecutorService listenerExecutor;
     final BlockingQueue<Message> incomingMessages;
     protected final ConcurrentLinkedQueue<CompletableFuture<Message>> pendingReceives;
-    protected final UnAckedMessageTracker unAckedMessageTracker;
 
     protected ConsumerBase(PulsarClientImpl client, String topic, String subscription, ConsumerConfiguration conf,
             ExecutorService listenerExecutor, CompletableFuture<Consumer> subscribeFuture, boolean useGrowableQueue) {
@@ -72,17 +71,6 @@ public abstract class ConsumerBase extends HandlerBase implements Consumer {
         }
         this.listenerExecutor = listenerExecutor;
         this.pendingReceives = Queues.newConcurrentLinkedQueue();
-        if (conf.getAckTimeoutMillis() != 0) {
-            this.unAckedMessageTracker = new UnAckedMessageTracker();
-            this.unAckedMessageTracker.start(client, this, conf.getAckTimeoutMillis());
-        } else {
-            this.unAckedMessageTracker = null;
-        }
-
-    }
-
-    public UnAckedMessageTracker getUnAckedMessageTracker() {
-        return unAckedMessageTracker;
     }
 
     @Override
