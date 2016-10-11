@@ -18,10 +18,15 @@ package com.yahoo.pulsar.common.api;
 import java.io.IOException;
 
 import com.google.protobuf.ByteString;
+import static com.yahoo.pulsar.checksum.utils.Crc32cChecksum.computeChecksum;
+import static com.yahoo.pulsar.checksum.utils.Crc32cChecksum.resumeChecksum;
 import com.yahoo.pulsar.common.api.proto.PulsarApi;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.AuthMethod;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.BaseCommand;
+import com.yahoo.pulsar.common.api.proto.PulsarApi.BaseCommand.Type;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandAck;
+import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
+import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandAck.ValidationError;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandCloseConsumer;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandCloseProducer;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConnect;
@@ -38,16 +43,13 @@ import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSend;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSendError;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSendReceipt;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSubscribe;
+import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSuccess;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandUnsubscribe;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.ServerError;
-import com.yahoo.pulsar.common.api.proto.PulsarApi.BaseCommand.Type;
-import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
-import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandAck.ValidationError;
-import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import com.yahoo.pulsar.common.util.protobuf.ByteBufCodedInputStream;
 import com.yahoo.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
 
@@ -60,6 +62,10 @@ import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 
 public class Commands {
+    
+    public static final short magicCrc32c = 0x0e01;
+    private static final int checksumSize = 4;
+    
     public static ByteBuf newConnect(String authMethodName, String authData) {
         return newConnect(authMethodName, authData, getCurrentProtocolVersion());
     }
@@ -184,20 +190,41 @@ public class Commands {
     }
 
     public static ByteBuf newSendError(long producerId, long sequenceId, Throwable t) {
+        return newSendError(producerId, sequenceId, ServerError.PersistenceError, t.getMessage());
+    }
+
+    public static ByteBuf newSendError(long producerId, long sequenceId, ServerError error, String errorMsg) {
         CommandSendError.Builder sendErrorBuilder = CommandSendError.newBuilder();
         sendErrorBuilder.setProducerId(producerId);
         sendErrorBuilder.setSequenceId(sequenceId);
-        sendErrorBuilder.setError(ServerError.PersistenceError);
-        sendErrorBuilder.setMessage(t.getMessage());
+        sendErrorBuilder.setError(error);
+        sendErrorBuilder.setMessage(errorMsg);
         CommandSendError sendError = sendErrorBuilder.build();
         ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.SEND_ERROR).setSendError(sendError));
         sendErrorBuilder.recycle();
         sendError.recycle();
         return res;
     }
+    
+
+    public static boolean hasChecksum(ByteBuf buffer) {
+        return buffer.getShort(buffer.readerIndex()) == magicCrc32c;
+    }
+    
+    public static Long readChecksum(ByteBuf buffer) {
+        if(hasChecksum(buffer)) {
+            buffer.skipBytes(2); //skip magic bytes
+            return buffer.readUnsignedInt();
+        } else{
+            return null;
+        }
+    }
 
     public static MessageMetadata parseMessageMetadata(ByteBuf buffer) {
         try {
+            // initially reader-index may point to start_of_checksum : increment reader-index to start_of_metadata to parse
+            // metadata
+            readChecksum(buffer);
             int metadataSize = (int) buffer.readUnsignedInt();
 
             int writerIndex = buffer.writerIndex();
@@ -230,8 +257,8 @@ public class Commands {
         return res;
     }
 
-    public static ByteBuf newSend(long producerId, long sequenceId, int numMessages, MessageMetadata messageData,
-            ByteBuf payload) {
+    public static ByteBuf newSend(long producerId, long sequenceId, int numMessages, ChecksumType checksumType,
+            MessageMetadata messageData, ByteBuf payload) {
         CommandSend.Builder sendBuilder = CommandSend.newBuilder();
         sendBuilder.setProducerId(producerId);
         sendBuilder.setSequenceId(sequenceId);
@@ -241,7 +268,7 @@ public class Commands {
         CommandSend send = sendBuilder.build();
 
         ByteBuf res = serializeCommandSendWithSize(BaseCommand.newBuilder().setType(Type.SEND).setSend(send),
-                messageData, payload);
+                checksumType, messageData, payload);
         send.recycle();
         sendBuilder.recycle();
         return res;
@@ -406,18 +433,24 @@ public class Commands {
         return buf;
     }
 
-    private static ByteBuf serializeCommandSendWithSize(BaseCommand.Builder cmdBuilder, MessageMetadata msgMetadata,
+    private static ByteBuf serializeCommandSendWithSize(BaseCommand.Builder cmdBuilder, ChecksumType checksumType, MessageMetadata msgMetadata,
             ByteBuf payload) {
         // / Wire format
-        // [TOTAL_SIZE] [CMD_SIZE][CMD] [METADATA_SIZE][METADATA] [PAYLOAD]
+        // [TOTAL_SIZE] [CMD_SIZE][CMD] [MAGIC_NUMBER][CHECKSUM] [METADATA_SIZE][METADATA] [PAYLOAD]
 
         BaseCommand cmd = cmdBuilder.build();
         int cmdSize = cmd.getSerializedSize();
         int msgMetadataSize = msgMetadata.getSerializedSize();
         int payloadSize = payload.readableBytes();
-        int totalSize = 4 + cmdSize + 4 + msgMetadataSize + payloadSize;
-        int headersSize = 4 + 4 + cmdSize + 4 + msgMetadataSize;
-
+        int magicAndChecksumLength = ChecksumType.Crc32c.equals(checksumType) ? (2 + 4 /* magic + checksumLength*/) : 0;
+        boolean includeChecksum = magicAndChecksumLength > 0;
+        int headerContentSize = 4 + cmdSize + magicAndChecksumLength + 4 + msgMetadataSize; // cmdLength + cmdSize + magicLength +
+                                                                           // checksumSize + msgMetadataLength +
+                                                                           // msgMetadataSize
+        int totalSize = headerContentSize + payloadSize;
+        int headersSize = 4 + headerContentSize; // totalSize + headerLength
+        int checksumReaderIndex = -1;
+        
         ByteBuf headers = PooledByteBufAllocator.DEFAULT.buffer(headersSize, headersSize);
         headers.writeInt(totalSize); // External frame
 
@@ -429,18 +462,36 @@ public class Commands {
             cmd.writeTo(outStream);
             cmd.recycle();
             cmdBuilder.recycle();
+            
+            //Create checksum placeholder
+            if (includeChecksum) {
+                headers.writeShort(magicCrc32c);
+                checksumReaderIndex = headers.writerIndex();
+                headers.writerIndex(headers.writerIndex() + checksumSize); //skip 4 bytes of checksum
+            }
 
             // Write metadata
             headers.writeInt(msgMetadataSize);
             msgMetadata.writeTo(outStream);
-
             outStream.recycle();
         } catch (IOException e) {
             // This is in-memory serialization, should not fail
             throw new RuntimeException(e);
         }
 
-        return DoubleByteBuf.get(headers, payload);
+        ByteBuf command = DoubleByteBuf.get(headers, payload);
+        
+        // write checksum at created checksum-placeholder
+        if (includeChecksum) {
+            headers.markReaderIndex();
+            headers.readerIndex(checksumReaderIndex + checksumSize);
+            int metadataChecksum = computeChecksum(headers);
+            int computedChecksum = resumeChecksum(metadataChecksum, payload);
+            // set computed checksum
+            headers.setInt(checksumReaderIndex, computedChecksum);
+            headers.resetReaderIndex();
+        }
+        return command;
     }
 
     public static long initBatchMessageMetadata(PulsarApi.MessageMetadata.Builder messageMetadata,
@@ -566,4 +617,8 @@ public class Commands {
         }
     }
 
+    public static enum ChecksumType {
+        Crc32c,
+        None;
+    }
 }

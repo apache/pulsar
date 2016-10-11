@@ -63,6 +63,7 @@ public final class PulsarApi {
     ServiceNotReady(6, 6),
     ProducerBlockedQuotaExceededError(7, 7),
     ProducerBlockedQuotaExceededException(8, 8),
+    ChecksumError(9, 9),
     ;
     
     public static final int UnknownError_VALUE = 0;
@@ -74,6 +75,7 @@ public final class PulsarApi {
     public static final int ServiceNotReady_VALUE = 6;
     public static final int ProducerBlockedQuotaExceededError_VALUE = 7;
     public static final int ProducerBlockedQuotaExceededException_VALUE = 8;
+    public static final int ChecksumError_VALUE = 9;
     
     
     public final int getNumber() { return value; }
@@ -89,6 +91,7 @@ public final class PulsarApi {
         case 6: return ServiceNotReady;
         case 7: return ProducerBlockedQuotaExceededError;
         case 8: return ProducerBlockedQuotaExceededException;
+        case 9: return ChecksumError;
         default: return null;
       }
     }
@@ -166,6 +169,7 @@ public final class PulsarApi {
     v3(3, 3),
     v4(4, 4),
     v5(5, 5),
+    v6(6, 6),
     ;
     
     public static final int v0_VALUE = 0;
@@ -174,6 +178,7 @@ public final class PulsarApi {
     public static final int v3_VALUE = 3;
     public static final int v4_VALUE = 4;
     public static final int v5_VALUE = 5;
+    public static final int v6_VALUE = 6;
     
     
     public final int getNumber() { return value; }
@@ -186,6 +191,7 @@ public final class PulsarApi {
         case 3: return v3;
         case 4: return v4;
         case 5: return v5;
+        case 6: return v6;
         default: return null;
       }
     }
@@ -1227,10 +1233,6 @@ public final class PulsarApi {
     boolean hasUncompressedSize();
     int getUncompressedSize();
     
-    // optional sfixed64 checksum = 10;
-    boolean hasChecksum();
-    long getChecksum();
-    
     // optional int32 num_messages_in_batch = 11 [default = 1];
     boolean hasNumMessagesInBatch();
     int getNumMessagesInBatch();
@@ -1441,21 +1443,11 @@ public final class PulsarApi {
       return uncompressedSize_;
     }
     
-    // optional sfixed64 checksum = 10;
-    public static final int CHECKSUM_FIELD_NUMBER = 10;
-    private long checksum_;
-    public boolean hasChecksum() {
-      return ((bitField0_ & 0x00000080) == 0x00000080);
-    }
-    public long getChecksum() {
-      return checksum_;
-    }
-    
     // optional int32 num_messages_in_batch = 11 [default = 1];
     public static final int NUM_MESSAGES_IN_BATCH_FIELD_NUMBER = 11;
     private int numMessagesInBatch_;
     public boolean hasNumMessagesInBatch() {
-      return ((bitField0_ & 0x00000100) == 0x00000100);
+      return ((bitField0_ & 0x00000080) == 0x00000080);
     }
     public int getNumMessagesInBatch() {
       return numMessagesInBatch_;
@@ -1471,7 +1463,6 @@ public final class PulsarApi {
       replicateTo_ = com.google.protobuf.LazyStringArrayList.EMPTY;
       compression_ = com.yahoo.pulsar.common.api.proto.PulsarApi.CompressionType.NONE;
       uncompressedSize_ = 0;
-      checksum_ = 0L;
       numMessagesInBatch_ = 1;
     }
     private byte memoizedIsInitialized = -1;
@@ -1537,9 +1528,6 @@ public final class PulsarApi {
         output.writeUInt32(9, uncompressedSize_);
       }
       if (((bitField0_ & 0x00000080) == 0x00000080)) {
-        output.writeSFixed64(10, checksum_);
-      }
-      if (((bitField0_ & 0x00000100) == 0x00000100)) {
         output.writeInt32(11, numMessagesInBatch_);
       }
     }
@@ -1592,10 +1580,6 @@ public final class PulsarApi {
           .computeUInt32Size(9, uncompressedSize_);
       }
       if (((bitField0_ & 0x00000080) == 0x00000080)) {
-        size += com.google.protobuf.CodedOutputStream
-          .computeSFixed64Size(10, checksum_);
-      }
-      if (((bitField0_ & 0x00000100) == 0x00000100)) {
         size += com.google.protobuf.CodedOutputStream
           .computeInt32Size(11, numMessagesInBatch_);
       }
@@ -1730,10 +1714,8 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000080);
         uncompressedSize_ = 0;
         bitField0_ = (bitField0_ & ~0x00000100);
-        checksum_ = 0L;
-        bitField0_ = (bitField0_ & ~0x00000200);
         numMessagesInBatch_ = 1;
-        bitField0_ = (bitField0_ & ~0x00000400);
+        bitField0_ = (bitField0_ & ~0x00000200);
         return this;
       }
       
@@ -1809,10 +1791,6 @@ public final class PulsarApi {
         if (((from_bitField0_ & 0x00000200) == 0x00000200)) {
           to_bitField0_ |= 0x00000080;
         }
-        result.checksum_ = checksum_;
-        if (((from_bitField0_ & 0x00000400) == 0x00000400)) {
-          to_bitField0_ |= 0x00000100;
-        }
         result.numMessagesInBatch_ = numMessagesInBatch_;
         result.bitField0_ = to_bitField0_;
         return result;
@@ -1860,9 +1838,6 @@ public final class PulsarApi {
         }
         if (other.hasUncompressedSize()) {
           setUncompressedSize(other.getUncompressedSize());
-        }
-        if (other.hasChecksum()) {
-          setChecksum(other.getChecksum());
         }
         if (other.hasNumMessagesInBatch()) {
           setNumMessagesInBatch(other.getNumMessagesInBatch());
@@ -1964,13 +1939,8 @@ public final class PulsarApi {
               uncompressedSize_ = input.readUInt32();
               break;
             }
-            case 81: {
-              bitField0_ |= 0x00000200;
-              checksum_ = input.readSFixed64();
-              break;
-            }
             case 88: {
-              bitField0_ |= 0x00000400;
+              bitField0_ |= 0x00000200;
               numMessagesInBatch_ = input.readInt32();
               break;
             }
@@ -2320,43 +2290,22 @@ public final class PulsarApi {
         return this;
       }
       
-      // optional sfixed64 checksum = 10;
-      private long checksum_ ;
-      public boolean hasChecksum() {
-        return ((bitField0_ & 0x00000200) == 0x00000200);
-      }
-      public long getChecksum() {
-        return checksum_;
-      }
-      public Builder setChecksum(long value) {
-        bitField0_ |= 0x00000200;
-        checksum_ = value;
-        
-        return this;
-      }
-      public Builder clearChecksum() {
-        bitField0_ = (bitField0_ & ~0x00000200);
-        checksum_ = 0L;
-        
-        return this;
-      }
-      
       // optional int32 num_messages_in_batch = 11 [default = 1];
       private int numMessagesInBatch_ = 1;
       public boolean hasNumMessagesInBatch() {
-        return ((bitField0_ & 0x00000400) == 0x00000400);
+        return ((bitField0_ & 0x00000200) == 0x00000200);
       }
       public int getNumMessagesInBatch() {
         return numMessagesInBatch_;
       }
       public Builder setNumMessagesInBatch(int value) {
-        bitField0_ |= 0x00000400;
+        bitField0_ |= 0x00000200;
         numMessagesInBatch_ = value;
         
         return this;
       }
       public Builder clearNumMessagesInBatch() {
-        bitField0_ = (bitField0_ & ~0x00000400);
+        bitField0_ = (bitField0_ & ~0x00000200);
         numMessagesInBatch_ = 1;
         
         return this;

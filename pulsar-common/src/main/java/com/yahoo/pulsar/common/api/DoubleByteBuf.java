@@ -87,6 +87,14 @@ public final class DoubleByteBuf extends AbstractReferenceCountedByteBuf {
         return toLeakAwareBuffer(buf);
     }
 
+    public ByteBuf getFirst() {
+        return b1;
+    }
+    
+    public ByteBuf getSecond() {
+        return b2;
+    }
+    
     @Override
     public boolean isDirect() {
         return b1.isDirect() && b2.isDirect();

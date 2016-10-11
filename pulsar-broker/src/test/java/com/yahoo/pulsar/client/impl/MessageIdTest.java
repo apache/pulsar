@@ -15,37 +15,64 @@
  */
 package com.yahoo.pulsar.client.impl;
 
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyLong;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
+
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import com.yahoo.pulsar.broker.service.BrokerTestBase;
 import com.yahoo.pulsar.client.admin.PulsarAdminException;
 import com.yahoo.pulsar.client.api.Consumer;
 import com.yahoo.pulsar.client.api.Message;
+import com.yahoo.pulsar.client.api.MessageBuilder;
 import com.yahoo.pulsar.client.api.MessageId;
 import com.yahoo.pulsar.client.api.Producer;
+import com.yahoo.pulsar.client.api.ProducerConfiguration;
 import com.yahoo.pulsar.client.api.PulsarClientException;
+import com.yahoo.pulsar.client.impl.ProducerImpl.OpSendMsg;
+import com.yahoo.pulsar.common.api.Commands;
+import com.yahoo.pulsar.common.api.Commands.ChecksumType;
+import com.yahoo.pulsar.common.api.DoubleByteBuf;
+import com.yahoo.pulsar.common.api.proto.PulsarApi.MessageMetadata;
+import com.yahoo.pulsar.common.api.proto.PulsarApi.MessageMetadata.Builder;
+
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import io.netty.util.ResourceLeakDetector;
 
 public class MessageIdTest extends BrokerTestBase {
     private static final Logger log = LoggerFactory.getLogger(MessageIdTest.class);
 
-    @BeforeClass
+    @BeforeMethod
     @Override
     public void setup() throws Exception {
         baseSetup();
     }
 
-    @AfterClass
+    @AfterMethod
     @Override
     protected void cleanup() throws Exception {
         internalCleanup();
@@ -55,7 +82,7 @@ public class MessageIdTest extends BrokerTestBase {
     public void producerSendAsync() throws PulsarClientException {
         // 1. Basic Config
         String key = "producerSendAsync";
-        final String topicName = "persistent://property/cluster/namespace/topic-" + key;
+        final String topicName = "persistent://prop/cluster/namespace/topic-" + key;
         final String subscriptionName = "my-subscription-" + key;
         final String messagePredicate = "my-message-" + key + "-";
         final int numberOfMessages = 30;
@@ -108,7 +135,7 @@ public class MessageIdTest extends BrokerTestBase {
     public void producerSend() throws PulsarClientException {
         // 1. Basic Config
         String key = "producerSend";
-        final String topicName = "persistent://property/cluster/namespace/topic-" + key;
+        final String topicName = "persistent://prop/cluster/namespace/topic-" + key;
         final String subscriptionName = "my-subscription-" + key;
         final String messagePredicate = "my-message-" + key + "-";
         final int numberOfMessages = 30;
@@ -143,7 +170,7 @@ public class MessageIdTest extends BrokerTestBase {
     public void partitionedProducerSendAsync() throws PulsarClientException, PulsarAdminException {
         // 1. Basic Config
         String key = "partitionedProducerSendAsync";
-        final String topicName = "persistent://property/cluster/namespace/topic-" + key;
+        final String topicName = "persistent://prop/cluster/namespace/topic-" + key;
         final String subscriptionName = "my-subscription-" + key;
         final String messagePredicate = "my-message-" + key + "-";
         final int numberOfMessages = 30;
@@ -190,7 +217,7 @@ public class MessageIdTest extends BrokerTestBase {
     public void partitionedProducerSend() throws PulsarClientException, PulsarAdminException {
         // 1. Basic Config
         String key = "partitionedProducerSend";
-        final String topicName = "persistent://property/cluster/namespace/topic-" + key;
+        final String topicName = "persistent://prop/cluster/namespace/topic-" + key;
         final String subscriptionName = "my-subscription-" + key;
         final String messagePredicate = "my-message-" + key + "-";
         final int numberOfMessages = 30;
@@ -223,4 +250,176 @@ public class MessageIdTest extends BrokerTestBase {
         // it
         // consumer.unsubscribe();;
     }
+
+    /**
+     * Verifies: different versions of broker-deployment (one broker understands Checksum and other
+     * doesn't in that case remove checksum before sending to broker-2)
+     * 
+     * client first produce message with checksum and then retries to send message due to connection unavailable. But this time, if
+     * broker doesn't understand checksum: then client should remove checksum from the message before sending to broker.
+     * 
+     * 1. stop broker 
+     * 2. client compute checksum and add into message 
+     * 3. produce 2 messages and corrupt 1 message 
+     * 4. start broker with lower version (which doesn't support checksum) 
+     * 5. client reconnects to broker and due to incompatibility of version: removes checksum from message 
+     * 6. broker doesn't do checksum validation and persist message 
+     * 7. client receives ack
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testChecksumVersionComptability() throws Exception {
+        final String topicName = "persistent://prop/use/ns-abc/topic1";
+        
+        // 1. producer connect
+        Producer prod = pulsarClient.createProducer(topicName);
+        ProducerImpl producer = spy((ProducerImpl) prod);
+        // return higher version compare to broker : so, it forces client-producer to remove checksum from payload
+        doReturn(producer.brokerChecksumSupportedVersion() + 1).when(producer).brokerChecksumSupportedVersion();
+
+        Consumer consumer = pulsarClient.subscribe(topicName, "my-sub");
+
+        // Stop the broker, and publishes messages. Messages are accumulated in the producer queue and they're checksums
+        // would have already been computed. If we change the message content at that point, it should result in a
+        // checksum validation error
+        stopBroker();
+
+        // stop timer to auto-reconnect as let spy-Producer connect to broker manually so, spy-producer object can get
+        // mock-value from brokerChecksumSupportedVersion
+        ((PulsarClientImpl) pulsarClient).timer().stop();
+
+        Message msg1 = MessageBuilder.create().setContent("message-1".getBytes()).build();
+        CompletableFuture<MessageId> future1 = producer.sendAsync(msg1);
+
+        Message msg2 = MessageBuilder.create().setContent("message-2".getBytes()).build();
+        CompletableFuture<MessageId> future2 = producer.sendAsync(msg2);
+
+        // corrupt the message
+        msg2.getData()[msg2.getData().length - 1] = '3'; // new content would be 'message-3'
+
+        // Restart the broker to have the messages published
+        startBroker();
+
+        // grab broker connection with mocked producer which has higher version compare to broker
+        producer.grabCnx();
+
+        try {
+            // it should not fail: as due to unsupported version of broker: client removes checksum and broker should
+            // ignore the checksum validation
+            future1.get();
+            future2.get();
+        } catch (Exception e) {
+            fail("Broker shouldn't verify checksum for corrupted message and it shouldn't fail");
+        }
+
+        ((ConsumerImpl) consumer).grabCnx();
+        // We should only receive msg1
+        Message msg = consumer.receive(1, TimeUnit.SECONDS);
+        assertEquals(new String(msg.getData()), "message-1");
+        msg = consumer.receive(1, TimeUnit.SECONDS);
+        assertEquals(new String(msg.getData()), "message-3");
+
+    }
+    
+    /**
+     * Verifies: if message is corrupted before sending to broker and if broker gives checksum error: then
+     * 1. Client-Producer recomputes checksum with modified data
+     * 2. Retry message-send again
+     * 3. Broker verifies checksum 
+     * 4. client receives send-ack success
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testCorruptMessageRemove() throws Exception {
+
+        final String topicName = "persistent://prop/use/ns-abc/retry-topic";
+        
+        ProducerConfiguration config = new ProducerConfiguration();
+        config.setSendTimeout(10, TimeUnit.MINUTES);
+        // 1. producer connect
+        Producer prod = pulsarClient.createProducer(topicName, config);
+        ProducerImpl producer = spy((ProducerImpl) prod);
+        Field producerIdField = ProducerImpl.class.getDeclaredField("producerId");
+        producerIdField.setAccessible(true);
+        long producerId = (long) producerIdField.get(producer);
+        producer.cnx().registerProducer(producerId, producer); // registered spy ProducerImpl
+        Consumer consumer = pulsarClient.subscribe(topicName, "my-sub");
+
+        // 2. Stop the broker, and publishes messages. Messages are accumulated in the producer queue and they're
+        // checksums
+        // would have already been computed. If we change the message content at that point, it should result in a
+        // checksum validation error
+        // enable checksum at producer
+        stopBroker();
+
+        Message msg = MessageBuilder.create().setContent("message-1".getBytes()).build();
+        CompletableFuture<MessageId> future = producer.sendAsync(msg);
+
+        // 3. corrupt the message
+        msg.getData()[msg.getData().length - 1] = '2'; // new content would be 'message-3'
+
+        // 4. Restart the broker to have the messages published
+        startBroker();
+
+        try {
+            future.get();
+            fail("send message should have failed with checksum excetion");
+        } catch (Exception e) {
+            if (e.getCause() instanceof PulsarClientException.ChecksumException) {
+                //ok (callback should get checksum exception as message was modified and corrupt)
+            } else {
+                fail("Callback should have only failed with ChecksumException", e);
+            }
+        }
+
+        // 5. Verify
+
+        // (5.1) Verify: producer's recoverChecksumError and updateChecksum invoked
+        verify(producer, times(1)).recoverChecksumError(any(), anyLong());
+        verify(producer, times(1)).verifyLocalBufferIsNotCorrupted(any());
+
+
+        /**
+         * (5.3) verify: ProducerImpl.verifyLocalBufferIsNotCorrupted() => validates if message
+         * is corrupt
+         */
+        MessageImpl msg2 = (MessageImpl) MessageBuilder.create().setContent("message-1".getBytes()).build();
+        ByteBuf payload = msg2.getDataBuffer();
+        Builder metadataBuilder = ((MessageImpl) msg).getMessageBuilder();
+        MessageMetadata msgMetadata = metadataBuilder.setProducerName("test").setSequenceId(1).setPublishTime(10L)
+                .build();
+        ByteBuf cmd = Commands.newSend(producerId, 1, 1, ChecksumType.Crc32c, msgMetadata, payload);
+        // (a) create OpSendMsg with message-data : "message-1"
+        OpSendMsg op = OpSendMsg.create(((MessageImpl) msg), cmd, 1, null);
+        // a.verify: as message is not corrupt: no need to update checksum
+        assertTrue(producer.verifyLocalBufferIsNotCorrupted(op));
+        // (b) corrupt message
+        msg2.getData()[msg2.getData().length - 1] = '2'; // new content would be 'message-2'
+        // b. verify: as message is corrupt: update checksum
+        assertFalse(producer.verifyLocalBufferIsNotCorrupted(op));
+
+        assertEquals(producer.getPendingQueueSize(), 0);
+        
+        // [2] test-recoverChecksumError functionality
+        stopBroker();
+        MessageImpl msg1 = (MessageImpl) MessageBuilder.create().setContent("message-1".getBytes()).build();
+        future = producer.sendAsync(msg1);
+        ClientCnx cnx = spy(new ClientCnx((PulsarClientImpl)pulsarClient) {});
+        String exc = "broker is already stopped";
+        // when client-try to recover checksum by resending to broker: throw exception as broker is stopped
+        doThrow(new IllegalStateException(exc)).when(cnx).ctx();
+        try {
+            producer.recoverChecksumError(cnx, 1);    
+            fail("it should call : resendMessages() => which should throw above mocked exception");
+        }catch(IllegalStateException e) {
+            assertEquals(exc, e.getMessage());
+        }
+        
+        producer.close();
+        consumer.close();
+        producer = null; // clean reference of mocked producer
+    }
+   
 }

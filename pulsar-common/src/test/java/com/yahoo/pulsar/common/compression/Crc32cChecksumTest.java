@@ -148,7 +148,6 @@ public class Crc32cChecksumTest {
         incrementalChecksum = Crc32cChecksum.resumeChecksum(checksum, payload);
         assertEquals(expectedChecksum, incrementalChecksum);
         payload.release();
-        
     
     }
     

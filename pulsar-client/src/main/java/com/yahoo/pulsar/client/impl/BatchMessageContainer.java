@@ -28,7 +28,6 @@ import com.yahoo.pulsar.common.api.Commands;
 import com.yahoo.pulsar.common.api.proto.PulsarApi;
 import com.yahoo.pulsar.common.compression.CompressionCodec;
 import com.yahoo.pulsar.common.compression.CompressionCodecProvider;
-import com.yahoo.pulsar.common.util.XXHashChecksum;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
@@ -112,12 +111,6 @@ class BatchMessageContainer {
             messageMetadata.setUncompressedSize(uncompressedSize);
         }
         return compressedPayload;
-    }
-
-    void setChecksum() {
-        checkArgument(!messageMetadata.hasChecksum());
-        long checksum = XXHashChecksum.computeChecksum(batchedMessageMetadataAndPayload);
-        messageMetadata.setChecksum(checksum);
     }
 
     PulsarApi.MessageMetadata setBatchAndBuild() {

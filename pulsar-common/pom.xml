@@ -66,7 +66,6 @@
       <groupId>com.yahoo.pulsar</groupId>
       <artifactId>pulsar-checksum</artifactId>
       <version>${project.version}</version>
-      <scope>test</scope>
     </dependency>
   </dependencies>
 </project>

@@ -17,6 +17,7 @@ package com.yahoo.pulsar.broker.service;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.yahoo.pulsar.broker.service.persistent.PersistentTopic.DATE_FORMAT;
+import static com.yahoo.pulsar.common.api.Commands.readChecksum;
 
 import java.util.Date;
 import java.util.Iterator;
@@ -36,6 +37,7 @@ import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandAck;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.MessageIdData;
+import com.yahoo.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import com.yahoo.pulsar.common.naming.DestinationName;
 import com.yahoo.pulsar.common.policies.data.ConsumerStats;
 import com.yahoo.pulsar.common.util.collections.ConcurrentOpenHashMap;
@@ -137,6 +139,11 @@ public class Consumer {
 
                 ByteBuf metadataAndPayload = entry.getDataBuffer();
 
+                // skip checksum by incrementing reader-index if consumer-client doesn't support checksum verification
+                if (cnx.getRemoteEndpointProtocolVersion() < ProtocolVersion.v6.getNumber()) {
+                    readChecksum(metadataAndPayload);
+                }
+                
                 // stats
                 msgOut.recordEvent(metadataAndPayload.readableBytes());
 

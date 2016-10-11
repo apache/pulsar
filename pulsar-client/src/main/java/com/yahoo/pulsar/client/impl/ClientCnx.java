@@ -28,7 +28,7 @@ import com.yahoo.pulsar.client.api.Authentication;
 import com.yahoo.pulsar.client.api.PulsarClientException;
 import com.yahoo.pulsar.common.api.Commands;
 import com.yahoo.pulsar.common.api.PulsarHandler;
-import com.yahoo.pulsar.common.api.proto.PulsarApi;
+import com.yahoo.pulsar.common.api.proto.PulsarApi.ServerError;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandCloseConsumer;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandCloseProducer;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConnected;
@@ -195,7 +195,13 @@ public class ClientCnx extends PulsarHandler {
     @Override
     protected void handleSendError(CommandSendError sendError) {
         log.warn("{} Received send error from server: {}", ctx.channel(), sendError);
-        ctx.close();
+        if (ServerError.ChecksumError.equals(sendError.getError())) {
+            long producerId = sendError.getProducerId();
+            long sequenceId = sendError.getSequenceId();
+            producers.get(producerId).recoverChecksumError(this, sequenceId);
+        } else {
+            ctx.close();    
+        }
     }
 
     @Override
@@ -204,7 +210,7 @@ public class ClientCnx extends PulsarHandler {
 
         log.warn("{} Received error from server: {}", ctx.channel(), error.getMessage());
         long requestId = error.getRequestId();
-        if (error.getError() == PulsarApi.ServerError.ProducerBlockedQuotaExceededError) {
+        if (error.getError() == ServerError.ProducerBlockedQuotaExceededError) {
             log.warn("{} Producer creation has been blocked because backlog quota exceeded for producer topic",
                     ctx.channel());
         }
