@@ -81,6 +81,10 @@ public class ServiceConfiguration {
     // Path for the file used to determine the rotation status for the broker
     // when responding to service discovery health checks
     private String statusFilePath;
+    // Max number of unacknowledged messages allowed to receive messages by a consumer on a shared subscription. Broker will stop sending
+    // messages to consumer once, this limit reaches until consumer starts acknowledging messages back
+    // Using a value of 0, is disabling unackedMessage-limit check and consumer can receive messages without any restriction
+    private int maxUnackedMessagesPerConsumer = 50000;
 
     /***** --- TLS --- ****/
     // Enable TLS
@@ -403,6 +407,14 @@ public class ServiceConfiguration {
 
     public void setStatusFilePath(String statusFilePath) {
         this.statusFilePath = statusFilePath;
+    }
+    
+    public int getMaxUnackedMessagesPerConsumer() {
+        return maxUnackedMessagesPerConsumer;
+    }
+
+    public void setMaxUnackedMessagesPerConsumer(int maxUnackedMessagesPerConsumer) {
+        this.maxUnackedMessagesPerConsumer = maxUnackedMessagesPerConsumer;
     }
 
     public boolean isTlsEnabled() {

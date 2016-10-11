@@ -328,8 +328,9 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                 try {
                     PersistentSubscription subscription = subscriptions.computeIfAbsent(subscriptionName,
                             name -> new PersistentSubscription(PersistentTopic.this, cursor));
-
-                    Consumer consumer = new Consumer(subscription, subType, consumerId, consumerName, cnx,
+                    
+                    Consumer consumer = new Consumer(subscription, subType, consumerId, consumerName,
+                            brokerService.pulsar().getConfiguration().getMaxUnackedMessagesPerConsumer(), cnx,
                             cnx.getRole());
                     subscription.addConsumer(consumer);
                     if (!cnx.isActive()) {
@@ -835,6 +836,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                     destStatsStream.writePair("address", consumerStats.address);
                     destStatsStream.writePair("consumerName", consumerStats.consumerName);
                     destStatsStream.writePair("availablePermits", consumerStats.availablePermits);
+                    destStatsStream.writePair("unackedMessages", consumerStats.unackedMessages);
                     destStatsStream.writePair("connectedSince", consumerStats.connectedSince);
                     destStatsStream.writePair("msgRateOut", consumerStats.msgRateOut);
                     destStatsStream.writePair("msgThroughputOut", consumerStats.msgThroughputOut);

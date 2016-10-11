@@ -15,6 +15,7 @@
  */
 package com.yahoo.pulsar.broker.service.persistent;
 
+import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
@@ -118,7 +119,7 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Consumer are left, reading more entries", name);
                 }
-                consumer.getPendingAcks().forEach(pendingMessages -> {
+                consumer.getPendingAcks().forEach((pendingMessages, totalMsg) -> {
                     messagesToReplay.add(pendingMessages);
                 });
                 totalAvailablePermits -= consumer.getAvailablePermits();
@@ -148,7 +149,7 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
     }
 
     private void readMoreEntries() {
-        if (totalAvailablePermits > 0) {
+        if (totalAvailablePermits > 0 && isUnblockedConsumerAvailable()) {
             int messagesToRead = Math.min(totalAvailablePermits, readBatchSize);
 
             if (!messagesToReplay.isEmpty()) {
@@ -257,7 +258,7 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
             log.debug("[{}] Distributing {} messages to {} consumers", name, entries.size(), consumerList.size());
         }
 
-        while (entriesToDispatch > 0 && totalAvailablePermits > 0) {
+        while (entriesToDispatch > 0 && totalAvailablePermits > 0 && isUnblockedConsumerAvailable()) {
             Consumer c = getNextConsumer();
             if (c == null) {
                 // Do nothing, cursor will be rewind at reconnection
@@ -352,12 +353,45 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
         if (consumerIndex >= consumerList.size()) {
             consumerIndex = 0;
         }
-        return consumerList.get(consumerIndex++);
+        
+        // find next available unblocked consumer
+        int unblockedConsumerIndex = consumerIndex;
+        do {
+            if (!consumerList.get(unblockedConsumerIndex).isBlocked()) {
+                consumerIndex = unblockedConsumerIndex;
+                return consumerList.get(consumerIndex++);
+            }
+            if (++unblockedConsumerIndex >= consumerList.size()) {
+                unblockedConsumerIndex = 0;
+            }
+        } while (unblockedConsumerIndex != consumerIndex);
+
+        // not found unblocked consumer
+        return null;
+    }
+    
+    /**
+     * returns true only if {@link consumerList} has atleast one unblocked consumer 
+     * 
+     * @return
+     */
+    private boolean isUnblockedConsumerAvailable() {
+        if (consumerList.isEmpty() || closeFuture != null) {
+            // abort read if no consumers are connected or if disconnect is initiated
+            return false;
+        }
+        Iterator<Consumer> consumerIterator = consumerList.iterator();
+        while (consumerIterator.hasNext()) {
+            if (!consumerIterator.next().isBlocked()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override
     public synchronized void redeliverUnacknowledgedMessages(Consumer consumer) {
-        consumer.getPendingAcks().forEach(pendingMessages -> {
+        consumer.getPendingAcks().forEach((pendingMessages, totalMsg) -> {
             messagesToReplay.add(pendingMessages);
         });
         if (log.isDebugEnabled()) {
