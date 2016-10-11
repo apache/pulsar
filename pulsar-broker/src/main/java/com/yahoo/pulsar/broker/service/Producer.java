@@ -17,6 +17,8 @@ package com.yahoo.pulsar.broker.service;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.yahoo.pulsar.broker.service.persistent.PersistentTopic.DATE_FORMAT;
+import static com.yahoo.pulsar.common.api.Commands.readChecksum;
+import static com.yahoo.pulsar.common.api.Commands.hasChecksum;
 
 import java.util.Date;
 import java.util.concurrent.CompletableFuture;
@@ -29,11 +31,11 @@ import org.slf4j.LoggerFactory;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Objects;
 import com.yahoo.pulsar.broker.service.Topic.PublishCallback;
+import static com.yahoo.pulsar.checksum.utils.Crc32cChecksum.computeChecksum;
 import com.yahoo.pulsar.common.api.Commands;
-import com.yahoo.pulsar.common.api.proto.PulsarApi.MessageMetadata;
+import com.yahoo.pulsar.common.api.proto.PulsarApi.ServerError;
 import com.yahoo.pulsar.common.naming.DestinationName;
 import com.yahoo.pulsar.common.policies.data.PublisherStats;
-import com.yahoo.pulsar.common.util.XXHashChecksum;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.util.Recycler;
@@ -110,7 +112,7 @@ public class Producer {
         if (!verifyChecksum(headersAndPayload)) {
             cnx.ctx().channel().eventLoop().execute(() -> {
                 cnx.ctx().writeAndFlush(
-                        Commands.newSendError(producerId, sequenceId, new Exception("Checksum failed on the broker")));
+                        Commands.newSendError(producerId, sequenceId, ServerError.ChecksumError, "Checksum failed on the broker"));
                 cnx.completedSendOperation();
             });
             return;
@@ -122,42 +124,28 @@ public class Producer {
     }
 
     private boolean verifyChecksum(ByteBuf headersAndPayload) {
-        MessageMetadata metadata = null;
-        int readerIndex = headersAndPayload.readerIndex();
-        try {
-            metadata = Commands.parseMessageMetadata(headersAndPayload);
-
-            if (!metadata.hasChecksum()) {
-                // if we do not have the checksum, we do not verify checksum and return true
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] [{}] Payload does not have checksum to verify", topic, producerName);
+        
+        if (hasChecksum(headersAndPayload)) {
+            int checksum = readChecksum(headersAndPayload).intValue();
+            int readerIndex = headersAndPayload.readerIndex();
+            try {
+                long computedChecksum = computeChecksum(headersAndPayload);
+                if (checksum == computedChecksum) {
+                    return true;
+                } else {
+                    log.error("[{}] [{}] Failed to verify checksum", topic, producerName);
+                    return false;
                 }
-                return true;
+            } finally {
+                headersAndPayload.readerIndex(readerIndex);
             }
-
-            if (metadata.hasCompression()) {
-                // if the message is compressed, we do not verify checksum and return true
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] [{}] Payload is compressed, not verifying checksum", topic, producerName);
-                }
-                return true;
+        } else {
+            // ignore if checksum is not available
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] [{}] Payload does not have checksum to verify", topic, producerName);
             }
-            long storedChecksum = metadata.getChecksum();
-            long computedChecksum = XXHashChecksum.computeChecksum(headersAndPayload);
-            if (storedChecksum == computedChecksum) {
-                return true;
-            } else {
-                log.error("[{}] [{}] Failed to verify checksum", topic, producerName);
-            }
-        } catch (Throwable t) {
-            log.error("[{}] [{}] Failed to verify checksum", topic, producerName, t);
-        } finally {
-            headersAndPayload.readerIndex(readerIndex);
-            if (metadata != null) {
-                metadata.recycle();
-            }
+            return true;
         }
-        return false;
     }
 
     private void startPublishOperation() {

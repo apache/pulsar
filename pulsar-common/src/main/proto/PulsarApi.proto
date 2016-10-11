@@ -50,8 +50,9 @@ message MessageMetadata {
 	repeated string replicate_to    = 7;
 	optional CompressionType compression = 8 [default = NONE];
 	optional uint32 uncompressed_size = 9 [default = 0];
-	// XXHash64 checksum of the original message payload
-	optional sfixed64 checksum = 10;
+	// Removed below checksum field from Metadata as 
+	// it should be part of send-command which keeps checksum of header + payload
+	//optional sfixed64 checksum = 10;
 	// differentiate single and batch message metadata
 	optional int32 num_messages_in_batch = 11 [default = 1];
 }
@@ -75,6 +76,7 @@ enum ServerError {
     ServiceNotReady     = 6; // Any error that requires client retry operation with a fresh lookup
     ProducerBlockedQuotaExceededError = 7; // Unable to create producer because backlog quota exceeded
     ProducerBlockedQuotaExceededException = 8; // Exception while creating producer because quota exceeded
+    ChecksumError = 9; // Error while verifying message checksum
 }
 
 enum AuthMethod {
@@ -92,6 +94,7 @@ enum ProtocolVersion {
 	v3 = 3;  // Added compression with LZ4 and ZLib
 	v4 = 4;  // Added batch message support
 	v5 = 5;  // Added disconnect client w/o closing connection
+	v6 = 6;  // Added checksum computation for metadata + payload
 }
 
 message CommandConnect {

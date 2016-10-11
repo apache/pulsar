@@ -1028,8 +1028,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         assertTrue(msgInRate > 0);
     }
 
-    // TODO: Re-enable once header+payload checksum changes are merged
-    @Test(enabled = false)
+    @Test
     public void testPayloadCorruptionDetection() throws Exception {
         final String topicName = "persistent://prop/use/ns-abc/topic1";
 
@@ -1066,10 +1065,10 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         }
 
         // We should only receive msg1
-        Message msg = consumer.receive(10, TimeUnit.SECONDS);
+        Message msg = consumer.receive(1, TimeUnit.SECONDS);
         assertEquals(new String(msg.getData()), "message-1");
 
-        while ((msg = consumer.receive(5, TimeUnit.SECONDS)) != null) {
+        while ((msg = consumer.receive(1, TimeUnit.SECONDS)) != null) {
             assertEquals(new String(msg.getData()), "message-1");
         }
     }

@@ -967,6 +967,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
      * 2. Consumer has receive size (10) and receive message without acknowledging
      * 3. Consumer will stop receiving message after unAckThreshold = 500
      * 4. Consumer acks messages and starts consuming remanining messages
+     * This testcase enables checksum sending while producing message and broker verifies the checksum for the message. 
      * 
      * @throws Exception
      */
@@ -1496,5 +1497,42 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }
     }
 
+    @Test
+    public void testEnabledChecksumClient() throws Exception {
+        log.info("-- Starting {} test --", methodName);
 
+        final int totalMsg = 10;
+        ConsumerConfiguration conf = new ConsumerConfiguration();
+        conf.setSubscriptionType(SubscriptionType.Exclusive);
+        Consumer consumer = pulsarClient.subscribe("persistent://my-property/use/my-ns/my-topic1", "my-subscriber-name",
+                conf);
+
+        ProducerConfiguration producerConf = new ProducerConfiguration();
+        final int batchMessageDelayMs = 300;
+        if (batchMessageDelayMs != 0) {
+            producerConf.setBatchingEnabled(true);
+            producerConf.setBatchingMaxPublishDelay(batchMessageDelayMs, TimeUnit.MILLISECONDS);
+            producerConf.setBatchingMaxMessages(5);
+        }
+
+        Producer producer = pulsarClient.createProducer("persistent://my-property/use/my-ns/my-topic1", producerConf);
+        for (int i = 0; i < totalMsg; i++) {
+            String message = "my-message-" + i;
+            producer.send(message.getBytes());
+        }
+
+        Message msg = null;
+        Set<String> messageSet = Sets.newHashSet();
+        for (int i = 0; i < totalMsg; i++) {
+            msg = consumer.receive(5, TimeUnit.SECONDS);
+            String receivedMessage = new String(msg.getData());
+            log.debug("Received message: [{}]", receivedMessage);
+            String expectedMessage = "my-message-" + i;
+            testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
+        }
+        // Acknowledge the consumption of all messages at once
+        consumer.acknowledgeCumulative(msg);
+        consumer.close();
+        log.info("-- Exiting {} test --", methodName);
+    }
 }

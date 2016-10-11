@@ -52,13 +52,15 @@ import com.yahoo.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import com.yahoo.pulsar.common.compression.CompressionCodec;
 import com.yahoo.pulsar.common.compression.CompressionCodecProvider;
-import com.yahoo.pulsar.common.util.XXHashChecksum;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufUtil;
 import io.netty.util.Timeout;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
+import static com.yahoo.pulsar.common.api.Commands.readChecksum;
+import static com.yahoo.pulsar.checksum.utils.Crc32cChecksum.computeChecksum;
+import static com.yahoo.pulsar.common.api.Commands.hasChecksum;
+import static com.yahoo.pulsar.common.api.Commands.readChecksum;
 
 public class ConsumerImpl extends ConsumerBase {
 
@@ -584,6 +586,13 @@ public class ConsumerImpl extends ConsumerBase {
 
         MessageMetadata msgMetadata = null;
         ByteBuf payload = headersAndPayload;
+        
+        if (!verifyChecksum(headersAndPayload, messageId)) {
+            // discard message with checksum error
+            discardCorruptedMessage(messageId, cnx, ValidationError.ChecksumMismatch);
+            return;
+        }
+        
         try {
             msgMetadata = Commands.parseMessageMetadata(payload);
         } catch (Throwable t) {
@@ -594,11 +603,6 @@ public class ConsumerImpl extends ConsumerBase {
         ByteBuf uncompressedPayload = uncompressPayloadIfNeeded(messageId, msgMetadata, payload, cnx);
         if (uncompressedPayload == null) {
             // Message was discarded on decompression error
-            return;
-        }
-
-        if (!verifyChecksum(messageId, msgMetadata, uncompressedPayload, cnx)) {
-            // Message discarded for checksum error
             return;
         }
 
@@ -810,28 +814,21 @@ public class ConsumerImpl extends ConsumerBase {
         }
     }
 
-    private boolean verifyChecksum(MessageIdData messageId, MessageMetadata msgMetadata, ByteBuf payload,
-            ClientCnx currentCnx) {
-        if (!msgMetadata.hasChecksum()) {
-            // No checksum to validate
-            return true;
+    private boolean verifyChecksum(ByteBuf headersAndPayload, MessageIdData messageId) {
+
+        if(hasChecksum(headersAndPayload)) {
+            int checksum = readChecksum(headersAndPayload).intValue();
+            int computedChecksum = computeChecksum(headersAndPayload);
+            if (checksum != computedChecksum) {
+                log.error(
+                        "[{}][{}] Checksum mismatch for message at {}:{}. Received checksum: 0x{}, Computed checksum: 0x{}",
+                        topic, subscription, messageId.getLedgerId(), messageId.getEntryId(),
+                        Long.toHexString(checksum), Integer.toHexString(computedChecksum));
+                return false;
+            }            
         }
 
-        long storedChecksum = msgMetadata.getChecksum();
-        long computedChecksum = XXHashChecksum.computeChecksum(payload);
-
-        if (storedChecksum == computedChecksum) {
-            return true;
-        } else {
-            log.error(
-                    "[{}][{}] Checksum mismatch for message at {}:{}. Received content:\n{}"
-                            + "\nReceived checksum: 0x{} -- Computed checksum: 0x{}",
-                    topic, subscription, messageId.getLedgerId(), messageId.getEntryId(),
-                    ByteBufUtil.prettyHexDump(payload), Long.toHexString(storedChecksum),
-                    Long.toHexString(computedChecksum));
-            discardCorruptedMessage(messageId, currentCnx, ValidationError.ChecksumMismatch);
-            return false;
-        }
+        return true;
     }
 
     private void discardCorruptedMessage(MessageIdData messageId, ClientCnx currentCnx,
