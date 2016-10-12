@@ -358,6 +358,12 @@ public class PulsarAdminToolTest {
 
         topics.run(split("skip persistent://myprop/clust/ns1/ds1 -s sub1 -n 100"));
         verify(mockTopics).skipMessages("persistent://myprop/clust/ns1/ds1", "sub1", 100);
+        
+        topics.run(split("expire-messages persistent://myprop/clust/ns1/ds1 -s sub1 -t 100"));
+        verify(mockTopics).expireMessages("persistent://myprop/clust/ns1/ds1", "sub1", 100);
+        
+        topics.run(split("expire-messages-all-subscriptions persistent://myprop/clust/ns1/ds1 -t 100"));
+        verify(mockTopics).expireMessagesForAllSubscriptions("persistent://myprop/clust/ns1/ds1", 100);
 
         topics.run(split("create-partitioned-topic persistent://myprop/clust/ns1/ds1 --partitions 32"));
         verify(mockTopics).createPartitionedTopic("persistent://myprop/clust/ns1/ds1", 32);
