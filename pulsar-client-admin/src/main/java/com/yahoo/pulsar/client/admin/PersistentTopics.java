@@ -586,6 +586,58 @@ public interface PersistentTopics {
     CompletableFuture<Void> skipMessagesAsync(String destination, String subName, long numMessages);
 
     /**
+     * Expire all messages older than given N (expireTimeInSeconds) seconds for a given subscription
+     * 
+     * @param destination
+     *            Destination name
+     * @param subName
+     *            Subscription name
+     * @param expireTimeInSeconds
+     *            Expire messages older than time in seconds
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    public void expireMessages(String destination, String subscriptionName, long expireTimeInSeconds) throws PulsarAdminException;
+    
+    /**
+     * Expire all messages older than given N (expireTimeInSeconds) seconds for a given subscription asynchronously
+     * 
+     * @param destination
+     *            Destination name
+     * @param subName
+     *            Subscription name
+     * @param expireTimeInSeconds
+     *            Expire messages older than time in seconds
+     * @return
+     */
+    public CompletableFuture<Void> expireMessagesAsync(String destination, String subscriptionName, long expireTimeInSeconds);
+
+    /**
+     * Expire all messages older than given N (expireTimeInSeconds) seconds for all subscriptions of the
+     * persistent-topic
+     * 
+     * @param destination
+     *            Destination name
+     * @param expireTimeInSeconds
+     *            Expire messages older than time in seconds
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    public void expireMessagesForAllSubscriptions(String destination, long expireTimeInSeconds) throws PulsarAdminException;
+    
+
+    /**
+     * Expire all messages older than given N (expireTimeInSeconds) seconds for all subscriptions of the
+     * persistent-topic asynchronously
+     * 
+     * @param destination
+     *            Destination name
+     * @param expireTimeInSeconds
+     *            Expire messages older than time in seconds
+     */
+    public CompletableFuture<Void> expireMessagesForAllSubscriptionsAsync(String destination, long expireTimeInSeconds);
+    
+    /**
      * Peek messages from a topic subscription
      *
      * @param destination
