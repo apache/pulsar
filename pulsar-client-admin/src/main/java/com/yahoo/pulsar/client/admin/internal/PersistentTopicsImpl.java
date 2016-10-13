@@ -386,7 +386,7 @@ public class PersistentTopicsImpl extends BaseResource implements PersistentTopi
             throw new PulsarAdminException(e.getCause());
         }
     }
-
+    
     @Override
     public CompletableFuture<Void> skipMessagesAsync(String destination, String subName, long numMessages) {
         DestinationName ds = validateTopic(destination);
@@ -394,6 +394,49 @@ public class PersistentTopicsImpl extends BaseResource implements PersistentTopi
         return asyncPostRequest(
                 persistentTopics.path(ds.getNamespace()).path(ds.getEncodedLocalName()).path("subscription")
                         .path(encodedSubName).path("skip").path(String.valueOf(numMessages)),
+                Entity.entity("", MediaType.APPLICATION_JSON));
+    }
+    
+    @Override
+    public void expireMessages(String destination, String subName, long expireTimeInSeconds) throws PulsarAdminException {
+        try {
+            expireMessagesAsync(destination, subName, expireTimeInSeconds).get();
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e.getCause());
+        }
+    }
+    
+    @Override
+    public CompletableFuture<Void> expireMessagesAsync(String destination, String subName, long expireTimeInSeconds) {
+        DestinationName ds = validateTopic(destination);
+        String encodedSubName = Codec.encode(subName);
+        return asyncPostRequest(
+                persistentTopics.path(ds.getNamespace()).path(ds.getEncodedLocalName()).path("subscription")
+                        .path(encodedSubName).path("expireMessages").path(String.valueOf(expireTimeInSeconds)),
+                Entity.entity("", MediaType.APPLICATION_JSON));
+    }
+    
+    @Override
+    public void expireMessagesForAllSubscriptions(String destination, long expireTimeInSeconds) throws PulsarAdminException {
+        try {
+            expireMessagesForAllSubscriptionsAsync(destination, expireTimeInSeconds).get();
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e.getCause());
+        }
+    }
+    
+    @Override
+    public CompletableFuture<Void> expireMessagesForAllSubscriptionsAsync(String destination, long expireTimeInSeconds) {
+        DestinationName ds = validateTopic(destination);
+        return asyncPostRequest(
+                persistentTopics.path(ds.getNamespace()).path(ds.getEncodedLocalName()).path("all_subscription")
+                        .path("expireMessages").path(String.valueOf(expireTimeInSeconds)),
                 Entity.entity("", MediaType.APPLICATION_JSON));
     }
 

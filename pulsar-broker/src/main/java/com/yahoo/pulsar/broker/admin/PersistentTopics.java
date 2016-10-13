@@ -707,6 +707,92 @@ public class PersistentTopics extends AdminResource {
             throw new RestException(exception);
         }
     }
+    
+    @POST
+    @Path("/{property}/{cluster}/{namespace}/{destination}/subscription/{subName}/expireMessages/{expireTimeInSeconds}")
+    @ApiOperation(value = "Expire messages on a topic subscription.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic or subscription does not exist") })
+    public void expireMessages(@PathParam("property") String property, @PathParam("cluster") String cluster,
+            @PathParam("namespace") String namespace, @PathParam("destination") String destination,
+            @PathParam("subName") String subName, @PathParam("expireTimeInSeconds") int expireTimeInSeconds,
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        DestinationName dn = DestinationName.get(domain(), property, cluster, namespace, destination);
+        PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(property, cluster, namespace,
+                destination, authoritative);
+        if (partitionMetadata.partitions > 0) {
+            // expire messages for each partition destination
+            try {
+                for (int i = 0; i < partitionMetadata.partitions; i++) {
+                    pulsar().getAdminClient().persistentTopics().expireMessages(dn.getPartition(i).toString(), subName,
+                            expireTimeInSeconds);
+                }
+            } catch (Exception e) {
+                throw new RestException(e);
+            }
+        } else {
+            // validate ownership and redirect if current broker is not owner
+            validateAdminOperationOnDestination(dn, authoritative);
+            PersistentTopic topic = getTopicReference(dn);
+            try {
+                if (subName.startsWith(topic.replicatorPrefix)) {
+                    String remoteCluster = PersistentReplicator.getRemoteCluster(subName);
+                    PersistentReplicator repl = topic.getPersistentReplicator(remoteCluster);
+                    checkNotNull(repl);
+                    repl.expireMessages(expireTimeInSeconds);
+                } else {
+                    PersistentSubscription sub = topic.getPersistentSubscription(subName);
+                    checkNotNull(sub);
+                    sub.expireMessages(expireTimeInSeconds);
+                }
+                log.info("[{}] Message expire started up to {} on {} {}", clientAppId(), expireTimeInSeconds, dn,
+                        subName);
+            } catch (NullPointerException npe) {
+                throw new RestException(Status.NOT_FOUND, "Subscription not found");
+            } catch (Exception exception) {
+                log.error("[{}] Failed to expire messages up to {} on {} with subscription {} {}", clientAppId(),
+                        expireTimeInSeconds, dn, subName, exception);
+                throw new RestException(exception);
+            }
+        }
+    }
+    
+    @POST
+    @Path("/{property}/{cluster}/{namespace}/{destination}/all_subscription/expireMessages/{expireTimeInSeconds}")
+    @ApiOperation(value = "Expire messages on all subscriptions of topic.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic or subscription does not exist") })
+    public void expireMessagesForAllSubscriptions(@PathParam("property") String property,
+            @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
+            @PathParam("destination") String destination, @PathParam("expireTimeInSeconds") int expireTimeInSeconds,
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        DestinationName dn = DestinationName.get(domain(), property, cluster, namespace, destination);
+        PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(property, cluster, namespace,
+                destination, authoritative);
+        if (partitionMetadata.partitions > 0) {
+            try {
+                // expire messages for each partition destination
+                for (int i = 0; i < partitionMetadata.partitions; i++) {
+                    pulsar().getAdminClient().persistentTopics()
+                            .expireMessagesForAllSubscriptions(dn.getPartition(i).toString(), expireTimeInSeconds);
+                }
+            } catch (Exception e) {
+                log.error("[{}] Failed to expire messages up to {} on {} {}", clientAppId(), expireTimeInSeconds, dn,
+                        e);
+                throw new RestException(e);
+            }
+        } else {
+            // validate ownership and redirect if current broker is not owner
+            validateAdminOperationOnDestination(dn, authoritative);
+            PersistentTopic topic = getTopicReference(dn);
+            topic.getReplicators().forEach((subName, replicator) -> {
+                expireMessages(property, cluster, namespace, destination, subName, expireTimeInSeconds, authoritative);
+            });
+            topic.getSubscriptions().forEach((subName, subscriber) -> {
+                expireMessages(property, cluster, namespace, destination, subName, expireTimeInSeconds, authoritative);
+            });
+        }
+    }
 
     @POST
     @Path("/{property}/{cluster}/{namespace}/{destination}/subscription/{subName}/resetcursor/{timestamp}")

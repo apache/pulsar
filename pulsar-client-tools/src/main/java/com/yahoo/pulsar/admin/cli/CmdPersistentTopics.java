@@ -52,6 +52,8 @@ public class CmdPersistentTopics extends CmdBase {
         jcommander.addCommand("partitioned-stats", new GetPartitionedStats());
         jcommander.addCommand("skip", new Skip());
         jcommander.addCommand("skip-all", new SkipAll());
+        jcommander.addCommand("expire-messages", new ExpireMessages());
+        jcommander.addCommand("expire-messages-all-subscriptions", new ExpireMessagesForAllSubscriptions());
         jcommander.addCommand("create-partitioned-topic", new CreatePartitionedCmd());
         jcommander.addCommand("get-partitioned-topic-metadata", new GetPartitionedTopicMetadataCmd());
         jcommander.addCommand("delete-partitioned-topic", new DeletePartitionedCmd());
@@ -293,6 +295,40 @@ public class CmdPersistentTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
             persistentTopics.skipMessages(persistentTopic, subName, numMessages);
+        }
+    }
+    
+    @Parameters(commandDescription = "Expire messages for the subscription")
+    private class ExpireMessages extends CliCommand {
+        @Parameter(description = "persistent://property/cluster/namespace/destination", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-s",
+                "--subscription" }, description = "Subscription to be skip messages on", required = true)
+        private String subName;
+
+        @Parameter(names = { "-t", "--expireTime" }, description = "Expire messages older than time in seconds", required = true)
+        private long expireTimeInSeconds;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            persistentTopics.expireMessages(persistentTopic, subName, expireTimeInSeconds);
+        }
+    }
+    
+    @Parameters(commandDescription = "Expire messages for all subscriptions")
+    private class ExpireMessagesForAllSubscriptions extends CliCommand {
+        @Parameter(description = "persistent://property/cluster/namespace/destination", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-t", "--expireTime" }, description = "Expire messages older than time in seconds", required = true)
+        private long expireTimeInSeconds;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            persistentTopics.expireMessagesForAllSubscriptions(persistentTopic, expireTimeInSeconds);
         }
     }
 
