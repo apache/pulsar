@@ -19,7 +19,9 @@ package com.yahoo.pulsar.websocket;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import java.io.IOException;
-import java.text.SimpleDateFormat;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.Base64;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -98,7 +100,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
             dm.messageId = Base64.getEncoder().encodeToString(msg.getMessageId().toByteArray());
             dm.payload = Base64.getEncoder().encodeToString(msg.getData());
             dm.properties = msg.getProperties();
-            dm.publishTime = DATE_FORMAT.format(msg.getPublishTime());
+            dm.publishTime = DATE_FORMAT.format(Instant.ofEpochMilli(msg.getPublishTime()));
             if (msg.hasKey()) {
                 dm.key = msg.getKey();
             }
@@ -192,7 +194,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
         return parts.get(8);
     }
 
-    private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
+    private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS").withZone(ZoneId.systemDefault());
 
     private static final Logger log = LoggerFactory.getLogger(ConsumerHandler.class);
 
