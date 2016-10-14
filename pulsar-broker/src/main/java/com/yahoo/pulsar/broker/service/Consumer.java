@@ -19,6 +19,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.yahoo.pulsar.broker.service.persistent.PersistentTopic.DATE_FORMAT;
 import static com.yahoo.pulsar.common.api.Commands.readChecksum;
 
+import java.time.Instant;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
@@ -88,7 +89,7 @@ public class Consumer {
         stats = new ConsumerStats();
         stats.address = cnx.clientAddress().toString();
         stats.consumerName = consumerName;
-        stats.connectedSince = DATE_FORMAT.format(new Date(System.currentTimeMillis()));
+        stats.connectedSince = DATE_FORMAT.format(Instant.now());
 
         if (subType == SubType.Shared) {
             this.pendingAcks = new ConcurrentOpenHashMap<PositionImpl, Integer>(256, 2);

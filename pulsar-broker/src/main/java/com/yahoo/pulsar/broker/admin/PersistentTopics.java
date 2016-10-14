@@ -21,6 +21,9 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.sql.Date;
 import java.text.SimpleDateFormat;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -102,7 +105,7 @@ import io.netty.buffer.PooledByteBufAllocator;
 public class PersistentTopics extends AdminResource {
     private static final Logger log = LoggerFactory.getLogger(PersistentTopics.class);
 
-    private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
+    private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS").withZone(ZoneId.systemDefault());
 
     private static final String PARTITIONED_TOPIC_PATH_ZNODE = "partitioned-topics";
     private static final int PARTITIONED_TOPIC_WAIT_SYNC_TIME_MS = 1000;
@@ -917,7 +920,7 @@ public class PersistentTopics extends AdminResource {
             }
             if (metadata.hasPublishTime()) {
                 responseBuilder.header("X-Pulsar-publish-time",
-                        DATE_FORMAT.format(new Date(metadata.getPublishTime())));
+                        DATE_FORMAT.format(Instant.ofEpochMilli(metadata.getPublishTime())));
             }
 
             // Decode if needed

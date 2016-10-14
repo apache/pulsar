@@ -20,6 +20,7 @@ import static com.yahoo.pulsar.broker.service.persistent.PersistentTopic.DATE_FO
 import static com.yahoo.pulsar.common.api.Commands.readChecksum;
 import static com.yahoo.pulsar.common.api.Commands.hasChecksum;
 
+import java.time.Instant;
 import java.util.Date;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
@@ -74,7 +75,7 @@ public class Producer {
 
         this.stats = new PublisherStats();
         stats.address = cnx.clientAddress().toString();
-        stats.connectedSince = DATE_FORMAT.format(new Date(System.currentTimeMillis()));
+        stats.connectedSince = DATE_FORMAT.format(Instant.now());
         stats.producerName = producerName;
         stats.producerId = producerId;
 

@@ -18,6 +18,9 @@ package com.yahoo.pulsar.broker.service.persistent;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import java.text.SimpleDateFormat;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
@@ -118,7 +121,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
     private static final double MESSAGE_EXPIRY_THRESHOLD = 1.5;
 
-    public static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
+    public static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS").withZone(ZoneId.systemDefault());
 
     // Timestamp of when this topic was last seen active
     private volatile long lastActive;
@@ -956,10 +959,10 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         stats.totalSize = ml.getTotalSize();
         stats.currentLedgerEntries = ml.getCurrentLedgerEntries();
         stats.currentLedgerSize = ml.getCurrentLedgerSize();
-        stats.lastLedgerCreatedTimestamp = DATE_FORMAT.format(new Date(ml.getLastLedgerCreatedTimestamp()));
+        stats.lastLedgerCreatedTimestamp = DATE_FORMAT.format(Instant.ofEpochMilli(ml.getLastLedgerCreatedTimestamp()));
         if (ml.getLastLedgerCreationFailureTimestamp() != 0) {
             stats.lastLedgerCreationFailureTimestamp = DATE_FORMAT
-                    .format(new Date(ml.getLastLedgerCreationFailureTimestamp()));
+                    .format(Instant.ofEpochMilli(ml.getLastLedgerCreationFailureTimestamp()));
         }
 
         stats.waitingCursorsCount = ml.getWaitingCursorsCount();
@@ -989,7 +992,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             cs.cursorLedger = cursor.getCursorLedger();
             cs.cursorLedgerLastEntry = cursor.getCursorLedgerLastEntry();
             cs.individuallyDeletedMessages = cursor.getIndividuallyDeletedMessages();
-            cs.lastLedgerSwitchTimestamp = DATE_FORMAT.format(new Date(cursor.getLastLedgerSwitchTimestamp()));
+            cs.lastLedgerSwitchTimestamp = DATE_FORMAT.format(Instant.ofEpochMilli(cursor.getLastLedgerSwitchTimestamp()));
             cs.state = cursor.getState();
             stats.cursors.put(cursor.getName(), cs);
         });
