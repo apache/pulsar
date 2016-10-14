@@ -17,10 +17,11 @@ package com.yahoo.pulsar.broker.service;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.yahoo.pulsar.broker.service.persistent.PersistentTopic.DATE_FORMAT;
-import static com.yahoo.pulsar.common.api.Commands.readChecksum;
+import static com.yahoo.pulsar.checksum.utils.Crc32cChecksum.computeChecksum;
 import static com.yahoo.pulsar.common.api.Commands.hasChecksum;
+import static com.yahoo.pulsar.common.api.Commands.readChecksum;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 
@@ -31,7 +32,6 @@ import org.slf4j.LoggerFactory;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Objects;
 import com.yahoo.pulsar.broker.service.Topic.PublishCallback;
-import static com.yahoo.pulsar.checksum.utils.Crc32cChecksum.computeChecksum;
 import com.yahoo.pulsar.common.api.Commands;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.ServerError;
 import com.yahoo.pulsar.common.naming.DestinationName;
@@ -74,7 +74,7 @@ public class Producer {
 
         this.stats = new PublisherStats();
         stats.address = cnx.clientAddress().toString();
-        stats.connectedSince = DATE_FORMAT.format(new Date(System.currentTimeMillis()));
+        stats.connectedSince = DATE_FORMAT.format(Instant.now());
         stats.producerName = producerName;
         stats.producerId = producerId;
 

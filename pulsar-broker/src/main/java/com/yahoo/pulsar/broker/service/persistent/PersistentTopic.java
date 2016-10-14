@@ -17,9 +17,10 @@ package com.yahoo.pulsar.broker.service.persistent;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import java.text.SimpleDateFormat;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.Collections;
-import java.util.Date;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -51,6 +52,25 @@ import com.carrotsearch.hppc.ObjectObjectHashMap;
 import com.google.common.base.Objects;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import com.yahoo.pulsar.broker.admin.AdminResource;
+import com.yahoo.pulsar.broker.service.BrokerService;
+import com.yahoo.pulsar.broker.service.BrokerServiceException;
+import com.yahoo.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
+import com.yahoo.pulsar.broker.service.BrokerServiceException.NamingException;
+import com.yahoo.pulsar.broker.service.BrokerServiceException.PersistenceException;
+import com.yahoo.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
+import com.yahoo.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
+import com.yahoo.pulsar.broker.service.BrokerServiceException.TopicBusyException;
+import com.yahoo.pulsar.broker.service.BrokerServiceException.TopicFencedException;
+import com.yahoo.pulsar.broker.service.Consumer;
+import com.yahoo.pulsar.broker.service.Producer;
+import com.yahoo.pulsar.broker.service.ServerCnx;
+import com.yahoo.pulsar.broker.service.Topic;
+import com.yahoo.pulsar.broker.stats.ClusterReplicationMetrics;
+import com.yahoo.pulsar.broker.stats.NamespaceStats;
+import com.yahoo.pulsar.broker.stats.ReplicationMetrics;
+import com.yahoo.pulsar.client.impl.MessageImpl;
+import com.yahoo.pulsar.client.util.FutureUtil;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import com.yahoo.pulsar.common.naming.DestinationName;
 import com.yahoo.pulsar.common.policies.data.BacklogQuota;
@@ -59,33 +79,14 @@ import com.yahoo.pulsar.common.policies.data.PersistentSubscriptionStats;
 import com.yahoo.pulsar.common.policies.data.PersistentTopicInternalStats;
 import com.yahoo.pulsar.common.policies.data.PersistentTopicInternalStats.CursorStats;
 import com.yahoo.pulsar.common.policies.data.PersistentTopicInternalStats.LedgerInfo;
-import com.yahoo.pulsar.common.policies.data.loadbalancer.NamespaceBundleStats;
 import com.yahoo.pulsar.common.policies.data.PersistentTopicStats;
-import com.yahoo.pulsar.common.policies.data.PublisherStats;
 import com.yahoo.pulsar.common.policies.data.Policies;
+import com.yahoo.pulsar.common.policies.data.PublisherStats;
 import com.yahoo.pulsar.common.policies.data.ReplicatorStats;
+import com.yahoo.pulsar.common.policies.data.loadbalancer.NamespaceBundleStats;
 import com.yahoo.pulsar.common.util.Codec;
 import com.yahoo.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import com.yahoo.pulsar.common.util.collections.ConcurrentOpenHashSet;
-import com.yahoo.pulsar.broker.admin.AdminResource;
-import com.yahoo.pulsar.broker.service.Consumer;
-import com.yahoo.pulsar.broker.service.BrokerService;
-import com.yahoo.pulsar.broker.service.BrokerServiceException;
-import com.yahoo.pulsar.broker.service.Producer;
-import com.yahoo.pulsar.broker.service.ServerCnx;
-import com.yahoo.pulsar.broker.service.Topic;
-import com.yahoo.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
-import com.yahoo.pulsar.broker.service.BrokerServiceException.NamingException;
-import com.yahoo.pulsar.broker.service.BrokerServiceException.PersistenceException;
-import com.yahoo.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
-import com.yahoo.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
-import com.yahoo.pulsar.broker.service.BrokerServiceException.TopicBusyException;
-import com.yahoo.pulsar.broker.service.BrokerServiceException.TopicFencedException;
-import com.yahoo.pulsar.broker.stats.ClusterReplicationMetrics;
-import com.yahoo.pulsar.broker.stats.NamespaceStats;
-import com.yahoo.pulsar.broker.stats.ReplicationMetrics;
-import com.yahoo.pulsar.client.impl.MessageImpl;
-import com.yahoo.pulsar.client.util.FutureUtil;
 import com.yahoo.pulsar.utils.StatsOutputStream;
 
 import io.netty.buffer.ByteBuf;
@@ -118,7 +119,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
     private static final double MESSAGE_EXPIRY_THRESHOLD = 1.5;
 
-    public static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
+    public static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS").withZone(ZoneId.systemDefault());
 
     // Timestamp of when this topic was last seen active
     private volatile long lastActive;
@@ -956,10 +957,10 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         stats.totalSize = ml.getTotalSize();
         stats.currentLedgerEntries = ml.getCurrentLedgerEntries();
         stats.currentLedgerSize = ml.getCurrentLedgerSize();
-        stats.lastLedgerCreatedTimestamp = DATE_FORMAT.format(new Date(ml.getLastLedgerCreatedTimestamp()));
+        stats.lastLedgerCreatedTimestamp = DATE_FORMAT.format(Instant.ofEpochMilli(ml.getLastLedgerCreatedTimestamp()));
         if (ml.getLastLedgerCreationFailureTimestamp() != 0) {
             stats.lastLedgerCreationFailureTimestamp = DATE_FORMAT
-                    .format(new Date(ml.getLastLedgerCreationFailureTimestamp()));
+                    .format(Instant.ofEpochMilli(ml.getLastLedgerCreationFailureTimestamp()));
         }
 
         stats.waitingCursorsCount = ml.getWaitingCursorsCount();
@@ -989,7 +990,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             cs.cursorLedger = cursor.getCursorLedger();
             cs.cursorLedgerLastEntry = cursor.getCursorLedgerLastEntry();
             cs.individuallyDeletedMessages = cursor.getIndividuallyDeletedMessages();
-            cs.lastLedgerSwitchTimestamp = DATE_FORMAT.format(new Date(cursor.getLastLedgerSwitchTimestamp()));
+            cs.lastLedgerSwitchTimestamp = DATE_FORMAT.format(Instant.ofEpochMilli(cursor.getLastLedgerSwitchTimestamp()));
             cs.state = cursor.getState();
             stats.cursors.put(cursor.getName(), cs);
         });

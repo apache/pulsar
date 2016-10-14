@@ -18,10 +18,13 @@ package com.yahoo.pulsar.client.impl;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.yahoo.pulsar.checksum.utils.Crc32cChecksum.computeChecksum;
 import static com.yahoo.pulsar.checksum.utils.Crc32cChecksum.resumeChecksum;
+import static com.yahoo.pulsar.common.api.Commands.hasChecksum;
+import static com.yahoo.pulsar.common.api.Commands.readChecksum;
 
 import java.io.IOException;
-import java.text.SimpleDateFormat;
-import java.util.Date;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
@@ -55,8 +58,6 @@ import io.netty.util.Recycler.Handle;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
-import static com.yahoo.pulsar.common.api.Commands.hasChecksum;
-import static com.yahoo.pulsar.common.api.Commands.readChecksum;
 
 public class ProducerImpl extends ProducerBase implements TimerTask {
 
@@ -693,7 +694,7 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
 
                         log.info("[{}] [{}] Created producer on cnx {}", topic, producerName, cnx.ctx().channel());
                         connectionId = cnx.ctx().channel().toString();
-                        connectedSince = DATE_FORMAT.format(new Date(System.currentTimeMillis()));
+                        connectedSince = DATE_FORMAT.format(Instant.now());
 
                         if (this.producerName == null) {
                             this.producerName = producerName;
@@ -1091,7 +1092,7 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
         return pendingMessages.size();
     }
 
-    private static SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
+    private static DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS").withZone(ZoneId.systemDefault());
 
     private PulsarApi.CompressionType convertCompressionType(CompressionType compressionType) {
         switch (compressionType) {
