@@ -120,6 +120,7 @@
                   <include>io.netty:netty</include>
                   <include>io.netty:netty-all</include>
                   <include>com.yahoo.pulsar:pulsar-common</include>
+                  <include>com.yahoo.pulsar:pulsar-checksum</include>
                   <include>net.jpountz.lz4:lz4</include>
                   <include>com.yahoo.datasketches:sketches-core</include>>
                 </includes>
@@ -164,6 +165,14 @@
                 <relocation>
                   <pattern>com.yahoo.pulsar.common</pattern>
                   <shadedPattern>com.yahoo.pulsar.shade.com.yahoo.pulsar.common</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>com.yahoo.pulsar.checksum</pattern>
+                  <shadedPattern>com.yahoo.pulsar.shade.com.yahoo.pulsar.checksum</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>com.scurrilous.circe</pattern>
+                  <shadedPattern>com.yahoo.pulsar.shade.com.scurrilous.circe</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>net.jpountz</pattern>
