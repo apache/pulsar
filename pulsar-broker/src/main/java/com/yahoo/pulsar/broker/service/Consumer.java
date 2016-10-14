@@ -64,6 +64,10 @@ public class Consumer {
     // overflowing its receiving queue. The consumer will use Flow commands to
     // increase its availability
     private final AtomicInteger messagePermits = new AtomicInteger(0);
+    // It starts keep tracking of messagePermits once consumer gets blocked, as consumer needs two separate counts:
+    // messagePermits (1) before and (2) after being blocked: to dispatch only blockedPermit number of messages at the
+    // time of redelivery
+    private final AtomicInteger permitsReceivedWhileConsumerBlocked = new AtomicInteger(0);
 
     private final ConcurrentOpenHashMap<PositionImpl, Integer> pendingAcks;
 
@@ -295,15 +299,34 @@ public class Consumer {
         if (shouldBlockConsumerOnUnackMsgs() && unackedMessages.get() >= maxUnackedMessages) {
             blockedConsumerOnUnackedMsgs = true;
         }
-
-        int oldPermits = messagePermits.getAndAdd(additionalNumberOfMessages);
+        int oldPermits;
         if (!blockedConsumerOnUnackedMsgs) {
+            oldPermits = messagePermits.getAndAdd(additionalNumberOfMessages);
             subscription.consumerFlow(this, additionalNumberOfMessages);
+        } else {
+            oldPermits = permitsReceivedWhileConsumerBlocked.getAndAdd(additionalNumberOfMessages);
         }
+
         if (log.isDebugEnabled()) {
-            log.debug("[{}] Added more flow control message permits {} (old was: {})", this,
-                    additionalNumberOfMessages, oldPermits);
+            log.debug("[{}] Added more flow control message permits {} (old was: {})", this, additionalNumberOfMessages,
+                    oldPermits);
         }
+
+    }
+    
+    /**
+     * Triggers dispatcher to dispatch {@code blockedPermits} number of messages and adds same number of permits to
+     * {@code messagePermits} as it maintains count of actual dispatched message-permits.
+     * 
+     * @param consumer:
+     *            Consumer whose blockedPermits needs to be dispatched
+     */
+    void flowConsumerBlockedPermits(Consumer consumer) {
+        int additionalNumberOfPermits = consumer.permitsReceivedWhileConsumerBlocked.getAndSet(0);
+        // add newly flow permits to actual consumer.messagePermits
+        consumer.messagePermits.getAndAdd(additionalNumberOfPermits);
+        // dispatch pending permits to flow more messages: it will add more permits to dispatcher and consumer
+        subscription.consumerFlow(consumer, additionalNumberOfPermits);
     }
 
     public int getAvailablePermits() {
@@ -399,10 +422,10 @@ public class Consumer {
             // unblock consumer-throttling when receives half of maxUnackedMessages => consumer can start again
             // consuming messages
             if (ackOwnedConsumer.shouldBlockConsumerOnUnackMsgs()
-                    && ((ackOwnedConsumer.unackedMessages.addAndGet(-totalAckedMsgs) == (maxUnackedMessages / 2))
+                    && ((ackOwnedConsumer.unackedMessages.addAndGet(-totalAckedMsgs) <= (maxUnackedMessages / 2))
                             && ackOwnedConsumer.blockedConsumerOnUnackedMsgs)) {
                 ackOwnedConsumer.blockedConsumerOnUnackedMsgs = false;
-                subscription.consumerFlow(ackOwnedConsumer, ackOwnedConsumer.messagePermits.get());
+                flowConsumerBlockedPermits(ackOwnedConsumer);
             }
         }
     }
@@ -420,6 +443,7 @@ public class Consumer {
         blockedConsumerOnUnackedMsgs = false;
         // redeliver unacked-msgs
         subscription.redeliverUnacknowledgedMessages(this);
+        flowConsumerBlockedPermits(this);
         if (pendingAcks != null) {
             pendingAcks.clear();
         }
