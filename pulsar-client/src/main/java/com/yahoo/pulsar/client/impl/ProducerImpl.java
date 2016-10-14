@@ -18,13 +18,13 @@ package com.yahoo.pulsar.client.impl;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.yahoo.pulsar.checksum.utils.Crc32cChecksum.computeChecksum;
 import static com.yahoo.pulsar.checksum.utils.Crc32cChecksum.resumeChecksum;
+import static com.yahoo.pulsar.common.api.Commands.hasChecksum;
+import static com.yahoo.pulsar.common.api.Commands.readChecksum;
 
 import java.io.IOException;
-import java.text.SimpleDateFormat;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.Date;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
@@ -58,8 +58,6 @@ import io.netty.util.Recycler.Handle;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
-import static com.yahoo.pulsar.common.api.Commands.hasChecksum;
-import static com.yahoo.pulsar.common.api.Commands.readChecksum;
 
 public class ProducerImpl extends ProducerBase implements TimerTask {
 

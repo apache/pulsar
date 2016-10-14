@@ -20,7 +20,6 @@ import static com.yahoo.pulsar.broker.service.persistent.PersistentTopic.DATE_FO
 import static com.yahoo.pulsar.common.api.Commands.readChecksum;
 
 import java.time.Instant;
-import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;

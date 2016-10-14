@@ -19,12 +19,9 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.sql.Date;
-import java.text.SimpleDateFormat;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -62,10 +59,16 @@ import org.slf4j.LoggerFactory;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import io.swagger.annotations.Api;
-import io.swagger.annotations.ApiOperation;
-import io.swagger.annotations.ApiResponse;
-import io.swagger.annotations.ApiResponses;
+import com.yahoo.pulsar.broker.service.BrokerServiceException.NotAllowedException;
+import com.yahoo.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
+import com.yahoo.pulsar.broker.service.BrokerServiceException.SubscriptionInvalidCursorPosition;
+import com.yahoo.pulsar.broker.service.BrokerServiceException.TopicBusyException;
+import com.yahoo.pulsar.broker.service.persistent.PersistentReplicator;
+import com.yahoo.pulsar.broker.service.persistent.PersistentSubscription;
+import com.yahoo.pulsar.broker.service.persistent.PersistentTopic;
+import com.yahoo.pulsar.broker.web.RestException;
+import com.yahoo.pulsar.client.admin.PulsarAdminException.NotFoundException;
+import com.yahoo.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import com.yahoo.pulsar.common.api.Commands;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.KeyValue;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.MessageMetadata;
@@ -82,20 +85,14 @@ import com.yahoo.pulsar.common.policies.data.PersistentTopicInternalStats;
 import com.yahoo.pulsar.common.policies.data.PersistentTopicStats;
 import com.yahoo.pulsar.common.policies.data.Policies;
 import com.yahoo.pulsar.common.util.Codec;
-import com.yahoo.pulsar.broker.service.BrokerServiceException.NotAllowedException;
-import com.yahoo.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
-import com.yahoo.pulsar.broker.service.BrokerServiceException.SubscriptionInvalidCursorPosition;
-import com.yahoo.pulsar.broker.service.BrokerServiceException.TopicBusyException;
-import com.yahoo.pulsar.broker.service.persistent.PersistentReplicator;
-import com.yahoo.pulsar.broker.service.persistent.PersistentSubscription;
-import com.yahoo.pulsar.broker.service.persistent.PersistentTopic;
-import com.yahoo.pulsar.broker.web.RestException;
-import com.yahoo.pulsar.client.admin.PulsarAdminException.NotFoundException;
-import com.yahoo.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import com.yahoo.pulsar.zookeeper.ZooKeeperCache.Deserializer;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiResponse;
+import io.swagger.annotations.ApiResponses;
 
 /**
  */
