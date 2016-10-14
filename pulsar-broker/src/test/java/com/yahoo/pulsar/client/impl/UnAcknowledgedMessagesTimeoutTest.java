@@ -37,8 +37,6 @@ import com.yahoo.pulsar.client.api.ProducerConfiguration;
 import com.yahoo.pulsar.client.api.ProducerConfiguration.MessageRoutingMode;
 import com.yahoo.pulsar.client.api.PulsarClientException;
 import com.yahoo.pulsar.client.api.SubscriptionType;
-import com.yahoo.pulsar.client.impl.ConsumerBase;
-import com.yahoo.pulsar.client.impl.MessageIdImpl;
 
 public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
     private static final long testTimeout = 90000; // 1.5 min
@@ -87,7 +85,7 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
             log.info("Consumer received : " + new String(message.getData()));
             message = consumer.receive(500, TimeUnit.MILLISECONDS);
         }
-        long size = ((ConsumerBase) consumer).getUnAckedMessageTracker().size();
+        long size = ((ConsumerImpl) consumer).getUnAckedMessageTracker().size();
         log.info(key + " Unacked Message Tracker size is " + size);
         assertEquals(size, totalMessages / 2);
 
@@ -108,7 +106,7 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
             message = consumer.receive(500, TimeUnit.MILLISECONDS);
         } while (message != null);
 
-        size = ((ConsumerBase) consumer).getUnAckedMessageTracker().size();
+        size = ((ConsumerImpl) consumer).getUnAckedMessageTracker().size();
         log.info(key + " Unacked Message Tracker size is " + size);
         assertEquals(size, 0);
         assertEquals(hSet.size(), totalMessages);
@@ -148,12 +146,12 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
             log.info("Message ID details " + ((MessageIdImpl) message.getMessageId()).toString());
             message = consumer.receive(500, TimeUnit.MILLISECONDS);
         }
-        long size = ((ConsumerBase) consumer).getUnAckedMessageTracker().size();
+        long size = ((ConsumerImpl) consumer).getUnAckedMessageTracker().size();
         assertEquals(size, totalMessages);
         log.info("Comulative Ack sent for " + new String(lastMessage.getData()));
         log.info("Message ID details " + ((MessageIdImpl) lastMessage.getMessageId()).toString());
         consumer.acknowledgeCumulative(lastMessage);
-        size = ((ConsumerBase) consumer).getUnAckedMessageTracker().size();
+        size = ((ConsumerImpl) consumer).getUnAckedMessageTracker().size();
         assertEquals(size, 0);
         message = consumer.receive((int) (2 * ackTimeOutMillis), TimeUnit.MILLISECONDS);
         assertEquals(message, null);
@@ -362,7 +360,7 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
         ConsumerConfiguration conf = new ConsumerConfiguration();
         conf.setReceiverQueueSize(7);
         conf.setAckTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS);
-        ConsumerBase consumer = (ConsumerBase) pulsarClient.subscribe(topicName, subscriptionName, conf);
+        ConsumerImpl consumer = (ConsumerImpl) pulsarClient.subscribe(topicName, subscriptionName, conf);
 
         // 3. producer publish messages
         for (int i = 0; i < totalMessages; i++) {
@@ -371,25 +369,21 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
             producer.send(message.getBytes());
         }
 
-        // 4. Consumer receives the message
-        assertEquals(consumer.getUnAckedMessageTracker().size(), 0);
-        consumer.receive();
-        assertEquals(consumer.getUnAckedMessageTracker().size(), 1);
-        Thread.sleep(ackTimeOutMillis);
-        consumer.receive();
-        assertEquals(consumer.getUnAckedMessageTracker().size(), 2);
         Thread.sleep((long) (ackTimeOutMillis * 1.1));
-        // Timeout should have been triggered here
 
-        // 5. Trying to receive messages again
-        assertEquals(consumer.getUnAckedMessageTracker().size(), 0);
-        Message message1 = consumer.receive();
+        for (int i = 0; i < totalMessages - 1; i++) {
+            Message msg = consumer.receive();
+            consumer.acknowledge(msg);
+        }
+
         assertEquals(consumer.getUnAckedMessageTracker().size(), 1);
-        Thread.sleep(ackTimeOutMillis);
-        Message message2 = consumer.receive();
-        assertEquals(consumer.getUnAckedMessageTracker().size(), 2);
-        consumer.acknowledge(message1);
-        consumer.acknowledge(message2);
+
+        Message msg = consumer.receive();
+        consumer.acknowledge(msg);
+        assertEquals(consumer.getUnAckedMessageTracker().size(), 0);
+
+        Thread.sleep((long) (ackTimeOutMillis * 1.1));
+
         assertEquals(consumer.getUnAckedMessageTracker().size(), 0);
     }
 

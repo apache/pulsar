@@ -23,8 +23,6 @@ import java.io.IOException;
 import java.util.BitSet;
 import java.util.NavigableMap;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -80,6 +78,7 @@ public class ConsumerImpl extends ConsumerBase {
 
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
 
+    private final UnAckedMessageTracker unAckedMessageTracker;
     private final ConcurrentSkipListMap<MessageIdImpl, BitSet> batchMessageAckTracker;
 
     private final ConsumerStats stats;
@@ -104,7 +103,16 @@ public class ConsumerImpl extends ConsumerBase {
         } else {
             stats = ConsumerStats.CONSUMER_STATS_DISABLED;
         }
+        if (conf.getAckTimeoutMillis() != 0) {
+            this.unAckedMessageTracker = new UnAckedMessageTracker(client, this, conf.getAckTimeoutMillis());
+        } else {
+            this.unAckedMessageTracker = UnAckedMessageTracker.UNACKED_MESSAGE_TRACKER_DISABLED;
+        }
         grabCnx();
+    }
+
+    public UnAckedMessageTracker getUnAckedMessageTracker() {
+        return unAckedMessageTracker;
     }
 
     @Override
@@ -122,9 +130,8 @@ public class ConsumerImpl extends ConsumerBase {
             cnx.sendRequestWithId(unsubscribe, requestId).thenRun(() -> {
                 cnx.removeConsumer(consumerId);
                 log.info("[{}][{}] Successfully unsubscribed from topic", topic, subscription);
-                if (unAckedMessageTracker != null) {
-                    unAckedMessageTracker.close();
-                }
+                batchMessageAckTracker.clear();
+                unAckedMessageTracker.close();
                 unsubscribeFuture.complete(null);
                 state.set(State.Closed);
             }).exceptionally(e -> {
@@ -148,9 +155,6 @@ public class ConsumerImpl extends ConsumerBase {
         try {
             message = incomingMessages.take();
             messageProcessed(message);
-            if (unAckedMessageTracker != null) {
-                unAckedMessageTracker.add((MessageIdImpl) message.getMessageId());
-            }
             return message;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -181,9 +185,6 @@ public class ConsumerImpl extends ConsumerBase {
             receiveMessages(cnx(), 1);
         } else if (message != null) {
             messageProcessed(message);
-            if (unAckedMessageTracker != null) {
-                unAckedMessageTracker.add((MessageIdImpl) message.getMessageId());
-            }
             result.complete(message);
         }
 
@@ -220,9 +221,6 @@ public class ConsumerImpl extends ConsumerBase {
                 }
             } while (true);
 
-            if (unAckedMessageTracker != null) {
-                unAckedMessageTracker.add((MessageIdImpl) message.getMessageId());
-            }
             stats.updateNumMsgsReceived(message);
             return message;
         } catch (InterruptedException e) {
@@ -244,9 +242,6 @@ public class ConsumerImpl extends ConsumerBase {
             message = incomingMessages.poll(timeout, unit);
             if (message != null) {
                 messageProcessed(message);
-                if (unAckedMessageTracker != null) {
-                    unAckedMessageTracker.add((MessageIdImpl) message.getMessageId());
-                }
             }
             return message;
         } catch (InterruptedException e) {
@@ -262,7 +257,7 @@ public class ConsumerImpl extends ConsumerBase {
         // get entry before this message and ack that message on broker
         MessageIdImpl lowerKey = batchMessageAckTracker.lowerKey(message);
         if (lowerKey != null) {
-            NavigableMap entriesUpto = batchMessageAckTracker.headMap(lowerKey, true);
+            NavigableMap<MessageIdImpl, BitSet> entriesUpto = batchMessageAckTracker.headMap(lowerKey, true);
             for (Object key : entriesUpto.keySet()) {
                 entriesUpto.remove(key);
             }
@@ -336,7 +331,7 @@ public class ConsumerImpl extends ConsumerBase {
         }
         MessageIdImpl lowerKey = batchMessageAckTracker.lowerKey(message);
         if (lowerKey != null) {
-            NavigableMap entriesUpto = batchMessageAckTracker.headMap(lowerKey, true);
+            NavigableMap<MessageIdImpl, BitSet> entriesUpto = batchMessageAckTracker.headMap(lowerKey, true);
             for (Object key : entriesUpto.keySet()) {
                 entriesUpto.remove(key);
             }
@@ -349,7 +344,6 @@ public class ConsumerImpl extends ConsumerBase {
                 log.debug("[{}] [{}] no messages to clean up prior to message {}", subscription, consumerId, message);
             }
         }
-
     }
 
     /**
@@ -380,7 +374,6 @@ public class ConsumerImpl extends ConsumerBase {
                 // other messages in batch are still pending ack.
                 return CompletableFuture.completedFuture(null);
             }
-
         }
         // if we got a cumulative ack on non batch message, check if any earlier batch messages need to be removed
         // from batch message tracker
@@ -403,18 +396,13 @@ public class ConsumerImpl extends ConsumerBase {
                 public void operationComplete(Future<Void> future) throws Exception {
                     if (future.isSuccess()) {
                         if (ackType == AckType.Individual) {
-                            if (unAckedMessageTracker != null) {
-                                unAckedMessageTracker.remove(msgId);
-                            }
+                            unAckedMessageTracker.remove(msgId);
                             // increment counter by 1 for non-batch msg
                             if (!(messageId instanceof BatchMessageIdImpl)) {
                                 stats.incrementNumAcksSent(1);
                             }
                         } else if (ackType == AckType.Cumulative) {
-                            if (unAckedMessageTracker != null) {
-                                int ackedMessages = unAckedMessageTracker.removeMessagesTill(msgId);
-                                stats.incrementNumAcksSent(ackedMessages);
-                            }
+                            stats.incrementNumAcksSent(unAckedMessageTracker.removeMessagesTill(msgId));
                         }
                         ackFuture.complete(null);
                     } else {
@@ -445,9 +433,8 @@ public class ConsumerImpl extends ConsumerBase {
                 requestId).thenRun(() -> {
                     synchronized (ConsumerImpl.this) {
                         incomingMessages.clear();
-                        if (unAckedMessageTracker != null) {
-                            unAckedMessageTracker.clear();
-                        }
+                        unAckedMessageTracker.clear();
+                        batchMessageAckTracker.clear();
                         if (changeToReadyState()) {
                             log.info("[{}][{}] Subscribed to topic on {} -- consumer: {}", topic, subscription,
                                     cnx.channel().remoteAddress(), consumerId);
@@ -530,9 +517,8 @@ public class ConsumerImpl extends ConsumerBase {
     @Override
     public CompletableFuture<Void> closeAsync() {
         if (state.get() == State.Closing || state.get() == State.Closed) {
-            if (unAckedMessageTracker != null) {
-                unAckedMessageTracker.close();
-            }
+            batchMessageAckTracker.clear();
+            unAckedMessageTracker.close();
             return CompletableFuture.completedFuture(null);
         }
 
@@ -540,9 +526,7 @@ public class ConsumerImpl extends ConsumerBase {
             log.info("[{}] [{}] Closed Consumer (not connected)", topic, subscription);
             state.set(State.Closed);
             batchMessageAckTracker.clear();
-            if (unAckedMessageTracker != null) {
-                unAckedMessageTracker.close();
-            }
+            unAckedMessageTracker.close();
             client.cleanupConsumer(this);
             return CompletableFuture.completedFuture(null);
         }
@@ -565,9 +549,7 @@ public class ConsumerImpl extends ConsumerBase {
                 log.info("[{}] [{}] Closed consumer", topic, subscription);
                 state.set(State.Closed);
                 batchMessageAckTracker.clear();
-                if (unAckedMessageTracker != null) {
-                    unAckedMessageTracker.close();
-                }
+                unAckedMessageTracker.close();
                 closeFuture.complete(null);
                 client.cleanupConsumer(this);
             } else {
@@ -619,6 +601,7 @@ public class ConsumerImpl extends ConsumerBase {
                 // Enqueue the message so that it can be retrieved when application calls receive()
                 // if the conf.getReceiverQueueSize() is 0 then discard message if no one is waiting for it.
                 // if asyncReceive is waiting then notify callback without adding to incomingMessages queue
+                unAckedMessageTracker.add((MessageIdImpl) message.getMessageId());
                 boolean asyncReceivedWaiting = !pendingReceives.isEmpty();
                 if ((conf.getReceiverQueueSize() != 0 || waitingOnReceiveForZeroQueueSize) && !asyncReceivedWaiting) {
                     incomingMessages.add(message);
@@ -689,10 +672,6 @@ public class ConsumerImpl extends ConsumerBase {
             CompletableFuture<Message> receivedFuture = pendingReceives.poll();
             if (exception == null) {
                 checkNotNull(message, "received message can't be null");
-                // add message to unAckedMessage tracker
-                if (unAckedMessageTracker != null) {
-                    unAckedMessageTracker.add((MessageIdImpl) message.getMessageId());
-                }
                 if (receivedFuture != null) {
                     if (conf.getReceiverQueueSize() == 0) {
                         // return message to receivedCallback
@@ -724,6 +703,7 @@ public class ConsumerImpl extends ConsumerBase {
                     batchMessage, bitSet.cardinality(), bitSet.length());
         }
         batchMessageAckTracker.put(batchMessage, bitSet);
+        unAckedMessageTracker.add(batchMessage);
         try {
             for (int i = 0; i < batchSize; ++i) {
                 if (log.isDebugEnabled()) {
@@ -868,10 +848,18 @@ public class ConsumerImpl extends ConsumerBase {
     public void redeliverUnacknowledgedMessages() {
         ClientCnx cnx = cnx();
         if (isConnected() && cnx.getRemoteEndpointProtocolVersion() >= ProtocolVersion.v2.getNumber()) {
-            if (unAckedMessageTracker != null) {
+            int currentSize = 0;
+            synchronized (this) {
+                currentSize = incomingMessages.size();
+                incomingMessages.clear();
+                availablePermits.set(0);
                 unAckedMessageTracker.clear();
+                batchMessageAckTracker.clear();
             }
             cnx.ctx().writeAndFlush(Commands.newRedeliverUnacknowledgedMessages(consumerId), cnx.ctx().voidPromise());
+            if (currentSize > 0) {
+                receiveMessages(cnx, currentSize);
+            }
             return;
         }
         if (cnx == null || (state.get() == State.Connecting)) {
