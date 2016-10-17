@@ -15,10 +15,13 @@
  */
 package com.yahoo.pulsar.broker.service;
 
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+import com.yahoo.pulsar.common.api.proto.PulsarApi;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import com.yahoo.pulsar.utils.CopyOnWriteArrayList;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
 
 public interface Dispatcher {
     void addConsumer(Consumer consumer) throws BrokerServiceException;
@@ -43,4 +46,6 @@ public interface Dispatcher {
     SubType getType();
 
     void redeliverUnacknowledgedMessages(Consumer consumer);
+
+    void redeliverUnacknowledgedMessages(Consumer consumer, List<PositionImpl> positions);
 }

@@ -16,6 +16,7 @@
 package com.yahoo.pulsar.common.api;
 
 import java.io.IOException;
+import java.util.List;
 
 import com.google.protobuf.ByteString;
 import static com.yahoo.pulsar.checksum.utils.Crc32cChecksum.computeChecksum;
@@ -380,6 +381,19 @@ public class Commands {
         CommandRedeliverUnacknowledgedMessages.Builder redeliverBuilder = CommandRedeliverUnacknowledgedMessages
                 .newBuilder();
         redeliverBuilder.setConsumerId(consumerId);
+        CommandRedeliverUnacknowledgedMessages redeliver = redeliverBuilder.build();
+        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.REDELIVER_UNACKNOWLEDGED_MESSAGES)
+                .setRedeliverUnacknowledgedMessages(redeliverBuilder));
+        redeliver.recycle();
+        redeliverBuilder.recycle();
+        return res;
+    }
+
+    public static ByteBuf newRedeliverUnacknowledgedMessages(long consumerId, List<MessageIdData> messageIds) {
+        CommandRedeliverUnacknowledgedMessages.Builder redeliverBuilder = CommandRedeliverUnacknowledgedMessages
+                .newBuilder();
+        redeliverBuilder.setConsumerId(consumerId);
+        redeliverBuilder.addAllMessageIds(messageIds);
         CommandRedeliverUnacknowledgedMessages redeliver = redeliverBuilder.build();
         ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.REDELIVER_UNACKNOWLEDGED_MESSAGES)
                 .setRedeliverUnacknowledgedMessages(redeliverBuilder));
