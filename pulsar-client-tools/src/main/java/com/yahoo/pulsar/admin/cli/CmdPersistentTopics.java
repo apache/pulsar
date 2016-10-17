@@ -298,7 +298,7 @@ public class CmdPersistentTopics extends CmdBase {
         }
     }
     
-    @Parameters(commandDescription = "Expire messages for the subscription")
+    @Parameters(commandDescription = "Expire messages that older than given expiry time (in seconds) for the subscription")
     private class ExpireMessages extends CliCommand {
         @Parameter(description = "persistent://property/cluster/namespace/destination", required = true)
         private java.util.List<String> params;
@@ -317,7 +317,7 @@ public class CmdPersistentTopics extends CmdBase {
         }
     }
     
-    @Parameters(commandDescription = "Expire messages for all subscriptions")
+    @Parameters(commandDescription = "Expire messages that older than given expiry time (in seconds) for all subscriptions")
     private class ExpireMessagesForAllSubscriptions extends CliCommand {
         @Parameter(description = "persistent://property/cluster/namespace/destination", required = true)
         private java.util.List<String> params;

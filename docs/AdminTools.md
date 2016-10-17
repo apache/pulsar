@@ -47,6 +47,7 @@
 			- [get message-ttl](#get-message-ttl)
 			- [split bundle](#split-bundle)
 			- [clear backlog](#clear-backlog)
+			- [clear bundle backlog](#clear-bundle-backlog)
 			- [set retention](#set-retention)
 			- [get retention](#get-retention)
 		- [Persistent](#persistent)
@@ -64,6 +65,8 @@
 			- [Peek messages](#peek-messages)
 			- [Skip messages](#skip-messages)
 			- [Skip all messages](#skip-all-messages)
+			- [Expire messages](#expire-messages)
+			- [Expire all messages](#expire-all-messages)
 			- [Reset cursor](#reset-cursor)
 			- [Lookup of topic](#lookup-of-topic)
 			- [Get subscriptions](#get-subscriptions)
@@ -189,7 +192,7 @@ broker1.use.org.com:8080
 ###### REST
 
 ```
-GET /brokers/{cluster}
+GET /admin/brokers/{cluster}
 ```
 
 ###### Java
@@ -221,7 +224,7 @@ $ pulsar-admin brokers namespaces --url broker1.use.org.com:8080 use
 ###### REST
 
 ```
-GET /brokers/{cluster}/{broker}/ownedNamespaces
+GET /admin/brokers/{cluster}/{broker}/ownedNamespaces
 ```
 
 ###### Java
@@ -254,7 +257,7 @@ my-property
 ###### REST
 
 ```
-GET /properties
+GET /admin/properties
 ```
 
 ###### Java
@@ -282,7 +285,7 @@ N/A
 ###### REST
 
 ```
-PUT /properties/{property}
+PUT /admin/properties/{property}
 ```
 
 ###### Java
@@ -318,7 +321,7 @@ $pulsar-admin properties get my-property
 ###### REST
 
 ```
-GET /properties/{property}
+GET /admin/properties/{property}
 ```
 
 ###### Java
@@ -344,7 +347,7 @@ N/A
 ###### REST
 
 ```
-POST /properties/{property}
+POST /admin/properties/{property}
 ```
 
 ###### Java
@@ -371,7 +374,7 @@ N/A
 ###### REST
 
 ```
-DELETE /properties/{property}
+DELETE /admin/properties/{property}
 ```
 
 ###### Java
@@ -407,7 +410,7 @@ N/A
 ###### REST
 
 ```
-PUT /clusters/{cluster}
+PUT /admin/clusters/{cluster}
 ```
 
 ###### Java
@@ -438,7 +441,7 @@ $ pulsar-admin clusters get cl1
 ###### REST
 
 ```
-GET /clusters/{cluster}
+GET /admin/clusters/{cluster}
 ```
 
 ###### Java
@@ -465,7 +468,7 @@ N/A
 ###### REST
 
 ```
-POST /clusters/{cluster}
+POST /admin/clusters/{cluster}
 ```
 
 ###### Java
@@ -492,7 +495,7 @@ N/A
 ###### REST
 
 ```
-DELETE /clusters/{cluster}
+DELETE /admin/clusters/{cluster}
 ```
 
 ###### Java
@@ -519,7 +522,7 @@ cl1
 ###### REST
 
 ```
-GET /clusters
+GET /admin/clusters
 ```
 
 ###### Java
@@ -552,7 +555,7 @@ N/A
 ###### REST
 
 ```
-PUT /namespaces/{property}/{cluster}/{namespace}
+PUT /admin/namespaces/{property}/{cluster}/{namespace}
 ```
 
 ###### Java
@@ -598,7 +601,7 @@ $pulsar-admin namespaces policies test-property/cl1/ns1
 ###### REST
 
 ```
-GET /namespaces/{property}/{cluster}/{namespace}
+GET /admin/namespaces/{property}/{cluster}/{namespace}
 ```
 
 ###### Java
@@ -625,7 +628,7 @@ test-property/cl1/ns1
 ###### REST
 
 ```
-GET /namespaces/{property}
+GET /admin/namespaces/{property}
 ```
 
 ###### Java
@@ -652,7 +655,7 @@ test-property/cl1/ns1
 ###### REST
 
 ```
-GET /namespaces/{property}/{cluster}
+GET /admin/namespaces/{property}/{cluster}
 ```
 
 ###### Java
@@ -678,7 +681,7 @@ N/A
 ###### REST
 
 ```
-DELETE /namespaces/{property}/{cluster}/{namespace}
+DELETE /admin/namespaces/{property}/{cluster}/{namespace}
 ```
 
 ###### Java
@@ -704,7 +707,7 @@ N/A
 ###### REST
 
 ```
-POST /namespaces/{property}/{cluster}/{namespace}/permissions/{role}
+POST /admin/namespaces/{property}/{cluster}/{namespace}/permissions/{role}
 ```
 
 ###### Java
@@ -736,7 +739,7 @@ $ pulsar-admin namespaces permissions test-property/cl1/ns1
 ###### REST
 
 ```
-GET /namespaces/{property}/{cluster}/{namespace}/permissions
+GET /admin/namespaces/{property}/{cluster}/{namespace}/permissions
 ```
 
 ###### Java
@@ -762,7 +765,7 @@ N/A
 ###### REST
 
 ```
-DELETE /namespaces/{property}/{cluster}/{namespace}/permissions/{role}
+DELETE /admin/namespaces/{property}/{cluster}/{namespace}/permissions/{role}
 ```
 
 ###### Java
@@ -789,7 +792,7 @@ N/A
 ###### REST
 
 ```
-POST /namespaces/{property}/{cluster}/{namespace}/replication
+POST /admin/namespaces/{property}/{cluster}/{namespace}/replication
 ```
 
 ###### Java
@@ -815,7 +818,7 @@ cl2
 ###### REST
 
 ```
-GET /namespaces/{property}/{cluster}/{namespace}/replication
+GET /admin/namespaces/{property}/{cluster}/{namespace}/replication
 ```
 
 ###### Java
@@ -849,7 +852,7 @@ N/A
 ###### REST
 
 ```
-POST /namespaces/{property}/{cluster}/{namespace}/backlogQuota
+POST /admin/namespaces/{property}/{cluster}/{namespace}/backlogQuota
 ```
 
 ###### Java
@@ -880,7 +883,7 @@ $ pulsar-admin namespaces get-backlog-quotas test-property/cl1/ns1
 ###### REST
 
 ```
-GET /namespaces/{property}/{cluster}/{namespace}/backlogQuotaMap
+GET /admin/namespaces/{property}/{cluster}/{namespace}/backlogQuotaMap
 ```
 
 ###### Java
@@ -909,7 +912,7 @@ N/A
 ###### REST
 
 ```
-DELETE /namespaces/{property}/{cluster}/{namespace}/backlogQuota
+DELETE /admin/namespaces/{property}/{cluster}/{namespace}/backlogQuota
 ```
 
 ###### Java
@@ -944,7 +947,7 @@ N/A
 ###### REST
 
 ```
-POST /persistent/{property}/{cluster}/{namespace}/persistence
+POST /admin/persistent/{property}/{cluster}/{namespace}/persistence
 ```
 
 ###### Java
@@ -976,7 +979,7 @@ $ pulsar-admin namespaces set-persistence test-property/cl1/ns1
 ###### REST
 
 ```
-GET /namespaces/{property}/{cluster}/{namespace}/persistence
+GET /admin/namespaces/{property}/{cluster}/{namespace}/persistence
 ```
 
 ###### Java
@@ -1003,7 +1006,7 @@ N/A
 ###### REST
 
 ```
-PUT /namespaces/{property}/{cluster}/{namespace}/unload
+PUT /admin/namespaces/{property}/{cluster}/{namespace}/unload
 ```
 
 ###### Java
@@ -1030,7 +1033,7 @@ N/A
 ###### REST
 
 ```
-POST /namespaces/{property}/{cluster}/{namespace}/messageTTL
+POST /admin/namespaces/{property}/{cluster}/{namespace}/messageTTL
 ```
 
 ###### Java
@@ -1057,7 +1060,7 @@ $ pulsar-admin namespaces get-message-ttl test-property/cl1/ns1
 ###### REST
 
 ```
-GET /namespaces/{property}/{cluster}/{namespace}/messageTTL
+GET /admin/namespaces/{property}/{cluster}/{namespace}/messageTTL
 ```
 
 ###### Java
@@ -1084,7 +1087,7 @@ N/A
 ###### REST
 
 ```
-PUT /namespaces/{property}/{cluster}/{namespace}/{bundle}/split
+PUT /admin/namespaces/{property}/{cluster}/{namespace}/{bundle}/split
 ```
 
 ###### Java
@@ -1095,6 +1098,33 @@ admin.namespaces().splitNamespaceBundle(namespace, bundle)
 
 
 #### clear backlog
+
+It clears all message backlog for all the topics those belong to specific namespace. You can also clear backlog for a specific subscription as well.  
+
+###### CLI
+
+```
+$ pulsar-admin namespaces clear-backlog --sub my-subscription test-property/pstg-gq1/ns1
+```
+
+```
+N/A
+```
+
+###### REST
+
+```
+POST /admin/namespaces/{property}/{cluster}/{namespace}/clearBacklog
+```
+
+###### Java
+
+```java
+admin.namespaces().clearNamespaceBacklogForSubscription(namespace, subscription)
+```
+
+
+#### clear bundle backlog
 
 It clears all message backlog for all the topics those belong to specific NamespaceBundle. You can also clear backlog for a specific subscription as well.  
 
@@ -1111,7 +1141,7 @@ N/A
 ###### REST
 
 ```
-PUT /namespaces/{property}/{cluster}/{namespace}/{bundle}/split
+POST /admin/namespaces/{property}/{cluster}/{namespace}/{bundle}/clearBacklog
 ```
 
 ###### Java
@@ -1138,7 +1168,7 @@ N/A
 ###### REST
 
 ```
-POST /namespaces/{property}/{cluster}/{namespace}/retention
+POST /admin/namespaces/{property}/{cluster}/{namespace}/retention
 ```
 
 ###### Java
@@ -1168,7 +1198,7 @@ $ pulsar-admin namespaces get-retention test-property/cl1/ns1
 ###### REST
 
 ```
-GET /namespaces/{property}/{cluster}/{namespace}/retention
+GET /admin/namespaces/{property}/{cluster}/{namespace}/retention
 ```
 
 ###### Java
@@ -1209,7 +1239,7 @@ N/A
 ###### REST
 
 ```
-PUT /persistent/{property}/{cluster}/{namespace}/{destination}/partitions
+PUT /admin/persistent/{property}/{cluster}/{namespace}/{destination}/partitions
 ```
 
 ###### Java
@@ -1237,7 +1267,7 @@ $ pulsar-admin persistent get-partitioned-topic-metadata persistent://test-prope
 ###### REST
 
 ```
-GET /persistent/{property}/{cluster}/{namespace}/{destination}/partitions
+GET /admin/persistent/{property}/{cluster}/{namespace}/{destination}/partitions
 ```
 
 ###### Java
@@ -1263,7 +1293,7 @@ N/A
 
 ###### REST
 ```
-DELETE /persistent/{property}/{cluster}/{namespace}/{destination}/partitions
+DELETE /admin/persistent/{property}/{cluster}/{namespace}/{destination}/partitions
 ```
 
 ###### Java
@@ -1290,7 +1320,7 @@ N/A
 ###### REST
 
 ```
-DELETE /persistent/{property}/{cluster}/{namespace}/{destination}
+DELETE /admin/persistent/{property}/{cluster}/{namespace}/{destination}
 ```
 
 ###### Java
@@ -1317,7 +1347,7 @@ my-topic
 ###### REST
 
 ```
-GET /persistent/{property}/{cluster}/{namespace}
+GET /admin/persistent/{property}/{cluster}/{namespace}
 ```
 
 ###### Java
@@ -1343,7 +1373,7 @@ N/A
 ###### REST
 
 ```
-POST /persistent/{property}/{cluster}/{namespace}/{destination}/permissions/{role}
+POST /admin/persistent/{property}/{cluster}/{namespace}/{destination}/permissions/{role}
 ```
 
 ###### Java
@@ -1374,7 +1404,7 @@ $ pulsar-admin permissions persistent://test-property/cl1/ns1/tp1
 ###### REST
 
 ```
-GET /persistent/{property}/{cluster}/{namespace}/{destination}/permissions
+GET /admin/persistent/{property}/{cluster}/{namespace}/{destination}/permissions
 ```
 
 ###### Java
@@ -1400,7 +1430,7 @@ N/A
 ###### REST
 
 ```
-DELETE /persistent/{property}/{cluster}/{namespace}/{destination}/permissions/{role}
+DELETE /admin/persistent/{property}/{cluster}/{namespace}/{destination}/permissions/{role}
 ```
 
 ###### Java
@@ -1455,7 +1485,7 @@ $ pulsar-admin persistent partitioned-stats --per-partition persistent://test-pr
 ###### REST
 
 ```
-GET /persistent{property}/{cluster}/{namespace}/{destination}/partitioned-stats
+GET /admin/persistent/{property}/{cluster}/{namespace}/{destination}/partitioned-stats
 ```
 
 ###### Java
@@ -1571,7 +1601,7 @@ $ pulsar-admin persistent stats persistent://test-property/cl1/ns1/tp1
 
 ###### REST
 ```
-GET /persistent{property}/{cluster}/{namespace}/{destination}/stats
+GET /admin/persistent/{property}/{cluster}/{namespace}/{destination}/stats
 ```
 
 ###### Java
@@ -1677,7 +1707,7 @@ $ pulsar-admin persistent stats-internal persistent://test-property/cl1/ns1/tp1
 ###### REST
 
 ```
-GET /persistent{property}/{cluster}/{namespace}/{destination}/internalStats
+GET /admin/persistent/{property}/{cluster}/{namespace}/{destination}/internalStats
 ```
 
 ###### Java
@@ -1706,7 +1736,7 @@ msg-payload
 ###### REST
 
 ```
-GET /persistent/{property}/{cluster}/{namespace}/{destination}/subscription/{subName}/position/{messagePosition}
+GET /admin/persistent/{property}/{cluster}/{namespace}/{destination}/subscription/{subName}/position/{messagePosition}
 ```
 
 
@@ -1734,7 +1764,7 @@ N/A
 ###### REST
 
 ```
-POST /persistent/{property}/{cluster}/{namespace}/{destination}/subscription/{subName}/skip/{numMessages}
+POST /admin/persistent/{property}/{cluster}/{namespace}/{destination}/subscription/{subName}/skip/{numMessages}
 ```
 
 ###### Java
@@ -1760,7 +1790,7 @@ N/A
 ###### REST
 
 ```
-POST /persistent/{property}/{cluster}/{namespace}/{destination}/subscription/{subName}/skip_all
+POST /admin/persistent/{property}/{cluster}/{namespace}/{destination}/subscription/{subName}/skip_all
 ```
 
 ###### Java
@@ -1768,6 +1798,60 @@ POST /persistent/{property}/{cluster}/{namespace}/{destination}/subscription/{su
 ```java
 admin.persistentTopics().skipAllMessages(persistentTopic, subName)
 ```
+
+#### Expire messages
+
+It expires messages which are older than given expiry time (in seconds) for a specific subscription of a given topic.
+
+###### CLI
+
+```
+$ pulsar-admin persistent expire-messages --subscription my-subscription --expireTime 120 persistent://test-property/cl1/ns1/my-topic
+```
+
+```
+N/A
+```
+
+###### REST
+
+```
+POST /admin/persistent/{property}/{cluster}/{namespace}/{destination}/subscription/{subName}/expireMessages/{expireTimeInSeconds}
+```
+
+###### Java
+
+```java
+admin.persistentTopics().expireMessages(persistentTopic, subName, expireTimeInSeconds)
+```
+
+#### Expire all messages 
+
+It expires messages which are older than given expiry time (in seconds) for all subscriptions of a given topic.
+
+###### CLI
+
+```
+$ pulsar-admin persistent expire-messages-all-subscriptions --expireTime 120 persistent://test-property/cl1/ns1/my-topic
+```
+
+```
+N/A
+```
+
+###### REST
+
+```
+POST /admin/persistent/{property}/{cluster}/{namespace}/{destination}/all_subscription/expireMessages/{expireTimeInSeconds}
+```
+
+###### Java
+
+```java
+admin.persistentTopics().expireMessagesForAllSubscriptions(persistentTopic, expireTimeInSeconds)
+```
+
+
 
 #### Reset cursor
 
@@ -1786,7 +1870,7 @@ N/A
 ###### REST
 
 ```
-POST /persistent/{property}/{cluster}/{namespace}/{destination}/subscription/{subName}/resetcursor/{timestamp}
+POST /admin/persistent/{property}/{cluster}/{namespace}/{destination}/subscription/{subName}/resetcursor/{timestamp}
 ```
 
 ###### Java
@@ -1840,7 +1924,7 @@ my-subscription
 ###### REST
 
 ```
-GET /persistent/{property}/{cluster}/{namespace}/{destination}/subscriptions
+GET /admin/persistent/{property}/{cluster}/{namespace}/{destination}/subscriptions
 ```
 
 ###### Java
@@ -1866,7 +1950,7 @@ N/A
 ###### REST
 
 ```
-DELETE /persistent/{property}/{cluster}/{namespace}/{destination}/subscription/{subName}
+DELETE /admin/persistent/{property}/{cluster}/{namespace}/{destination}/subscription/{subName}
 ```
 
 ###### Java
@@ -1904,10 +1988,10 @@ N/A
 ###### REST
 
 ```
-POST /clusters/{cluster}/namespaceIsolationPolicies/{policyName}
+POST /admin/clusters/{cluster}/namespaceIsolationPolicies/{policyName}
 ```
 
-  ###### Java
+###### Java
 ```java
 admin.clusters().createNamespaceIsolationPolicy(clusterName, policyName, namespaceIsolationData);
 ```
@@ -1946,7 +2030,7 @@ $ pulsar-admin ns-isolation-policy get cl1 ns-is-policy1
 
 ###### REST
 ```
-GET /clusters/{cluster}/namespaceIsolationPolicies/{policyName}
+GET /admin/clusters/{cluster}/namespaceIsolationPolicies/{policyName}
 ```
 
 ###### Java
@@ -1973,7 +2057,7 @@ N/A
 ###### REST
 
 ```
-DELETE /clusters/{cluster}/namespaceIsolationPolicies/{policyName}
+DELETE /admin/clusters/{cluster}/namespaceIsolationPolicies/{policyName}
 ```
 
 ###### Java
@@ -2018,7 +2102,7 @@ $ pulsar-admin ns-isolation-policy list cl1
 
 ###### REST
 ```
-GET /clusters/{cluster}/namespaceIsolationPolicies
+GET /admin/clusters/{cluster}/namespaceIsolationPolicies
 ```
 
 ###### Java
@@ -2047,7 +2131,7 @@ N/A
 ###### REST
 
 ```
-POST  /resource-quotas/{property}/{cluster}/{namespace}/{bundle}
+POST /admin/resource-quotas/{property}/{cluster}/{namespace}/{bundle}
 ```
 
 ###### Java
@@ -2079,7 +2163,7 @@ $ pulsar-admin resource-quotas get  --bundle 0x00000000_0xffffffff --namespace t
 
 ###### REST
 ```
-GET /resource-quotas/{property}/{cluster}/{namespace}/{bundle}
+GET /admin/resource-quotas/{property}/{cluster}/{namespace}/{bundle}
 ```
 
 ###### Java
@@ -2105,7 +2189,7 @@ N/A
 ###### REST
 
 ```
-DELETE /resource-quotas/{property}/{cluster}/{namespace}/{bundle}
+DELETE /admin/resource-quotas/{property}/{cluster}/{namespace}/{bundle}
 ```
 
 ###### Java
