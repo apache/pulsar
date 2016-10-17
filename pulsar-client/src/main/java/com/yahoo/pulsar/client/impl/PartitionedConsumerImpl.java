@@ -17,6 +17,7 @@ package com.yahoo.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -365,9 +366,24 @@ public class PartitionedConsumerImpl extends ConsumerBase {
         }
     }
 
+    @Override
+    public void redeliverUnacknowledgedMessages(List<MessageIdImpl> messageIds) {
+        for (ConsumerImpl c : consumers) {
+            List<MessageIdImpl> consumerMessageIds = new ArrayList<>();
+            messageIds.removeIf(messageId -> {
+               if (messageId.getPartitionIndex() == c.getPartitionIndex()) {
+                   consumerMessageIds.add(messageId);
+                   return true;
+               }
+               return false;
+            });
+            c.redeliverUnacknowledgedMessages(consumerMessageIds);
+        }
+    }
+
     /**
      * helper method that returns current state of data structure used to track acks for batch messages
-     * 
+     *
      * @return true if all batch messages have been acknowledged
      */
     public boolean isBatchingAckTrackerEmpty() {
@@ -376,6 +392,10 @@ public class PartitionedConsumerImpl extends ConsumerBase {
             state &= ((ConsumerImpl) consumer).isBatchingAckTrackerEmpty();
         }
         return state;
+    }
+
+    List<ConsumerImpl> getConsumers() {
+        return consumers;
     }
 
     @Override
@@ -391,5 +411,4 @@ public class PartitionedConsumerImpl extends ConsumerBase {
     }
 
     private static final Logger log = LoggerFactory.getLogger(PartitionedConsumerImpl.class);
-
 }
