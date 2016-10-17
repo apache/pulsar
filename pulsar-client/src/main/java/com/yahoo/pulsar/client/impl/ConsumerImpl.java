@@ -21,6 +21,7 @@ import static java.lang.String.format;
 
 import java.io.IOException;
 import java.util.BitSet;
+import java.util.List;
 import java.util.NavigableMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
@@ -29,7 +30,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.stream.Collectors;
 
+import com.google.common.collect.Lists;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,6 +41,7 @@ import com.yahoo.pulsar.client.api.ConsumerConfiguration;
 import com.yahoo.pulsar.client.api.Message;
 import com.yahoo.pulsar.client.api.MessageId;
 import com.yahoo.pulsar.client.api.PulsarClientException;
+import com.yahoo.pulsar.client.api.SubscriptionType;
 import com.yahoo.pulsar.client.util.FutureUtil;
 import com.yahoo.pulsar.common.api.Commands;
 import com.yahoo.pulsar.common.api.PulsarDecoder;
@@ -60,6 +64,7 @@ import static com.yahoo.pulsar.checksum.utils.Crc32cChecksum.computeChecksum;
 import static com.yahoo.pulsar.common.api.Commands.hasChecksum;
 
 public class ConsumerImpl extends ConsumerBase {
+    private static final int MAX_REDELIVER_UNACKNOWLEDGED = 1000;
 
     private final long consumerId;
 
@@ -884,6 +889,40 @@ public class ConsumerImpl extends ConsumerBase {
                 unAckedMessageTracker.clear();
             }
             cnx.ctx().writeAndFlush(Commands.newRedeliverUnacknowledgedMessages(consumerId), cnx.ctx().voidPromise());
+            return;
+        }
+        if (cnx == null || (state.get() == State.Connecting)) {
+            log.warn("[{}] Client Connection needs to be establised for redelivery of unacknowledged messages", this);
+        } else {
+            log.warn("[{}] Reconnecting the client to redeliver the messages.", this);
+            cnx.ctx().close();
+        }
+    }
+
+    @Override
+    public void redeliverUnacknowledgedMessages(List<MessageIdImpl> messageIds) {
+        if (conf.getSubscriptionType() != SubscriptionType.Shared) {
+            // We cannot redeliver single messages if subscription type is not Shared
+            redeliverUnacknowledgedMessages();
+            return;
+        }
+        ClientCnx cnx = cnx();
+        if (isConnected() && cnx.getRemoteEndpointProtocolVersion() >= ProtocolVersion.v2.getNumber()) {
+            List<List<MessageIdImpl>> batches = Lists.partition(messageIds, MAX_REDELIVER_UNACKNOWLEDGED);
+            MessageIdData.Builder builder = MessageIdData.newBuilder();
+            batches.forEach(ids -> {
+                List<MessageIdData> messageIdDatas = ids.stream()
+                        .map(messageId -> {
+                            builder.setPartition(messageId.getPartitionIndex());
+                            builder.setLedgerId(messageId.getLedgerId());
+                            builder.setEntryId(messageId.getEntryId());
+                            return builder.build();
+                        }).collect(Collectors.toList());
+                ByteBuf cmd = Commands.newRedeliverUnacknowledgedMessages(consumerId, messageIdDatas);
+                cnx.ctx().writeAndFlush(cmd, cnx.ctx().voidPromise());
+                messageIdDatas.forEach(MessageIdData::recycle);
+            });
+            builder.recycle();
             return;
         }
         if (cnx == null || (state.get() == State.Connecting)) {

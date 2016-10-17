@@ -18,6 +18,7 @@ package com.yahoo.pulsar.broker.service;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+import com.yahoo.pulsar.common.api.proto.PulsarApi;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 
@@ -59,4 +60,6 @@ public interface Subscription {
     void expireMessages(int messageTTLInSeconds);
 
     void redeliverUnacknowledgedMessages(Consumer consumer);
+
+    void redeliverUnacknowledgedMessages(Consumer consumer, List<PositionImpl> positions);
 }

@@ -15,6 +15,7 @@
  */
 package com.yahoo.pulsar.client.impl;
 
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
@@ -23,16 +24,10 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import com.yahoo.pulsar.client.api.*;
 import org.apache.commons.codec.digest.DigestUtils;
 
 import com.google.common.collect.Queues;
-import com.yahoo.pulsar.client.api.Consumer;
-import com.yahoo.pulsar.client.api.ConsumerConfiguration;
-import com.yahoo.pulsar.client.api.Message;
-import com.yahoo.pulsar.client.api.MessageId;
-import com.yahoo.pulsar.client.api.MessageListener;
-import com.yahoo.pulsar.client.api.PulsarClientException;
-import com.yahoo.pulsar.client.api.SubscriptionType;
 import com.yahoo.pulsar.client.util.FutureUtil;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
@@ -321,4 +316,12 @@ public abstract class ConsumerBase extends HandlerBase implements Consumer {
     public String getSubscription() {
         return subscription;
     }
+
+    /**
+     * Redelivers the given unacknowledged messages. In Failover mode, the request is ignored if the consumer is not
+     * active for the given topic. In Shared mode, the consumers messages to be redelivered are distributed across all
+     * the connected consumers. This is a non blocking call and doesn't throw an exception. In case the connection
+     * breaks, the messages are redelivered after reconnect.
+     */
+    protected abstract void redeliverUnacknowledgedMessages(List<MessageIdImpl> messageIds);
 }
