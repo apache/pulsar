@@ -199,7 +199,7 @@ public final class PersistentDispatcherSingleActiveConsumer implements Dispatche
                 readMoreEntries(currentConsumer);
             }
         } else {
-            currentConsumer.sendMessages(entries).addListener(future -> {
+            currentConsumer.sendMessages(entries).getLeft().addListener(future -> {
                 if (future.isSuccess()) {
                     // Schedule a new read batch operation only after the previous batch has been written to the socket
                     synchronized (PersistentDispatcherSingleActiveConsumer.this) {
