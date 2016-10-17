@@ -27,6 +27,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.util.Rate;
+import org.apache.commons.lang3.tuple.MutablePair;
+import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -115,19 +117,22 @@ public class Consumer {
      *
      * @return a promise that can be use to track when all the data has been written into the socket
      */
-    public ChannelPromise sendMessages(final List<Entry> entries) {
+    public Pair<ChannelPromise, Integer> sendMessages(final List<Entry> entries) {
         final ChannelHandlerContext ctx = cnx.ctx();
+        final MutablePair<ChannelPromise, Integer> sentMessages = new MutablePair<ChannelPromise, Integer>();
         final ChannelPromise writePromise = ctx.newPromise();
+        sentMessages.setLeft(writePromise);
         if (entries.isEmpty()) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] List of messages is empty, triggering write future immediately for consumerId {}",
                         subscription, consumerId);
             }
             writePromise.setSuccess();
-            return writePromise;
+            sentMessages.setRight(0);
+            return sentMessages;
         }
 
-        updatePermitsAndPendingAcks(entries);
+        sentMessages.setRight(updatePermitsAndPendingAcks(entries));
 
         ctx.channel().eventLoop().execute(() -> {
             for (int i = 0; i < entries.size(); i++) {
@@ -165,7 +170,7 @@ public class Consumer {
             ctx.flush();
         });
 
-        return writePromise;
+        return sentMessages;
     }
 
     private void incrementUnackedMessages(int ackedMessages) {
@@ -192,7 +197,7 @@ public class Consumer {
         return -1;
     }
 
-    void updatePermitsAndPendingAcks(final List<Entry> entries) {
+    int updatePermitsAndPendingAcks(final List<Entry> entries) {
         int permitsToReduce = 0;
         Iterator<Entry> iter = entries.iterator();
         while (iter.hasNext()) {
@@ -221,6 +226,7 @@ public class Consumer {
                 log.debug("[{}] [{}] message permits dropped below 0 - {}", subscription, consumerId, permits);
             }
         }
+        return permitsToReduce;
     }
 
     public boolean isWritable() {

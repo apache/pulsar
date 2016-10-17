@@ -149,7 +149,7 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
     }
 
     private void readMoreEntries() {
-        if (totalAvailablePermits > 0 && isUnblockedConsumerAvailable()) {
+        if (totalAvailablePermits > 0 && isAtleastOneConsumerAvailable()) {
             int messagesToRead = Math.min(totalAvailablePermits, readBatchSize);
 
             if (!messagesToReplay.isEmpty()) {
@@ -258,7 +258,7 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
             log.debug("[{}] Distributing {} messages to {} consumers", name, entries.size(), consumerList.size());
         }
 
-        while (entriesToDispatch > 0 && totalAvailablePermits > 0 && isUnblockedConsumerAvailable()) {
+        while (entriesToDispatch > 0 && totalAvailablePermits > 0 && isAtleastOneConsumerAvailable()) {
             Consumer c = getNextConsumer();
             if (c == null) {
                 // Do nothing, cursor will be rewind at reconnection
@@ -271,7 +271,7 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
             int messagesForC = Math.min(Math.min(entriesToDispatch, c.getAvailablePermits()), MaxRoundRobinBatchSize);
 
             if (messagesForC > 0) {
-                c.sendMessages(entries.subList(start, start + messagesForC));
+                int msgSent = c.sendMessages(entries.subList(start, start + messagesForC)).getRight();
 
                 if (readType == ReadType.Replay) {
                     entries.subList(start, start + messagesForC).forEach(entry -> {
@@ -280,7 +280,7 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
                 }
                 start += messagesForC;
                 entriesToDispatch -= messagesForC;
-                totalAvailablePermits -= messagesForC;
+                totalAvailablePermits -= msgSent;
             }
         }
 
@@ -357,7 +357,7 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
         // find next available unblocked consumer
         int unblockedConsumerIndex = consumerIndex;
         do {
-            if (!consumerList.get(unblockedConsumerIndex).isBlocked()) {
+            if (isConsumerAvailable(consumerList.get(unblockedConsumerIndex))) {
                 consumerIndex = unblockedConsumerIndex;
                 return consumerList.get(consumerIndex++);
             }
@@ -371,22 +371,25 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
     }
     
     /**
-     * returns true only if {@link consumerList} has atleast one unblocked consumer 
+     * returns true only if {@link consumerList} has atleast one unblocked consumer and have available permits
      * 
      * @return
      */
-    private boolean isUnblockedConsumerAvailable() {
+    private boolean isAtleastOneConsumerAvailable() {
         if (consumerList.isEmpty() || closeFuture != null) {
             // abort read if no consumers are connected or if disconnect is initiated
             return false;
         }
-        Iterator<Consumer> consumerIterator = consumerList.iterator();
-        while (consumerIterator.hasNext()) {
-            if (!consumerIterator.next().isBlocked()) {
+        for(Consumer consumer : consumerList) {
+            if (isConsumerAvailable(consumer)) {
                 return true;
             }
         }
         return false;
+    }
+    
+    private boolean isConsumerAvailable(Consumer consumer) {
+        return consumer != null && !consumer.isBlocked() && consumer.getAvailablePermits() > 0;
     }
 
     @Override
