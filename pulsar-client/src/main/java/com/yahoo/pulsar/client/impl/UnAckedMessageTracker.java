@@ -30,12 +30,54 @@ import io.netty.util.TimerTask;
 
 public class UnAckedMessageTracker implements Closeable {
     private static final Logger log = LoggerFactory.getLogger(UnAckedMessageTracker.class);
-    private ConcurrentOpenHashSet<MessageIdImpl> currentSet = new ConcurrentOpenHashSet<MessageIdImpl>();
-    private ConcurrentOpenHashSet<MessageIdImpl> oldOpenSet = new ConcurrentOpenHashSet<MessageIdImpl>();
-    private final ReentrantReadWriteLock readWriteLock = new ReentrantReadWriteLock();
-    private final Lock readLock = readWriteLock.readLock();
-    private final Lock writeLock = readWriteLock.writeLock();
-    private Timeout timeout = null;
+    private ConcurrentOpenHashSet<MessageIdImpl> currentSet;
+    private ConcurrentOpenHashSet<MessageIdImpl> oldOpenSet;
+    private final ReentrantReadWriteLock readWriteLock;
+    private final Lock readLock;
+    private final Lock writeLock;
+    private Timeout timeout;
+
+    public static final UnAckedMessageTrackerDisabled UNACKED_MESSAGE_TRACKER_DISABLED = new UnAckedMessageTrackerDisabled();
+
+    private static class UnAckedMessageTrackerDisabled extends UnAckedMessageTracker {
+        @Override
+        public void clear() {
+        }
+
+        @Override
+        public boolean add(MessageIdImpl m) {
+            return true;
+        }
+
+        @Override
+        public boolean remove(MessageIdImpl m) {
+            return true;
+        }
+
+        @Override
+        public int removeMessagesTill(MessageIdImpl msgId) {
+            return 0;
+        }
+
+        @Override
+        public void close() {
+        }
+    }
+
+    public UnAckedMessageTracker() {
+        readWriteLock = null;
+        readLock = null;
+        writeLock = null;
+    }
+
+    public UnAckedMessageTracker(PulsarClientImpl client, ConsumerBase consumerBase, long ackTimeoutMillis) {
+        currentSet = new ConcurrentOpenHashSet<MessageIdImpl>();
+        oldOpenSet = new ConcurrentOpenHashSet<MessageIdImpl>();
+        readWriteLock = new ReentrantReadWriteLock();
+        readLock = readWriteLock.readLock();
+        writeLock = readWriteLock.writeLock();
+        start(client, consumerBase, ackTimeoutMillis);
+    }
 
     public void start(PulsarClientImpl client, ConsumerBase consumerBase, long ackTimeoutMillis) {
         this.stop();
@@ -52,7 +94,7 @@ public class UnAckedMessageTracker implements Closeable {
         }, ackTimeoutMillis, TimeUnit.MILLISECONDS);
     }
 
-    protected void toggle() {
+    private void toggle() {
         writeLock.lock();
         try {
             ConcurrentOpenHashSet<MessageIdImpl> temp = currentSet;
@@ -84,7 +126,7 @@ public class UnAckedMessageTracker implements Closeable {
 
     }
 
-    public boolean isEmpty() {
+    boolean isEmpty() {
         readLock.lock();
         try {
             return currentSet.isEmpty() && oldOpenSet.isEmpty();
@@ -102,7 +144,7 @@ public class UnAckedMessageTracker implements Closeable {
         }
     }
 
-    public long size() {
+    long size() {
         readLock.lock();
         try {
             return currentSet.size() + oldOpenSet.size();
@@ -111,7 +153,7 @@ public class UnAckedMessageTracker implements Closeable {
         }
     }
 
-    public boolean isAckTimeout() {
+    private boolean isAckTimeout() {
         readLock.lock();
         try {
             return !oldOpenSet.isEmpty();
@@ -135,7 +177,7 @@ public class UnAckedMessageTracker implements Closeable {
         }
     }
 
-    public void stop() {
+    private void stop() {
         writeLock.lock();
         try {
             if (timeout != null && !timeout.isCancelled()) {
