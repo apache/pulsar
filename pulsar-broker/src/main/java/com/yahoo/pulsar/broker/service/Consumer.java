@@ -23,7 +23,6 @@ import java.time.Instant;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
 
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -34,6 +33,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Objects;
+import com.google.common.collect.Lists;
 import com.yahoo.pulsar.common.api.Commands;
 import com.yahoo.pulsar.common.api.proto.PulsarApi;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandAck;
@@ -458,11 +458,32 @@ public class Consumer {
     }
 
     public void redeliverUnacknowledgedMessages(List<MessageIdData> messageIds) {
-        List<PositionImpl> pendingPositions = messageIds.stream()
-                .map(messageIdData -> PositionImpl.get(messageIdData.getLedgerId(), messageIdData.getEntryId()))
-                .filter(position -> pendingAcks.remove(position) != null)
-                .collect(Collectors.toList());
+
+        int totalRedeliveryMessages = 0;
+        List<PositionImpl> pendingPositions = Lists.newArrayList();
+        for (MessageIdData msg : messageIds) {
+            PositionImpl position = PositionImpl.get(msg.getLedgerId(), msg.getEntryId());
+            Integer batchSize = pendingAcks.remove(position);
+            if (batchSize != null) {
+                totalRedeliveryMessages += batchSize;
+                pendingPositions.add(position);
+            }
+        }
+
+        unackedMessages.addAndGet(-totalRedeliveryMessages);
+        blockedConsumerOnUnackedMsgs = false;
 
         subscription.redeliverUnacknowledgedMessages(this, pendingPositions);
+
+        int numberOfBlockedPermits = Math.min(totalRedeliveryMessages,
+                permitsReceivedWhileConsumerBlocked.get());
+
+        // if permitsReceivedWhileConsumerBlocked has been accumulated then pass it to Dispatcher to flow messages
+        if (numberOfBlockedPermits > 0) {
+            permitsReceivedWhileConsumerBlocked.getAndAdd(-numberOfBlockedPermits);
+            messagePermits.getAndAdd(numberOfBlockedPermits);
+            subscription.consumerFlow(this, numberOfBlockedPermits);
+
+        }
     }
 }
