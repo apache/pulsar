@@ -858,10 +858,12 @@ public class ConsumerImpl extends ConsumerBase {
         return partitionIndex;
     }
 
+    @Override
     public int getAvailablePermits() {
         return availablePermits.get();
     }
 
+    @Override
     public int numMessagesInQueue() {
         return incomingMessages.size();
     }
