@@ -291,6 +291,10 @@ public abstract class ConsumerBase extends HandlerBase implements Consumer {
 
     abstract public boolean isConnected();
 
+    abstract public int getAvailablePermits();
+
+    abstract public int numMessagesInQueue();
+
     public CompletableFuture<Consumer> subscribeFuture() {
         return subscribeFuture;
     }
