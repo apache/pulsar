@@ -446,9 +446,9 @@ public class ReplicatorTest extends ReplicatorTestBase {
     }
 
     @Test(enabled = true)
-    public void testResetCursorFails() throws Exception {
+    public void testResetCursorNotFail() throws Exception {
 
-        log.info("--- Starting ReplicatorTest::testResetCursorFails ---");
+        log.info("--- Starting ReplicatorTest::testResetCursorNotFail ---");
 
         // This test is to verify that reset cursor fails on global topic
         SortedSet<String> testDests = new TreeSet<String>();
@@ -488,12 +488,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
                 fail(String.format("replication test failed with %s exception", e.getMessage()));
             }
         }
-        try {
-            admin1.persistentTopics().resetCursor(testDests.first(), "sub-id", System.currentTimeMillis());
-            fail("should have gotten not allowed exception");
-        } catch (Exception e) {
-            Assert.assertTrue(e instanceof PulsarAdminException.NotAllowedException, e.getMessage());
-        }
+        admin1.persistentTopics().resetCursor(testDests.first(), "sub-id", System.currentTimeMillis());
     }
 
     @Test(enabled = true)
