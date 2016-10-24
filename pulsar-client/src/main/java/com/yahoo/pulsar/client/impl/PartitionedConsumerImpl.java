@@ -405,7 +405,7 @@ public class PartitionedConsumerImpl extends ConsumerBase {
 
     @Override
     public int numMessagesInQueue() {
-        return consumers.stream().mapToInt(ConsumerImpl::numMessagesInQueue).sum();
+        return incomingMessages.size() + consumers.stream().mapToInt(ConsumerImpl::numMessagesInQueue).sum();
     }
 
     @Override
