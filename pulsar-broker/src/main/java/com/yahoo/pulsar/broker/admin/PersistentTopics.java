@@ -847,9 +847,6 @@ public class PersistentTopics extends AdminResource {
             try {
                 PersistentSubscription sub = topic.getPersistentSubscription(subName);
                 checkNotNull(sub);
-                if (dn.isGlobal()) {
-                    throw new NotAllowedException("reset cursor not supported for global topic");
-                }
                 sub.resetCursor(timestamp).get();
                 log.info("[{}][{}] reset cursor on subscription {} to time {}", clientAppId(), dn, subName, timestamp);
             } catch (Exception e) {
