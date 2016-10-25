@@ -248,7 +248,7 @@ public abstract class ZooKeeperCache implements Watcher {
                 if (rc == Code.OK.intValue()) {
                     try {
                         T obj = deserializer.deserialize(path, content);
-                        zkFuture.complete(new AbstractMap.SimpleEntry<Object, Stat>(obj, stat));
+                        zkFuture.complete(new AbstractMap.SimpleImmutableEntry<Object, Stat>(obj, stat));
                     } catch (Exception e) {
                         zkFuture.completeExceptionally(e);
                     }
@@ -263,8 +263,7 @@ public abstract class ZooKeeperCache implements Watcher {
             return zkFuture;
         }).thenAccept(result -> {
             if (result != null) {
-                future.complete(Optional
-                        .of(new AbstractMap.SimpleImmutableEntry<T, Stat>((T) result.getKey(), result.getValue())));
+                future.complete(Optional.of((Entry<T, Stat>) result));
             } else {
                 future.complete(Optional.empty());
             }

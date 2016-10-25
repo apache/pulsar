@@ -15,11 +15,10 @@
  */
 package com.yahoo.pulsar.broker;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertNotEquals;
 
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -41,14 +40,12 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import com.google.common.collect.Lists;
 import com.yahoo.pulsar.broker.loadbalance.LoadBalancerTest;
 import com.yahoo.pulsar.broker.namespace.NamespaceService;
 import com.yahoo.pulsar.client.admin.PulsarAdmin;
 import com.yahoo.pulsar.client.admin.PulsarAdminException;
 import com.yahoo.pulsar.client.api.Authentication;
 import com.yahoo.pulsar.client.api.PulsarClientException;
-import com.yahoo.pulsar.common.policies.data.BrokerAssignment;
 import com.yahoo.pulsar.common.policies.data.ClusterData;
 import com.yahoo.pulsar.common.policies.data.NamespaceOwnershipStatus;
 import com.yahoo.pulsar.common.policies.data.PropertyAdmin;
@@ -189,8 +186,6 @@ public class SLAMonitoringTest {
     public void testUnloadIfBrokerCrashes() {
         int crashIndex = BROKER_COUNT / 2;
         log.info("Trying to close the broker at index = {}", crashIndex);
-        System.err.println("KILLING BROKER: " + pulsarServices[crashIndex].getAdvertisedAddress() + ":"
-                + brokerWebServicePorts[crashIndex]);
 
         try {
             pulsarServices[crashIndex].close();
@@ -204,8 +199,6 @@ public class SLAMonitoringTest {
 
         log.info("Lookup for namespace {}", destination);
 
-        System.err.println("CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC");
-
         String broker = null;
         try {
             broker = pulsarAdmins[BROKER_COUNT - 1].lookups().lookupDestination(destination);
@@ -217,8 +210,6 @@ public class SLAMonitoringTest {
             fail("The SLA Monitor namespace should be owned by some other broker");
         }
 
-        System.err.println("CHECK");
-
         // Check if the namespace is properly unloaded and reowned by the broker
         try {
             pulsarServices[crashIndex] = new PulsarService(configurations[crashIndex]);
@@ -229,8 +220,6 @@ public class SLAMonitoringTest {
             e.printStackTrace();
             fail("The broker should be able to start without exception");
         }
-
-        System.err.println("LOOKUP");
 
         try {
             broker = pulsarAdmins[0].lookups().lookupDestination(destination);

@@ -1216,7 +1216,6 @@ public class Namespaces extends AdminResource {
                                 nsBundle.getBundleRange(), subscription);
                     }
                 } catch (Exception e) {
-                    e.printStackTrace();
                     if (exception == null) {
                         exception = e;
                     }

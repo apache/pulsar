@@ -17,7 +17,6 @@ package com.yahoo.pulsar.utils;
 
 import java.lang.reflect.Method;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.function.Predicate;
 import java.util.function.UnaryOperator;
 
@@ -119,18 +118,4 @@ public class CopyOnWriteArrayList<T> extends java.util.concurrent.CopyOnWriteArr
     public static <T> CopyOnWriteArrayList<T> empty() {
         return EMPTY_LIST;
     }
-
-    public static void main(String[] args) {
-        CopyOnWriteArrayList<String> l = new CopyOnWriteArrayList<>();
-
-        l.add("a");
-        l.add("b");
-        l.add("c");
-
-        System.out.println("Sorting: " + l);
-        Collections.sort(l);
-
-        System.out.println("OK" + l);
-    }
-
 }
