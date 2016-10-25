@@ -170,7 +170,7 @@ public class LocalZooKeeperCacheService {
                     if (LOG.isDebugEnabled()) {
                         LOG.debug("Global policies not found at {}", globalPath);
                     }
-                    future.complete(Optional.empty());
+                    readFromGlobalFuture.complete(Optional.empty());
                 }
             }).exceptionally(ex -> {
                 future.completeExceptionally(ex);
