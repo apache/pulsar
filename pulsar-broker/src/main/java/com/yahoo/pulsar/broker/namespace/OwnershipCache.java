@@ -85,7 +85,7 @@ public class OwnershipCache {
     private final ZooKeeperDataCache<NamespaceEphemeralData> ownershipReadOnlyCache;
 
     /**
-     * The loading cache of locally owned <code>ServiceUnit</code> objects
+     * The loading cache of locally owned <code>NamespaceBundle</code> objects
      */
     private final AsyncLoadingCache<String, OwnedBundle> ownedBundlesCache;
 
@@ -108,9 +108,9 @@ public class OwnershipCache {
 
         @SuppressWarnings("deprecation")
         @Override
-        public CompletableFuture<OwnedBundle> asyncLoad(String serviceUnitZnode, Executor executor) {
+        public CompletableFuture<OwnedBundle> asyncLoad(String namespaceBundleZNode, Executor executor) {
             if (LOG.isDebugEnabled()) {
-                LOG.debug("Acquiring zk lock on namespace {}", serviceUnitZnode);
+                LOG.debug("Acquiring zk lock on namespace {}", namespaceBundleZNode);
             }
 
             byte[] znodeContent;
@@ -122,15 +122,15 @@ public class OwnershipCache {
             }
 
             CompletableFuture<OwnedBundle> future = new CompletableFuture<>();
-            ZkUtils.asyncCreateFullPathOptimistic(localZkCache.getZooKeeper(), serviceUnitZnode, znodeContent,
+            ZkUtils.asyncCreateFullPathOptimistic(localZkCache.getZooKeeper(), namespaceBundleZNode, znodeContent,
                     Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL, (rc, path, ctx, name) -> {
                         if (rc == KeeperException.Code.OK.intValue()) {
                             if (LOG.isDebugEnabled()) {
-                                LOG.debug("Successfully acquired zk lock on {}", serviceUnitZnode);
+                                LOG.debug("Successfully acquired zk lock on {}", namespaceBundleZNode);
                             }
-                            ownershipReadOnlyCache.invalidate(serviceUnitZnode);
+                            ownershipReadOnlyCache.invalidate(namespaceBundleZNode);
                             future.complete(new OwnedBundle(
-                                    ServiceUnitZkUtils.suBundleFromPath(serviceUnitZnode, bundleFactory)));
+                                    ServiceUnitZkUtils.suBundleFromPath(namespaceBundleZNode, bundleFactory)));
                         } else {
                             // Failed to acquire lock
                             future.completeExceptionally(KeeperException.create(rc));
@@ -142,12 +142,6 @@ public class OwnershipCache {
     }
 
     private class OwnedServiceUnitCacheRemovalListener implements RemovalListener<String, OwnedBundle> {
-
-        private final Executor executor;
-
-        private OwnedServiceUnitCacheRemovalListener(Executor executor) {
-            this.executor = executor;
-        }
 
         @Override
         public void onRemoval(String key, OwnedBundle value, RemovalCause cause) {
@@ -185,7 +179,7 @@ public class OwnershipCache {
         this.ownershipReadOnlyCache = pulsar.getLocalZkCacheService().ownerInfoCache();
         // ownedBundlesCache contains all namespaces that are owned by the local broker
         this.ownedBundlesCache = Caffeine.newBuilder().executor(MoreExecutors.sameThreadExecutor())
-                .removalListener(new OwnedServiceUnitCacheRemovalListener(pulsar.getExecutor()))
+                .removalListener(new OwnedServiceUnitCacheRemovalListener())
                 .buildAsync(new OwnedServiceUnitCacheLoader());
     }
 
@@ -218,7 +212,7 @@ public class OwnershipCache {
      * Method to get the current owner of the <code>ServiceUnit</code> or set the local broker as the owner if absent
      *
      * @param suId
-     *            identifier of the <code>ServiceUnit</code>
+     *            identifier of the <code>NamespaceBundle</code>
      * @return The ephemeral node data showing the current ownership info in <code>ZooKeeper</code>
      * @throws Exception
      */
@@ -231,7 +225,7 @@ public class OwnershipCache {
 
         // Doing a get() on the ownedBundlesCache will trigger an async ZK write to acquire the lock over the
         // service unit
-        ownedBundlesCache.get(path).thenAccept(serviceUnit -> {
+        ownedBundlesCache.get(path).thenAccept(namespaceBundle -> {
             LOG.info("Successfully acquired ownership of {}", path);
             future.complete(selfOwnerInfo);
         }).exceptionally(exception -> {
@@ -271,7 +265,7 @@ public class OwnershipCache {
     }
 
     /**
-     * Method to remove the ownership of local broker on the <code>ServiceUnit</code>, if owned
+     * Method to remove the ownership of local broker on the <code>NamespaceBundle</code>, if owned
      *
      */
     public void removeOwnership(NamespaceBundle bundle) {
