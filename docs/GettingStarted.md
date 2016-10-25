@@ -68,7 +68,7 @@ page.
 Download latest binary release from
 
 ```
-https://github.com/yahoo/pulsar/releases
+https://github.com/yahoo/pulsar/releases/latest
 ```
 
 ```shell
@@ -94,7 +94,9 @@ A sample namespace, `sample/standalone/ns1`, is already available.
 
 ## Using the Pulsar Java client API
 
-Include dependency for Pulsar client library:
+Include dependency for Pulsar client library.
+
+Latest version is [![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.yahoo.pulsar/pulsar-client/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.yahoo.pulsar/pulsar-client)
 
 ```xml
 <dependency>

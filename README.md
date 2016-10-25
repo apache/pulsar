@@ -3,6 +3,9 @@
 Pulsar is a distributed pub-sub messaging platform with a very
 flexible messaging model and an intuitive client API.
 
+[![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.yahoo.pulsar/pulsar/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.yahoo.pulsar/pulsar)
+
+
 ## Main features
 * Horizontally scalable (Millions of independent topics and millions
   of messages published per second)
