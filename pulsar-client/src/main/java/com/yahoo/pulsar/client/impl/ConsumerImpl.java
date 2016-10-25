@@ -33,15 +33,10 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
 
 import com.google.common.collect.Lists;
+import com.yahoo.pulsar.client.api.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.yahoo.pulsar.client.api.Consumer;
-import com.yahoo.pulsar.client.api.ConsumerConfiguration;
-import com.yahoo.pulsar.client.api.Message;
-import com.yahoo.pulsar.client.api.MessageId;
-import com.yahoo.pulsar.client.api.PulsarClientException;
-import com.yahoo.pulsar.client.api.SubscriptionType;
 import com.yahoo.pulsar.client.util.FutureUtil;
 import com.yahoo.pulsar.common.api.Commands;
 import com.yahoo.pulsar.common.api.PulsarDecoder;
@@ -88,6 +83,7 @@ public class ConsumerImpl extends ConsumerBase {
     private final ConcurrentSkipListMap<MessageIdImpl, BitSet> batchMessageAckTracker;
 
     private final ConsumerStats stats;
+    protected final ReceiveListener receiveListener;
 
     ConsumerImpl(PulsarClientImpl client, String topic, String subscription, ConsumerConfiguration conf,
             ExecutorService listenerExecutor, CompletableFuture<Consumer> subscribeFuture) {
@@ -103,6 +99,7 @@ public class ConsumerImpl extends ConsumerBase {
         this.partitionIndex = partitionIndex;
         this.receiverQueueRefillThreshold = conf.getReceiverQueueSize() / 2;
         this.codecProvider = new CompressionCodecProvider();
+        this.receiveListener = conf.getReceiveListener();
         batchMessageAckTracker = new ConcurrentSkipListMap<>();
         if (client.getConfiguration().getStatsIntervalSeconds() > 0) {
             stats = new ConsumerStats(client, conf, this);
@@ -678,6 +675,22 @@ public class ConsumerImpl extends ConsumerBase {
                         log.error("[{}][{}] Message listener error in processing message: {}", topic, subscription, msg,
                                 t);
                     }
+                }
+            });
+        }
+
+        if (receiveListener != null) {
+            // Trigger the notification of the receive listener in a separate thread to avoid blocking the networking
+            // thread while the message processing happens
+            listenerExecutor.execute(() -> {
+                try {
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}][{}] Calling receive listener", topic, subscription);
+                    }
+                    receiveListener.received(ConsumerImpl.this);
+                } catch (Throwable t) {
+                    log.error("[{}][{}] Receive listener error in processing", topic, subscription,
+                            t);
                 }
             });
         }

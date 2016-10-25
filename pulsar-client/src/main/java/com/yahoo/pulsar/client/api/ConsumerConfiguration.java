@@ -41,6 +41,8 @@ public class ConsumerConfiguration implements Serializable {
 
     private MessageListener messageListener;
 
+    private ReceiveListener receiveListener;
+
     private int receiverQueueSize = 1000;
 
     private String consumerName = null;
@@ -90,6 +92,26 @@ public class ConsumerConfiguration implements Serializable {
     public ConsumerConfiguration setSubscriptionType(SubscriptionType subscriptionType) {
         checkNotNull(subscriptionType);
         this.subscriptionType = subscriptionType;
+        return this;
+    }
+
+    /**
+     * @return the configured {@link ReceiveListener} for the consumer
+     */
+    public ReceiveListener getReceiveListener() {
+        return this.receiveListener;
+    }
+
+    /**
+     * Sets a {@link ReceiveListener} for the consumer, that notifies when a message
+     * is ready to be received.
+     *
+     * @param receiveListener
+     *            the listener object
+     */
+    public ConsumerConfiguration setReceiveListener(ReceiveListener receiveListener) {
+        checkNotNull(receiveListener);
+        this.receiveListener = receiveListener;
         return this;
     }
 
