@@ -65,9 +65,17 @@ public class WebSocketService implements Closeable {
     private ServiceConfiguration config;
     private ConfigurationCacheService configurationCacheService;
 
+    private ClusterData localCluster;
+
     public WebSocketService(ServiceConfiguration config) throws PulsarClientException, MalformedURLException,
             ServletException, DeploymentException, PulsarServerException {
+        this(null, config);
+    }
+
+    public WebSocketService(ClusterData localCluster, ServiceConfiguration config) throws PulsarClientException,
+            MalformedURLException, ServletException, DeploymentException, PulsarServerException {
         this.config = config;
+        this.localCluster = localCluster;
     }
 
     public void start() throws PulsarServerException, PulsarClientException, MalformedURLException, ServletException,
@@ -129,28 +137,37 @@ public class WebSocketService implements Closeable {
     public synchronized PulsarClient getPulsarClient() throws IOException {
         // Do lazy initialization of client
         if (pulsarClient == null) {
-            ClusterData localCluster;
-            try {
-                localCluster = configurationCacheService.clustersCache()
-                        .get("/admin/clusters/" + config.getClusterName());
-            } catch (Exception e) {
-                throw new PulsarServerException(e);
+            if (localCluster == null) {
+                // If not explicitly set, read clusters data from ZK
+                localCluster = retrieveClusterData();
             }
 
-            ClientConfiguration clientConf = new ClientConfiguration();
-            clientConf.setStatsInterval(0, TimeUnit.SECONDS);
-            if (config.isAuthenticationEnabled()) {
-                clientConf.setAuthentication(config.getBrokerClientAuthenticationPlugin(),
-                        config.getBrokerClientAuthenticationParameters());
-            }
-
-            if (config.isTlsEnabled() && !localCluster.getServiceUrlTls().isEmpty()) {
-                pulsarClient = PulsarClient.create(localCluster.getServiceUrlTls(), clientConf);
-            } else {
-                pulsarClient = PulsarClient.create(localCluster.getServiceUrl(), clientConf);
-            }
+            pulsarClient = createClientInstance(localCluster);
         }
-        return this.pulsarClient;
+        return pulsarClient;
+    }
+
+    private PulsarClient createClientInstance(ClusterData clusterData) throws IOException {
+        ClientConfiguration clientConf = new ClientConfiguration();
+        clientConf.setStatsInterval(0, TimeUnit.SECONDS);
+        if (config.isAuthenticationEnabled()) {
+            clientConf.setAuthentication(config.getBrokerClientAuthenticationPlugin(),
+                    config.getBrokerClientAuthenticationParameters());
+        }
+
+        if (config.isTlsEnabled() && !clusterData.getServiceUrlTls().isEmpty()) {
+            return PulsarClient.create(clusterData.getServiceUrlTls(), clientConf);
+        } else {
+            return PulsarClient.create(clusterData.getServiceUrl(), clientConf);
+        }
+    }
+
+    private ClusterData retrieveClusterData() throws PulsarServerException {
+        try {
+            return configurationCacheService.clustersCache().get("/admin/clusters/" + config.getClusterName());
+        } catch (Exception e) {
+            throw new PulsarServerException(e);
+        }
     }
 
     public ConfigurationCacheService getConfigurationCache() {

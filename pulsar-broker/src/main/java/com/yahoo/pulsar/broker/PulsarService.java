@@ -16,9 +16,7 @@
 package com.yahoo.pulsar.broker;
 
 import java.io.IOException;
-import java.net.InetAddress;
 import java.net.URL;
-import java.net.UnknownHostException;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
@@ -58,6 +56,7 @@ import com.yahoo.pulsar.client.util.FutureUtil;
 import com.yahoo.pulsar.common.naming.DestinationName;
 import com.yahoo.pulsar.common.naming.NamespaceName;
 import com.yahoo.pulsar.common.naming.ServiceUnitId;
+import com.yahoo.pulsar.common.policies.data.ClusterData;
 import com.yahoo.pulsar.websocket.WebSocketConsumerServlet;
 import com.yahoo.pulsar.websocket.WebSocketProducerServlet;
 import com.yahoo.pulsar.websocket.WebSocketService;
@@ -252,7 +251,9 @@ public class PulsarService implements AutoCloseable {
             this.webService.addRestResources("/lookup", "com.yahoo.pulsar.broker.lookup", true);
 
             if (config.isWebSocketServiceEnabled()) {
-                this.webSocketService = new WebSocketService(config);
+                // Use local broker address to avoid different IP address when using a VIP for service discovery
+                this.webSocketService = new WebSocketService(new ClusterData(webServiceAddress, webServiceAddressTls),
+                        config);
                 this.webSocketService.start();
                 this.webService.addServlet(WebSocketProducerServlet.SERVLET_PATH,
                         new ServletHolder(new WebSocketProducerServlet(webSocketService)), true);
