@@ -51,7 +51,7 @@ import org.testng.annotations.Test;
 
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import com.yahoo.pulsar.common.naming.DestinationName;
-import com.yahoo.pulsar.common.naming.ServiceUnitId;
+import com.yahoo.pulsar.common.naming.NamespaceBundle;
 import com.yahoo.pulsar.common.policies.data.Policies;
 import com.yahoo.pulsar.broker.PulsarService;
 import com.yahoo.pulsar.broker.ServiceConfiguration;
@@ -105,7 +105,7 @@ public class PersistentDispatcherFailoverConsumerTest {
 
         NamespaceService nsSvc = mock(NamespaceService.class);
         doReturn(nsSvc).when(pulsar).getNamespaceService();
-        doReturn(true).when(nsSvc).isServiceUnitOwned(any(ServiceUnitId.class));
+        doReturn(true).when(nsSvc).isServiceUnitOwned(any(NamespaceBundle.class));
         doReturn(true).when(nsSvc).isServiceUnitActive(any(DestinationName.class));
 
         setupMLAsyncCallbackMocks();

@@ -16,9 +16,9 @@
 package com.yahoo.pulsar.broker.authorization;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
-import org.apache.zookeeper.KeeperException.NoNodeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -100,14 +100,21 @@ public class AuthorizationManager {
 
     public boolean checkPermission(DestinationName destination, String role, AuthAction action) {
         try {
-            Policies policies = configCache.policiesCache().get(POLICY_ROOT + destination.getNamespace());
-            Set<AuthAction> namespaceActions = policies.auth_policies.namespace_auth.get(role);
+            Optional<Policies> policies = configCache.policiesCache().get(POLICY_ROOT + destination.getNamespace());
+            if (!policies.isPresent()) {
+                if (log.isDebugEnabled()) {
+                    log.debug("Policies node couldn't be found for destination : {}", destination);
+                }
+                return false;
+            }
+
+            Set<AuthAction> namespaceActions = policies.get().auth_policies.namespace_auth.get(role);
             if (namespaceActions != null && namespaceActions.contains(action)) {
                 // The role has namespace level permission
                 return true;
             }
 
-            Map<String, Set<AuthAction>> roles = policies.auth_policies.destination_auth.get(destination.toString());
+            Map<String, Set<AuthAction>> roles = policies.get().auth_policies.destination_auth.get(destination.toString());
             if (roles == null) {
                 // Destination has no custom policy
                 return false;
@@ -117,11 +124,6 @@ public class AuthorizationManager {
             if (resourceActions != null && resourceActions.contains(action)) {
                 // The role has destination level permission
                 return true;
-            }
-            return false;
-        } catch (NoNodeException nne) {
-            if (log.isDebugEnabled()) {
-                log.debug("Policies node couldn't be found for destination : {}", destination, nne);
             }
             return false;
         } catch (Exception e) {

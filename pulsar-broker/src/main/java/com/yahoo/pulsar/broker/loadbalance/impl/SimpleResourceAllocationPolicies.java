@@ -15,25 +15,20 @@
  */
 package com.yahoo.pulsar.broker.loadbalance.impl;
 
-import java.util.List;
 import java.util.Map;
 
-import com.yahoo.pulsar.common.naming.NamespaceName;
-import com.yahoo.pulsar.common.policies.NamespaceIsolationPolicy;
-import com.yahoo.pulsar.common.policies.data.NamespaceIsolationData;
-import com.yahoo.pulsar.common.policies.impl.NamespaceIsolationPolicies;
-import com.yahoo.pulsar.common.policies.impl.NamespaceIsolationPolicyImpl;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.yahoo.pulsar.broker.PulsarService;
 import com.yahoo.pulsar.broker.admin.AdminResource;
 import com.yahoo.pulsar.broker.loadbalance.LoadReport;
 import com.yahoo.pulsar.broker.loadbalance.ResourceUnit;
 import com.yahoo.pulsar.broker.loadbalance.ServiceUnit;
+import com.yahoo.pulsar.common.naming.NamespaceName;
+import com.yahoo.pulsar.common.policies.NamespaceIsolationPolicy;
+import com.yahoo.pulsar.common.policies.impl.NamespaceIsolationPolicies;
 import com.yahoo.pulsar.zookeeper.ZooKeeperDataCache;
-
-import org.apache.zookeeper.KeeperException;
-import org.json.JSONObject;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class SimpleResourceAllocationPolicies {
     private static final Logger LOG = LoggerFactory.getLogger(SimpleResourceAllocationPolicies.class);
@@ -54,9 +49,7 @@ public class SimpleResourceAllocationPolicies {
         NamespaceIsolationPolicies policies = null;
         try {
             policies = namespaceIsolationPolicies
-                    .get(AdminResource.path("clusters", clusterName, "namespaceIsolationPolicies"));
-        } catch (KeeperException.NoNodeException e) {
-            return policies;
+                    .get(AdminResource.path("clusters", clusterName, "namespaceIsolationPolicies")).orElse(null);
         } catch (Exception e) {
             LOG.warn("GetIsolationPolicies: Unable to get the namespaceIsolationPolicies [{}]", e);
         }

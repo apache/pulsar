@@ -44,6 +44,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.commons.lang.SystemUtils;
+import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -71,7 +72,6 @@ import com.yahoo.pulsar.common.naming.DestinationName;
 import com.yahoo.pulsar.common.naming.NamespaceBundle;
 import com.yahoo.pulsar.common.naming.NamespaceBundleFactory;
 import com.yahoo.pulsar.common.naming.NamespaceName;
-import com.yahoo.pulsar.common.naming.ServiceUnitId;
 import com.yahoo.pulsar.common.policies.data.ClusterData;
 import com.yahoo.pulsar.common.policies.data.PersistencePolicies;
 import com.yahoo.pulsar.common.policies.data.PersistentOfflineTopicStats;
@@ -301,7 +301,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     /**
      * It unloads all owned namespacebundles gracefully.
      * <ul>
-     * <li>First it makes current broker unavailable and isolates from the clusters so, it will not serve any new requests.</li>
+     * <li>First it makes current broker unavailable and isolates from the clusters so, it will not serve any new
+     * requests.</li>
      * <li>Second it starts unloading namespace bundle one by one without closing the connection in order to avoid
      * disruption for other namespacebundles which are sharing the same connection from the same client.</li>
      * <ul>
@@ -316,7 +317,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
             // unload all namespace-bundles gracefully
             long closeTopicsStartTime = System.nanoTime();
-            Set<ServiceUnitId> serviceUnits = pulsar.getNamespaceService().getOwnedServiceUnits();
+            Set<NamespaceBundle> serviceUnits = pulsar.getNamespaceService().getOwnedServiceUnits();
             serviceUnits.forEach(su -> {
                 if (su instanceof NamespaceBundle) {
                     try {
@@ -329,7 +330,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
             double closeTopicsTimeSeconds = TimeUnit.NANOSECONDS.toMillis((System.nanoTime() - closeTopicsStartTime))
                     / 1000.0;
-            log.info("Unloading {} namespace-bundles completed in {} seconds", serviceUnits.size(), closeTopicsTimeSeconds);
+            log.info("Unloading {} namespace-bundles completed in {} seconds", serviceUnits.size(),
+                    closeTopicsTimeSeconds);
         } catch (Exception e) {
             log.error("Failed to disable broker from loadbalancer list {}", e.getMessage(), e);
         }
@@ -371,8 +373,9 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
         return replicationClients.computeIfAbsent(cluster, key -> {
             try {
-                ClusterData data = this.pulsar.getConfigurationCache().clustersCache()
-                        .get(PulsarWebResource.path("clusters", cluster));
+                String path = PulsarWebResource.path("clusters", cluster);
+                ClusterData data = this.pulsar.getConfigurationCache().clustersCache().get(path)
+                        .orElseThrow(() -> new KeeperException.NoNodeException(path));
                 ClientConfiguration configuration = new ClientConfiguration();
                 configuration.setUseTcpNoDelay(false);
                 configuration.setConnectionsPerBroker(pulsar.getConfiguration().getReplicationConnectionsPerBroker());
@@ -460,22 +463,24 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         // Execute in background thread, since getting the policies might block if the z-node wasn't already cached
         pulsar.getOrderedExecutor().submitOrdered(topicName, safeRun(() -> {
             NamespaceName namespace = topicName.getNamespaceObject();
+            ServiceConfiguration serviceConfig = pulsar.getConfiguration();
 
             // Get persistence policy for this destination
-            PersistencePolicies persistencePolicies = null;
-            Policies policies = null;
-            RetentionPolicies retentionPolicies = null;
+            Policies policies;
             try {
-                policies = pulsar.getConfigurationCache().policiesCache().get(AdminResource.path("policies",
-                        namespace.getProperty(), namespace.getCluster(), namespace.getLocalName()));
-                persistencePolicies = policies.persistence;
-                retentionPolicies = policies.retention_policies;
+                policies = pulsar
+                        .getConfigurationCache().policiesCache().get(AdminResource.path("policies",
+                                namespace.getProperty(), namespace.getCluster(), namespace.getLocalName()))
+                        .orElse(null);
             } catch (Throwable t) {
                 // Ignoring since if we don't have policies, we fallback on the default
-                log.debug("Got exception when reading persistence policy: {}", t.getMessage());
+                log.warn("Got exception when reading persistence policy for {}: {}", topicName, t.getMessage(), t);
+                future.completeExceptionally(t);
+                return;
             }
 
-            ServiceConfiguration serviceConfig = pulsar.getConfiguration();
+            PersistencePolicies persistencePolicies = policies != null ? policies.persistence : null;
+            RetentionPolicies retentionPolicies = policies != null ? policies.retention_policies : null;
 
             if (persistencePolicies == null) {
                 // Apply default values
@@ -521,11 +526,11 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
     private void addTopicToStatsMaps(DestinationName topicName, PersistentTopic topic) {
         try {
-            ServiceUnitId serviceUnitId = pulsar.getNamespaceService().getBundle(topicName);
+            NamespaceBundle namespaceBundle = pulsar.getNamespaceService().getBundle(topicName);
 
-            if (serviceUnitId != null) {
+            if (namespaceBundle != null) {
                 synchronized (multiLayerTopicsMap) {
-                    String serviceUnit = serviceUnitId.toString();
+                    String serviceUnit = namespaceBundle.toString();
                     multiLayerTopicsMap //
                             .computeIfAbsent(topicName.getNamespace(), k -> new ConcurrentOpenHashMap<>()) //
                             .computeIfAbsent(serviceUnit, k -> new ConcurrentOpenHashMap<>()) //
@@ -691,7 +696,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
      * @param serviceUnit
      * @return
      */
-    public CompletableFuture<Integer> unloadServiceUnit(ServiceUnitId serviceUnit) {
+    public CompletableFuture<Integer> unloadServiceUnit(NamespaceBundle serviceUnit) {
         CompletableFuture<Integer> result = new CompletableFuture<Integer>();
         List<CompletableFuture<Void>> closeFutures = Lists.newArrayList();
         topics.forEach((name, topicFuture) -> {
@@ -717,10 +722,10 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     public void removeTopicFromCache(String topic) {
         try {
             DestinationName destination = DestinationName.get(topic);
-            ServiceUnitId serviceUnitId = pulsar.getNamespaceService().getBundle(destination);
-            checkArgument(serviceUnitId instanceof NamespaceBundle);
+            NamespaceBundle namespaceBundle = pulsar.getNamespaceService().getBundle(destination);
+            checkArgument(namespaceBundle instanceof NamespaceBundle);
 
-            String bundleName = serviceUnitId.toString();
+            String bundleName = namespaceBundle.toString();
             String namespaceName = destination.getNamespaceObject().toString();
 
             synchronized (multiLayerTopicsMap) {

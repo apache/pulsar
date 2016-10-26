@@ -22,8 +22,8 @@ import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
-import com.yahoo.pulsar.common.policies.data.ErrorData;
 import com.yahoo.pulsar.client.admin.PulsarAdminException;
+import com.yahoo.pulsar.common.policies.data.ErrorData;
 
 /**
  * Exception used to provide better error messages to clients of the REST API.
@@ -49,10 +49,20 @@ public class RestException extends WebApplicationException {
     }
 
     public RestException(Throwable t) {
-        super(Response.status(500).entity(getExceptionData(t)).type(MediaType.TEXT_PLAIN).build());
+        super(getResponse(t));
     }
 
     public RestException(PulsarAdminException cae) {
         this(cae.getStatusCode(), cae.getHttpError());
+    }
+
+    private static Response getResponse(Throwable t) {
+        if (t instanceof RestException) {
+            RestException e = (RestException) t;
+            return Response.status(e.getResponse().getStatus()).entity(e.getResponse().getEntity())
+                    .type(e.getResponse().getMediaType()).build();
+        } else {
+            return Response.status(500).entity(getExceptionData(t)).type(MediaType.TEXT_PLAIN).build();
+        }
     }
 }

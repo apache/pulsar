@@ -20,7 +20,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import com.yahoo.pulsar.common.api.proto.PulsarApi;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
@@ -39,15 +38,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Objects;
-import com.yahoo.pulsar.broker.service.Consumer;
-import com.yahoo.pulsar.broker.service.Dispatcher;
 import com.yahoo.pulsar.broker.service.BrokerServiceException;
-import com.yahoo.pulsar.broker.service.Subscription;
 import com.yahoo.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import com.yahoo.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import com.yahoo.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import com.yahoo.pulsar.broker.service.BrokerServiceException.SubscriptionFencedException;
 import com.yahoo.pulsar.broker.service.BrokerServiceException.SubscriptionInvalidCursorPosition;
+import com.yahoo.pulsar.broker.service.Consumer;
+import com.yahoo.pulsar.broker.service.Dispatcher;
+import com.yahoo.pulsar.broker.service.Subscription;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import com.yahoo.pulsar.common.naming.DestinationName;
@@ -501,6 +500,8 @@ public class PersistentSubscription implements Subscription {
     @Override
     public CompletableFuture<Void> delete() {
         CompletableFuture<Void> deleteFuture = new CompletableFuture<>();
+
+        log.info("[{}][{}] Unsubscribing", topicName, subName);
 
         // cursor close handles pending delete (ack) operations
         this.close().thenCompose(v -> topic.unsubscribe(subName)).thenAccept(v -> deleteFuture.complete(null))

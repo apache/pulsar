@@ -15,11 +15,10 @@
  */
 package com.yahoo.pulsar.broker;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertNotEquals;
 
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -41,14 +40,12 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import com.google.common.collect.Lists;
 import com.yahoo.pulsar.broker.loadbalance.LoadBalancerTest;
 import com.yahoo.pulsar.broker.namespace.NamespaceService;
 import com.yahoo.pulsar.client.admin.PulsarAdmin;
 import com.yahoo.pulsar.client.admin.PulsarAdminException;
 import com.yahoo.pulsar.client.api.Authentication;
 import com.yahoo.pulsar.client.api.PulsarClientException;
-import com.yahoo.pulsar.common.policies.data.BrokerAssignment;
 import com.yahoo.pulsar.common.policies.data.ClusterData;
 import com.yahoo.pulsar.common.policies.data.NamespaceOwnershipStatus;
 import com.yahoo.pulsar.common.policies.data.PropertyAdmin;

@@ -44,6 +44,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -557,7 +558,8 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         Policies policies = null;
         try {
             policies = brokerService.pulsar().getConfigurationCache().policiesCache()
-                    .get(AdminResource.path("policies", name.getNamespace()));
+                    .get(AdminResource.path("policies", name.getNamespace()))
+                    .orElseThrow(() -> new KeeperException.NoNodeException());
         } catch (Exception e) {
             CompletableFuture<Void> future = new CompletableFuture<>();
             future.completeExceptionally(new ServerMetadataException(e));
@@ -609,7 +611,8 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         Policies policies;
         try {
             policies = brokerService.pulsar().getConfigurationCache().policiesCache()
-                    .get(AdminResource.path("policies", name.getNamespace()));
+                    .get(AdminResource.path("policies", name.getNamespace()))
+                    .orElseThrow(() -> new KeeperException.NoNodeException());
             if (policies.message_ttl_in_seconds != 0) {
                 subscriptions.forEach((subName, sub) -> sub.expireMessages(policies.message_ttl_in_seconds));
                 replicators.forEach((region, replicator) -> replicator.expireMessages(policies.message_ttl_in_seconds));

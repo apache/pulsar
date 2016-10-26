@@ -45,7 +45,7 @@ public class NamespaceBundles {
         this(nsname, convertPartitions(partitionsSet), factory);
     }
 
-    public NamespaceBundles(NamespaceName nsname, long[] partitions, NamespaceBundleFactory factory) throws Exception {
+    public NamespaceBundles(NamespaceName nsname, long[] partitions, NamespaceBundleFactory factory) {
         // check input arguments
         this.nsname = checkNotNull(nsname);
         this.factory = checkNotNull(factory);

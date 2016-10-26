@@ -25,7 +25,7 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yahoo.pulsar.broker.PulsarServerException;
-import com.yahoo.pulsar.common.naming.ServiceUnitId;
+import com.yahoo.pulsar.common.naming.NamespaceBundle;
 import com.yahoo.pulsar.common.policies.data.ResourceQuota;
 import com.yahoo.pulsar.common.util.ObjectMapperFactory;
 import com.yahoo.pulsar.zookeeper.ZooKeeperCache;
@@ -90,9 +90,7 @@ public class ResourceQuotaCache {
 
     private ResourceQuota readQuotaFromZnode(String zpath) {
         try {
-            return this.resourceQuotaCache.get(zpath);
-        } catch (KeeperException.NoNodeException e) {
-            return new ResourceQuota();
+            return this.resourceQuotaCache.get(zpath).orElseGet(() -> new ResourceQuota());
         } catch (Exception e) {
             LOG.warn("Failed to read quota from znode {}: {}", zpath, e);
             return new ResourceQuota();
@@ -157,7 +155,7 @@ public class ResourceQuotaCache {
      *
      * @return the <code>ResourceQuota</code>.
      */
-    public ResourceQuota getQuota(ServiceUnitId suName) {
+    public ResourceQuota getQuota(NamespaceBundle suName) {
         String suNameStr = (suName == null) ? null : suName.toString();
         return this.getQuota(suNameStr);
     }
@@ -193,7 +191,7 @@ public class ResourceQuotaCache {
      * @param quota
      *            <code>ResourceQuota</code> to set.
      */
-    public void setQuota(ServiceUnitId suName, ResourceQuota quota) throws Exception {
+    public void setQuota(NamespaceBundle suName, ResourceQuota quota) throws Exception {
         String suNameStr = (suName == null) ? null : suName.toString();
         this.setQuota(suNameStr, quota);
     }
@@ -224,7 +222,7 @@ public class ResourceQuotaCache {
      * @param suName
      *            identifier of the <code>ServiceUnit</code>
      */
-    public void unsetQuota(ServiceUnitId suName) throws Exception {
+    public void unsetQuota(NamespaceBundle suName) throws Exception {
         String suNameStr = (suName == null) ? null : suName.toString();
         this.unsetQuota(suNameStr);
     }

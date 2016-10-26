@@ -28,6 +28,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.fail;
 
+import java.util.Optional;
+
 import javax.servlet.FilterChain;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
@@ -69,7 +71,7 @@ public class ApiVersionFilterTest {
 
         // Set up mock behaviour for the test.
         when(pulsar.getLocalZkCache()).thenReturn(localCache);
-        when(localCache.getData(eq("/minApiVersion"), Matchers.anyObject())).thenReturn("1.0");
+        when(localCache.getData(eq("/minApiVersion"), Matchers.anyObject())).thenReturn(Optional.of("1.0"));
         when(req.getHeader("pulsar-client-version")).thenReturn("1.0");
 
         filter.doFilter(req, resp, chain);
@@ -85,7 +87,7 @@ public class ApiVersionFilterTest {
 
         // Set up mock behaviour for the test.
         when(pulsar.getLocalZkCache()).thenReturn(localCache);
-        when(localCache.getData(eq("/minApiVersion"), Matchers.anyObject())).thenReturn("1.0");
+        when(localCache.getData(eq("/minApiVersion"), Matchers.anyObject())).thenReturn(Optional.of("1.0"));
         when(req.getHeader("pulsar-client-version")).thenReturn("0.9");
 
         filter.doFilter(req, resp, chain);
@@ -119,7 +121,7 @@ public class ApiVersionFilterTest {
 
         // Set up mock behaviour for the test.
         when(pulsar.getLocalZkCache()).thenReturn(localCache);
-        when(localCache.getData(eq("/minApiVersion"), Matchers.anyObject())).thenReturn("foo");
+        when(localCache.getData(eq("/minApiVersion"), Matchers.anyObject())).thenReturn(Optional.of("foo"));
         when(req.getHeader("pulsar-client-version")).thenReturn("0.9");
 
         filter.doFilter(req, resp, chain);
@@ -137,7 +139,7 @@ public class ApiVersionFilterTest {
 
         // Set up mock behaviour for the test.
         when(pulsar.getLocalZkCache()).thenReturn(localCache);
-        when(localCache.getData(eq("/minApiVersion"), Matchers.anyObject())).thenReturn("1.0");
+        when(localCache.getData(eq("/minApiVersion"), Matchers.anyObject())).thenReturn(Optional.of("1.0"));
 
         // Returning null here will simulate the client not sending a version,
         // which should cause the response to be determined by the

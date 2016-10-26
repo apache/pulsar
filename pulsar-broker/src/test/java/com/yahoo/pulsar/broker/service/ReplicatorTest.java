@@ -40,7 +40,7 @@ import org.testng.annotations.Test;
 import org.testng.collections.Lists;
 
 import com.yahoo.pulsar.broker.namespace.NamespaceService;
-import com.yahoo.pulsar.broker.namespace.OwnedServiceUnit;
+import com.yahoo.pulsar.broker.namespace.OwnedBundle;
 import com.yahoo.pulsar.broker.namespace.OwnershipCache;
 import com.yahoo.pulsar.broker.service.persistent.PersistentReplicator;
 import com.yahoo.pulsar.broker.service.persistent.PersistentTopic;
@@ -169,10 +169,10 @@ public class ReplicatorTest extends ReplicatorTestBase {
         Assert.assertNotNull(pulsar1.getNamespaceService(), "pulsar1.getNamespaceService() is null");
         NamespaceBundle globalNsBundle = pulsar1.getNamespaceService().getNamespaceBundleFactory()
                 .getFullBundle(new NamespaceName("pulsar/global/ns"));
-        ownerCache.getOrSetOwner(globalNsBundle);
-        Assert.assertNotNull(ownerCache.getOwnedServiceUnit(globalNsBundle),
+        ownerCache.tryAcquiringOwnership(globalNsBundle);
+        Assert.assertNotNull(ownerCache.getOwnedBundle(globalNsBundle),
                 "pulsar1.getNamespaceService().getOwnedServiceUnit(new NamespaceName(\"pulsar/global/ns\")) is null");
-        Field stateField = OwnedServiceUnit.class.getDeclaredField("isActive");
+        Field stateField = OwnedBundle.class.getDeclaredField("isActive");
         stateField.setAccessible(true);
         // set the namespace to be disabled
         ownerCache.disableOwnership(globalNsBundle);
@@ -187,7 +187,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         // restore the namespace state
         ownerCache.removeOwnership(globalNsBundle);
-        ownerCache.getOrSetOwner(globalNsBundle);
+        ownerCache.tryAcquiringOwnership(globalNsBundle);
     }
 
     @Test(enabled = true)

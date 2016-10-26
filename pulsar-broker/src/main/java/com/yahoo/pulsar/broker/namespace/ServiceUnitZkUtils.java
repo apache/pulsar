@@ -40,7 +40,7 @@ import com.yahoo.pulsar.broker.PulsarServerException;
 import com.yahoo.pulsar.broker.cache.LocalZooKeeperCacheService;
 import com.yahoo.pulsar.common.naming.NamespaceBundleFactory;
 import com.yahoo.pulsar.common.naming.NamespaceName;
-import com.yahoo.pulsar.common.naming.ServiceUnitId;
+import com.yahoo.pulsar.common.naming.NamespaceBundle;
 import com.yahoo.pulsar.common.policies.data.BundlesData;
 import com.yahoo.pulsar.common.util.ObjectMapperFactory;
 import com.yahoo.pulsar.zookeeper.LocalZooKeeperConnectionService;
@@ -63,12 +63,12 @@ public final class ServiceUnitZkUtils {
      */
     public static final String OWNER_INFO_ROOT = LocalZooKeeperCacheService.OWNER_INFO_ROOT;
 
-    public static final String path(ServiceUnitId suname) {
+    public static final String path(NamespaceBundle suname) {
         // The ephemeral node path for new namespaces should always have bundle name appended
         return OWNER_INFO_ROOT + "/" + suname.toString();
     }
 
-    public static final ServiceUnitId suIdFromPath(String path, NamespaceBundleFactory factory) throws Exception {
+    public static final NamespaceBundle suBundleFromPath(String path, NamespaceBundleFactory factory) {
         String[] parts = path.split("/");
         checkArgument(parts.length > 2);
         checkArgument(parts[1].equals("namespace"));

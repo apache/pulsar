@@ -15,6 +15,8 @@
  */
 package com.yahoo.pulsar.common.lookup.data;
 
+import com.google.common.base.Objects;
+
 public class LookupData {
     private String brokerUrl;
     private String brokerUrlTls;
@@ -60,5 +62,11 @@ public class LookupData {
     @Deprecated
     public String getBrokerUrlSsl() {
         return "";
+    }
+
+    @Override
+    public String toString() {
+        return Objects.toStringHelper(this).add("brokerUrl", brokerUrl).add("brokerUrlTls", brokerUrlTls)
+                .add("httpUrl", httpUrl).toString();
     }
 }

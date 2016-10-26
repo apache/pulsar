@@ -28,6 +28,7 @@ import org.apache.bookkeeper.net.NetworkTopology;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.bookkeeper.zookeeper.ZooKeeperWatcherBase;
 import org.apache.commons.configuration.Configuration;
+import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
@@ -124,7 +125,8 @@ public class ZkBookieRackAffinityMapping extends AbstractDNSToSwitchMapping
         try {
             if (bookieMappingCache != null) {
                 Map<String, Map<BookieSocketAddress, BookieInfo>> allGroupsBookieMapping = bookieMappingCache
-                        .get(BOOKIE_INFO_ROOT_PATH);
+                        .get(BOOKIE_INFO_ROOT_PATH)
+                        .orElseThrow(() -> new KeeperException.NoNodeException(BOOKIE_INFO_ROOT_PATH));
                 for (Map<BookieSocketAddress, BookieInfo> bookieMapping : allGroupsBookieMapping.values()) {
                     BookieInfo bookieInfo = bookieMapping.get(bookieAddress);
                     if (bookieInfo != null) {

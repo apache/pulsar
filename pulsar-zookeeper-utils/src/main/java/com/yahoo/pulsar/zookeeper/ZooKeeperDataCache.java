@@ -17,8 +17,9 @@ package com.yahoo.pulsar.zookeeper;
 
 import java.util.List;
 import java.util.Map.Entry;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
-import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.data.Stat;
@@ -46,11 +47,32 @@ public abstract class ZooKeeperDataCache<T> implements Deserializer<T>, CacheUpd
         this.cache = cache;
     }
 
-    public T get(final String path) throws Exception {
-        return getWithStat(path).getKey();
+    public CompletableFuture<Optional<T>> getAsync(String path) {
+        CompletableFuture<Optional<T>> future = new CompletableFuture<>();
+        cache.getDataAsync(path, this, this).thenAccept(entry -> {
+            future.complete(entry.map(Entry::getKey));
+        }).exceptionally(ex -> {
+            future.completeExceptionally(ex);
+            return null;
+        });
+
+        return future;
     }
 
-    public Entry<T, Stat> getWithStat(final String path) throws Exception {
+    /**
+     * Return an item from the cache
+     *
+     * If node doens't exist, the value will be not present.s
+     *
+     * @param path
+     * @return
+     * @throws Exception
+     */
+    public Optional<T> get(final String path) throws Exception {
+        return getWithStat(path).map(Entry::getKey);
+    }
+
+    public Optional<Entry<T, Stat>> getWithStat(final String path) throws Exception {
         return cache.getData(path, this, this);
     }
 
@@ -72,19 +94,22 @@ public abstract class ZooKeeperDataCache<T> implements Deserializer<T>, CacheUpd
                 LOG.debug("Reloading ZooKeeperDataCache at path {}", path);
             }
             cache.invalidate(path);
-            Entry<T, Stat> cacheEntry = cache.getData(path, this, this);
+            Optional<Entry<T, Stat>> cacheEntry = cache.getData(path, this, this);
+            if (!cacheEntry.isPresent()) {
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("Node [{}] does not exist", path);
+                }
+                return;
+            }
+
             for (ZooKeeperCacheListener<T> listener : listeners) {
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("Notifying listener {} at path {}", listener, path);
                 }
-                listener.onUpdate(path, cacheEntry.getKey(), cacheEntry.getValue());
+                listener.onUpdate(path, cacheEntry.get().getKey(), cacheEntry.get().getValue());
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("Notified listener {} at path {}", listener, path);
                 }
-            }
-        } catch (KeeperException.NoNodeException nne) {
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("Node [{}] does not exist", nne.getPath());
             }
         } catch (Exception e) {
             LOG.warn("Reloading ZooKeeperDataCache failed at path: {}", path, e);

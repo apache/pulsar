@@ -34,6 +34,7 @@ import java.net.URL;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Optional;
 
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.WebApplicationException;
@@ -66,7 +67,6 @@ import com.yahoo.pulsar.common.naming.DestinationName;
 import com.yahoo.pulsar.common.naming.NamespaceBundle;
 import com.yahoo.pulsar.common.naming.NamespaceBundles;
 import com.yahoo.pulsar.common.naming.NamespaceName;
-import com.yahoo.pulsar.common.naming.ServiceUnitId;
 import com.yahoo.pulsar.common.policies.data.AuthAction;
 import com.yahoo.pulsar.common.policies.data.BundlesData;
 import com.yahoo.pulsar.common.policies.data.ClusterData;
@@ -428,7 +428,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             mockZookKeeper.unsetAlwaysFail();
         }
 
-        mockZookKeeper.failAfter(1, Code.BADVERSION);
+        mockZookKeeper.failNow(Code.BADVERSION);
         try {
             namespaces.setNamespaceReplicationClusters(this.testProperty, "global",
                     this.testGlobalNamespaces.get(0).getLocalName(), Lists.newArrayList("use"));
@@ -486,7 +486,6 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
     public void testGetBundles() throws Exception {
         BundlesData bundle = new BundlesData(Lists.newArrayList("0x00000000", "0x80000000", "0xffffffff"));
         createBundledTestNamespaces(this.testProperty, this.testLocalCluster, "test-bundled-namespace-1", bundle);
-
         BundlesData responseData = namespaces.getBundlesData(testProperty, this.testLocalCluster,
                 "test-bundled-namespace-1");
 
@@ -652,7 +651,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         com.yahoo.pulsar.client.admin.Namespaces namespacesAdmin = mock(com.yahoo.pulsar.client.admin.Namespaces.class);
         doReturn(namespacesAdmin).when(admin).namespaces();
 
-        doReturn(null).when(nsSvc).getWebServiceUrl(Mockito.argThat(new Matcher<ServiceUnitId>() {
+        doReturn(null).when(nsSvc).getWebServiceUrl(Mockito.argThat(new Matcher<NamespaceBundle>() {
 
             @Override
             public void describeTo(Description description) {
@@ -672,7 +671,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             }
 
         }), Mockito.anyBoolean(), Mockito.anyBoolean());
-        doReturn(false).when(nsSvc).isServiceUnitOwned(Mockito.argThat(new Matcher<ServiceUnitId>() {
+        doReturn(false).when(nsSvc).isServiceUnitOwned(Mockito.argThat(new Matcher<NamespaceBundle>() {
 
             @Override
             public void describeTo(Description description) {
@@ -692,7 +691,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             }
 
         }));
-        doReturn(new NamespaceEphemeralData()).when(nsSvc).getOwner(Mockito.argThat(new Matcher<ServiceUnitId>() {
+        doReturn(Optional.of(new NamespaceEphemeralData())).when(nsSvc).getOwner(Mockito.argThat(new Matcher<NamespaceBundle>() {
 
             @Override
             public void describeTo(Description description) {
@@ -765,7 +764,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
     public void testUnloadNamespaces() throws Exception {
         final NamespaceName testNs = this.testLocalNamespaces.get(1);
         URL localWebServiceUrl = new URL(pulsar.getWebServiceAddress());
-        doReturn(localWebServiceUrl).when(nsSvc).getWebServiceUrl(Mockito.argThat(new Matcher<ServiceUnitId>() {
+        doReturn(localWebServiceUrl).when(nsSvc).getWebServiceUrl(Mockito.argThat(new Matcher<NamespaceBundle>() {
 
             @Override
             public void describeTo(Description description) {
@@ -789,7 +788,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             }
 
         }), Mockito.anyBoolean(), Mockito.anyBoolean());
-        doReturn(true).when(nsSvc).isServiceUnitOwned(Mockito.argThat(new Matcher<ServiceUnitId>() {
+        doReturn(true).when(nsSvc).isServiceUnitOwned(Mockito.argThat(new Matcher<NamespaceBundle>() {
 
             @Override
             public void describeTo(Description description) {
@@ -815,7 +814,8 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         }));
 
         doNothing().when(nsSvc).unloadNamespace(testNs);
-        doNothing().when(namespaces).validateServiceUnitOwnership(testNs, false, true);
+        NamespaceBundle bundle = nsSvc.getNamespaceBundleFactory().getFullBundle(testNs);
+        doNothing().when(namespaces).validateBundleOwnership(bundle, false, true);
 
         try {
             namespaces.unloadNamespace(testNs.getProperty(), testNs.getCluster(), testNs.getLocalName());
@@ -836,7 +836,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         final NamespaceName testNs = new NamespaceName(this.testProperty, this.testLocalCluster, bundledNsLocal);
 
         OwnershipCache MockOwnershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
-        doNothing().when(MockOwnershipCache).disableOwnership(any(ServiceUnitId.class));
+        doNothing().when(MockOwnershipCache).disableOwnership(any(NamespaceBundle.class));
         Field ownership = NamespaceService.class.getDeclaredField("ownershipCache");
         ownership.setAccessible(true);
         ownership.set(pulsar.getNamespaceService(), MockOwnershipCache);
@@ -866,7 +866,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         createBundledTestNamespaces(this.testProperty, this.testLocalCluster, bundledNsLocal, bundleData);
         final NamespaceName testNs = new NamespaceName(this.testProperty, this.testLocalCluster, bundledNsLocal);
 
-        doReturn(localWebServiceUrl).when(nsSvc).getWebServiceUrl(Mockito.argThat(new Matcher<ServiceUnitId>() {
+        doReturn(localWebServiceUrl).when(nsSvc).getWebServiceUrl(Mockito.argThat(new Matcher<NamespaceBundle>() {
 
             @Override
             public void describeTo(Description description) {
@@ -890,7 +890,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             }
 
         }), Mockito.anyBoolean(), Mockito.anyBoolean());
-        doReturn(true).when(nsSvc).isServiceUnitOwned(Mockito.argThat(new Matcher<ServiceUnitId>() {
+        doReturn(true).when(nsSvc).isServiceUnitOwned(Mockito.argThat(new Matcher<NamespaceBundle>() {
 
             @Override
             public void describeTo(Description description) {
@@ -981,7 +981,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             mockWebUrl(localWebServiceUrl, testNs);
 
             OwnershipCache MockOwnershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
-            doNothing().when(MockOwnershipCache).disableOwnership(any(ServiceUnitId.class));
+            doNothing().when(MockOwnershipCache).disableOwnership(any(NamespaceBundle.class));
             Field ownership = NamespaceService.class.getDeclaredField("ownershipCache");
             ownership.setAccessible(true);
             ownership.set(pulsar.getNamespaceService(), MockOwnershipCache);
@@ -1003,7 +1003,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             mockWebUrl(localWebServiceUrl, testNs);
 
             OwnershipCache MockOwnershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
-            doNothing().when(MockOwnershipCache).disableOwnership(any(ServiceUnitId.class));
+            doNothing().when(MockOwnershipCache).disableOwnership(any(NamespaceBundle.class));
             Field ownership = NamespaceService.class.getDeclaredField("ownershipCache");
             ownership.setAccessible(true);
             ownership.set(pulsar.getNamespaceService(), MockOwnershipCache);
@@ -1026,7 +1026,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             createBundledTestNamespaces(this.testProperty, this.testLocalCluster, bundledNsLocal, bundleData);
             final NamespaceName testNs = new NamespaceName(this.testProperty, this.testLocalCluster, bundledNsLocal);
             OwnershipCache MockOwnershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
-            doNothing().when(MockOwnershipCache).disableOwnership(any(ServiceUnitId.class));
+            doNothing().when(MockOwnershipCache).disableOwnership(any(NamespaceBundle.class));
             Field ownership = NamespaceService.class.getDeclaredField("ownershipCache");
             ownership.setAccessible(true);
             ownership.set(pulsar.getNamespaceService(), MockOwnershipCache);
@@ -1060,7 +1060,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
     }
 
     private void mockWebUrl(URL localWebServiceUrl, NamespaceName namespace) throws Exception {
-        doReturn(localWebServiceUrl).when(nsSvc).getWebServiceUrl(Mockito.argThat(new Matcher<ServiceUnitId>() {
+        doReturn(localWebServiceUrl).when(nsSvc).getWebServiceUrl(Mockito.argThat(new Matcher<NamespaceBundle>() {
             @Override
             public void describeTo(Description description) {
             }
@@ -1078,7 +1078,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             public void _dont_implement_Matcher___instead_extend_BaseMatcher_() {
             }
         }), Mockito.anyBoolean(), Mockito.anyBoolean());
-        doReturn(true).when(nsSvc).isServiceUnitOwned(Mockito.argThat(new Matcher<ServiceUnitId>() {
+        doReturn(true).when(nsSvc).isServiceUnitOwned(Mockito.argThat(new Matcher<NamespaceBundle>() {
             @Override
             public void describeTo(Description description) {
             }

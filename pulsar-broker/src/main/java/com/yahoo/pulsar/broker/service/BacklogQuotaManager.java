@@ -16,12 +16,12 @@
 package com.yahoo.pulsar.broker.service;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedCursor.IndividualDeletedEntries;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.zookeeper.KeeperException.NoNodeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,23 +55,19 @@ public class BacklogQuotaManager {
     }
 
     public BacklogQuota getBacklogQuota(String namespace, String policyPath) {
-        Policies policies = null;
         try {
-            policies = zkCache.get(policyPath);
-        } catch (NoNodeException nne) {
-            if (log.isDebugEnabled()) {
-                log.debug("Policy is not found for {}. Returning the default backlog quota.", namespace);
+            Optional<Policies> policies = zkCache.get(policyPath);
+
+            if (!policies.isPresent()) {
+                return this.defaultQuota;
             }
-            return this.defaultQuota;
+
+            return policies.get().backlog_quota_map.getOrDefault(BacklogQuotaType.destination_storage, defaultQuota);
         } catch (Exception e) {
             log.error(String.format("Failed to read policies data, will apply the default backlog quota: namespace=%s",
                     namespace), e);
             return this.defaultQuota;
         }
-        if (policies == null) {
-            return this.defaultQuota;
-        }
-        return policies.backlog_quota_map.getOrDefault(BacklogQuotaType.destination_storage, defaultQuota);
     }
 
     public long getBacklogQuotaLimit(String namespace) {
