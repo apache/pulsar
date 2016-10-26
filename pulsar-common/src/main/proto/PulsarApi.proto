@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.yahoo.pulsar.common.api.proto;
+package pulsar.proto;
 option java_package = "com.yahoo.pulsar.common.api.proto";
 option optimize_for = LITE_RUNTIME;
 
@@ -50,7 +50,7 @@ message MessageMetadata {
 	repeated string replicate_to    = 7;
 	optional CompressionType compression = 8 [default = NONE];
 	optional uint32 uncompressed_size = 9 [default = 0];
-	// Removed below checksum field from Metadata as 
+	// Removed below checksum field from Metadata as
 	// it should be part of send-command which keeps checksum of header + payload
 	//optional sfixed64 checksum = 10;
 	// differentiate single and batch message metadata
@@ -264,7 +264,7 @@ message BaseCommand {
 
 		PING = 18;
 		PONG = 19;
-		
+
 		REDELIVER_UNACKNOWLEDGED_MESSAGES = 20;
 	}
 
@@ -294,4 +294,3 @@ message BaseCommand {
 	optional CommandPong pong = 19;
 	optional CommandRedeliverUnacknowledgedMessages redeliverUnacknowledgedMessages = 20;
 }
-
