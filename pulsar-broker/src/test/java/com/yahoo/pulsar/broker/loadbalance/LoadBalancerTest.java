@@ -211,9 +211,11 @@ public class LoadBalancerTest {
                 printSortedRanking(sortedRanking);
 
                 // all brokers have same rank to it would be 0 --> set-of-all-the-brokers
-                assertEquals(sortedRanking.get().size(), 1);
-                assertTrue(sortedRanking.get().get(0L) != null);
-                assertEquals(sortedRanking.get().get(0L).size(), BROKER_COUNT);
+                int brokerCount = 0;
+                for (Map.Entry<Long, Set<ResourceUnit>> entry : sortedRanking.get().entrySet()) {
+                    brokerCount += entry.getValue().size();
+                }
+                assertEquals(brokerCount, BROKER_COUNT);
                 DestinationName fqdn = DestinationName.get("persistent://pulsar/use/primary-ns/test-topic");
                 ResourceUnit found = pulsarServices[i].getLoadManager()
                         .getLeastLoaded(pulsarServices[i].getNamespaceService().getBundle(fqdn));

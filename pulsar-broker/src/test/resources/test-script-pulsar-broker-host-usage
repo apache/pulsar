@@ -1,7 +1,0 @@
-#!/bin/bash
-
-# response to test the load-report API : BrokerHostUsage execs a script that returns system resource usage;
-# Since the original script is system dependent and also requires /home/y location, this script is the dummy one
-# returning a fake/mock response, so we can test the load-report API end-to-end including the path executing the script
-
-echo "{\"bandwidthIn\":{\"usage\": 0,\"limit\": 0},\"bandwidthOut\":{\"usage\": 0,\"limit\": 0},\"memory\":{\"usage\":3240,\"limit\": 12829},\"cpu\": {\"usage\": 10.0,\"limit\": 16}, \"threads\":{\"usage\":10,\"limit\":100}}"
