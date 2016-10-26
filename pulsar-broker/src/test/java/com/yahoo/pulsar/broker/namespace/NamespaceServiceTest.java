@@ -208,7 +208,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         NamespaceBundles bundles = namespaceService.getNamespaceBundleFactory().getBundles(nsname);
         NamespaceBundle originalBundle = bundles.findBundle(dn);
 
-        assertFalse(namespaceService.isServiceUnitDisabled(originalBundle));
+        assertFalse(namespaceService.isNamespaceBundleDisabled(originalBundle));
 
     }
 

@@ -138,8 +138,6 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     private final PulsarStats pulsarStats;
     private final AuthenticationService authenticationService;
 
-    private final Policies defaultPolicies;
-
     public BrokerService(PulsarService pulsar) throws Exception {
         this.pulsar = pulsar;
         this.managedLedgerFactory = pulsar.getManagedLedgerFactory();
@@ -152,14 +150,6 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         this.multiLayerTopicsMap = new ConcurrentOpenHashMap<>();
         this.pulsarStats = new PulsarStats(pulsar);
         this.offlineTopicStatCache = new ConcurrentOpenHashMap<>();
-
-        ServiceConfiguration serviceConfig = pulsar.getConfiguration();
-        this.defaultPolicies = new Policies();
-        this.defaultPolicies.persistence = new PersistencePolicies(serviceConfig.getManagedLedgerDefaultEnsembleSize(),
-                serviceConfig.getManagedLedgerDefaultWriteQuorum(), serviceConfig.getManagedLedgerDefaultAckQuorum(),
-                serviceConfig.getManagedLedgerDefaultMarkDeleteRateLimit());
-        this.defaultPolicies.retention_policies = new RetentionPolicies(
-                serviceConfig.getDefaultRetentionTimeInMinutes(), serviceConfig.getDefaultRetentionSizeInMB());
 
         final DefaultThreadFactory acceptorThreadFactory = new DefaultThreadFactory("pulsar-acceptor");
         final DefaultThreadFactory workersThreadFactory = new DefaultThreadFactory("pulsar-io");

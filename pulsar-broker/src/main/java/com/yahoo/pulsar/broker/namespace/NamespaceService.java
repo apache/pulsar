@@ -485,7 +485,7 @@ public class NamespaceService {
                 });
     }
 
-    public boolean isServiceUnitDisabled(NamespaceBundle bundle) throws Exception {
+    public boolean isNamespaceBundleDisabled(NamespaceBundle bundle) throws Exception {
         try {
             // Does ZooKeeper says that the namespace is disabled?
             CompletableFuture<Optional<NamespaceEphemeralData>> nsDataFuture = ownershipCache.getOwnerAsync(bundle);
