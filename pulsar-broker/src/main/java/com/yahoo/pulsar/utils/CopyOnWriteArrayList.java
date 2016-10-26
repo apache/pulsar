@@ -118,5 +118,4 @@ public class CopyOnWriteArrayList<T> extends java.util.concurrent.CopyOnWriteArr
     public static <T> CopyOnWriteArrayList<T> empty() {
         return EMPTY_LIST;
     }
-
 }

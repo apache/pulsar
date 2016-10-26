@@ -34,7 +34,7 @@ import static org.testng.Assert.fail;
 
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
-import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
@@ -59,7 +59,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.zookeeper.ZooKeeper;
-import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
@@ -68,31 +67,21 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import com.yahoo.pulsar.broker.ServiceConfiguration;
-import com.yahoo.pulsar.broker.cache.ConfigurationCacheService;
-import com.yahoo.pulsar.broker.namespace.NamespaceService;
-import com.yahoo.pulsar.broker.stats.Metrics;
-import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSubscribe;
-import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
-import com.yahoo.pulsar.common.api.proto.PulsarApi.MessageMetadata;
-import com.yahoo.pulsar.common.naming.DestinationName;
-import com.yahoo.pulsar.common.naming.ServiceUnitId;
-import com.yahoo.pulsar.common.policies.data.Policies;
-import com.yahoo.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import com.yahoo.pulsar.broker.PulsarService;
 import com.yahoo.pulsar.broker.ServiceConfiguration;
 import com.yahoo.pulsar.broker.cache.ConfigurationCacheService;
 import com.yahoo.pulsar.broker.namespace.NamespaceService;
-import com.yahoo.pulsar.broker.service.Consumer;
-import com.yahoo.pulsar.broker.service.BrokerService;
-import com.yahoo.pulsar.broker.service.BrokerServiceException;
-import com.yahoo.pulsar.broker.service.Producer;
-import com.yahoo.pulsar.broker.service.ServerCnx;
-import com.yahoo.pulsar.broker.service.Topic;
 import com.yahoo.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import com.yahoo.pulsar.broker.service.persistent.PersistentDispatcherSingleActiveConsumer;
 import com.yahoo.pulsar.broker.service.persistent.PersistentSubscription;
 import com.yahoo.pulsar.broker.service.persistent.PersistentTopic;
+import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSubscribe;
+import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
+import com.yahoo.pulsar.common.api.proto.PulsarApi.MessageMetadata;
+import com.yahoo.pulsar.common.naming.DestinationName;
+import com.yahoo.pulsar.common.naming.NamespaceBundle;
+import com.yahoo.pulsar.common.policies.data.Policies;
+import com.yahoo.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import com.yahoo.pulsar.zookeeper.ZooKeeperDataCache;
 
 import io.netty.buffer.ByteBuf;
@@ -134,6 +123,7 @@ public class PersistentTopicTest {
         ZooKeeperDataCache<Policies> zkDataCache = mock(ZooKeeperDataCache.class);
         doReturn(zkDataCache).when(configCacheService).policiesCache();
         doReturn(configCacheService).when(pulsar).getConfigurationCache();
+        doReturn(Optional.empty()).when(zkDataCache).get(anyString());
 
         brokerService = spy(new BrokerService(pulsar));
         doReturn(brokerService).when(pulsar).getBrokerService();
@@ -145,7 +135,7 @@ public class PersistentTopicTest {
 
         NamespaceService nsSvc = mock(NamespaceService.class);
         doReturn(nsSvc).when(pulsar).getNamespaceService();
-        doReturn(true).when(nsSvc).isServiceUnitOwned(any(ServiceUnitId.class));
+        doReturn(true).when(nsSvc).isServiceUnitOwned(any(NamespaceBundle.class));
         doReturn(true).when(nsSvc).isServiceUnitActive(any(DestinationName.class));
 
         setupMLAsyncCallbackMocks();

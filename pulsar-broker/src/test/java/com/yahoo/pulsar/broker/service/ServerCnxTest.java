@@ -32,6 +32,7 @@ import static org.testng.Assert.assertTrue;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -84,7 +85,7 @@ import com.yahoo.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.ServerError;
 import com.yahoo.pulsar.common.naming.DestinationName;
-import com.yahoo.pulsar.common.naming.ServiceUnitId;
+import com.yahoo.pulsar.common.naming.NamespaceBundle;
 import com.yahoo.pulsar.common.policies.data.AuthAction;
 import com.yahoo.pulsar.common.policies.data.Policies;
 import com.yahoo.pulsar.zookeeper.ZooKeeperDataCache;
@@ -139,6 +140,7 @@ public class ServerCnxTest {
         configCacheService = mock(ConfigurationCacheService.class);
         @SuppressWarnings("unchecked")
         ZooKeeperDataCache<Policies> zkDataCache = mock(ZooKeeperDataCache.class);
+        doReturn(Optional.empty()).when(zkDataCache).get(anyObject());
         doReturn(zkDataCache).when(configCacheService).policiesCache();
         doReturn(configCacheService).when(pulsar).getConfigurationCache();
 
@@ -147,7 +149,7 @@ public class ServerCnxTest {
 
         namespaceService = mock(NamespaceService.class);
         doReturn(namespaceService).when(pulsar).getNamespaceService();
-        doReturn(true).when(namespaceService).isServiceUnitOwned(any(ServiceUnitId.class));
+        doReturn(true).when(namespaceService).isServiceUnitOwned(any(NamespaceBundle.class));
         doReturn(true).when(namespaceService).isServiceUnitActive(any(DestinationName.class));
 
         setupMLAsyncCallbackMocks();

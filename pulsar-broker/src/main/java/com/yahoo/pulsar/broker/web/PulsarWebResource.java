@@ -38,20 +38,19 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
-import com.yahoo.pulsar.common.naming.DestinationName;
-import com.yahoo.pulsar.common.naming.NamespaceName;
-import com.yahoo.pulsar.common.naming.ServiceUnitId;
-import com.yahoo.pulsar.common.policies.data.BundlesData;
-import com.yahoo.pulsar.common.policies.data.ClusterData;
-import com.yahoo.pulsar.common.policies.data.Policies;
-import com.yahoo.pulsar.common.policies.data.PropertyAdmin;
 import com.yahoo.pulsar.broker.PulsarService;
 import com.yahoo.pulsar.broker.ServiceConfiguration;
 import com.yahoo.pulsar.broker.admin.AdminResource;
 import com.yahoo.pulsar.broker.admin.Namespaces;
 import com.yahoo.pulsar.broker.namespace.NamespaceService;
+import com.yahoo.pulsar.common.naming.DestinationName;
 import com.yahoo.pulsar.common.naming.NamespaceBundle;
 import com.yahoo.pulsar.common.naming.NamespaceBundles;
+import com.yahoo.pulsar.common.naming.NamespaceName;
+import com.yahoo.pulsar.common.policies.data.BundlesData;
+import com.yahoo.pulsar.common.policies.data.ClusterData;
+import com.yahoo.pulsar.common.policies.data.Policies;
+import com.yahoo.pulsar.common.policies.data.PropertyAdmin;
 
 /**
  * Base class for Web resources in Pulsar. It provides basic authorization functions.
@@ -162,10 +161,8 @@ public abstract class PulsarWebResource {
                 PropertyAdmin propertyAdmin;
 
                 try {
-                    propertyAdmin = pulsar().getConfigurationCache().propertiesCache().get(path("policies", property));
-                } catch (KeeperException.NoNodeException e) {
-                    log.warn("Failed to get property admin data for non existing property {}", property);
-                    throw new RestException(Status.UNAUTHORIZED, "Property does not exist");
+                    propertyAdmin = pulsar().getConfigurationCache().propertiesCache().get(path("policies", property))
+                            .orElseThrow(() -> new RestException(Status.UNAUTHORIZED, "Property does not exist"));
                 } catch (Exception e) {
                     log.error("Failed to get property admin data for property");
                     throw new RestException(e);
@@ -184,10 +181,8 @@ public abstract class PulsarWebResource {
     protected void validateClusterForProperty(String property, String cluster) {
         PropertyAdmin propertyAdmin;
         try {
-            propertyAdmin = pulsar().getConfigurationCache().propertiesCache().get(path("policies", property));
-        } catch (KeeperException.NoNodeException e) {
-            log.warn("Failed to get property admin data for non existing property [{}]", property);
-            throw new RestException(Status.NOT_FOUND, "Property does not exist");
+            propertyAdmin = pulsar().getConfigurationCache().propertiesCache().get(path("policies", property))
+                    .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Property does not exist"));
         } catch (Exception e) {
             log.error("Failed to get property admin data for property");
             throw new RestException(e);
@@ -233,7 +228,8 @@ public abstract class PulsarWebResource {
             if (!config().getClusterName().equals(cluster)) {
                 // redirect to the cluster requested
                 ClusterData clusterData = pulsar().getConfigurationCache().clustersCache()
-                        .get(path("clusters", cluster));
+                        .get(path("clusters", cluster)).orElseThrow(() -> new RestException(Status.NOT_FOUND,
+                                "Cluster does not exist: cluster=" + cluster));
                 URL webUrl;
                 if (config().isTlsEnabled() && !clusterData.getServiceUrlTls().isEmpty()) {
                     webUrl = new URL(clusterData.getServiceUrlTls());
@@ -249,94 +245,6 @@ public abstract class PulsarWebResource {
             throw wae;
         } catch (Exception e) {
             throw new RestException(e);
-        }
-    }
-
-    /**
-     * Checks whether the namespace has been disabled. Otherwise it will raise an exception
-     */
-    protected void validateNamespaceNotDisabled(String property, String cluster, String namespace) {
-        NamespaceName namespaceName = new NamespaceName(property, cluster, namespace);
-        NamespaceService nsService = pulsar().getNamespaceService();
-        try {
-            URL webUrl = nsService.getWebServiceUrl(namespaceName, false /* Not authoritative */,
-                    true /*
-                          * DO NOT acquire namespace
-                          */);
-            // we may get a null to indicate nobody owns the namespace now
-            if (webUrl != null && !nsService.isServiceUnitOwned(namespaceName)) {
-                // replace the host and port of the current request and redirect to the owner of the namespace
-                URI redirect = UriBuilder.fromUri(uri.getRequestUri()).host(webUrl.getHost()).port(webUrl.getPort())
-                        .build();
-
-                // redirect
-                log.debug("Redirect admin rest call to {}", redirect);
-
-                throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
-            }
-
-            if (nsService.isServiceUnitDisabled(namespaceName)) {
-                // namespace is currently disabled
-                log.warn("Namespace {} is currently disabled", namespaceName);
-                throw new RestException(Status.PRECONDITION_FAILED,
-                        "Namespace:" + namespace + " is currently disabled.");
-            }
-        } catch (IllegalArgumentException iae) {
-            // namespace format is not valid
-            log.debug(String.format("Failed to find owner for namespace %s", namespaceName), iae);
-            throw new RestException(Status.PRECONDITION_FAILED,
-                    "Namespace format is not expected. namespace " + namespaceName);
-        } catch (IllegalStateException ise) {
-            log.debug(String.format("Failed to find owner for namespace %s", namespaceName), ise);
-            throw new RestException(Status.PRECONDITION_FAILED,
-                    "Namespace bundle is actived. namespace " + namespaceName);
-        } catch (WebApplicationException wae) {
-            throw wae;
-        } catch (Exception oe) {
-            log.debug(String.format("Failed to find owner for namespace %s", namespaceName), oe);
-            throw new RestException(oe);
-        }
-        // It is if nsService.isNamespaceDisabled() != true
-        // The namespace is either owned by this broker and active (webUrl != null && nsService.isNameSpaceOwned() ==
-        // true);
-        // or not owned by any brokers (webUrl == null && nsService.isNamespaceDisabled() == false)
-    }
-
-    /**
-     * Checks whether the broker is the owner of the namespace. Otherwise it will raise an exception to redirect the
-     * client to the appropriate broker. If no broker owns the namespace yet, this function will try to acquire the
-     * ownership by default.
-     *
-     * @param property
-     * @param cluster
-     * @param namespace
-     */
-    protected void validateNamespaceOwnership(String property, String cluster, String namespace) {
-        validateNamespaceOwnership(property, cluster, namespace, false, false);
-    }
-
-    /**
-     * Checks whether the broker is the owner of the namespace. Otherwise, if authoritative is false it will throw an
-     * exception to redirect to assigned owner or leader; if authoritative is true then it will try to acquire the
-     * namespace
-     *
-     * @param property
-     * @param cluster
-     * @param namespace
-     * @param authoritative
-     * @param readOnly
-     */
-    protected void validateNamespaceOwnership(String property, String cluster, String namespace, boolean authoritative,
-            boolean readOnly) {
-
-        NamespaceName fqnn = new NamespaceName(property, cluster, namespace);
-
-        try {
-            validateFullNamespaceOwnership(fqnn, authoritative, readOnly);
-        } catch (WebApplicationException wae) {
-            throw wae;
-        } catch (Exception e) {
-            throw new WebApplicationException(e);
         }
     }
 
@@ -358,7 +266,7 @@ public abstract class PulsarWebResource {
             NamespaceBundles bundles = pulsar().getNamespaceService().getNamespaceBundleFactory().getBundles(fqnn,
                     bundleData);
             for (NamespaceBundle bundle : bundles.getBundles()) {
-                validateServiceUnitOwnership(bundle, authoritative, readOnly);
+                validateBundleOwnership(bundle, authoritative, readOnly);
             }
         } catch (WebApplicationException wae) {
             // propagate already wrapped-up WebApplicationExceptions
@@ -374,7 +282,7 @@ public abstract class PulsarWebResource {
         NamespaceName fqnn = new NamespaceName(property, cluster, namespace);
 
         try {
-            validateServiceUnitOwnership(bundle, authoritative, readOnly);
+            validateBundleOwnership(bundle, authoritative, readOnly);
         } catch (WebApplicationException wae) {
             // propagate already wrapped-up WebApplicationExceptions
             throw wae;
@@ -409,7 +317,7 @@ public abstract class PulsarWebResource {
             String bundleRange, boolean authoritative, boolean readOnly) {
         try {
             NamespaceBundle nsBundle = validateNamespaceBundleRange(fqnn, bundles, bundleRange);
-            validateServiceUnitOwnership(nsBundle, authoritative, readOnly);
+            validateBundleOwnership(nsBundle, authoritative, readOnly);
             return nsBundle;
         } catch (WebApplicationException wae) {
             throw wae;
@@ -419,20 +327,7 @@ public abstract class PulsarWebResource {
         }
     }
 
-    private void validateFullNamespaceOwnership(NamespaceName fqnn, boolean authoritative, boolean readOnly) {
-
-        try {
-            validateServiceUnitOwnership(fqnn, authoritative, readOnly);
-        } catch (WebApplicationException wae) {
-            // propagate already wrapped-up WebApplicationExceptions
-            throw wae;
-        } catch (Exception oe) {
-            log.debug(String.format("Failed to find owner for namespace %s", fqnn), oe);
-            throw new RestException(oe);
-        }
-    }
-
-    public void validateServiceUnitOwnership(ServiceUnitId suName, boolean authoritative, boolean readOnly)
+    public void validateBundleOwnership(NamespaceBundle bundle, boolean authoritative, boolean readOnly)
             throws Exception {
         NamespaceService nsService = pulsar().getNamespaceService();
 
@@ -447,21 +342,21 @@ public abstract class PulsarWebResource {
             // - If authoritative is false and this broker is not leader, forward to leader
             // - If authoritative is false and this broker is leader, determine owner and forward w/ authoritative=true
             // - If authoritative is true, own the namespace and continue
-            URL webUrl = nsService.getWebServiceUrl(suName, authoritative, readOnly);
+            URL webUrl = nsService.getWebServiceUrl(bundle, authoritative, readOnly);
             // Ensure we get a url
             if (webUrl == null) {
                 log.warn("Unable to get web service url");
                 throw new RestException(Status.PRECONDITION_FAILED,
-                        "Failed to find ownership for ServiceUnit:" + suName.toString());
+                        "Failed to find ownership for ServiceUnit:" + bundle.toString());
             }
 
-            if (!nsService.isServiceUnitOwned(suName)) {
+            if (!nsService.isServiceUnitOwned(bundle)) {
                 boolean newAuthoritative = this.isLeaderBroker();
                 // Replace the host and port of the current request and redirect
                 URI redirect = UriBuilder.fromUri(uri.getRequestUri()).host(webUrl.getHost()).port(webUrl.getPort())
                         .replaceQueryParam("authoritative", newAuthoritative).build();
 
-                log.debug("{} is not a service unit owned", suName);
+                log.debug("{} is not a service unit owned", bundle);
 
                 // Redirect
                 log.debug("Redirecting the rest call to {}", redirect);
@@ -469,15 +364,15 @@ public abstract class PulsarWebResource {
             }
         } catch (IllegalArgumentException iae) {
             // namespace format is not valid
-            log.debug(String.format("Failed to find owner for ServiceUnit %s", suName), iae);
+            log.debug(String.format("Failed to find owner for ServiceUnit %s", bundle), iae);
             throw new RestException(Status.PRECONDITION_FAILED,
-                    "ServiceUnit format is not expected. ServiceUnit " + suName);
+                    "ServiceUnit format is not expected. ServiceUnit " + bundle);
         } catch (IllegalStateException ise) {
-            log.debug(String.format("Failed to find owner for ServiceUnit %s", suName), ise);
-            throw new RestException(Status.PRECONDITION_FAILED, "ServiceUnit bundle is actived. ServiceUnit " + suName);
+            log.debug(String.format("Failed to find owner for ServiceUnit %s", bundle), ise);
+            throw new RestException(Status.PRECONDITION_FAILED, "ServiceUnit bundle is actived. ServiceUnit " + bundle);
         } catch (NullPointerException e) {
             log.warn("Unable to get web service url");
-            throw new RestException(Status.PRECONDITION_FAILED, "Failed to find ownership for ServiceUnit:" + suName);
+            throw new RestException(Status.PRECONDITION_FAILED, "Failed to find ownership for ServiceUnit:" + bundle);
         } catch (WebApplicationException wae) {
             throw wae;
         }
@@ -549,8 +444,10 @@ public abstract class PulsarWebResource {
             String localCluster = pulsar().getConfiguration().getClusterName();
             Policies policies;
             try {
-                policies = pulsar().getConfigurationCache().policiesCache().get(AdminResource.path("policies",
-                        namespace.getProperty(), namespace.getCluster(), namespace.getLocalName()));
+                String path = AdminResource.path("policies", namespace.getProperty(), namespace.getCluster(),
+                        namespace.getLocalName());
+                policies = pulsar().getConfigurationCache().policiesCache().get(path)
+                        .orElseThrow(() -> new KeeperException.NoNodeException(path));
 
                 if (policies.replication_clusters.isEmpty()) {
                     String msg = String.format(

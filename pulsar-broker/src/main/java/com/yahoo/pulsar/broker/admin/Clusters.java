@@ -18,6 +18,7 @@ package com.yahoo.pulsar.broker.admin;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import javax.ws.rs.DELETE;
@@ -77,13 +78,15 @@ public class Clusters extends AdminResource {
         validateSuperUserAccess();
 
         try {
-            return clustersCache().get(path("clusters", cluster));
-        } catch (KeeperException.NoNodeException e) {
-            log.info("[{}] Failed to get cluster {}: Does not exist", clientAppId(), cluster);
-            throw new RestException(Status.NOT_FOUND, "Cluster does not exist");
+            return clustersCache().get(path("clusters", cluster))
+                    .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Cluster does not exist"));
         } catch (Exception e) {
             log.error("[{}] Failed to get cluster {}", clientAppId(), cluster, e);
-            throw new RestException(e);
+            if (e instanceof RestException) {
+                throw (RestException) e;
+            } else {
+                throw new RestException(e);
+            }
         }
     }
 
@@ -165,17 +168,17 @@ public class Clusters extends AdminResource {
             }
 
             // check the namespaceIsolationPolicies associated with the cluster
-            try {
-                String path = path("clusters", cluster, "namespaceIsolationPolicies");
-                NamespaceIsolationPolicies nsIsolationPolicies = namespaceIsolationPoliciesCache().get(path);
-                if (nsIsolationPolicies.getPolicies().isEmpty()) {
+            String path = path("clusters", cluster, "namespaceIsolationPolicies");
+            Optional<NamespaceIsolationPolicies> nsIsolationPolicies = namespaceIsolationPoliciesCache().get(path);
+
+            // Need to delete the isolation policies if present
+            if (nsIsolationPolicies.isPresent()) {
+                if (nsIsolationPolicies.get().getPolicies().isEmpty()) {
                     globalZk().delete(path, -1);
                     namespaceIsolationPoliciesCache().invalidate(path);
                 } else {
                     isClusterUsed = true;
                 }
-            } catch (KeeperException.NoNodeException nne) {
-                // this is fine and means the cluster does not have namespaceIsolationPolicies
             }
         } catch (Exception e) {
             log.error("[{}] Failed to get cluster usage {}", clientAppId(), cluster, e);
@@ -203,24 +206,23 @@ public class Clusters extends AdminResource {
 
     @GET
     @Path("/{cluster}/namespaceIsolationPolicies")
-    @ApiOperation(value = "GGet the namespace isolation policies assigned in the cluster", response = NamespaceIsolationData.class, responseContainer = "Map")
+    @ApiOperation(value = "Get the namespace isolation policies assigned in the cluster", response = NamespaceIsolationData.class, responseContainer = "Map")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Cluster doesn't exist") })
     public Map<String, NamespaceIsolationData> getNamespaceIsolationPolicies(@PathParam("cluster") String cluster)
             throws Exception {
         validateSuperUserAccess();
-        validateClusterExists(cluster);
+        if (!clustersCache().get(path("clusters", cluster)).isPresent()) {
+            throw new RestException(Status.NOT_FOUND, "Cluster " + cluster + " does not exist.");
+        }
 
         try {
             NamespaceIsolationPolicies nsIsolationPolicies = namespaceIsolationPoliciesCache()
-                    .get(path("clusters", cluster, "namespaceIsolationPolicies"));
+                    .get(path("clusters", cluster, "namespaceIsolationPolicies"))
+                    .orElseThrow(() -> new RestException(Status.NOT_FOUND,
+                            "NamespaceIsolationPolicies for cluster " + cluster + " does not exist"));
             // construct the response to NamespaceisolationData map
             return nsIsolationPolicies.getPolicies();
-        } catch (KeeperException.NoNodeException e) {
-            log.warn("[{}] Failed to get clusters/{}/namespaceIsolationPolicies: Does not exist", clientAppId(),
-                    cluster);
-            throw new RestException(Status.NOT_FOUND,
-                    "NamespaceIsolationPolicies for cluster " + cluster + " does not exist");
         } catch (Exception e) {
             log.error("[{}] Failed to get clusters/{}/namespaceIsolationPolicies", clientAppId(), cluster, e);
             throw new RestException(e);
@@ -229,9 +231,11 @@ public class Clusters extends AdminResource {
 
     private void validateClusterExists(String cluster) {
         try {
-            clustersCache().get(path("clusters", cluster));
+            if (!clustersCache().get(path("clusters", cluster)).isPresent()) {
+                throw new RestException(Status.PRECONDITION_FAILED, "Cluster " + cluster + " does not exist.");
+            }
         } catch (Exception e) {
-            throw new RestException(Status.PRECONDITION_FAILED, "Cluster " + cluster + " does not exist.");
+            throw new RestException(e);
         }
     }
 
@@ -248,7 +252,9 @@ public class Clusters extends AdminResource {
 
         try {
             NamespaceIsolationPolicies nsIsolationPolicies = namespaceIsolationPoliciesCache()
-                    .get(path("clusters", cluster, "namespaceIsolationPolicies"));
+                    .get(path("clusters", cluster, "namespaceIsolationPolicies"))
+                    .orElseThrow(() -> new RestException(Status.NOT_FOUND,
+                            "NamespaceIsolationPolicies for cluster " + cluster + " does not exist"));
             // construct the response to NamespaceisolationData map
             if (!nsIsolationPolicies.getPolicies().containsKey(policyName)) {
                 log.info("[{}] Cannot find NamespaceIsolationPolicy {} for cluster {}", policyName, cluster);
@@ -256,11 +262,6 @@ public class Clusters extends AdminResource {
                         "Cannot find NamespaceIsolationPolicy " + policyName + " for cluster " + cluster);
             }
             return nsIsolationPolicies.getPolicies().get(policyName);
-        } catch (KeeperException.NoNodeException e) {
-            log.warn("[{}] Failed to get clusters/{}/namespaceIsolationPolicies: Does not exist", clientAppId(),
-                    cluster);
-            throw new RestException(Status.NOT_FOUND,
-                    "NamespaceIsolationPolicies for cluster " + cluster + " does not exist");
         } catch (RestException re) {
             throw re;
         } catch (Exception e) {
@@ -284,14 +285,17 @@ public class Clusters extends AdminResource {
             // validate the policy data before creating the node
             policyData.validate();
 
-            NamespaceIsolationPolicies nsIsolationPolicies;
             String nsIsolationPolicyPath = path("clusters", cluster, "namespaceIsolationPolicies");
-            try {
-                nsIsolationPolicies = namespaceIsolationPoliciesCache().get(nsIsolationPolicyPath);
-            } catch (KeeperException.NoNodeException nne) {
-                this.createNamespaceIsolationPolicyNode(nsIsolationPolicyPath);
-                nsIsolationPolicies = new NamespaceIsolationPolicies();
-            }
+            NamespaceIsolationPolicies nsIsolationPolicies = namespaceIsolationPoliciesCache()
+                    .get(nsIsolationPolicyPath).orElseGet(() -> {
+                        try {
+                            this.createNamespaceIsolationPolicyNode(nsIsolationPolicyPath);
+                            return new NamespaceIsolationPolicies();
+                        } catch (KeeperException | InterruptedException e) {
+                            throw new RestException(e);
+                        }
+                    });
+
             nsIsolationPolicies.setPolicy(policyName, policyData);
             globalZk().setData(nsIsolationPolicyPath, jsonMapper().writeValueAsBytes(nsIsolationPolicies.getPolicies()),
                     -1);
@@ -346,14 +350,18 @@ public class Clusters extends AdminResource {
         validatePoliciesReadOnlyAccess();
 
         try {
-            NamespaceIsolationPolicies nsIsolationPolicies;
+
             String nsIsolationPolicyPath = path("clusters", cluster, "namespaceIsolationPolicies");
-            try {
-                nsIsolationPolicies = namespaceIsolationPoliciesCache().get(nsIsolationPolicyPath);
-            } catch (KeeperException.NoNodeException nne) {
-                this.createNamespaceIsolationPolicyNode(nsIsolationPolicyPath);
-                nsIsolationPolicies = new NamespaceIsolationPolicies();
-            }
+            NamespaceIsolationPolicies nsIsolationPolicies = namespaceIsolationPoliciesCache()
+                    .get(nsIsolationPolicyPath).orElseGet(() -> {
+                        try {
+                            this.createNamespaceIsolationPolicyNode(nsIsolationPolicyPath);
+                            return new NamespaceIsolationPolicies();
+                        } catch (KeeperException | InterruptedException e) {
+                            throw new RestException(e);
+                        }
+                    });
+
             nsIsolationPolicies.deletePolicy(policyName);
             globalZk().setData(nsIsolationPolicyPath, jsonMapper().writeValueAsBytes(nsIsolationPolicies.getPolicies()),
                     -1);

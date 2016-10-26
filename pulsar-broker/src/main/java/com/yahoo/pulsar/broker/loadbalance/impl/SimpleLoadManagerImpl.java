@@ -16,6 +16,7 @@
 package com.yahoo.pulsar.broker.loadbalance.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.commons.lang3.StringUtils.isNotEmpty;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -36,7 +37,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.bookkeeper.util.ZkUtils;
-import static org.apache.commons.lang3.StringUtils.isNotEmpty;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZooDefs.Ids;
@@ -50,11 +50,21 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.cache.RemovalListener;
 import com.google.common.cache.RemovalNotification;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.collect.TreeMultimap;
+import com.yahoo.pulsar.broker.PulsarServerException;
+import com.yahoo.pulsar.broker.PulsarService;
+import com.yahoo.pulsar.broker.ServiceConfiguration;
+import com.yahoo.pulsar.broker.admin.AdminResource;
+import com.yahoo.pulsar.broker.loadbalance.BrokerHostUsage;
+import com.yahoo.pulsar.broker.loadbalance.LoadManager;
+import com.yahoo.pulsar.broker.loadbalance.PlacementStrategy;
+import com.yahoo.pulsar.broker.loadbalance.ResourceUnit;
+import com.yahoo.pulsar.broker.stats.Metrics;
+import com.yahoo.pulsar.client.admin.PulsarAdmin;
 import com.yahoo.pulsar.common.naming.NamespaceName;
 import com.yahoo.pulsar.common.naming.ServiceUnitId;
 import com.yahoo.pulsar.common.policies.data.ResourceQuota;
@@ -64,18 +74,6 @@ import com.yahoo.pulsar.common.policies.data.loadbalancer.ResourceUnitRanking;
 import com.yahoo.pulsar.common.policies.data.loadbalancer.SystemResourceUsage;
 import com.yahoo.pulsar.common.policies.data.loadbalancer.SystemResourceUsage.ResourceType;
 import com.yahoo.pulsar.common.util.ObjectMapperFactory;
-import com.yahoo.pulsar.broker.PulsarService;
-import com.yahoo.pulsar.broker.PulsarServerException;
-import com.yahoo.pulsar.broker.ServiceConfiguration;
-import com.yahoo.pulsar.broker.admin.AdminResource;
-import com.yahoo.pulsar.broker.loadbalance.BrokerHostUsage;
-import com.yahoo.pulsar.broker.loadbalance.LoadManager;
-import com.yahoo.pulsar.broker.loadbalance.LoadRanker;
-import com.yahoo.pulsar.broker.loadbalance.PlacementStrategy;
-import com.yahoo.pulsar.broker.loadbalance.ResourceUnit;
-import com.yahoo.pulsar.broker.stats.Metrics;
-import com.yahoo.pulsar.client.admin.PulsarAdmin;
-import com.yahoo.pulsar.client.api.Authentication;
 import com.yahoo.pulsar.zookeeper.ZooKeeperCacheListener;
 import com.yahoo.pulsar.zookeeper.ZooKeeperChildrenCache;
 import com.yahoo.pulsar.zookeeper.ZooKeeperDataCache;
@@ -312,15 +310,12 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
     }
 
     private String getDynamicConfigurationFromZK(String zkPath, String settingName, String defaultValue) {
-        String value = null;
         try {
-            if (pulsar.getLocalZkCache().exists(zkPath)) {
-                value = this.dynamicConfigurationCache.get(zkPath).get(settingName);
-            }
+            return dynamicConfigurationCache.get(zkPath).map(c -> c.get(settingName)).orElse(defaultValue);
         } catch (Exception e) {
             log.warn("Got exception when reading ZooKeeper path [{}]:", zkPath, e);
+            return defaultValue;
         }
-        return (value != null) ? value : defaultValue;
     }
 
     private double getDynamicConfigurationDouble(String zkPath, String settingName, double defaultValue) {
@@ -1016,7 +1011,8 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
                 for (String broker : activeBrokers) {
                     try {
                         String key = String.format("%s/%s", LOADBALANCE_BROKERS_ROOT, broker);
-                        LoadReport lr = loadReportCacheZk.get(key);
+                        LoadReport lr = loadReportCacheZk.get(key)
+                                .orElseThrow(() -> new KeeperException.NoNodeException());
                         ResourceUnit ru = new SimpleResourceUnit(String.format("http://%s", lr.getName()),
                                 fromLoadReport(lr));
                         this.currentLoadReports.put(ru, lr);

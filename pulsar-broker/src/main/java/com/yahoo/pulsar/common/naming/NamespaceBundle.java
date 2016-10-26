@@ -24,7 +24,7 @@ import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
 import com.yahoo.pulsar.common.naming.DestinationName;
 import com.yahoo.pulsar.common.naming.NamespaceName;
-import com.yahoo.pulsar.common.naming.ServiceUnitId;
+import com.yahoo.pulsar.common.naming.NamespaceBundle;
 
 public class NamespaceBundle implements ServiceUnitId, Comparable<NamespaceBundle> {
     private final NamespaceName nsname;

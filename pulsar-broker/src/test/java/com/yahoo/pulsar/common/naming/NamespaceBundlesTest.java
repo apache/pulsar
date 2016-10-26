@@ -25,20 +25,16 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.SortedSet;
+import java.util.concurrent.CompletableFuture;
 
 import org.apache.commons.lang3.tuple.Pair;
 import org.testng.annotations.Test;
 
-import com.google.common.cache.LoadingCache;
+import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
 import com.google.common.hash.Hashing;
-import com.yahoo.pulsar.common.naming.DestinationName;
-import com.yahoo.pulsar.common.naming.NamespaceBundle;
-import com.yahoo.pulsar.common.naming.NamespaceBundleFactory;
-import com.yahoo.pulsar.common.naming.NamespaceBundles;
-import com.yahoo.pulsar.common.naming.NamespaceName;
 
 public class NamespaceBundlesTest {
 
@@ -240,7 +236,8 @@ public class NamespaceBundlesTest {
             throws Exception {
         Field bCacheField = NamespaceBundleFactory.class.getDeclaredField("bundlesCache");
         bCacheField.setAccessible(true);
-        ((LoadingCache<NamespaceName, NamespaceBundles>) bCacheField.get(utilityFactory)).put(nsname, bundles);
+        ((AsyncLoadingCache<NamespaceName, NamespaceBundles>) bCacheField.get(utilityFactory)).put(nsname,
+                CompletableFuture.completedFuture(bundles));
         return utilityFactory.splitBundles(targetBundle, numBundles);
     }
 

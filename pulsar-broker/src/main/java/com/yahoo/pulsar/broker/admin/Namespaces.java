@@ -50,10 +50,6 @@ import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.swagger.annotations.Api;
-import io.swagger.annotations.ApiOperation;
-import io.swagger.annotations.ApiResponse;
-import io.swagger.annotations.ApiResponses;
 import com.google.common.collect.Lists;
 import com.yahoo.pulsar.broker.PulsarServerException;
 import com.yahoo.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
@@ -77,6 +73,11 @@ import com.yahoo.pulsar.common.policies.data.ClusterData;
 import com.yahoo.pulsar.common.policies.data.PersistencePolicies;
 import com.yahoo.pulsar.common.policies.data.Policies;
 import com.yahoo.pulsar.common.policies.data.RetentionPolicies;
+
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiResponse;
+import io.swagger.annotations.ApiResponses;
 
 @Path("/namespaces")
 @Produces(MediaType.APPLICATION_JSON)
@@ -249,7 +250,9 @@ public class Namespaces extends AdminResource {
 
         // ensure the local cluster is the only cluster for the global namespace configuration
         try {
-            policiesNode = policiesCache().getWithStat(path("policies", property, cluster, namespace));
+            policiesNode = policiesCache().getWithStat(path("policies", property, cluster, namespace))
+                    .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Namespace " + nsName + " does not exist."));
+
             policies = policiesNode.getKey();
             if (cluster.equals(Namespaces.GLOBAL_CLUSTER)) {
                 if (policies.replication_clusters.size() > 1) {
@@ -261,7 +264,9 @@ public class Namespaces extends AdminResource {
                         && !policies.replication_clusters.contains(config().getClusterName())) {
                     // the only replication cluster is other cluster, redirect
                     String replCluster = policies.replication_clusters.get(0);
-                    ClusterData replClusterData = clustersCache().get(AdminResource.path("clusters", replCluster));
+                    ClusterData replClusterData = clustersCache().get(AdminResource.path("clusters", replCluster))
+                            .orElseThrow(() -> new RestException(Status.NOT_FOUND,
+                                    "Cluser " + replCluster + " does not exist"));
                     URL replClusterUrl;
                     if (!config().isTlsEnabled()) {
                         replClusterUrl = new URL(replClusterData.getServiceUrl());
@@ -279,10 +284,6 @@ public class Namespaces extends AdminResource {
             }
         } catch (WebApplicationException wae) {
             throw wae;
-        } catch (NoNodeException nne) {
-            // the namespace does not exist. NOOP
-            log.warn("[{}] Namespace {} not found.", clientAppId(), nsName);
-            throw new RestException(Status.NOT_FOUND, "Namespace " + nsName + " does not exist.");
         } catch (Exception e) {
             throw new RestException(e);
         }
@@ -310,7 +311,7 @@ public class Namespaces extends AdminResource {
             NamespaceBundles bundles = pulsar().getNamespaceService().getNamespaceBundleFactory().getBundles(nsName);
             for (NamespaceBundle bundle : bundles.getBundles()) {
                 // check if the bundle is owned by any broker, if not then we do not need to delete the bundle
-                if (pulsar().getNamespaceService().getOwner(bundle) != null) {
+                if (pulsar().getNamespaceService().getOwner(bundle).isPresent()) {
                     pulsar().getAdminClient().namespaces().deleteNamespaceBundle(nsName.toString(),
                             bundle.getBundleRange());
                 }
@@ -358,7 +359,9 @@ public class Namespaces extends AdminResource {
                         && !policies.replication_clusters.contains(config().getClusterName())) {
                     // the only replication cluster is other cluster, redirect
                     String replCluster = policies.replication_clusters.get(0);
-                    ClusterData replClusterData = clustersCache().get(AdminResource.path("clusters", replCluster));
+                    ClusterData replClusterData = clustersCache().get(AdminResource.path("clusters", replCluster))
+                            .orElseThrow(() -> new RestException(Status.NOT_FOUND,
+                                    "Cluser " + replCluster + " does not exist"));
                     URL replClusterUrl;
                     if (!config().isTlsEnabled()) {
                         replClusterUrl = new URL(replClusterData.getServiceUrl());
@@ -546,10 +549,12 @@ public class Namespaces extends AdminResource {
         }
 
         Entry<Policies, Stat> policiesNode = null;
+        NamespaceName nsName = new NamespaceName(property, cluster, namespace);
 
         try {
             // Force to read the data s.t. the watch to the cache content is setup.
-            policiesNode = policiesCache().getWithStat(path("policies", property, cluster, namespace));
+            policiesNode = policiesCache().getWithStat(path("policies", property, cluster, namespace))
+                    .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Namespace " + nsName + " does not exist"));
             policiesNode.getKey().replication_clusters = clusterIds;
 
             // Write back the new policies into zookeeper
@@ -605,11 +610,13 @@ public class Namespaces extends AdminResource {
             throw new RestException(Status.PRECONDITION_FAILED, "Invalid value for message TTL");
         }
 
+        NamespaceName nsName = new NamespaceName(property, cluster, namespace);
         Entry<Policies, Stat> policiesNode = null;
 
         try {
             // Force to read the data s.t. the watch to the cache content is setup.
-            policiesNode = policiesCache().getWithStat(path("policies", property, cluster, namespace));
+            policiesNode = policiesCache().getWithStat(path("policies", property, cluster, namespace))
+                    .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Namespace " + nsName + " does not exist"));
             policiesNode.getKey().message_ttl_in_seconds = messageTTL;
 
             // Write back the new policies into zookeeper
@@ -1061,7 +1068,7 @@ public class Namespaces extends AdminResource {
                 try {
                     // check if the bundle is owned by any broker, if not then there is no backlog on this bundle to
                     // clear
-                    if (pulsar().getNamespaceService().getOwner(nsBundle) != null) {
+                    if (pulsar().getNamespaceService().getOwner(nsBundle).isPresent()) {
                         // TODO: make this admin call asynchronous
                         pulsar().getAdminClient().namespaces().clearNamespaceBundleBacklog(nsName.toString(),
                                 nsBundle.getBundleRange());
@@ -1133,7 +1140,7 @@ public class Namespaces extends AdminResource {
                 try {
                     // check if the bundle is owned by any broker, if not then there is no backlog on this bundle to
                     // clear
-                    if (pulsar().getNamespaceService().getOwner(nsBundle) != null) {
+                    if (pulsar().getNamespaceService().getOwner(nsBundle).isPresent()) {
                         // TODO: make this admin call asynchronous
                         pulsar().getAdminClient().namespaces().clearNamespaceBundleBacklogForSubscription(
                                 nsName.toString(), nsBundle.getBundleRange(), subscription);
@@ -1203,7 +1210,7 @@ public class Namespaces extends AdminResource {
             for (NamespaceBundle nsBundle : bundles.getBundles()) {
                 try {
                     // check if the bundle is owned by any broker, if not then there are no subscriptions
-                    if (pulsar().getNamespaceService().getOwner(nsBundle) != null) {
+                    if (pulsar().getNamespaceService().getOwner(nsBundle).isPresent()) {
                         // TODO: make this admin call asynchronous
                         pulsar().getAdminClient().namespaces().unsubscribeNamespaceBundle(nsName.toString(),
                                 nsBundle.getBundleRange(), subscription);

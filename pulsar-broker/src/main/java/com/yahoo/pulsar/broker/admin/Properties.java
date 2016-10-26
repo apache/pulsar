@@ -75,10 +75,8 @@ public class Properties extends AdminResource {
         validateSuperUserAccess();
 
         try {
-            return propertiesCache().get(path("policies", property));
-        } catch (KeeperException.NoNodeException e) {
-            log.warn("[{}] Failed to get property {}: Does not exist", clientAppId(), property);
-            throw new RestException(Status.NOT_FOUND, "Property does not exist");
+            return propertiesCache().get(path("policies", property))
+                    .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Property does not exist"));
         } catch (Exception e) {
             log.error("[{}] Failed to get property {}", clientAppId(), property, e);
             throw new RestException(e);

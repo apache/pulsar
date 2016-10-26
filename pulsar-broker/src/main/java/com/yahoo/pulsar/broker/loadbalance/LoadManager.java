@@ -17,11 +17,10 @@ package com.yahoo.pulsar.broker.loadbalance;
 
 import java.util.List;
 
-import com.google.common.collect.Lists;
-import com.yahoo.pulsar.common.naming.ServiceUnitId;
-import com.yahoo.pulsar.common.policies.data.loadbalancer.LoadReport;
 import com.yahoo.pulsar.broker.PulsarServerException;
 import com.yahoo.pulsar.broker.stats.Metrics;
+import com.yahoo.pulsar.common.naming.ServiceUnitId;
+import com.yahoo.pulsar.common.policies.data.loadbalancer.LoadReport;
 
 /**
  * LoadManager runs though set of load reports collected from different brokers and generates a recommendation of
@@ -78,11 +77,11 @@ public interface LoadManager {
      * Namespace bundle split
      */
     void doNamespaceBundleSplit() throws Exception;
-    
+
     /**
      * Removes visibility of current broker from loadbalancer list so, other brokers can't redirect any request to this
      * broker and this broker won't accept new connection requests.
-     * 
+     *
      * @throws Exception
      */
     public void disableBroker() throws Exception;

@@ -22,13 +22,13 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.yahoo.pulsar.common.naming.ServiceUnitId;
+import com.yahoo.pulsar.common.naming.NamespaceBundle;
 import com.yahoo.pulsar.broker.PulsarService;
 
-public class OwnedServiceUnit {
-    private static final Logger LOG = LoggerFactory.getLogger(OwnedServiceUnit.class);
+public class OwnedBundle {
+    private static final Logger LOG = LoggerFactory.getLogger(OwnedBundle.class);
 
-    private final ServiceUnitId suName;
+    private final NamespaceBundle bundle;
 
     /**
      * {@link #nsLock} is used to protect read/write access to {@link #active} flag and the corresponding code section
@@ -42,8 +42,8 @@ public class OwnedServiceUnit {
      *
      * @param nsname
      */
-    public OwnedServiceUnit(ServiceUnitId suName) {
-        this.suName = suName;
+    public OwnedBundle(NamespaceBundle suName) {
+        this.bundle = suName;
     };
 
     /**
@@ -53,8 +53,8 @@ public class OwnedServiceUnit {
      * @param nssvc
      * @param active
      */
-    public OwnedServiceUnit(ServiceUnitId suName, boolean active) {
-        this.suName = suName;
+    public OwnedBundle(NamespaceBundle suName, boolean active) {
+        this.bundle = suName;
         this.isActive.set(active);
     }
 
@@ -63,8 +63,8 @@ public class OwnedServiceUnit {
      *
      * @return NamespaceName
      */
-    public ServiceUnitId getServiceUnitId() {
-        return this.suName;
+    public NamespaceBundle getNamespaceBundle() {
+        return this.bundle;
     }
 
     /**
@@ -85,7 +85,7 @@ public class OwnedServiceUnit {
         while (!this.nsLock.writeLock().tryLock(1, TimeUnit.SECONDS)) {
             // Using tryLock to avoid deadlocks caused by 2 threads trying to acquire 2 readlocks (eg: JMS replicators)
             // while a handleUnloadRequest happens in the middle
-            LOG.warn("Contention on OwnedServiceUnit rw lock. Retrying to acquire lock write lock");
+            LOG.warn("Contention on OwnedBundle rw lock. Retrying to acquire lock write lock");
         }
 
         try {
@@ -94,7 +94,7 @@ public class OwnedServiceUnit {
                 // An exception is thrown when the namespace is not in active state (i.e. another thread is
                 // removing/have removed it)
                 throw new IllegalStateException(
-                        "Namespace is not active. ns:" + this.suName + "; state:" + this.isActive.get());
+                        "Namespace is not active. ns:" + this.bundle + "; state:" + this.isActive.get());
             }
         } finally {
             // no matter success or not, unlock
@@ -103,19 +103,19 @@ public class OwnedServiceUnit {
 
         int unloadedTopics = 0;
         try {
-            LOG.info("Disabling ownership: {}", this.suName);
-            pulsar.getNamespaceService().getOwnershipCache().disableOwnership(this.suName);
+            LOG.info("Disabling ownership: {}", this.bundle);
+            pulsar.getNamespaceService().getOwnershipCache().disableOwnership(this.bundle);
 
             // Handle unload of persistent topics
-            unloadedTopics = pulsar.getBrokerService().unloadServiceUnit(suName).get();
-            pulsar.getNamespaceService().getOwnershipCache().removeOwnership(suName);
+            unloadedTopics = pulsar.getBrokerService().unloadServiceUnit(bundle).get();
+            pulsar.getNamespaceService().getOwnershipCache().removeOwnership(bundle);
         } catch (Exception e) {
-            LOG.error(String.format("failed to unload a namespace. ns=%s", suName.toString()), e);
+            LOG.error(String.format("failed to unload a namespace. ns=%s", bundle.toString()), e);
             throw new RuntimeException(e);
         }
-        
+
         double unloadBundleTime = TimeUnit.NANOSECONDS.toMillis((System.nanoTime() - unloadBundleStartTime));
-        LOG.info("Unloading {} namespace-bundle with {} topics completed in {} ms", this.suName, unloadedTopics, unloadBundleTime);
+        LOG.info("Unloading {} namespace-bundle with {} topics completed in {} ms", this.bundle, unloadedTopics, unloadBundleTime);
     }
 
     /**
@@ -125,5 +125,9 @@ public class OwnedServiceUnit {
      */
     public boolean isActive() {
         return this.isActive.get();
+    }
+
+    public void setActive(boolean active) {
+        isActive.set(active);
     }
 }

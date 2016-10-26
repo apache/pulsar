@@ -17,6 +17,7 @@ package com.yahoo.pulsar.common.naming;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.yahoo.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
 import static com.yahoo.pulsar.common.policies.data.Policies.FIRST_BOUNDARY;
 import static com.yahoo.pulsar.common.policies.data.Policies.LAST_BOUNDARY;
 import static java.lang.String.format;
@@ -25,21 +26,21 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.SortedSet;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.zookeeper.KeeperException.NoNodeException;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
 import com.google.common.collect.Range;
 import com.google.common.hash.HashFunction;
 import com.yahoo.pulsar.broker.PulsarService;
@@ -47,37 +48,41 @@ import com.yahoo.pulsar.broker.admin.AdminResource;
 import com.yahoo.pulsar.common.policies.data.BundlesData;
 import com.yahoo.pulsar.common.policies.data.LocalPolicies;
 import com.yahoo.pulsar.zookeeper.ZooKeeperCacheListener;
-import static com.yahoo.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
 
 public class NamespaceBundleFactory implements ZooKeeperCacheListener<LocalPolicies> {
     private static final Logger LOG = LoggerFactory.getLogger(NamespaceBundleFactory.class);
 
     private final HashFunction hashFunc;
 
-    private final LoadingCache<NamespaceName, NamespaceBundles> bundlesCache;
+    private final AsyncLoadingCache<NamespaceName, NamespaceBundles> bundlesCache;
 
     private final PulsarService pulsar;
 
     public NamespaceBundleFactory(PulsarService pulsar, HashFunction hashFunc) {
         this.hashFunc = hashFunc;
 
-        this.bundlesCache = CacheBuilder.newBuilder().build(new CacheLoader<NamespaceName, NamespaceBundles>() {
-            @Override
-            public NamespaceBundles load(NamespaceName namespace) throws Exception {
-                if (pulsar == null || pulsar.getConfigurationCache() == null) {
-                    return getBundles(namespace, null);
-                }
-
-                try {
-                    // Read the static bundle data from the policies
-                    LocalPolicies policies = pulsar.getLocalZkCacheService().policiesCache()
-                            .get(AdminResource.joinPath(LOCAL_POLICIES_ROOT, namespace.toString()));
-                    return getBundles(namespace, policies.bundles);
-                } catch (NoNodeException nne) {
-                    // No policies defined for the corresponding namespace
-                    return getBundles(namespace, null);
-                }
+        this.bundlesCache = Caffeine.newBuilder().buildAsync((NamespaceName namespace, Executor executor) -> {
+            String path = AdminResource.joinPath(LOCAL_POLICIES_ROOT, namespace.toString());
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Loading cache with bundles for {}", namespace);
             }
+
+            if (pulsar == null || pulsar.getConfigurationCache() == null) {
+                return CompletableFuture.completedFuture(getBundles(namespace, null));
+            }
+
+            CompletableFuture<NamespaceBundles> future = new CompletableFuture<>();
+            // Read the static bundle data from the policies
+            pulsar.getLocalZkCacheService().policiesCache().getAsync(path).thenAccept(policies -> {
+                // If no policies defined for namespace, assume 1 single bundle
+                BundlesData bundlesData = policies.map(p -> p.bundles).orElse(null);
+                NamespaceBundles namespaceBundles = getBundles(namespace, bundlesData);
+                future.complete(namespaceBundles);
+            }).exceptionally(ex -> {
+                future.completeExceptionally(ex);
+                return null;
+            });
+            return future;
         });
 
         if (pulsar != null && pulsar.getConfigurationCache() != null) {
@@ -94,7 +99,7 @@ public class NamespaceBundleFactory implements ZooKeeperCacheListener<LocalPolic
         try {
             LOG.info("Policy updated for namespace {}, refreshing the bundle cache.", namespace);
             // invalidate the bundle cache to fetch new bundle data from the policies
-            bundlesCache.invalidate(namespace);
+            bundlesCache.synchronous().invalidate(namespace);
         } catch (Exception e) {
             LOG.error("Failed to update the policy change for ns {}", namespace, e);
         }
@@ -108,32 +113,36 @@ public class NamespaceBundleFactory implements ZooKeeperCacheListener<LocalPolic
      */
     private boolean isOwner(NamespaceBundle nsBundle) {
         if (pulsar != null) {
-            return pulsar.getNamespaceService().getOwnershipCache().getOwnedServiceUnit(nsBundle) != null;
+            return pulsar.getNamespaceService().getOwnershipCache().getOwnedBundle(nsBundle) != null;
         }
         return false;
     }
 
     public void invalidateBundleCache(NamespaceName namespace) {
-        bundlesCache.invalidate(namespace);
+        bundlesCache.synchronous().invalidate(namespace);
     }
 
-    public NamespaceBundles getBundles(NamespaceName nsname) throws Exception {
+    public CompletableFuture<NamespaceBundles> getBundlesAsync(NamespaceName nsname) {
         return bundlesCache.get(nsname);
     }
 
-    public NamespaceBundle getBundle(NamespaceName nsname, Range<Long> hashRange) throws Exception {
+    public NamespaceBundles getBundles(NamespaceName nsname) throws Exception {
+        return bundlesCache.synchronous().get(nsname);
+    }
+
+    public NamespaceBundle getBundle(NamespaceName nsname, Range<Long> hashRange) {
         return new NamespaceBundle(nsname, hashRange, this);
     }
 
     public NamespaceBundle getFullBundle(NamespaceName fqnn) throws Exception {
-        return bundlesCache.get(fqnn).getFullBundle();
+        return bundlesCache.synchronous().get(fqnn).getFullBundle();
     }
 
     public long getLongHashCode(String name) {
         return this.hashFunc.hashString(name, Charsets.UTF_8).padToLong();
     }
 
-    public NamespaceBundles getBundles(NamespaceName nsname, BundlesData bundleData) throws Exception {
+    public NamespaceBundles getBundles(NamespaceName nsname, BundlesData bundleData) {
         long[] partitions;
         if (bundleData == null) {
             partitions = new long[] { Long.decode(FIRST_BOUNDARY), Long.decode(LAST_BOUNDARY) };
@@ -173,7 +182,7 @@ public class NamespaceBundleFactory implements ZooKeeperCacheListener<LocalPolic
         checkNotNull(targetBundle, "can't split null bundle");
         checkNotNull(targetBundle.getNamespaceObject(), "namespace must be present");
         NamespaceName nsname = targetBundle.getNamespaceObject();
-        NamespaceBundles sourceBundle = bundlesCache.get(nsname);
+        NamespaceBundles sourceBundle = bundlesCache.synchronous().get(nsname);
 
         final int lastIndex = sourceBundle.partitions.length - 1;
 

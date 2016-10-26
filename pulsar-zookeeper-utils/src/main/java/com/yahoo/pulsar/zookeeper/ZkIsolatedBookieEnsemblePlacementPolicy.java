@@ -29,6 +29,7 @@ import org.apache.bookkeeper.net.BookieSocketAddress;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.bookkeeper.zookeeper.ZooKeeperWatcherBase;
 import org.apache.commons.configuration.Configuration;
+import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -125,7 +126,9 @@ public class ZkIsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePl
         try {
             if (bookieMappingCache != null) {
                 Map<String, Map<BookieSocketAddress, BookieInfo>> allGroupsBookieMapping = bookieMappingCache
-                        .getData(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, this);
+                        .getData(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, this)
+                        .orElseThrow(() -> new KeeperException.NoNodeException(
+                                ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH));
                 for (String group : allGroupsBookieMapping.keySet()) {
                     if (!isolationGroups.contains(group)) {
                         for (BookieSocketAddress bookieAddress : allGroupsBookieMapping.get(group).keySet()) {

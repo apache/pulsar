@@ -18,7 +18,6 @@ package com.yahoo.pulsar.broker.service.persistent;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
@@ -34,13 +33,13 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
-import com.yahoo.pulsar.broker.service.Consumer;
-import com.yahoo.pulsar.broker.service.Dispatcher;
 import com.yahoo.pulsar.broker.service.BrokerServiceException;
 import com.yahoo.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import com.yahoo.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
+import com.yahoo.pulsar.broker.service.Consumer;
+import com.yahoo.pulsar.broker.service.Dispatcher;
 import com.yahoo.pulsar.client.impl.Backoff;
+import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import com.yahoo.pulsar.utils.CopyOnWriteArrayList;
 
 public final class PersistentDispatcherSingleActiveConsumer implements Dispatcher, ReadEntriesCallback {

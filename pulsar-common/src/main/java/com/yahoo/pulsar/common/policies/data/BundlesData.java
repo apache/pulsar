@@ -64,4 +64,9 @@ public class BundlesData {
         return false;
     }
 
+    @Override
+    public String toString() {
+        return Objects.toStringHelper(this).add("numBundles", numBundles).add("boundaries", boundaries).toString();
+    }
+
 }

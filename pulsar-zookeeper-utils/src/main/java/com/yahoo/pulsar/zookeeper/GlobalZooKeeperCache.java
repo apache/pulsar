@@ -109,7 +109,7 @@ public class GlobalZooKeeperCache extends ZooKeeperCache implements Closeable {
                     LOG.info("Global ZK session {} restored connection.", zkSession.get());
 
                     //
-                    dataCache.invalidateAll();
+                    dataCache.synchronous().invalidateAll();
                     childrenCache.invalidateAll();
                     return;
                 default:

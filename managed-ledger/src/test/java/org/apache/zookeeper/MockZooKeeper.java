@@ -22,6 +22,7 @@ import java.util.TreeMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import org.apache.bookkeeper.mledger.util.Pair;
 import org.apache.zookeeper.AsyncCallback.Children2Callback;
@@ -209,23 +210,25 @@ public class MockZooKeeper extends ZooKeeper {
     @Override
     public void getData(final String path, boolean watch, final DataCallback cb, final Object ctx) {
         executor.execute(() -> {
-            synchronized (MockZooKeeper.this) {
-                if (getProgrammedFailStatus()) {
-                    cb.processResult(failReturnCode.intValue(), path, ctx, null, null);
-                    return;
-                } else if (stopped) {
-                    cb.processResult(KeeperException.Code.ConnectionLoss, path, ctx, null, null);
-                    return;
-                }
+            if (getProgrammedFailStatus()) {
+                cb.processResult(failReturnCode.intValue(), path, ctx, null, null);
+                return;
+            } else if (stopped) {
+                cb.processResult(KeeperException.Code.ConnectionLoss, path, ctx, null, null);
+                return;
+            }
 
-                Pair<String, Integer> value = tree.get(path);
-                if (value == null) {
-                    cb.processResult(KeeperException.Code.NoNode, path, ctx, null, null);
-                } else {
-                    Stat stat = new Stat();
-                    stat.setVersion(value.second);
-                    cb.processResult(0, path, ctx, value.first.getBytes(), stat);
-                }
+            Pair<String, Integer> value;
+            synchronized (MockZooKeeper.this) {
+                value = tree.get(path);
+            }
+
+            if (value == null) {
+                cb.processResult(KeeperException.Code.NoNode, path, ctx, null, null);
+            } else {
+                Stat stat = new Stat();
+                stat.setVersion(value.second);
+                cb.processResult(0, path, ctx, value.first.getBytes(), stat);
             }
         });
     }
@@ -467,32 +470,36 @@ public class MockZooKeeper extends ZooKeeper {
     }
 
     @Override
-    public synchronized Stat setData(final String path, byte[] data, int version)
-            throws KeeperException, InterruptedException {
-        checkProgrammedFail();
-
-        if (stopped) {
-            throw new KeeperException.ConnectionLossException();
-        }
-
-        if (!tree.containsKey(path)) {
-            throw new KeeperException.NoNodeException();
-        }
-
-        int currentVersion = tree.get(path).second;
-
-        // Check version
-        if (version != -1 && version != currentVersion) {
-            throw new KeeperException.BadVersionException(path);
-        }
-
-        int newVersion = currentVersion + 1;
-        log.debug("[{}] Updating -- current version: {}", path, currentVersion);
-        tree.put(path, Pair.create(new String(data), newVersion));
+    public Stat setData(final String path, byte[] data, int version) throws KeeperException, InterruptedException {
 
         final Set<Watcher> toNotify = Sets.newHashSet();
-        toNotify.addAll(watchers.get(path));
-        watchers.removeAll(path);
+        int newVersion;
+
+        synchronized (this) {
+            checkProgrammedFail();
+
+            if (stopped) {
+                throw new KeeperException.ConnectionLossException();
+            }
+
+            if (!tree.containsKey(path)) {
+                throw new KeeperException.NoNodeException();
+            }
+
+            int currentVersion = tree.get(path).second;
+
+            // Check version
+            if (version != -1 && version != currentVersion) {
+                throw new KeeperException.BadVersionException(path);
+            }
+
+            newVersion = currentVersion + 1;
+            log.debug("[{}] Updating -- current version: {}", path, currentVersion);
+            tree.put(path, Pair.create(new String(data), newVersion));
+
+            toNotify.addAll(watchers.get(path));
+            watchers.removeAll(path);
+        }
 
         executor.execute(() -> {
             toNotify.forEach(watcher -> watcher
@@ -513,6 +520,8 @@ public class MockZooKeeper extends ZooKeeper {
         }
 
         executor.execute(() -> {
+            final Set<Watcher> toNotify = Sets.newHashSet();
+
             synchronized (MockZooKeeper.this) {
                 if (getProgrammedFailStatus()) {
                     cb.processResult(failReturnCode.intValue(), path, ctx, null);
@@ -543,62 +552,67 @@ public class MockZooKeeper extends ZooKeeper {
                 stat.setVersion(newVersion);
                 cb.processResult(0, path, ctx, stat);
 
-                for (Watcher watcher : watchers.get(path)) {
-                    watcher.process(new WatchedEvent(EventType.NodeDataChanged, KeeperState.SyncConnected, path));
-                }
 
+                toNotify.addAll(watchers.get(path));
                 watchers.removeAll(path);
+            }
+
+            for (Watcher watcher : toNotify) {
+                watcher.process(new WatchedEvent(EventType.NodeDataChanged, KeeperState.SyncConnected, path));
             }
         });
     }
 
     @Override
-    public synchronized void delete(final String path, int version) throws InterruptedException, KeeperException {
+    public void delete(final String path, int version) throws InterruptedException, KeeperException {
         checkProgrammedFail();
 
-        if (stopped) {
-            throw new KeeperException.ConnectionLossException();
-        } else if (!tree.containsKey(path)) {
-            throw new KeeperException.NoNodeException(path);
-        } else if (hasChildren(path)) {
-            throw new KeeperException.NotEmptyException(path);
-        }
+        final Set<Watcher> toNotifyDelete;
+        final Set<Watcher> toNotifyParent;
+        final String parent;
 
-        if (version != -1) {
-            int currentVersion = tree.get(path).second;
-            if (version != currentVersion) {
-                throw new KeeperException.BadVersionException(path);
+        synchronized (this) {
+            if (stopped) {
+                throw new KeeperException.ConnectionLossException();
+            } else if (!tree.containsKey(path)) {
+                throw new KeeperException.NoNodeException(path);
+            } else if (hasChildren(path)) {
+                throw new KeeperException.NotEmptyException(path);
             }
-        }
 
-        tree.remove(path);
+            if (version != -1) {
+                int currentVersion = tree.get(path).second;
+                if (version != currentVersion) {
+                    throw new KeeperException.BadVersionException(path);
+                }
+            }
 
-        final Set<Watcher> toNotifyDelete = Sets.newHashSet();
-        toNotifyDelete.addAll(watchers.get(path));
+            tree.remove(path);
 
-        final Set<Watcher> toNotifyParent = Sets.newHashSet();
-        final String parent = path.substring(0, path.lastIndexOf("/"));
-        if (!parent.isEmpty()) {
-            toNotifyParent.addAll(watchers.get(parent));
+            toNotifyDelete = Sets.newHashSet();
+            toNotifyDelete.addAll(watchers.get(path));
+
+            toNotifyParent = Sets.newHashSet();
+            parent = path.substring(0, path.lastIndexOf("/"));
+            if (!parent.isEmpty()) {
+                toNotifyParent.addAll(watchers.get(parent));
+            }
+
+            watchers.removeAll(path);
         }
 
         executor.execute(() -> {
-            synchronized (MockZooKeeper.this) {
-                if (stopped) {
-                    return;
-                }
+            if (stopped) {
+                return;
+            }
 
-                for (Watcher watcher1 : toNotifyDelete) {
-                    watcher1.process(new WatchedEvent(EventType.NodeDeleted, KeeperState.SyncConnected, path));
-                }
-                for (Watcher watcher2 : toNotifyParent) {
-                    watcher2.process(
-                            new WatchedEvent(EventType.NodeChildrenChanged, KeeperState.SyncConnected, parent));
-                }
+            for (Watcher watcher1 : toNotifyDelete) {
+                watcher1.process(new WatchedEvent(EventType.NodeDeleted, KeeperState.SyncConnected, path));
+            }
+            for (Watcher watcher2 : toNotifyParent) {
+                watcher2.process(new WatchedEvent(EventType.NodeChildrenChanged, KeeperState.SyncConnected, parent));
             }
         });
-
-        watchers.removeAll(path);
     }
 
     @Override

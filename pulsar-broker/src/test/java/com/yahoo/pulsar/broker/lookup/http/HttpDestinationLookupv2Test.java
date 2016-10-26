@@ -18,18 +18,21 @@ package com.yahoo.pulsar.broker.lookup.http;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.fail;
 
 import java.lang.reflect.Field;
 import java.net.URI;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 
 import javax.ws.rs.WebApplicationException;
+import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriInfo;
 
+import org.mockito.ArgumentCaptor;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -92,9 +95,9 @@ public class HttpDestinationLookupv2Test {
         doReturn(clustersListCache).when(mockConfigCache).clustersListCache();
         doReturn(clustersCache).when(mockConfigCache).clustersCache();
         doReturn(policiesCache).when(mockConfigCache).policiesCache();
-        doReturn(useData).when(clustersCache).get(AdminResource.path("clusters", "use"));
-        doReturn(uscData).when(clustersCache).get(AdminResource.path("clusters", "usc"));
-        doReturn(uswData).when(clustersCache).get(AdminResource.path("clusters", "usw"));
+        doReturn(Optional.of(useData)).when(clustersCache).get(AdminResource.path("clusters", "use"));
+        doReturn(Optional.of(uscData)).when(clustersCache).get(AdminResource.path("clusters", "usc"));
+        doReturn(Optional.of(uswData)).when(clustersCache).get(AdminResource.path("clusters", "usw"));
         doReturn(clusters).when(clustersListCache).get();
         doReturn(ns).when(pulsar).getNamespaceService();
         BrokerService brokerService = mock(BrokerService.class);
@@ -115,13 +118,15 @@ public class HttpDestinationLookupv2Test {
         URI uri = URI.create("http://localhost:8080/lookup/v2/destination/topic/myprop/usc/ns2/topic1");
         doReturn(uri).when(uriInfo).getRequestUri();
         doReturn(true).when(config).isAuthorizationEnabled();
-        try {
-            destLookup.lookupDestination("myprop", "usc", "ns2", "topic1", false);
-            fail("Should have raised exception to redirect request");
-        } catch (WebApplicationException wae) {
-            // OK
-            assertEquals(wae.getResponse().getStatus(), Status.TEMPORARY_REDIRECT.getStatusCode());
-        }
+
+        AsyncResponse asyncResponse = mock(AsyncResponse.class);
+        destLookup.lookupDestinationAsync("myprop", "usc", "ns2", "topic1", false, asyncResponse);
+
+        ArgumentCaptor<Throwable> arg = ArgumentCaptor.forClass(Throwable.class);
+        verify(asyncResponse).resume(arg.capture());
+        assertEquals(arg.getValue().getClass(), WebApplicationException.class);
+        WebApplicationException wae = (WebApplicationException) arg.getValue();
+        assertEquals(wae.getResponse().getStatus(), Status.TEMPORARY_REDIRECT.getStatusCode());
     }
 
     @Test
@@ -132,10 +137,12 @@ public class HttpDestinationLookupv2Test {
         final String ns1 = "ns1";
         final String ns2 = "ns2";
         Policies policies1 = new Policies();
-        doReturn(policies1).when(policiesCache).get(AdminResource.path("policies", property, cluster, ns1));
+        doReturn(Optional.of(policies1)).when(policiesCache)
+                .get(AdminResource.path("policies", property, cluster, ns1));
         Policies policies2 = new Policies();
         policies2.replication_clusters = Lists.newArrayList("invalid-localCluster");
-        doReturn(policies2).when(policiesCache).get(AdminResource.path("policies", property, cluster, ns2));
+        doReturn(Optional.of(policies2)).when(policiesCache)
+                .get(AdminResource.path("policies", property, cluster, ns2));
 
         DestinationLookup destLookup = spy(new DestinationLookup());
         destLookup.setPulsar(pulsar);
@@ -145,19 +152,21 @@ public class HttpDestinationLookupv2Test {
         UriInfo uriInfo = mock(UriInfo.class);
         uriField.set(destLookup, uriInfo);
         doReturn(false).when(config).isAuthorizationEnabled();
-        try {
-            destLookup.lookupDestination(property, cluster, ns1, "empty-cluster", false);
-            fail("Should have raised exception to redirect request");
-        } catch (RestException e) {
-            // OK
-        }
 
-        try {
-            destLookup.lookupDestination(property, cluster, ns2, "invalid-localCluster", false);
-            fail("Should have raised exception for invalid cluster");
-        } catch (RestException e) {
-            // OK
-        }
+        AsyncResponse asyncResponse = mock(AsyncResponse.class);
+        destLookup.lookupDestinationAsync(property, cluster, ns1, "empty-cluster", false, asyncResponse);
+
+        ArgumentCaptor<Throwable> arg = ArgumentCaptor.forClass(Throwable.class);
+        verify(asyncResponse).resume(arg.capture());
+        assertEquals(arg.getValue().getClass(), RestException.class);
+
+        AsyncResponse asyncResponse2 = mock(AsyncResponse.class);
+        destLookup.lookupDestinationAsync(property, cluster, ns2, "invalid-localCluster", false, asyncResponse2);
+        ArgumentCaptor<Throwable> arg2 = ArgumentCaptor.forClass(Throwable.class);
+        verify(asyncResponse2).resume(arg2.capture());
+
+        // Should have raised exception for invalid cluster
+        assertEquals(arg2.getValue().getClass(), RestException.class);
     }
 
     @Test
