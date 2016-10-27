@@ -791,9 +791,10 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
 
                 log.info("[{}] [{}] Re-Sending {} messages to server", topic, producerName, messagesToResend);
 
+                final boolean stripChecksum = cnx.getRemoteEndpointProtocolVersion() < brokerChecksumSupportedVersion();
                 for (OpSendMsg op : pendingMessages) {
                     
-                    if (cnx.getRemoteEndpointProtocolVersion() < brokerChecksumSupportedVersion()) {
+                    if (stripChecksum) {
                         stripChecksum(op);
                     }
                     op.cmd.retain();
@@ -827,10 +828,8 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
         DoubleByteBuf msg = getDoubleByteBuf(op.cmd);
         if (msg != null) {
             ByteBuf headerFrame = msg.getFirst();
-            ByteBuf payloadFrame = msg.getSecond();
             msg.markReaderIndex();
             headerFrame.markReaderIndex();
-            payloadFrame.markReaderIndex();
             try {
                 headerFrame.skipBytes(4); // skip [total-size]
                 int cmdSize = (int) headerFrame.readUnsignedInt();
@@ -839,6 +838,7 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
                 headerFrame.skipBytes(cmdSize);
 
                 if (!hasChecksum(headerFrame)) {
+                    headerFrame.resetReaderIndex();
                     return;
                 }
 
