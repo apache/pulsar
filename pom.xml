@@ -24,7 +24,7 @@
   <groupId>com.yahoo.pulsar</groupId>
   <artifactId>pulsar</artifactId>
 
-  <version>1.15.1-SNAPSHOT</version>
+  <version>1.15.1</version>
 
   <name>Pulsar</name>
   <description>Pulsar is a distributed pub-sub messaging platform with a very
