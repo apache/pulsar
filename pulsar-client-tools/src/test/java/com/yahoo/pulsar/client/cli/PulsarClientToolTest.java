@@ -62,7 +62,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
             try {
                 pulsarClientToolConsumer = new PulsarClientTool(properties);
                 String[] args = { "consume", "-t", "Exclusive", "-s", "sub-name", "-n",
-                        Integer.toString(numberOfMessages), "--hex", "-r", "10", topicName };
+                        Integer.toString(numberOfMessages), "--hex", "-r", "30", topicName };
                 Assert.assertEquals(pulsarClientToolConsumer.run(args), 0);
                 future.complete(null);
             } catch (Throwable t) {
