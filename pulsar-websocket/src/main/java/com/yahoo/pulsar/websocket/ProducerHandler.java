@@ -17,6 +17,7 @@ package com.yahoo.pulsar.websocket;
 
 import java.io.IOException;
 import java.util.Base64;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import javax.servlet.http.HttpServletRequest;
@@ -118,8 +119,8 @@ public class ProducerHandler extends AbstractWebSocketHandler {
         });
     }
 
-    protected boolean isAuthorized(String authRole) {
-        return service.getAuthorizationManager().canProduce(DestinationName.get(topic), authRole);
+    protected CompletableFuture<Boolean> isAuthorized(String authRole) {
+        return service.getAuthorizationManager().canProduceAsync(DestinationName.get(topic), authRole);
     }
 
     private ProducerConfiguration getProducerConfiguration() {

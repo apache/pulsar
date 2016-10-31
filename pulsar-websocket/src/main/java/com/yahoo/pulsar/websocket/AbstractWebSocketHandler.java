@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.concurrent.CompletableFuture;
 
 import javax.naming.AuthenticationException;
 import javax.servlet.http.HttpServletRequest;
@@ -73,11 +74,16 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
             }
         }
 
-        if (service.isAuthorizationEnabled() && !isAuthorized(authRole)) {
-            log.warn("[{}] WebSocket Client [{}] is not authorized on topic {}", session.getRemoteAddress(), authRole,
-                    topic);
-            close(WebSocketError.NotAuthorizedError);
-            return;
+        if (service.isAuthorizationEnabled()) {
+            final String role = authRole;
+            isAuthorized(authRole).thenApply(isAuthorized -> {
+                if(!isAuthorized) {
+                    log.warn("[{}] WebSocket Client [{}] is not authorized on topic {}", session.getRemoteAddress(), role,
+                            topic);
+                    close(WebSocketError.NotAuthorizedError);
+                }
+                return null;
+            });
         }
     }
 
@@ -120,7 +126,7 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
         return null;
     }
 
-    protected abstract boolean isAuthorized(String authRole);
+    protected abstract CompletableFuture<Boolean> isAuthorized(String authRole);
 
     private String extractTopicName(HttpServletRequest request) {
         String uri = request.getRequestURI();
