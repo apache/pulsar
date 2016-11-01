@@ -27,19 +27,14 @@ import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 
-import javax.net.ssl.SSLContext;
-
+import io.netty.channel.EventLoopGroup;
+import io.netty.handler.ssl.SslContext;
+import io.netty.handler.ssl.SslContextBuilder;
+import org.asynchttpclient.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.util.concurrent.MoreExecutors;
-import com.ning.http.client.AsyncCompletionHandler;
-import com.ning.http.client.AsyncHttpClient;
-import com.ning.http.client.AsyncHttpClient.BoundRequestBuilder;
-import com.ning.http.client.AsyncHttpClientConfig;
-import com.ning.http.client.ListenableFuture;
-import com.ning.http.client.Response;
-import com.ning.http.client.providers.netty.NettyAsyncHttpProvider;
 import com.yahoo.pulsar.client.api.Authentication;
 import com.yahoo.pulsar.client.api.AuthenticationDataProvider;
 import com.yahoo.pulsar.client.api.PulsarClientException;
@@ -55,13 +50,13 @@ public class HttpClient implements Closeable {
     protected final URL url;
     protected final Authentication authentication;
 
-    protected HttpClient(String serviceUrl, Authentication authentication, ExecutorService lookupIoExecutor,
+    protected HttpClient(String serviceUrl, Authentication authentication, EventLoopGroup eventLoopGroup,
             boolean tlsAllowInsecureConnection, String tlsTrustCertsFilePath) throws PulsarClientException {
-        this(serviceUrl, authentication, lookupIoExecutor, tlsAllowInsecureConnection, tlsTrustCertsFilePath,
+        this(serviceUrl, authentication, eventLoopGroup, tlsAllowInsecureConnection, tlsTrustCertsFilePath,
                 DEFAULT_CONNECT_TIMEOUT_IN_SECONDS, DEFAULT_READ_TIMEOUT_IN_SECONDS);
     }
 
-    protected HttpClient(String serviceUrl, Authentication authentication, ExecutorService lookupIoExecutor,
+    protected HttpClient(String serviceUrl, Authentication authentication, EventLoopGroup eventLoopGroup,
             boolean tlsAllowInsecureConnection, String tlsTrustCertsFilePath, int connectTimeoutInSeconds,
             int readTimeoutInSeconds) throws PulsarClientException {
         this.authentication = authentication;
@@ -72,7 +67,7 @@ public class HttpClient implements Closeable {
             throw new PulsarClientException.InvalidServiceURL(e);
         }
 
-        AsyncHttpClientConfig.Builder confBuilder = new AsyncHttpClientConfig.Builder();
+        DefaultAsyncHttpClientConfig.Builder confBuilder = new DefaultAsyncHttpClientConfig.Builder();
         confBuilder.setFollowRedirect(true);
         confBuilder.setConnectTimeout(connectTimeoutInSeconds * 1000);
         confBuilder.setReadTimeout(readTimeoutInSeconds * 1000);
@@ -80,28 +75,26 @@ public class HttpClient implements Closeable {
 
         if ("https".equals(url.getProtocol())) {
             try {
-                SSLContext sslCtx = null;
-
-                X509Certificate[] trustCertificates = SecurityUtility
-                        .loadCertificatesFromPemFile(tlsTrustCertsFilePath);
+                SslContext sslCtx = null;
 
                 // Set client key and certificate if available
                 AuthenticationDataProvider authData = authentication.getAuthData();
                 if (authData.hasDataForTls()) {
-                    sslCtx = SecurityUtility.createSslContext(tlsAllowInsecureConnection, trustCertificates,
+                    sslCtx = SecurityUtility.createNettySslContext(tlsAllowInsecureConnection, tlsTrustCertsFilePath,
                             authData.getTlsCertificates(), authData.getTlsPrivateKey());
                 } else {
-                    sslCtx = SecurityUtility.createSslContext(tlsAllowInsecureConnection, trustCertificates);
+                    sslCtx = SecurityUtility.createNettySslContext(tlsAllowInsecureConnection, tlsTrustCertsFilePath);
                 }
 
-                confBuilder.setSSLContext(sslCtx);
+                confBuilder.setSslContext(sslCtx);
                 confBuilder.setAcceptAnyCertificate(tlsAllowInsecureConnection);
             } catch (Exception e) {
                 throw new PulsarClientException.InvalidConfigurationException(e);
             }
         }
+        confBuilder.setEventLoopGroup(eventLoopGroup);
         AsyncHttpClientConfig config = confBuilder.build();
-        httpClient = new AsyncHttpClient(new NettyAsyncHttpProvider(config), config);
+        httpClient = new DefaultAsyncHttpClient(config);
 
         log.debug("Using HTTP url: {}", this.url);
     }

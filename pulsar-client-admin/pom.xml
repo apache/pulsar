@@ -95,7 +95,7 @@
                   <include>org.apache.commons:commons-lang3</include>
                   <include>commons-codec:commons-codec</include>
                   <include>commons-collections:commons-collections</include>
-                  <include>com.ning:async-http-client</include>
+                  <include>org.asynchttpclient:async-http-client</include>
                   <include>com.google.protobuf:protobuf-java</include>
                   <include>com.google.guava:guava</include>
                   <include>com.google.code.gson:gson</include>
@@ -110,8 +110,8 @@
                   <shadedPattern>pulsar-admin-shade.org.apache.commons</shadedPattern>
                 </relocation>
                 <relocation>
-                  <pattern>com.ning</pattern>
-                  <shadedPattern>pulsar-admin-shade.com.ning</shadedPattern>
+                  <pattern>org.asynchttpclient</pattern>
+                  <shadedPattern>com.yahoo.pulsar.shade.org.asynchttpclient</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>com.google</pattern>
