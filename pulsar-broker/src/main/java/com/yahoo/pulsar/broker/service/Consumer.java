@@ -62,6 +62,7 @@ public class Consumer {
     private final long consumerId;
     private final String consumerName;
     private final Rate msgOut;
+    private final Rate msgRedeliver;
 
     // Represents how many messages we can safely send to the consumer without
     // overflowing its receiving queue. The consumer will use Flow commands to
@@ -90,6 +91,7 @@ public class Consumer {
         this.maxUnackedMessages = maxUnackedMessages;
         this.cnx = cnx;
         this.msgOut = new Rate();
+        this.msgRedeliver = new Rate();
         this.appId = appId;
 
         stats = new ConsumerStats();
@@ -357,8 +359,10 @@ public class Consumer {
     
     public void updateRates() {
         msgOut.calculateRate();
+        msgRedeliver.calculateRate();
         stats.msgRateOut = msgOut.getRate();
         stats.msgThroughputOut = msgOut.getValueRate();
+        stats.msgRateRedeliver = msgRedeliver.getRate();
     }
 
     public ConsumerStats getStats() {
@@ -452,6 +456,11 @@ public class Consumer {
         subscription.redeliverUnacknowledgedMessages(this);
         flowConsumerBlockedPermits(this);
         if (pendingAcks != null) {
+            int totalRedeliveryMessages = 0;
+            for (Integer batchSize : pendingAcks.values()) {
+                totalRedeliveryMessages += batchSize;
+            }
+            msgRedeliver.recordMultipleEvents(totalRedeliveryMessages, totalRedeliveryMessages);
             pendingAcks.clear();
         }
 
@@ -474,6 +483,7 @@ public class Consumer {
         blockedConsumerOnUnackedMsgs = false;
 
         subscription.redeliverUnacknowledgedMessages(this, pendingPositions);
+        msgRedeliver.recordMultipleEvents(totalRedeliveryMessages, totalRedeliveryMessages);
 
         int numberOfBlockedPermits = Math.min(totalRedeliveryMessages,
                 permitsReceivedWhileConsumerBlocked.get());
