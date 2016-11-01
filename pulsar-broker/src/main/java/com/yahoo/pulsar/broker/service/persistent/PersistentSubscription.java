@@ -575,6 +575,8 @@ public class PersistentSubscription implements Subscription {
                 subStats.consumers.add(consumerStats);
                 subStats.msgRateOut += consumerStats.msgRateOut;
                 subStats.msgThroughputOut += consumerStats.msgThroughputOut;
+                subStats.msgRateRedeliver += consumerStats.msgRateRedeliver;
+                subStats.unackedMessages += consumerStats.unackedMessages;
             });
         }
 

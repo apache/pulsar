@@ -186,6 +186,96 @@ public class BrokerServiceTest extends BrokerTestBase {
     }
 
     @Test
+    public void testBrokerServicePersistentRedeliverTopicStats() throws Exception {
+        final String topicName = "persistent://prop/use/ns-abc/successSharedTopic";
+        final String subName = "successSharedSub";
+
+        PersistentTopicStats stats;
+        PersistentSubscriptionStats subStats;
+
+        ConsumerConfiguration conf = new ConsumerConfiguration();
+        conf.setSubscriptionType(SubscriptionType.Shared);
+        Consumer consumer = pulsarClient.subscribe(topicName, subName, conf);
+        Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
+
+        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);
+        assertNotNull(topicRef);
+
+        rolloverPerIntervalStats();
+        stats = topicRef.getStats();
+        subStats = stats.subscriptions.values().iterator().next();
+
+        // subscription stats
+        assertEquals(stats.subscriptions.keySet().size(), 1);
+        assertEquals(subStats.msgBacklog, 0);
+        assertEquals(subStats.consumers.size(), 1);
+
+        Producer producer = pulsarClient.createProducer(topicName);
+        Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
+
+        for (int i = 0; i < 10; i++) {
+            String message = "my-message-" + i;
+            producer.send(message.getBytes());
+        }
+        Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
+
+        rolloverPerIntervalStats();
+        stats = topicRef.getStats();
+        subStats = stats.subscriptions.values().iterator().next();
+
+        // publisher stats
+        assertEquals(subStats.msgBacklog, 10);
+        assertEquals(stats.publishers.size(), 1);
+        assertTrue(stats.publishers.get(0).msgRateIn > 0.0);
+        assertTrue(stats.publishers.get(0).msgThroughputIn > 0.0);
+        assertTrue(stats.publishers.get(0).averageMsgSize > 0.0);
+
+        // aggregated publish stats
+        assertEquals(stats.msgRateIn, stats.publishers.get(0).msgRateIn);
+        assertEquals(stats.msgThroughputIn, stats.publishers.get(0).msgThroughputIn);
+        double diff = stats.averageMsgSize - stats.publishers.get(0).averageMsgSize;
+        assertTrue(Math.abs(diff) < 0.000001);
+
+        // consumer stats
+        assertTrue(subStats.consumers.get(0).msgRateOut > 0.0);
+        assertTrue(subStats.consumers.get(0).msgThroughputOut > 0.0);
+        assertEquals(subStats.msgRateRedeliver, 0.0);
+        assertEquals(subStats.consumers.get(0).unackedMessages, 10);
+
+        // aggregated consumer stats
+        assertEquals(subStats.msgRateOut, subStats.consumers.get(0).msgRateOut);
+        assertEquals(subStats.msgThroughputOut, subStats.consumers.get(0).msgThroughputOut);
+        assertEquals(subStats.msgRateRedeliver, subStats.consumers.get(0).msgRateRedeliver);
+        assertEquals(stats.msgRateOut, subStats.consumers.get(0).msgRateOut);
+        assertEquals(stats.msgThroughputOut, subStats.consumers.get(0).msgThroughputOut);
+        assertEquals(subStats.msgRateRedeliver, subStats.consumers.get(0).msgRateRedeliver);
+        assertEquals(subStats.unackedMessages, subStats.consumers.get(0).unackedMessages);
+
+        consumer.redeliverUnacknowledgedMessages();
+        Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
+
+        rolloverPerIntervalStats();
+        stats = topicRef.getStats();
+        subStats = stats.subscriptions.values().iterator().next();
+        assertTrue(subStats.msgRateRedeliver > 0.0);
+        assertEquals(subStats.msgRateRedeliver, subStats.consumers.get(0).msgRateRedeliver);
+
+        Message msg;
+        for (int i = 0; i < 10; i++) {
+            msg = consumer.receive();
+            consumer.acknowledge(msg);
+        }
+        consumer.close();
+        Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
+
+        rolloverPerIntervalStats();
+        stats = topicRef.getStats();
+        subStats = stats.subscriptions.values().iterator().next();
+
+        assertEquals(subStats.msgBacklog, 0);
+    }
+
+    @Test
     public void testBrokerStatsMetrics() throws Exception {
         final String topicName = "persistent://prop/use/ns-abc/newTopic";
         final String subName = "newSub";

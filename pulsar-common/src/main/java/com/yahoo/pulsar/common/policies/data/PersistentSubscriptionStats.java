@@ -31,8 +31,14 @@ public class PersistentSubscriptionStats {
     /** Total throughput delivered on this subscription. bytes/s */
     public double msgThroughputOut;
 
+    /** Total rate of messages redelivered on this subscription. msg/s */
+    public double msgRateRedeliver;
+
     /** Number of messages in the subscription backlog */
     public long msgBacklog;
+
+    /** Number of unacknowledged messages for the subscription */
+    public long unackedMessages;
 
     /** whether this subscription is Exclusive or Shared or Failover */
     public SubType type;
@@ -50,7 +56,9 @@ public class PersistentSubscriptionStats {
     public void reset() {
         msgRateOut = 0;
         msgThroughputOut = 0;
+        msgRateRedeliver = 0;
         msgBacklog = 0;
+        unackedMessages = 0;
         msgRateExpired = 0;
         consumers.clear();
     }
@@ -61,7 +69,9 @@ public class PersistentSubscriptionStats {
         checkNotNull(stats);
         this.msgRateOut += stats.msgRateOut;
         this.msgThroughputOut += stats.msgThroughputOut;
+        this.msgRateRedeliver += stats.msgRateRedeliver;
         this.msgBacklog += stats.msgBacklog;
+        this.unackedMessages += stats.unackedMessages;
         this.msgRateExpired += stats.msgRateExpired;
         if (this.consumers.size() != stats.consumers.size()) {
             for (int i = 0; i < stats.consumers.size(); i++) {
