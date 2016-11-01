@@ -25,6 +25,7 @@ import org.eclipse.jetty.websocket.api.Session;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.yahoo.pulsar.client.api.CompressionType;
 import com.yahoo.pulsar.client.api.Message;
 import com.yahoo.pulsar.client.api.MessageBuilder;
@@ -35,6 +36,9 @@ import com.yahoo.pulsar.common.naming.DestinationName;
 import com.yahoo.pulsar.common.util.ObjectMapperFactory;
 import com.yahoo.pulsar.websocket.data.ProducerAck;
 import com.yahoo.pulsar.websocket.data.ProducerMessage;
+import static java.lang.String.format;
+import static com.yahoo.pulsar.websocket.WebSocketError.*;
+
 
 /**
  * Websocket end-point url handler to handle incoming message coming from client. Websocket end-point url handler to
@@ -68,27 +72,36 @@ public class ProducerHandler extends AbstractWebSocketHandler {
             ProducerConfiguration conf = getProducerConfiguration();
             producer = service.getPulsarClient().createProducer(topic, conf);
         } catch (Exception e) {
-            close(WebSocketError.FailedToCreateProducer, e.getMessage());
+            close(FailedToCreateProducer, e.getMessage());
         }
     }
 
     @Override
     public void onWebSocketText(String message) {
         ProducerMessage sendRequest;
+        byte[] rawPayload = null;
+        String requestContext = null;
         try {
             sendRequest = ObjectMapperFactory.getThreadLocal().readValue(message, ProducerMessage.class);
-        } catch (IOException e1) {
-            close(WebSocketError.FailedToSerializeToJSON, e1.getMessage());
+            requestContext = sendRequest.context;
+            rawPayload = Base64.getDecoder().decode(sendRequest.payload);
+        } catch (IOException e) {
+            sendAckResponse(new ProducerAck(FailedToDeserializeFromJSON, e.getMessage(), null, null));
+            return;
+        } catch (IllegalArgumentException e) {
+            String msg = format("Invalid Base64 message-payload error=%s", e.getMessage());
+            sendAckResponse(new ProducerAck(PayloadEncodingError, msg, null, requestContext));
             return;
         }
 
-        byte[] rawPayload = Base64.getDecoder().decode(sendRequest.payload);
+        MessageBuilder builder = MessageBuilder.create().setContent(rawPayload);
 
-        MessageBuilder builder = MessageBuilder.create().setContent(rawPayload).setProperties(sendRequest.properties);
+        if (sendRequest.properties != null) {
+            builder.setProperties(sendRequest.properties);
+        }
         if (sendRequest.key != null) {
             builder.setKey(sendRequest.key);
         }
-
         if (sendRequest.replicationClusters != null) {
             builder.setReplicationClusters(sendRequest.replicationClusters);
         }
@@ -97,23 +110,11 @@ public class ProducerHandler extends AbstractWebSocketHandler {
         producer.sendAsync(msg).thenAccept(msgId -> {
             if (isConnected()) {
                 String messageId = Base64.getEncoder().encodeToString(msgId.toByteArray());
-                ProducerAck response = new ProducerAck("ok", messageId, sendRequest.context);
-                String jsonResponse;
-                try {
-                    jsonResponse = ObjectMapperFactory.getThreadLocal().writeValueAsString(response);
-                    getSession().getRemote().sendString(jsonResponse);
-                } catch (Exception e) {
-                    log.warn("Error send ack response: ", e);
-                }
+                sendAckResponse(new ProducerAck(messageId, sendRequest.context));
             }
         }).exceptionally(exception -> {
-            ProducerAck response = new ProducerAck("send-error: " + exception.getMessage(), null, sendRequest.context);
-            try {
-                String jsonResponse = ObjectMapperFactory.getThreadLocal().writeValueAsString(response);
-                getSession().getRemote().sendString(jsonResponse);
-            } catch (Exception e) {
-                log.warn("Error send ack response: ", e);
-            }
+            sendAckResponse(
+                    new ProducerAck(UnknownError, exception.getMessage(), null, sendRequest.context));
             return null;
         });
     }
@@ -122,6 +123,17 @@ public class ProducerHandler extends AbstractWebSocketHandler {
         return service.getAuthorizationManager().canProduce(DestinationName.get(topic), authRole);
     }
 
+    private void sendAckResponse(ProducerAck response) {
+        try {
+            String msg = ObjectMapperFactory.getThreadLocal().writeValueAsString(response);
+            getSession().getRemote().sendString(msg);
+        } catch (JsonProcessingException e) {
+            log.warn("[{}] Failed to generate ack json-response {}", producer.getTopic(), e.getMessage(), e);
+        } catch (Exception e) {
+            log.warn("[{}] Failed to send ack {}", producer.getTopic(), e.getMessage(), e);
+        }
+    }
+    
     private ProducerConfiguration getProducerConfiguration() {
         ProducerConfiguration conf = new ProducerConfiguration();
 

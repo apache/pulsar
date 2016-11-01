@@ -28,7 +28,9 @@ public enum WebSocketError {
     FailedToDeserializeFromJSON(3, "Failed to de-serialize from JSON"), //
     FailedToSerializeToJSON(4, "Failed to serialize to JSON"), //
     AuthenticationError(5, "Failed to authenticate client"), //
-    NotAuthorizedError(6, "Client is not authorized"); //
+    NotAuthorizedError(6, "Client is not authorized"), //
+    PayloadEncodingError(7, "Invalid payload encoding"), //
+    UnknownError(8, "Unknown error"); //
 
     private final int code;
     private final String description;

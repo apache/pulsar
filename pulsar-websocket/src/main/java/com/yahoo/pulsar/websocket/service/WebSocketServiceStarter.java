@@ -27,30 +27,28 @@ import com.yahoo.pulsar.websocket.WebSocketProducerServlet;
 import com.yahoo.pulsar.websocket.WebSocketService;
 
 public class WebSocketServiceStarter {
+
     public static void main(String args[]) throws Exception {
         checkArgument(args.length == 1, "Need to specify a configuration file");
-
         try {
             // load config file and start proxy service
             String configFile = args[0];
             log.info("Loading configuration from {}", configFile);
             ServiceConfiguration config = ServiceConfigurationLoader.create(configFile);
             ProxyServer proxyServer = new ProxyServer(config);
-
             WebSocketService service = new WebSocketService(config);
-
-            proxyServer.addWebSocketServlet(WebSocketProducerServlet.SERVLET_PATH,
-                    new WebSocketProducerServlet(service));
-            proxyServer.addWebSocketServlet(WebSocketConsumerServlet.SERVLET_PATH,
-                    new WebSocketConsumerServlet(service));
-
-            proxyServer.start();
-
-            service.start();
+            start(proxyServer, service);
         } catch (Exception e) {
             log.error("Failed to start WebSocket service", e);
             Runtime.getRuntime().halt(1);
         }
+    }
+
+    public static void start(ProxyServer proxyServer, WebSocketService service) throws Exception {
+        proxyServer.addWebSocketServlet(WebSocketProducerServlet.SERVLET_PATH, new WebSocketProducerServlet(service));
+        proxyServer.addWebSocketServlet(WebSocketConsumerServlet.SERVLET_PATH, new WebSocketConsumerServlet(service));
+        proxyServer.start();
+        service.start();
     }
 
     private static final Logger log = LoggerFactory.getLogger(WebSocketServiceStarter.class);

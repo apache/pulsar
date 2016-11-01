@@ -17,10 +17,9 @@ package com.yahoo.pulsar.websocket.proxy;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-
-import static java.util.Base64.getEncoder;
 
 import org.eclipse.jetty.websocket.api.RemoteEndpoint;
 import org.eclipse.jetty.websocket.api.Session;
@@ -33,12 +32,13 @@ import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import static com.yahoo.pulsar.broker.admin.AdminResource.jsonMapper;
+import com.yahoo.pulsar.websocket.data.ProducerMessage;
+
 @WebSocket(maxTextMessageSize = 64 * 1024)
 public class SimpleProducerSocket {
 
-    private final static String message = getEncoder().encodeToString("test".getBytes());
-    private final static String testJsonString = "{\"content\": \"" + message
-            + "\", \"properties\" : {\"test\" :\"test\"}}";
     private final CountDownLatch closeLatch;
     private Session session;
     private ArrayList<String> producerBuffer;
@@ -48,24 +48,30 @@ public class SimpleProducerSocket {
         producerBuffer = new ArrayList<String>();
     }
 
+    private static String getTestJsonPayload(int index) throws JsonProcessingException {
+        ProducerMessage msg = new ProducerMessage();
+        msg.payload = Base64.getEncoder().encodeToString(("test" + index).getBytes());
+        msg.key = Integer.toString(index);
+        return jsonMapper().writeValueAsString(msg);
+    }
+
     public boolean awaitClose(int duration, TimeUnit unit) throws InterruptedException {
         return this.closeLatch.await(duration, unit);
     }
 
     @OnWebSocketClose
     public void onClose(int statusCode, String reason) {
-        log.info("Connection closed: %d - %s%n", statusCode, reason);
+        log.info("Connection closed: {} - {}", statusCode, reason);
         this.session = null;
         this.closeLatch.countDown();
     }
 
     @OnWebSocketConnect
     public void onConnect(Session session) throws InterruptedException, IOException, JSONException {
-        log.info("Got connect: %s%n", session);
+        log.info("Got connect: {}", session);
         this.session = session;
-        String sampleMsg = new JSONObject(testJsonString).toString();
         for (int i = 0; i < 10; i++) {
-            this.session.getRemote().sendString(sampleMsg);
+            this.session.getRemote().sendString(getTestJsonPayload(i));
         }
 
     }

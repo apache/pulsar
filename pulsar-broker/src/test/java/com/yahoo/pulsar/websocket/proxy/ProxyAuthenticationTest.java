@@ -20,50 +20,60 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 
 import java.net.URI;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.bookkeeper.test.PortManager;
+import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
 import org.eclipse.jetty.websocket.client.WebSocketClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.Sets;
 import com.yahoo.pulsar.broker.ServiceConfiguration;
-import com.yahoo.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import com.yahoo.pulsar.client.api.ProducerConsumerBase;
 import com.yahoo.pulsar.websocket.WebSocketService;
+import com.yahoo.pulsar.websocket.service.ProxyServer;
+import com.yahoo.pulsar.websocket.service.WebSocketServiceStarter;
 
-public class ProxyAuthenticationTest extends MockedPulsarServiceBaseTest {
+public class ProxyAuthenticationTest extends ProducerConsumerBase {
     protected String methodName;
-    private static final int TEST_PORT = PortManager.nextFreePort();
+    private static final int TEST_PORT = 6080;
     private static final String CONSUME_URI = "ws://localhost:" + TEST_PORT
-            + "/consume/persistent/my-property/cluster1/my-ns/my-topic/my-sub";
+            + "/ws/consumer/persistent/my-property/use/my-ns/my-topic/my-sub";
     private static final String PRODUCE_URI = "ws://localhost:" + TEST_PORT
-            + "/produce/persistent/my-property/cluster1/my-ns/my-topic/";
+            + "/ws/producer/persistent/my-property/use/my-ns/my-topic/";
+    private ProxyServer proxyServer;
     private WebSocketService service;
 
     @BeforeClass
     public void setup() throws Exception {
         super.internalSetup();
+        super.producerBaseSetup();
 
         ServiceConfiguration config = new ServiceConfiguration();
         config.setWebServicePort(TEST_PORT);
+        config.setClusterName("use");
         config.setAuthenticationEnabled(true);
         config.setAuthenticationProviders(
                 Sets.newHashSet("com.yahoo.pulsar.websocket.proxy.MockAuthenticationProvider"));
         service = spy(new WebSocketService(config));
         doReturn(mockZooKeeperClientFactory).when(service).getZooKeeperClientFactory();
-        service.start();
+        proxyServer = new ProxyServer(config);
+        WebSocketServiceStarter.start(proxyServer, service);
         log.info("Proxy Server Started");
     }
 
-    @Override
+    @AfterClass
     protected void cleanup() throws Exception {
         super.internalCleanup();
         service.close();
+        proxyServer.stop();
         log.info("Finished Cleaning Up Test setup");
 
     }
@@ -81,16 +91,20 @@ public class ProxyAuthenticationTest extends MockedPulsarServiceBaseTest {
         try {
             consumeClient.start();
             ClientUpgradeRequest consumeRequest = new ClientUpgradeRequest();
-            consumeClient.connect(consumeSocket, consumeUri, consumeRequest);
-            log.info("Connecting to : %s%n", consumeUri);
+            Future<Session> consumerFuture = consumeClient.connect(consumeSocket, consumeUri, consumeRequest);
+            log.info("Connecting to : {}", consumeUri);
 
             ClientUpgradeRequest produceRequest = new ClientUpgradeRequest();
             produceClient.start();
-            produceClient.connect(produceSocket, produceUri, produceRequest);
+            Future<Session> producerFuture = produceClient.connect(produceSocket, produceUri, produceRequest);
+            // let it connect
+            Thread.sleep(1000);
+            Assert.assertTrue(consumerFuture.get().isOpen());
+            Assert.assertTrue(producerFuture.get().isOpen());
 
             consumeSocket.awaitClose(1, TimeUnit.SECONDS);
             produceSocket.awaitClose(1, TimeUnit.SECONDS);
-
+            Assert.assertTrue(produceSocket.getBuffer().size() > 0);
             Assert.assertEquals(produceSocket.getBuffer(), consumeSocket.getBuffer());
         } catch (Throwable t) {
             log.error(t.getMessage());
