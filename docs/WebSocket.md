@@ -95,10 +95,19 @@ http://{serviceUrl}:8080/ws/producer/persistent/{property}/{cluster}/{namespace}
 
 ##### Acknowledgement from server
 
+###### Success response
 ```json
 {
    "result": "ok",
    "messageId": "CAAQAw==",
+   "context": "1"
+ }
+```
+###### Failure response
+```json
+ {
+   "result": "send-error:3",
+   "errorMsg": "Failed to de-serialize from JSON",
    "context": "1"
  }
 ```
@@ -172,6 +181,8 @@ following error codes:
 |     4      | Failed to serialize to JSON      |
 |     5      | Failed to authenticate client    |
 |     6      | Client is not authorized         |
+|     7      | Invalid payload encoding         |
+|     8      | Unknown error			        |
 
 Application is responsible to re-establish a new WebSocket session after
 a backoff period.
