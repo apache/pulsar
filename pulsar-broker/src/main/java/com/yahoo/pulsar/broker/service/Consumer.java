@@ -181,7 +181,7 @@ public class Consumer {
     }
 
     private void incrementUnackedMessages(int ackedMessages) {
-        if (shouldBlockConsumerOnUnackMsgs() && unackedMessages.addAndGet(ackedMessages) >= maxUnackedMessages) {
+        if (unackedMessages.addAndGet(ackedMessages) >= maxUnackedMessages && shouldBlockConsumerOnUnackMsgs()) {
             blockedConsumerOnUnackedMsgs = true;
         }
     }
@@ -432,9 +432,9 @@ public class Consumer {
             int totalAckedMsgs = ackOwnedConsumer.getPendingAcks().remove(position);
             // unblock consumer-throttling when receives half of maxUnackedMessages => consumer can start again
             // consuming messages
-            if (ackOwnedConsumer.shouldBlockConsumerOnUnackMsgs()
-                    && ((ackOwnedConsumer.unackedMessages.addAndGet(-totalAckedMsgs) <= (maxUnackedMessages / 2))
-                            && ackOwnedConsumer.blockedConsumerOnUnackedMsgs)) {
+            if (((ackOwnedConsumer.unackedMessages.addAndGet(-totalAckedMsgs) <= (maxUnackedMessages / 2))
+                    && ackOwnedConsumer.blockedConsumerOnUnackedMsgs)
+                    && ackOwnedConsumer.shouldBlockConsumerOnUnackMsgs()) {
                 ackOwnedConsumer.blockedConsumerOnUnackedMsgs = false;
                 flowConsumerBlockedPermits(ackOwnedConsumer);
             }
