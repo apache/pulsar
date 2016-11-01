@@ -419,7 +419,7 @@ public class BrokerServiceTest extends BrokerTestBase {
             consumer.close();
             fail("TLS connection should fail");
         } catch (Exception e) {
-            assertTrue(e.getMessage().contains("Connection refused"));
+            assertTrue(e.getMessage().contains("ConnectException"));
         } finally {
             pulsarClient.close();
         }

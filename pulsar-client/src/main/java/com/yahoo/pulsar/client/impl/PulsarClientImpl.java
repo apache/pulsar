@@ -77,8 +77,6 @@ public class PulsarClientImpl implements PulsarClient {
     private final AtomicLong consumerIdGenerator = new AtomicLong();
     private final AtomicLong requestIdGenerator = new AtomicLong();
 
-    private final ExecutorService lookupIoExecutor;
-
     public PulsarClientImpl(String serviceUrl, ClientConfiguration conf) throws PulsarClientException {
         this(serviceUrl, conf, getEventLoopGroup(conf), null);
     }
@@ -90,22 +88,11 @@ public class PulsarClientImpl implements PulsarClient {
         }
         this.conf = conf;
         conf.getAuthentication().start();
-        httpClient = new HttpClient(serviceUrl, conf.getAuthentication(), lookupIoExecutor,
+        httpClient = new HttpClient(serviceUrl, conf.getAuthentication(), eventLoopGroup,
                 conf.isTlsAllowInsecureConnection(), conf.getTlsTrustCertsFilePath());
         lookup = new LookupService(httpClient, conf.isUseTls());
         partition = new PartitionMetadataLookupService(httpClient);
         cnxPool = new ConnectionPool(this, eventLoopGroup);
-
-        ExecutorService lookupIo;
-        if (lookupIoExecutor == null) {
-            // Create a new executor and store to close it at shutdown
-            lookupIo = new ThreadPoolExecutor(1, 16, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>(),
-                    new DefaultThreadFactory("pulsar-lookup"));
-            this.lookupIoExecutor = lookupIo;
-        } else {
-            lookupIo = lookupIoExecutor;
-            this.lookupIoExecutor = null;
-        }
 
         timer = new HashedWheelTimer(new DefaultThreadFactory("pulsar-timer"), 1, TimeUnit.MILLISECONDS);
         externalExecutorProvider = new ExecutorProvider(conf.getListenerThreads(), "pulsar-external-listener");
@@ -341,9 +328,6 @@ public class PulsarClientImpl implements PulsarClient {
     public void shutdown() throws PulsarClientException {
         try {
             httpClient.close();
-            if (lookupIoExecutor != null) {
-                lookupIoExecutor.shutdownNow();
-            }
             cnxPool.close();
             timer.stop();
             externalExecutorProvider.shutdownNow();

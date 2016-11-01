@@ -61,7 +61,7 @@
 			<version>${project.version}</version>
 		</dependency>
 		<dependency>
-			<groupId>com.ning</groupId>
+			<groupId>org.asynchttpclient</groupId>
 			<artifactId>async-http-client</artifactId>
 		</dependency>
 		<dependency>
