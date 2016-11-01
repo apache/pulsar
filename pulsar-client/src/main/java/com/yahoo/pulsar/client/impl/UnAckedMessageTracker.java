@@ -17,7 +17,9 @@ package com.yahoo.pulsar.client.impl;
 
 import java.io.Closeable;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -88,7 +90,7 @@ public class UnAckedMessageTracker implements Closeable {
             public void run(Timeout t) throws Exception {
                 if (isAckTimeout()) {
                     log.warn("[{}] {} messages have timed-out", consumerBase, oldOpenSet.size());
-                    List<MessageIdImpl> messageIds = new ArrayList<>();
+                    Set<MessageIdImpl> messageIds = new HashSet<>();
                     oldOpenSet.forEach(messageIds::add);
                     oldOpenSet.clear();
                     consumerBase.redeliverUnacknowledgedMessages(messageIds);

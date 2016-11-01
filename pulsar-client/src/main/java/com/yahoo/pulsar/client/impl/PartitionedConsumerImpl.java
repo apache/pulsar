@@ -18,7 +18,9 @@ package com.yahoo.pulsar.client.impl;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
@@ -387,9 +389,9 @@ public class PartitionedConsumerImpl extends ConsumerBase {
     }
 
     @Override
-    public void redeliverUnacknowledgedMessages(List<MessageIdImpl> messageIds) {
+    public void redeliverUnacknowledgedMessages(Set<MessageIdImpl> messageIds) {
         for (ConsumerImpl c : consumers) {
-            List<MessageIdImpl> consumerMessageIds = new ArrayList<>();
+            Set<MessageIdImpl> consumerMessageIds = new HashSet<>();
             messageIds.removeIf(messageId -> {
                 if (messageId.getPartitionIndex() == c.getPartitionIndex()) {
                     consumerMessageIds.add(messageId);
