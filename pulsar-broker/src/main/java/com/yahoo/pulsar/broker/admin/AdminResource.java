@@ -237,7 +237,7 @@ public abstract class AdminResource extends PulsarWebResource {
         }
     }
 
-    public ObjectMapper jsonMapper() {
+    public static ObjectMapper jsonMapper() {
         return ObjectMapperFactory.getThreadLocal();
     }
 

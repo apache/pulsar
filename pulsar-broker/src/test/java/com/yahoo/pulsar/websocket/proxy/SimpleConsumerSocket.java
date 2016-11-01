@@ -50,14 +50,14 @@ public class SimpleConsumerSocket {
 
     @OnWebSocketClose
     public void onClose(int statusCode, String reason) {
-        log.info("Connection closed: %d - %s%n", statusCode, reason);
+        log.info("Connection closed: {} - {}", statusCode, reason);
         this.session = null;
         this.closeLatch.countDown();
     }
 
     @OnWebSocketConnect
     public void onConnect(Session session) throws InterruptedException {
-        log.info("Got connect: %s%n", session);
+        log.info("Got connect: {}", session);
         this.session = session;
         log.debug("Got connected: {}", session);
     }

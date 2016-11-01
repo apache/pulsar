@@ -17,16 +17,27 @@ package com.yahoo.pulsar.websocket.data;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import static com.google.common.base.Joiner.on;
+import com.yahoo.pulsar.websocket.WebSocketError;
 
 @JsonInclude(Include.NON_NULL)
 public class ProducerAck {
     public String result;
+    public String errorMsg;
     public String messageId;
     public String context;
 
-    public ProducerAck(String result, String messageId, String context) {
-        this.result = result;
+    public ProducerAck(String messageId, String context) {
+        this.result = "ok";
         this.messageId = messageId;
         this.context = context;
     }
+
+    public ProducerAck(WebSocketError error, String errorMsg, String messageId, String context) {
+        this.result = on(':').join("send-error", error.getCode());
+        this.errorMsg = errorMsg;
+        this.messageId = messageId;
+        this.context = context;
+    }
+
 }
