@@ -173,6 +173,12 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
                         ReadType.Replay);
                 // clear already acked positions from replay bucket
                 messagesToReplay.removeAll(deletedMessages);
+                // if all the entries are acked-entries and cleared up from messagesToReplay, try to read
+                // next entries as readCompletedEntries-callback was never called 
+                if ((messagesToReplayNow.size() - deletedMessages.size()) == 0) {
+                    havePendingReplayRead = false;
+                    readMoreEntries();
+                }
             } else if (!havePendingRead) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Schedule read of {} messages for {} consumers", name, messagesToRead,
