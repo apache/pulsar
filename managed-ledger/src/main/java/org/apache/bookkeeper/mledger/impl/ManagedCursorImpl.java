@@ -803,6 +803,14 @@ public class ManagedCursorImpl implements ManagedCursor {
         return result.entries;
     }
 
+    /**
+     * Async replays given positions: 
+     * a. before reading it filters out already-acked messages 
+     * b. reads remaining entries async and gives it to given ReadEntriesCallback
+     * c. returns all already-acked messages which are not replayed so, those messages can be removed by
+     * caller(Dispatcher)'s replay-list and it won't try to replay it again
+     * 
+     */
     @Override
     public Set<? extends Position> asyncReplayEntries(final Set<? extends Position> positions, ReadEntriesCallback callback, Object ctx) {
         List<Entry> entries = Lists.newArrayListWithExpectedSize(positions.size());
