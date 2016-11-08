@@ -47,6 +47,8 @@ public class ConsumerConfiguration implements Serializable {
 
     private long ackTimeoutMillis = 0;
 
+    private double receiverQueueRefillThreshold = 0.5;
+
     /**
      * @return the configured timeout in milliseconds for unacked messages.
      */
@@ -170,5 +172,24 @@ public class ConsumerConfiguration implements Serializable {
         checkArgument(consumerName != null && !consumerName.equals(""));
         this.consumerName = consumerName;
         return this;
+    }
+
+    /**
+     * Set receiver threshold for available permits.
+     * @param receiverQueueRefillThreshold
+     * @return
+     */
+    public ConsumerConfiguration setReceiverQueueRefillThreshold(double receiverQueueRefillThreshold) {
+        checkArgument(receiverQueueRefillThreshold >= 0.10 && receiverQueueRefillThreshold <= 0.99,
+                "Receiver Queue Threshold should be greater or equal than 0.10 and smaller or equal than 0.99");
+        this.receiverQueueRefillThreshold = receiverQueueRefillThreshold;
+        return this;
+    }
+
+    /**
+     * @return the configured threshold for available permits.
+     */
+    public double getReceiverQueueRefillThreshold() {
+        return this.receiverQueueRefillThreshold;
     }
 }

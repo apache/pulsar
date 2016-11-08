@@ -101,7 +101,7 @@ public class ConsumerImpl extends ConsumerBase {
         this.availablePermits = new AtomicInteger(0);
         this.subscribeTimeout = System.currentTimeMillis() + client.getConfiguration().getOperationTimeoutMs();
         this.partitionIndex = partitionIndex;
-        this.receiverQueueRefillThreshold = conf.getReceiverQueueSize() / 2;
+        this.receiverQueueRefillThreshold = (int)(conf.getReceiverQueueSize() * conf.getReceiverQueueRefillThreshold());
         this.codecProvider = new CompressionCodecProvider();
         batchMessageAckTracker = new ConcurrentSkipListMap<>();
         if (client.getConfiguration().getStatsIntervalSeconds() > 0) {
