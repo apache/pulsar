@@ -33,6 +33,7 @@ import java.util.TreeMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.yahoo.pulsar.discovery.service.DiscoveryService;
 import com.yahoo.pulsar.discovery.service.web.DiscoveryServiceServlet;
 
 /**
@@ -52,19 +53,29 @@ public class DiscoveryServiceStarter {
 
         // load config file
         final ServiceConfig config = load(configFile);
+        
+        // create broker service
+        DiscoveryService discoveryService = new DiscoveryService(config);
         // create a web-service
         final ServerManager server = new ServerManager(config);
+        
         Runtime.getRuntime().addShutdownHook(new Thread() {
             @Override
             public void run() {
                 try {
+                    discoveryService.close();
                     server.stop();
                 } catch (Exception e) {
                     log.warn("server couldn't stop gracefully {}", e.getMessage(), e);
                 }
             }
         });
+        
+        discoveryService.start();
+        startWebService(server, config);
+    }
 
+    protected static void startWebService(ServerManager server, ServiceConfig config) throws Exception {
         // add servlet
         Map<String, String> initParameters = new TreeMap<>();
         initParameters.put("zookeeperServers", config.getZookeeperServers());

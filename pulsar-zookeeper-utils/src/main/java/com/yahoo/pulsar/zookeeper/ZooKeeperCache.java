@@ -204,6 +204,17 @@ public abstract class ZooKeeperCache implements Watcher {
         return getData(path, this, deserializer).map(e -> e.getKey());
     }
 
+    public <T> CompletableFuture<Optional<T>> getDataAsync(final String path, final Deserializer<T> deserializer) {
+        CompletableFuture<Optional<T>> future = new CompletableFuture<>();
+        getDataAsync(path, this, deserializer).thenAccept(data -> {
+            future.complete(data.map(e -> e.getKey()));
+        }).exceptionally(ex -> {
+            future.complete(Optional.empty());
+            return null;
+        });
+        return future;
+    }
+
     /**
      * Cache that implements automatic reloading on update will pass a different Watcher object to reload cache entry
      * automatically

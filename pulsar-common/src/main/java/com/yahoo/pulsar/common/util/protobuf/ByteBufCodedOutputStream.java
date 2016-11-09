@@ -127,7 +127,18 @@ public class ByteBufCodedOutputStream {
         writeTag(fieldNumber, WireFormat.WIRETYPE_VARINT);
         writeUInt64NoTag(value);
     }
+    
+    /** Write a {@code bool} field, including tag, to the stream. */
+    public void writeBool(final int fieldNumber, final boolean value) throws IOException {
+        writeTag(fieldNumber, WireFormat.WIRETYPE_VARINT);
+        writeBoolNoTag(value);
+    }
 
+    /** Write a {@code bool} field to the stream. */
+    public void writeBoolNoTag(final boolean value) throws IOException {
+      writeRawByte(value ? 1 : 0);
+    }
+    
     /** Write a {@code uint64} field to the stream. */
     public void writeUInt64NoTag(final long value) throws IOException {
         writeRawVarint64(value);

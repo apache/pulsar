@@ -16,44 +16,46 @@
 package com.yahoo.pulsar.client.impl;
 
 import java.net.InetSocketAddress;
-import java.net.URI;
 import java.util.concurrent.CompletableFuture;
 
-import com.yahoo.pulsar.client.util.FutureUtil;
-import com.yahoo.pulsar.common.lookup.data.LookupData;
 import com.yahoo.pulsar.common.naming.DestinationName;
+import com.yahoo.pulsar.common.partition.PartitionedTopicMetadata;
 
-class LookupService {
+/**
+ * Provides lookup service to find broker which serves given topic. It helps to
+ * lookup
+ * <ul>
+ * <li><b>topic-lookup:</b> lookup to find broker-address which serves given
+ * topic</li>
+ * <li><b>Partitioned-topic-Metadata-lookup:</b> lookup to find
+ * PartitionedMetadata for a given topic</li>
+ * </ul>
+ * 
+ */
+interface LookupService {
 
-    private final HttpClient httpClient;
-    private final boolean useTls;
-    private static final String BasePath = "lookup/v2/destination/";
-
-    public LookupService(HttpClient httpClient, boolean useTls) {
-        this.httpClient = httpClient;
-        this.useTls = useTls;
-    }
-
-    @SuppressWarnings("deprecation")
-    public CompletableFuture<InetSocketAddress> getBroker(DestinationName destination) {
-        return httpClient.get(BasePath + destination.getLookupName(), LookupData.class).thenCompose(lookupData -> {
-            // Convert LookupData into as SocketAddress, handling exceptions
-            try {
-                URI uri;
-                if (useTls) {
-                    uri = new URI(lookupData.getBrokerUrlTls());
-                } else {
-                    String serviceUrl = lookupData.getBrokerUrl();
-                    if (serviceUrl == null) {
-                        serviceUrl = lookupData.getNativeUrl();
-                    }
-                    uri = new URI(serviceUrl);
-                }
-                return CompletableFuture.completedFuture(new InetSocketAddress(uri.getHost(), uri.getPort()));
-            } catch (Exception e) {
-                // Failed to parse url
-                return FutureUtil.failedFuture(e);
-            }
-        });
-    }
+	/**
+	 * Calls broker lookup-api to get broker {@link InetSocketAddress} which serves namespacebundle that
+	 * contains given topic.
+	 * 
+	 * @param destination:
+	 *            topic-name
+	 * @return broker-socket-address that serves given topic
+	 */
+	public CompletableFuture<InetSocketAddress> getBroker(DestinationName topic);
+    
+	/**
+	 * Returns {@link PartitionedTopicMetadata} for a given topic.
+	 * 
+	 * @param destination : topic-name
+	 * @return
+	 */
+	public CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(DestinationName destination);
+	
+	/**
+	 * Returns broker-service lookup api url.
+	 * 
+	 * @return
+	 */
+	public String getServiceUrl();
 }

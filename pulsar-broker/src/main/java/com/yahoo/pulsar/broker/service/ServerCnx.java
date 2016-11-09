@@ -16,6 +16,10 @@
 package com.yahoo.pulsar.broker.service;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.yahoo.pulsar.broker.admin.PersistentTopics.getPartitionedTopicMetadata;
+import static com.yahoo.pulsar.broker.lookup.DestinationLookup.lookupDestinationAsync;
+import static com.yahoo.pulsar.common.api.Commands.newLookupResponse;
+import static com.yahoo.pulsar.common.api.proto.PulsarApi.ProtocolVersion.v5;
 
 import java.net.SocketAddress;
 import java.util.concurrent.CompletableFuture;
@@ -29,6 +33,7 @@ import org.slf4j.LoggerFactory;
 
 import com.yahoo.pulsar.broker.authentication.AuthenticationDataCommand;
 import com.yahoo.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
+import com.yahoo.pulsar.client.api.PulsarClientException;
 import com.yahoo.pulsar.common.api.Commands;
 import com.yahoo.pulsar.common.api.PulsarHandler;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandAck;
@@ -36,6 +41,8 @@ import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandCloseConsumer;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandCloseProducer;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConnect;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandFlow;
+import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandLookupTopic;
+import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadata;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandProducer;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandRedeliverUnacknowledgedMessages;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSend;
@@ -43,7 +50,6 @@ import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSubscribe;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandUnsubscribe;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.MessageMetadata;
-import static com.yahoo.pulsar.common.api.proto.PulsarApi.ProtocolVersion.v5;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.ServerError;
 import com.yahoo.pulsar.common.naming.DestinationName;
 import com.yahoo.pulsar.common.policies.data.BacklogQuota;
@@ -138,7 +144,51 @@ public class ServerCnx extends PulsarHandler {
     // ////
     // // Incoming commands handling
     // ////
+    
+    
+    @Override
+    protected void handleLookup(CommandLookupTopic lookup) {
+        if (log.isDebugEnabled()) {
+            log.debug("Received Lookup from {}", remoteAddress);
+        }
+        lookupDestinationAsync(getBrokerService().pulsar(), DestinationName.get(lookup.getTopic()),
+                lookup.getAuthoritative(), getRole(), lookup.getRequestId()).thenAccept(lookupResponse -> {
+                    ctx.writeAndFlush(lookupResponse);
+                }).exceptionally(ex -> {
+                    // it should never happen
+                    log.warn("[{}] lookup failed with error {}", remoteAddress, ex.getMessage(), ex);
+                    ctx.writeAndFlush(
+                            newLookupResponse(ServerError.ServiceNotReady, ex.getMessage(), lookup.getRequestId()));
+                    return null;
+                });
 
+    }
+
+    @Override
+    protected void handlePartitionMetadataRequest(CommandPartitionedTopicMetadata partitionMetadata) {
+        if (log.isDebugEnabled()) {
+            log.debug("Received PartitionMetadataLookup from {}", remoteAddress);
+        }
+        getPartitionedTopicMetadata(getBrokerService().pulsar(), getRole(),
+                DestinationName.get(partitionMetadata.getTopic())).thenAccept(metadata -> {
+                    int partitions = metadata.partitions;
+                    ctx.writeAndFlush(
+                            Commands.newPartitionMetadataResponse(partitions, partitionMetadata.getRequestId()));
+                }).exceptionally(ex -> {
+                    if (ex instanceof PulsarClientException) {
+                        log.warn("Failed to authorize {} at [{}] on topic {} : {}", getRole(), remoteAddress,
+                                partitionMetadata.getTopic(), ex.getMessage());
+                        ctx.writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.AuthorizationError,
+                                ex.getMessage(), partitionMetadata.getRequestId()));
+                    } else {
+                        log.warn("Failed to get Partitioned Metadata [{}] {}: {}", remoteAddress, ex.getMessage());
+                        ctx.writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.ServiceNotReady,
+                                ex.getMessage(), partitionMetadata.getRequestId()));
+                    }
+                    return null;
+                });
+    }
+    
     @Override
     protected void handleConnect(CommandConnect connect) {
         checkArgument(state == State.Start);

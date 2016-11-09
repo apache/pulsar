@@ -57,9 +57,8 @@ public class PulsarClientImpl implements PulsarClient {
     private static final Logger log = LoggerFactory.getLogger(PulsarClientImpl.class);
 
     private final ClientConfiguration conf;
-    private final HttpClient httpClient;
+    private HttpClient httpClient;
     private final LookupService lookup;
-    private final PartitionMetadataLookupService partition;
     private final ConnectionPool cnxPool;
     private final Timer timer;
     private final ExecutorProvider externalExecutorProvider;
@@ -75,7 +74,7 @@ public class PulsarClientImpl implements PulsarClient {
 
     private final AtomicLong producerIdGenerator = new AtomicLong();
     private final AtomicLong consumerIdGenerator = new AtomicLong();
-    private final AtomicLong requestIdGenerator = new AtomicLong();
+    protected static final AtomicLong requestIdGenerator = new AtomicLong();
 
     public PulsarClientImpl(String serviceUrl, ClientConfiguration conf) throws PulsarClientException {
         this(serviceUrl, conf, getEventLoopGroup(conf), null);
@@ -88,12 +87,14 @@ public class PulsarClientImpl implements PulsarClient {
         }
         this.conf = conf;
         conf.getAuthentication().start();
-        httpClient = new HttpClient(serviceUrl, conf.getAuthentication(), eventLoopGroup,
-                conf.isTlsAllowInsecureConnection(), conf.getTlsTrustCertsFilePath());
-        lookup = new LookupService(httpClient, conf.isUseTls());
-        partition = new PartitionMetadataLookupService(httpClient);
         cnxPool = new ConnectionPool(this, eventLoopGroup);
-
+        if (serviceUrl.startsWith("http")) {
+            httpClient = new HttpClient(serviceUrl, conf.getAuthentication(), eventLoopGroup,
+                    conf.isTlsAllowInsecureConnection(), conf.getTlsTrustCertsFilePath());
+            lookup = new HttpLookupService(httpClient, conf.isUseTls());
+        } else {
+            lookup = new BinaryProtoLookupService(cnxPool, serviceUrl, conf.isUseTls());
+        }
         timer = new HashedWheelTimer(new DefaultThreadFactory("pulsar-timer"), 1, TimeUnit.MILLISECONDS);
         externalExecutorProvider = new ExecutorProvider(conf.getListenerThreads(), "pulsar-external-listener");
         internalExecutorProvider = new ExecutorProvider(conf.getListenerThreads(), "pulsar-internal-listener");
@@ -287,7 +288,7 @@ public class PulsarClientImpl implements PulsarClient {
 
     @Override
     public CompletableFuture<Void> closeAsync() {
-        log.info("Client closing. URL: {}", this.httpClient.url.toString());
+        log.info("Client closing. URL: {}", lookup.getServiceUrl());
         if (!state.compareAndSet(State.Open, State.Closing)) {
             return FutureUtil.failedFuture(new PulsarClientException.AlreadyClosedException("Client already closed"));
         }
@@ -327,7 +328,9 @@ public class PulsarClientImpl implements PulsarClient {
     @Override
     public void shutdown() throws PulsarClientException {
         try {
-            httpClient.close();
+            if (httpClient!= null) {
+                httpClient.close();    
+            }
             cnxPool.close();
             timer.stop();
             externalExecutorProvider.shutdownNow();
@@ -339,11 +342,10 @@ public class PulsarClientImpl implements PulsarClient {
         }
     }
 
-    protected CompletableFuture<ClientCnx> getConnection(final String topic) {
-        DestinationName destinationName = DestinationName.get(topic);
-
-        return lookup.getBroker(destinationName).thenCompose((brokerAddress) -> cnxPool.getConnection(brokerAddress));
-    }
+	protected CompletableFuture<ClientCnx> getConnection(final String topic) {
+		DestinationName destinationName = DestinationName.get(topic);
+		return lookup.getBroker(destinationName).thenCompose((brokerAddress) -> cnxPool.getConnection(brokerAddress));
+	}
 
     protected Timer timer() {
         return timer;
@@ -375,7 +377,7 @@ public class PulsarClientImpl implements PulsarClient {
 
         try {
             DestinationName destinationName = DestinationName.get(topic);
-            metadataFuture = partition.getPartitionedTopicMetadata(destinationName);
+            metadataFuture = lookup.getPartitionedTopicMetadata(destinationName);
         } catch (IllegalArgumentException e) {
             return FutureUtil.failedFuture(e);
         }

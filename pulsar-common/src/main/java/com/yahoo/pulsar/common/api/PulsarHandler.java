@@ -57,8 +57,10 @@ public abstract class PulsarHandler extends PulsarDecoder {
         if (log.isDebugEnabled()) {
             log.debug("[{}] Scheduling keep-alive task every {} s", ctx.channel(), keepAliveIntervalSeconds);
         }
-        this.keepAliveTask = ctx.executor().scheduleAtFixedRate(this::handleKeepAliveTimeout, keepAliveIntervalSeconds,
-                keepAliveIntervalSeconds, TimeUnit.SECONDS);
+        if (keepAliveIntervalSeconds > 0) {
+            this.keepAliveTask = ctx.executor().scheduleAtFixedRate(this::handleKeepAliveTimeout,
+                    keepAliveIntervalSeconds, keepAliveIntervalSeconds, TimeUnit.SECONDS);
+        }
     }
 
     @Override

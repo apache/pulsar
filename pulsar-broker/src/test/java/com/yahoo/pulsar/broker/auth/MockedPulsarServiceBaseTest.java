@@ -19,6 +19,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 
 import java.io.IOException;
+import java.net.URI;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
@@ -67,6 +68,7 @@ public abstract class MockedPulsarServiceBaseTest {
 
     protected MockZooKeeper mockZookKeeper;
     protected NonClosableMockBookKeeper mockBookKeeper;
+    protected boolean isTcpLookup = false;
 
     private SameThreadOrderedSafeExecutor sameThreadOrderedSafeExecutor;
 
@@ -84,17 +86,25 @@ public abstract class MockedPulsarServiceBaseTest {
         init();
         com.yahoo.pulsar.client.api.ClientConfiguration clientConf = new com.yahoo.pulsar.client.api.ClientConfiguration();
         clientConf.setStatsInterval(0, TimeUnit.SECONDS);
-        pulsarClient = PulsarClient.create(brokerUrl.toString(), clientConf);
+        String lookupUrl = brokerUrl.toString();
+        if (isTcpLookup) {
+            lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT).toString();
+        }
+        pulsarClient = PulsarClient.create(lookupUrl, clientConf);
     }
 
     protected final void internalSetupForStatsTest() throws Exception {
         init();
         com.yahoo.pulsar.client.api.ClientConfiguration clientConf = new com.yahoo.pulsar.client.api.ClientConfiguration();
         clientConf.setStatsInterval(1, TimeUnit.SECONDS);
-        pulsarClient = PulsarClient.create(brokerUrl.toString(), clientConf);
+        String lookupUrl = brokerUrl.toString();
+        if (isTcpLookup) {
+            lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT).toString();
+        }
+        pulsarClient = PulsarClient.create(lookupUrl, clientConf);
     }
 
-    private final void init() throws Exception {
+    protected final void init() throws Exception {
         mockZookKeeper = createMockZooKeeper();
         mockBookKeeper = new NonClosableMockBookKeeper(new ClientConfiguration(), mockZookKeeper);
 

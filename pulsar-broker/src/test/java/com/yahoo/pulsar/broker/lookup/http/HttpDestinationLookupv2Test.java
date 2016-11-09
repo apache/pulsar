@@ -26,6 +26,7 @@ import java.net.URI;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.CompletableFuture;
 
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.AsyncResponse;
@@ -33,6 +34,7 @@ import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriInfo;
 
 import org.mockito.ArgumentCaptor;
+import org.mockito.Mockito;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -98,6 +100,9 @@ public class HttpDestinationLookupv2Test {
         doReturn(Optional.of(useData)).when(clustersCache).get(AdminResource.path("clusters", "use"));
         doReturn(Optional.of(uscData)).when(clustersCache).get(AdminResource.path("clusters", "usc"));
         doReturn(Optional.of(uswData)).when(clustersCache).get(AdminResource.path("clusters", "usw"));
+        doReturn(CompletableFuture.completedFuture(Optional.of(useData))).when(clustersCache).getAsync(AdminResource.path("clusters", "use"));
+        doReturn(CompletableFuture.completedFuture(Optional.of(uscData))).when(clustersCache).getAsync(AdminResource.path("clusters", "usc"));
+        doReturn(CompletableFuture.completedFuture(Optional.of(uswData))).when(clustersCache).getAsync(AdminResource.path("clusters", "usw"));
         doReturn(clusters).when(clustersListCache).get();
         doReturn(ns).when(pulsar).getNamespaceService();
         BrokerService brokerService = mock(BrokerService.class);
@@ -109,6 +114,7 @@ public class HttpDestinationLookupv2Test {
     public void crossColoLookup() throws Exception {
 
         DestinationLookup destLookup = spy(new DestinationLookup());
+        doReturn(false).when(destLookup).isRequestHttps();
         destLookup.setPulsar(pulsar);
         doReturn("null").when(destLookup).clientAppId();
         Field uriField = PulsarWebResource.class.getDeclaredField("uri");
@@ -145,6 +151,7 @@ public class HttpDestinationLookupv2Test {
                 .get(AdminResource.path("policies", property, cluster, ns2));
 
         DestinationLookup destLookup = spy(new DestinationLookup());
+        doReturn(false).when(destLookup).isRequestHttps();
         destLookup.setPulsar(pulsar);
         doReturn("null").when(destLookup).clientAppId();
         Field uriField = PulsarWebResource.class.getDeclaredField("uri");

@@ -69,7 +69,7 @@ public class MockBrokerService {
         private final String lookupURI = "/lookup/v2/destination/persistent";
         private final String partitionMetadataURI = "/admin/persistent";
         private final LookupData lookupData = new LookupData("pulsar://127.0.0.1:" + brokerServicePort,
-                "pulsar://127.0.0.1:" + brokerServicePortTls, "http://127.0.0.1:" + webServicePort);
+                "pulsar://127.0.0.1:" + brokerServicePortTls, "http://127.0.0.1:" + webServicePort, null);
         private final PartitionedTopicMetadata singlePartitionedTopicMetadata = new PartitionedTopicMetadata(1);
         private final PartitionedTopicMetadata multiPartitionedTopicMetadata = new PartitionedTopicMetadata(4);
         private final PartitionedTopicMetadata nonPartitionedTopicMetadata = new PartitionedTopicMetadata();

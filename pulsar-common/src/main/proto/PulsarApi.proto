@@ -125,6 +125,50 @@ message CommandSubscribe {
 	optional string consumer_name = 6;
 }
 
+message CommandPartitionedTopicMetadata {
+	required string topic            = 1;
+	required uint64 request_id       = 2;
+}
+
+message CommandPartitionedTopicMetadataResponse {
+	enum LookupType {
+		Redirect = 0;
+		Success  = 1;
+		Failed   = 2;
+	}
+	optional uint32 partitions            = 1;  // Optional in case of error
+	required uint64 request_id            = 2;
+	optional LookupType response          = 3;
+	optional string brokerServiceUrl      = 4;  // Present in case of redirect
+	optional string brokerServiceUrlTls   = 5;
+	optional ServerError error            = 6;
+	optional string message               = 7;
+	
+}
+
+message CommandLookupTopic {
+	required string topic            = 1;
+	required uint64 request_id       = 2;
+	optional bool authoritative      = 3 [default = false];
+}
+
+
+message CommandLookupTopicResponse {
+	enum LookupType {
+		Redirect = 0;
+		Connect  = 1;
+		Failed   = 2;
+	}
+
+	optional string brokerServiceUrl      = 1; // Optional in case of error
+	optional string brokerServiceUrlTls   = 2;
+	optional LookupType response          = 3;
+	required uint64 request_id            = 4;
+	optional bool authoritative           = 5 [default = false];
+	optional ServerError error            = 6;
+	optional string message               = 7;
+}
+
 /// Create a new Producer on a topic, assigning the given producer_id,
 /// all messages sent with this producer_id will be persisted on the topic
 message CommandProducer {
@@ -266,6 +310,12 @@ message BaseCommand {
 		PONG = 19;
 
 		REDELIVER_UNACKNOWLEDGED_MESSAGES = 20;
+		
+		PARTITIONED_METADATA           = 21;
+		PARTITIONED_METADATA_RESPONSE  = 22;
+		
+		LOOKUP           = 23;
+		LOOKUP_RESPONSE  = 24;
 	}
 
 	required Type type = 1;
@@ -293,4 +343,10 @@ message BaseCommand {
 	optional CommandPing ping = 18;
 	optional CommandPong pong = 19;
 	optional CommandRedeliverUnacknowledgedMessages redeliverUnacknowledgedMessages = 20;
+	
+	optional CommandPartitionedTopicMetadata  partitionMetadata                 = 21;
+	optional CommandPartitionedTopicMetadataResponse partitionMetadataResponse  = 22;
+	
+	optional CommandLookupTopic lookupTopic                    = 23;
+	optional CommandLookupTopicResponse lookupTopicResponse    = 24;
 }

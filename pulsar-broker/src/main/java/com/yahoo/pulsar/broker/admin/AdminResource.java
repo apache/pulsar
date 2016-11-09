@@ -39,6 +39,7 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
+import com.yahoo.pulsar.broker.PulsarService;
 import com.yahoo.pulsar.broker.cache.LocalZooKeeperCacheService;
 import com.yahoo.pulsar.broker.web.PulsarWebResource;
 import com.yahoo.pulsar.broker.web.RestException;

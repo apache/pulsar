@@ -115,7 +115,7 @@ public class ConnectionPool implements Closeable {
             return createConnection(address, -1);
         }
 
-        final int randomKey = Math.abs(random.nextInt()) % maxConnectionsPerHosts;
+        final int randomKey = signSafeMod(random.nextInt(), maxConnectionsPerHosts);
 
         return pool.computeIfAbsent(address, a -> new ConcurrentHashMap<>()) //
                 .computeIfAbsent(randomKey, k -> createConnection(address, randomKey));
@@ -175,6 +175,14 @@ public class ConnectionPool implements Closeable {
         if (map != null) {
             map.remove(connectionKey, connectionFuture);
         }
+    }
+    
+    public static int signSafeMod(long dividend, int divisor) {
+        int mod = (int) (dividend % (long) divisor);
+        if (mod < 0) {
+            mod += divisor;
+        }
+        return mod;
     }
 
     private static final Logger log = LoggerFactory.getLogger(ConnectionPool.class);

@@ -26,6 +26,7 @@ import org.slf4j.LoggerFactory;
 
 import com.yahoo.pulsar.client.api.Authentication;
 import com.yahoo.pulsar.client.api.PulsarClientException;
+import com.yahoo.pulsar.client.impl.BinaryProtoLookupService.LookupDataResult;
 import com.yahoo.pulsar.common.api.Commands;
 import com.yahoo.pulsar.common.api.PulsarHandler;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.ServerError;
@@ -33,11 +34,15 @@ import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandCloseConsumer;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandCloseProducer;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConnected;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandError;
+import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse;
+import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse.LookupType;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandMessage;
+import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadataResponse;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandProducerSuccess;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSendError;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSendReceipt;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSuccess;
+import com.yahoo.pulsar.common.api.proto.PulsarApi.ServerError;
 import com.yahoo.pulsar.common.util.collections.ConcurrentLongHashMap;
 
 import io.netty.buffer.ByteBuf;
@@ -51,6 +56,7 @@ public class ClientCnx extends PulsarHandler {
     private State state;
 
     private final ConcurrentLongHashMap<CompletableFuture<String>> pendingRequests = new ConcurrentLongHashMap<>(16, 1);
+    private final ConcurrentLongHashMap<CompletableFuture<LookupDataResult>> pendingLookupRequests = new ConcurrentLongHashMap<>(16, 1);
     private final ConcurrentLongHashMap<ProducerImpl> producers = new ConcurrentLongHashMap<>(16, 1);
     private final ConcurrentLongHashMap<ConsumerImpl> consumers = new ConcurrentLongHashMap<>(16, 1);
 
@@ -191,6 +197,62 @@ public class ClientCnx extends PulsarHandler {
             log.warn("{} Received unknown request id from server: {}", ctx.channel(), success.getRequestId());
         }
     }
+    
+    @Override
+    protected void handleLookupResponse(CommandLookupTopicResponse lookupResult) {
+        log.info("Received Broker lookup response: {}", lookupResult.getResponse());
+
+        long requestId = lookupResult.getRequestId();
+        CompletableFuture<LookupDataResult> requestFuture = pendingLookupRequests.remove(requestId);
+
+        if (requestFuture != null) {
+            // Complete future with exception if : Result.response=fail/null
+            if (lookupResult.getResponse() == null || LookupType.Failed.equals(lookupResult.getResponse())) {
+                if (lookupResult.hasError()) {
+                    requestFuture.completeExceptionally(
+                            getPulsarClientException(lookupResult.getError(), lookupResult.getMessage()));
+                } else {
+                    requestFuture
+                            .completeExceptionally(new PulsarClientException.LookupException("Empty lookup response"));
+                }
+            } else {
+                // return LookupDataResult when Result.response = connect/redirect
+                boolean redirect = LookupType.Redirect.equals(lookupResult.getResponse());
+                requestFuture.complete(new LookupDataResult(lookupResult.getBrokerServiceUrl(),
+                        lookupResult.getBrokerServiceUrlTls(), redirect, lookupResult.getAuthoritative()));
+            }
+        } else {
+            log.warn("{} Received unknown request id from server: {}", ctx.channel(), lookupResult.getRequestId());
+        }
+    }
+    
+    @Override
+    protected void handlePartitionResponse(CommandPartitionedTopicMetadataResponse lookupResult) {
+        log.info("Received Broker Partition response: {}", lookupResult.getPartitions());
+
+        long requestId = lookupResult.getRequestId();
+        CompletableFuture<LookupDataResult> requestFuture = pendingLookupRequests.remove(requestId);
+
+        if (requestFuture != null) {
+            // Complete future with exception if : Result.response=fail/null
+            if (lookupResult.getResponse() == null || LookupType.Failed.equals(lookupResult.getResponse())) {
+                if (lookupResult.hasError()) {
+                    requestFuture.completeExceptionally(
+                            getPulsarClientException(lookupResult.getError(), lookupResult.getMessage()));
+                } else {
+                    requestFuture
+                            .completeExceptionally(new PulsarClientException.LookupException("Empty lookup response"));
+                }
+            } else {
+                // return LookupDataResult when Result.response = success/redirect
+                boolean redirect = LookupType.Redirect.equals(lookupResult.getResponse());
+                requestFuture.complete(new LookupDataResult(lookupResult.getPartitions(),
+                        lookupResult.getBrokerServiceUrl(), lookupResult.getBrokerServiceUrlTls(), redirect));
+            }
+        } else {
+            log.warn("{} Received unknown request id from server: {}", ctx.channel(), lookupResult.getRequestId());
+        }
+    }
 
     @Override
     protected void handleSendError(CommandSendError sendError) {
@@ -216,7 +278,7 @@ public class ClientCnx extends PulsarHandler {
         }
         CompletableFuture<String> requestFuture = pendingRequests.remove(requestId);
         if (requestFuture != null) {
-            requestFuture.completeExceptionally(getPulsarClientException(error));
+            requestFuture.completeExceptionally(getPulsarClientException(error.getError(), error.getMessage()));
         } else {
             log.warn("{} Received unknown request id from server: {}", ctx.channel(), error.getRequestId());
         }
@@ -249,6 +311,18 @@ public class ClientCnx extends PulsarHandler {
     @Override
     protected boolean isHandshakeCompleted() {
         return state == State.Ready;
+    }
+
+    CompletableFuture<LookupDataResult> newLookup(ByteBuf request, long requestId) {
+        CompletableFuture<LookupDataResult> future = new CompletableFuture<>();
+        pendingLookupRequests.put(requestId, future);
+        ctx.writeAndFlush(request).addListener(writeFuture -> {
+            if (!writeFuture.isSuccess()) {
+                log.warn("{} Failed to send request to broker: {}", ctx.channel(), writeFuture.cause().getMessage());
+                future.completeExceptionally(writeFuture.cause());
+            }
+        });
+        return future;
     }
 
     Promise<Void> newPromise() {
@@ -299,27 +373,27 @@ public class ClientCnx extends PulsarHandler {
         consumers.remove(consumerId);
     }
 
-    private PulsarClientException getPulsarClientException(CommandError error) {
-        switch (error.getError()) {
+    private PulsarClientException getPulsarClientException(ServerError error, String errorMsg) {
+        switch (error) {
         case AuthenticationError:
-            return new PulsarClientException.AuthenticationException(error.getMessage());
+            return new PulsarClientException.AuthenticationException(errorMsg);
         case AuthorizationError:
-            return new PulsarClientException.AuthorizationException(error.getMessage());
+            return new PulsarClientException.AuthorizationException(errorMsg);
         case ConsumerBusy:
-            return new PulsarClientException.ConsumerBusyException(error.getMessage());
+            return new PulsarClientException.ConsumerBusyException(errorMsg);
         case MetadataError:
-            return new PulsarClientException.BrokerMetadataException(error.getMessage());
+            return new PulsarClientException.BrokerMetadataException(errorMsg);
         case PersistenceError:
-            return new PulsarClientException.BrokerPersistenceException(error.getMessage());
+            return new PulsarClientException.BrokerPersistenceException(errorMsg);
         case ServiceNotReady:
-            return new PulsarClientException.LookupException(error.getMessage());
+            return new PulsarClientException.LookupException(errorMsg);
         case ProducerBlockedQuotaExceededError:
-            return new PulsarClientException.ProducerBlockedQuotaExceededError(error.getMessage());
+            return new PulsarClientException.ProducerBlockedQuotaExceededError(errorMsg);
         case ProducerBlockedQuotaExceededException:
-            return new PulsarClientException.ProducerBlockedQuotaExceededException(error.getMessage());
+            return new PulsarClientException.ProducerBlockedQuotaExceededException(errorMsg);
         case UnknownError:
         default:
-            return new PulsarClientException(error.getMessage());
+            return new PulsarClientException(errorMsg);
         }
     }
 

@@ -133,6 +133,10 @@ public class ServerManager {
         webServiceExecutor.shutdown();
         log.info("Server stopped successfully");
     }
+    
+	public boolean isStarted() {
+		return server.isStarted();
+	}
 
     private static final Logger log = LoggerFactory.getLogger(ServerManager.class);
 }

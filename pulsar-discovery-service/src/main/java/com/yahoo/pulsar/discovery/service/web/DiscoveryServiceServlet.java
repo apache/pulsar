@@ -130,7 +130,7 @@ public class DiscoveryServiceServlet extends HttpServlet {
                 location.append('?').append(request.getQueryString());
             }
             if (log.isDebugEnabled()) {
-            	log.info("Redirecting to {}", location);	
+                log.info("Redirecting to {}", location);
             }
             response.sendRedirect(location.toString());
         } catch (URISyntaxException e) {
