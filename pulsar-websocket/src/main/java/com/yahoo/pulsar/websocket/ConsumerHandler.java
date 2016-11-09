@@ -24,6 +24,7 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Base64;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -177,8 +178,8 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
     }
 
     @Override
-    protected boolean isAuthorized(String authRole) {
-        return service.getAuthorizationManager().canConsume(DestinationName.get(topic), authRole);
+    protected CompletableFuture<Boolean> isAuthorized(String authRole) {
+        return service.getAuthorizationManager().canConsumeAsync(DestinationName.get(topic), authRole);
     }
 
     private static String extractSubscription(HttpServletRequest request) {

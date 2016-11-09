@@ -181,208 +181,223 @@ public class ServerCnx extends PulsarHandler {
     @Override
     protected void handleSubscribe(final CommandSubscribe subscribe) {
         checkArgument(state == State.Connected);
+        CompletableFuture<Boolean> authorizationFuture;
         if (service.isAuthorizationEnabled()) {
-            if (service.getAuthorizationManager().canConsume(DestinationName.get(subscribe.getTopic()), authRole)) {
+            authorizationFuture = service.getAuthorizationManager()
+                    .canConsumeAsync(DestinationName.get(subscribe.getTopic()), authRole);
+        } else {
+            authorizationFuture = CompletableFuture.completedFuture(true);
+        }
+        authorizationFuture.thenApply(isAuthorized -> {
+            if (isAuthorized) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Client is authorized to subscribe with role {}", remoteAddress, authRole);
                 }
+                final String topicName = subscribe.getTopic();
+                final String subscriptionName = subscribe.getSubscription();
+                final long requestId = subscribe.getRequestId();
+                final long consumerId = subscribe.getConsumerId();
+                final SubType subType = subscribe.getSubType();
+                final String consumerName = subscribe.getConsumerName();
+
+                log.info("[{}] Subscribing on topic {} / {}", remoteAddress, topicName, subscriptionName);
+
+                CompletableFuture<Consumer> consumerFuture = new CompletableFuture<>();
+                CompletableFuture<Consumer> existingConsumerFuture = consumers.putIfAbsent(consumerId, consumerFuture);
+
+                if (existingConsumerFuture != null) {
+                    if (existingConsumerFuture.isDone() && !existingConsumerFuture.isCompletedExceptionally()) {
+                        Consumer consumer = existingConsumerFuture.getNow(null);
+                        log.info("[{}] Consumer with the same id is already created: {}", remoteAddress, consumer);
+                        ctx.writeAndFlush(Commands.newSuccess(requestId));
+                        return null;
+                    } else {
+                        // There was an early request to create a consumer with same consumerId. This can happen when
+                        // client timeout is lower the broker timeouts. We need to wait until the previous consumer
+                        // creation request either complete or fails.
+                        log.warn("[{}][{}][{}] Consumer is already present on the connection", remoteAddress, topicName,
+                                subscriptionName);
+                        ctx.writeAndFlush(Commands.newError(requestId, ServerError.UnknownError,
+                                "Consumer is already present on the connection"));
+                        return null;
+                    }
+                }
+
+                service.getTopic(topicName).thenCompose(
+                        topic -> topic.subscribe(ServerCnx.this, subscriptionName, consumerId, subType, consumerName))
+                        .thenAccept(consumer -> {
+                            if (consumerFuture.complete(consumer)) {
+                                log.info("[{}] Created subscription on topic {} / {}", remoteAddress, topicName,
+                                        subscriptionName);
+                                ctx.writeAndFlush(Commands.newSuccess(requestId), ctx.voidPromise());
+                            } else {
+                                // The consumer future was completed before by a close command
+                                try {
+                                    consumer.close();
+                                    log.info("[{}] Cleared consumer created after timeout on client side {}",
+                                            remoteAddress, consumer);
+                                } catch (BrokerServiceException e) {
+                                    log.warn("[{}] Error closing consumer created after timeout on client side {}: {}",
+                                            remoteAddress, consumer, e.getMessage());
+                                }
+                                consumers.remove(consumerId, consumerFuture);
+                            }
+
+                        }) //
+                        .exceptionally(exception -> {
+                            log.warn("[{}][{}][{}] Failed to create consumer: {}", remoteAddress, topicName,
+                                    subscriptionName, exception.getCause().getMessage());
+
+                            // If client timed out, the future would have been completed by subsequent close. Send error
+                            // back to
+                            // client, only if not completed already.
+                            if (consumerFuture.completeExceptionally(exception)) {
+                                ctx.writeAndFlush(Commands.newError(requestId,
+                                        BrokerServiceException.getClientErrorCode(exception.getCause()),
+                                        exception.getCause().getMessage()));
+                            }
+                            consumers.remove(consumerId, consumerFuture);
+
+                            return null;
+
+                        });
             } else {
                 String msg = "Client is not authorized to subscribe";
                 log.warn("[{}] {} with role {}", remoteAddress, msg, authRole);
                 ctx.writeAndFlush(Commands.newError(subscribe.getRequestId(), ServerError.AuthorizationError, msg));
-                return;
             }
-        }
-
-        final String topicName = subscribe.getTopic();
-        final String subscriptionName = subscribe.getSubscription();
-        final long requestId = subscribe.getRequestId();
-        final long consumerId = subscribe.getConsumerId();
-        final SubType subType = subscribe.getSubType();
-        final String consumerName = subscribe.getConsumerName();
-
-        log.info("[{}] Subscribing on topic {} / {}", remoteAddress, topicName, subscriptionName);
-
-        CompletableFuture<Consumer> consumerFuture = new CompletableFuture<>();
-        CompletableFuture<Consumer> existingConsumerFuture = consumers.putIfAbsent(consumerId, consumerFuture);
-
-        if (existingConsumerFuture != null) {
-            if (existingConsumerFuture.isDone() && !existingConsumerFuture.isCompletedExceptionally()) {
-                Consumer consumer = existingConsumerFuture.getNow(null);
-                log.info("[{}] Consumer with the same id is already created: {}", remoteAddress, consumer);
-                ctx.writeAndFlush(Commands.newSuccess(requestId));
-                return;
-            } else {
-                // There was an early request to create a consumer with same consumerId. This can happen when client
-                // timeout
-                // is lower the broker timeouts. We need to wait until the previous consumer creation request either
-                // complete or fails.
-                log.warn("[{}][{}][{}] Consumer is already present on the connection", remoteAddress, topicName,
-                        subscriptionName);
-                ctx.writeAndFlush(Commands.newError(requestId, ServerError.UnknownError,
-                        "Consumer is already present on the connection"));
-                return;
-            }
-        }
-
-        service.getTopic(topicName)
-                .thenCompose(
-                        topic -> topic.subscribe(ServerCnx.this, subscriptionName, consumerId, subType, consumerName))
-                .thenAccept(consumer -> {
-                    if (consumerFuture.complete(consumer)) {
-                        log.info("[{}] Created subscription on topic {} / {}", remoteAddress, topicName,
-                                subscriptionName);
-                        ctx.writeAndFlush(Commands.newSuccess(requestId), ctx.voidPromise());
-                    } else {
-                        // The consumer future was completed before by a close command
-                        try {
-                            consumer.close();
-                            log.info("[{}] Cleared consumer created after timeout on client side {}", remoteAddress,
-                                    consumer);
-                        } catch (BrokerServiceException e) {
-                            log.warn("[{}] Error closing consumer created after timeout on client side {}: {}",
-                                    remoteAddress, consumer, e.getMessage());
-                        }
-                        consumers.remove(consumerId, consumerFuture);
-                    }
-
-                }) //
-                .exceptionally(exception -> {
-                    log.warn("[{}][{}][{}] Failed to create consumer: {}", remoteAddress, topicName, subscriptionName,
-                            exception.getCause().getMessage());
-
-                    // If client timed out, the future would have been completed by subsequent close. Send error back to
-                    // client, only if not completed already.
-                    if (consumerFuture.completeExceptionally(exception)) {
-                        ctx.writeAndFlush(Commands.newError(requestId,
-                                BrokerServiceException.getClientErrorCode(exception.getCause()),
-                                exception.getCause().getMessage()));
-                    }
-                    consumers.remove(consumerId, consumerFuture);
-
-                    return null;
-
-                });
+            return null;
+        });
     }
 
     @Override
     protected void handleProducer(final CommandProducer cmdProducer) {
         checkArgument(state == State.Connected);
+        CompletableFuture<Boolean> authorizationFuture;
         if (service.isAuthorizationEnabled()) {
-            if (service.getAuthorizationManager().canProduce(DestinationName.get(cmdProducer.getTopic().toString()),
-                    authRole)) {
+            authorizationFuture = service.getAuthorizationManager()
+                    .canProduceAsync(DestinationName.get(cmdProducer.getTopic().toString()), authRole);
+        } else {
+            authorizationFuture = CompletableFuture.completedFuture(true);
+        }
+        authorizationFuture.thenApply(isAuthorized -> {
+            if (isAuthorized) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Client is authorized to Produce with role {}", remoteAddress, authRole);
                 }
+                final String producerName;
+                if (cmdProducer.hasProducerName()) {
+                    // Use producer name provided by client
+                    producerName = cmdProducer.getProducerName();
+                } else {
+                    // Need to generate a unique id
+                    producerName = service.generateUniqueProducerName();
+                }
+
+                final String topicName = cmdProducer.getTopic();
+                final long producerId = cmdProducer.getProducerId();
+                final long requestId = cmdProducer.getRequestId();
+
+                CompletableFuture<Producer> producerFuture = new CompletableFuture<>();
+
+                CompletableFuture<Producer> existingProducerFuture = producers.putIfAbsent(producerId, producerFuture);
+
+                if (existingProducerFuture != null) {
+                    if (existingProducerFuture.isDone() && !existingProducerFuture.isCompletedExceptionally()) {
+                        Producer producer = existingProducerFuture.getNow(null);
+                        log.info("[{}] Producer with the same id is already created: {}", remoteAddress, producer);
+                        ctx.writeAndFlush(Commands.newProducerSuccess(requestId, producer.getProducerName()));
+                        return null;
+                    } else {
+                        // There was an early request to create a producer with same producerId. This can happen when
+                        // client
+                        // timeout is lower the broker timeouts. We need to wait until the previous producer creation
+                        // request
+                        // either complete or fails.
+                        log.warn("[{}][{}] Producer is already present on the connection", remoteAddress, topicName);
+                        ctx.writeAndFlush(Commands.newError(requestId, ServerError.UnknownError,
+                                "Producer is already present on the connection"));
+                        return null;
+                    }
+                }
+
+                log.info("[{}][{}] Creating producer. producerId={}", remoteAddress, topicName, producerId);
+
+                service.getTopic(topicName).thenAccept((Topic topic) -> {
+                    // Before creating producer, check if backlog quota exceeded on topic
+                    if (topic.isBacklogQuotaExceeded(producerName)) {
+                        IllegalStateException illegalStateException = new IllegalStateException(
+                                "Cannot create producer on topic with backlog quota exceeded");
+                        BacklogQuota.RetentionPolicy retentionPolicy = topic.getBacklogQuota().getPolicy();
+                        if (retentionPolicy == BacklogQuota.RetentionPolicy.producer_request_hold) {
+                            ctx.writeAndFlush(Commands.newError(requestId,
+                                    ServerError.ProducerBlockedQuotaExceededError, illegalStateException.getMessage()));
+                        } else if (retentionPolicy == BacklogQuota.RetentionPolicy.producer_exception) {
+                            ctx.writeAndFlush(
+                                    Commands.newError(requestId, ServerError.ProducerBlockedQuotaExceededException,
+                                            illegalStateException.getMessage()));
+                        }
+                        producerFuture.completeExceptionally(illegalStateException);
+                        producers.remove(producerId, producerFuture);
+                        return;
+                    }
+
+                    disableTcpNoDelayIfNeeded(topicName, producerName);
+
+                    Producer producer = new Producer(topic, ServerCnx.this, producerId, producerName, authRole);
+
+                    try {
+                        topic.addProducer(producer);
+
+                        if (isActive()) {
+                            if (producerFuture.complete(producer)) {
+                                log.info("[{}] Created new producer: {}", remoteAddress, producer);
+                                ctx.writeAndFlush(Commands.newProducerSuccess(requestId, producerName));
+                                return;
+                            } else {
+                                // The producer's future was completed before by a close command
+                                producer.closeNow();
+                                log.info("[{}] Cleared producer created after timeout on client side {}", remoteAddress,
+                                        producer);
+                            }
+                        } else {
+                            producer.closeNow();
+                            log.info("[{}] Cleared producer created after connection was closed: {}", remoteAddress,
+                                    producer);
+                            producerFuture.completeExceptionally(
+                                    new IllegalStateException("Producer created after connection was closed"));
+                        }
+                    } catch (BrokerServiceException ise) {
+                        log.error("[{}] Failed to add producer to topic {}: {}", remoteAddress, topicName,
+                                ise.getMessage());
+                        ctx.writeAndFlush(Commands.newError(requestId, BrokerServiceException.getClientErrorCode(ise),
+                                ise.getMessage()));
+                        producerFuture.completeExceptionally(ise);
+                    }
+
+                    producers.remove(producerId, producerFuture);
+                }).exceptionally(exception -> {
+                    Throwable cause = exception.getCause();
+                    if (!(cause instanceof ServiceUnitNotReadyException)) {
+                        // Do not print stack traces for expected exceptions
+                        log.error("[{}] Failed to create topic {}", remoteAddress, topicName, exception);
+                    }
+
+                    // If client timed out, the future would have been completed by subsequent close. Send error back to
+                    // client, only if not completed already.
+                    if (producerFuture.completeExceptionally(exception)) {
+                        ctx.writeAndFlush(Commands.newError(requestId, BrokerServiceException.getClientErrorCode(cause),
+                                cause.getMessage()));
+                    }
+                    producers.remove(producerId, producerFuture);
+
+                    return null;
+                });
             } else {
                 String msg = "Client is not authorized to Produce";
                 log.warn("[{}] {} with role {}", remoteAddress, msg, authRole);
                 ctx.writeAndFlush(Commands.newError(cmdProducer.getRequestId(), ServerError.AuthorizationError, msg));
-                return;
             }
-        }
-
-        final String producerName;
-        if (cmdProducer.hasProducerName()) {
-            // Use producer name provided by client
-            producerName = cmdProducer.getProducerName();
-        } else {
-            // Need to generate a unique id
-            producerName = service.generateUniqueProducerName();
-        }
-
-        final String topicName = cmdProducer.getTopic();
-        final long producerId = cmdProducer.getProducerId();
-        final long requestId = cmdProducer.getRequestId();
-
-        CompletableFuture<Producer> producerFuture = new CompletableFuture<>();
-
-        CompletableFuture<Producer> existingProducerFuture = producers.putIfAbsent(producerId, producerFuture);
-
-        if (existingProducerFuture != null) {
-            if (existingProducerFuture.isDone() && !existingProducerFuture.isCompletedExceptionally()) {
-                Producer producer = existingProducerFuture.getNow(null);
-                log.info("[{}] Producer with the same id is already created: {}", remoteAddress, producer);
-                ctx.writeAndFlush(Commands.newProducerSuccess(requestId, producer.getProducerName()));
-                return;
-            } else {
-                // There was an early request to create a producer with same producerId. This can happen when client
-                // timeout is lower the broker timeouts. We need to wait until the previous producer creation request
-                // either complete or fails.
-                log.warn("[{}][{}] Producer is already present on the connection", remoteAddress, topicName);
-                ctx.writeAndFlush(Commands.newError(requestId, ServerError.UnknownError,
-                        "Producer is already present on the connection"));
-                return;
-            }
-        }
-
-        log.info("[{}][{}] Creating producer. producerId={}", remoteAddress, topicName, producerId);
-
-        service.getTopic(topicName).thenAccept((Topic topic) -> {
-            // Before creating producer, check if backlog quota exceeded on topic
-            if (topic.isBacklogQuotaExceeded(producerName)) {
-                IllegalStateException illegalStateException = new IllegalStateException(
-                        "Cannot create producer on topic with backlog quota exceeded");
-                BacklogQuota.RetentionPolicy retentionPolicy = topic.getBacklogQuota().getPolicy();
-                if (retentionPolicy == BacklogQuota.RetentionPolicy.producer_request_hold) {
-                    ctx.writeAndFlush(Commands.newError(requestId, ServerError.ProducerBlockedQuotaExceededError,
-                            illegalStateException.getMessage()));
-                } else if (retentionPolicy == BacklogQuota.RetentionPolicy.producer_exception) {
-                    ctx.writeAndFlush(Commands.newError(requestId, ServerError.ProducerBlockedQuotaExceededException,
-                            illegalStateException.getMessage()));
-                }
-                producerFuture.completeExceptionally(illegalStateException);
-                producers.remove(producerId, producerFuture);
-                return;
-            }
-
-            disableTcpNoDelayIfNeeded(topicName, producerName);
-
-            Producer producer = new Producer(topic, ServerCnx.this, producerId, producerName, authRole);
-
-            try {
-                topic.addProducer(producer);
-
-                if (isActive()) {
-                    if (producerFuture.complete(producer)) {
-                        log.info("[{}] Created new producer: {}", remoteAddress, producer);
-                        ctx.writeAndFlush(Commands.newProducerSuccess(requestId, producerName));
-                        return;
-                    } else {
-                        // The producer's future was completed before by a close command
-                        producer.closeNow();
-                        log.info("[{}] Cleared producer created after timeout on client side {}", remoteAddress,
-                                producer);
-                    }
-                } else {
-                    producer.closeNow();
-                    log.info("[{}] Cleared producer created after connection was closed: {}", remoteAddress, producer);
-                    producerFuture.completeExceptionally(
-                            new IllegalStateException("Producer created after connection was closed"));
-                }
-            } catch (BrokerServiceException ise) {
-                log.error("[{}] Failed to add producer to topic {}: {}", remoteAddress, topicName, ise.getMessage());
-                ctx.writeAndFlush(
-                        Commands.newError(requestId, BrokerServiceException.getClientErrorCode(ise), ise.getMessage()));
-                producerFuture.completeExceptionally(ise);
-            }
-
-            producers.remove(producerId, producerFuture);
-        }).exceptionally(exception -> {
-            Throwable cause = exception.getCause();
-            if (!(cause instanceof ServiceUnitNotReadyException)) {
-                // Do not print stack traces for expected exceptions
-                log.error("[{}] Failed to create topic {}", remoteAddress, topicName, exception);
-            }
-
-            // If client timed out, the future would have been completed by subsequent close. Send error back to
-            // client, only if not completed already.
-            if (producerFuture.completeExceptionally(exception)) {
-                ctx.writeAndFlush(Commands.newError(requestId, BrokerServiceException.getClientErrorCode(cause),
-                        cause.getMessage()));
-            }
-            producers.remove(producerId, producerFuture);
-
             return null;
         });
     }
