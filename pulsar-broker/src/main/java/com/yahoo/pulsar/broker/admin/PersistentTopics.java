@@ -93,6 +93,8 @@ import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
+import com.yahoo.pulsar.broker.PulsarService;
+import com.yahoo.pulsar.client.api.PulsarClientException;
 
 /**
  */
@@ -356,21 +358,7 @@ public class PersistentTopics extends AdminResource {
 
         String path = path(PARTITIONED_TOPIC_PATH_ZNODE, property, cluster, namespace, domain(),
                 dn.getEncodedLocalName());
-        PartitionedTopicMetadata partitionMetadata;
-        try {
-            // gets the number of partitions from the zk cache
-            partitionMetadata = globalZkCache().getData(path, new Deserializer<PartitionedTopicMetadata>() {
-
-                @Override
-                public PartitionedTopicMetadata deserialize(String key, byte[] content) throws Exception {
-                    return jsonMapper().readValue(content, PartitionedTopicMetadata.class);
-                }
-            }).orElse(
-                    // if the partitioned topic is not found in zk, then the topic is not partitioned
-                    new PartitionedTopicMetadata());
-        } catch (Exception e) {
-            throw new RestException(e);
-        }
+        PartitionedTopicMetadata partitionMetadata = fetchPartitionedTopicMetadata(pulsar(), path);
 
         if (log.isDebugEnabled()) {
             log.debug("[{}] Total number of partitions for topic {} is {}", clientAppId(), dn,
@@ -993,7 +981,79 @@ public class PersistentTopics extends AdminResource {
         return offlineTopicStats;
     }
 
-    /**
+    public static CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(PulsarService pulsar,
+            String clientAppId, DestinationName dn) {
+        CompletableFuture<PartitionedTopicMetadata> metadataFuture = new CompletableFuture<>();
+        try {
+            // (1) authorize client
+            try {
+                checkAuthorization(pulsar, dn, clientAppId);
+            } catch (RestException e) {
+                try {
+                    validateAdminAccessOnProperty(pulsar, clientAppId, dn.getProperty());
+                } catch (RestException authException) {
+                    log.warn("Failed to authorize {} on cluster {}", clientAppId, dn.toString());
+                    throw new PulsarClientException(String.format("Authorization failed %s on cluster %s with error %s",
+                            clientAppId, dn.toString(), authException.getMessage()));
+                }
+            }
+            String path = path(PARTITIONED_TOPIC_PATH_ZNODE, dn.getProperty(), dn.getCluster(),
+                    dn.getNamespacePortion(), "persistent", dn.getEncodedLocalName());
+            fetchPartitionedTopicMetadataAsync(pulsar, path).thenAccept(metadata -> {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Total number of partitions for topic {} is {}", clientAppId, dn,
+                            metadata.partitions);
+                }
+                metadataFuture.complete(metadata);
+            }).exceptionally(ex -> {
+                metadataFuture.completeExceptionally(ex);
+                return null;
+            });
+        } catch (Exception ex) {
+            metadataFuture.completeExceptionally(ex);
+        }
+        return metadataFuture;
+    }
+
+    private static PartitionedTopicMetadata fetchPartitionedTopicMetadata(PulsarService pulsar, String path) {
+        try {
+            return fetchPartitionedTopicMetadataAsync(pulsar, path).get();
+        } catch (Exception e) {
+            if (e.getCause() instanceof RestException) {
+                throw (RestException) e;
+            }
+            throw new RestException(e);
+        }
+    }
+
+    private static CompletableFuture<PartitionedTopicMetadata> fetchPartitionedTopicMetadataAsync(PulsarService pulsar,
+            String path) {
+        CompletableFuture<PartitionedTopicMetadata> metadataFuture = new CompletableFuture<>();
+        try {
+            // gets the number of partitions from the zk cache
+            pulsar.getGlobalZkCache().getDataAsync(path, new Deserializer<PartitionedTopicMetadata>() {
+                @Override
+                public PartitionedTopicMetadata deserialize(String key, byte[] content) throws Exception {
+                    return jsonMapper().readValue(content, PartitionedTopicMetadata.class);
+                }
+            }).thenAccept(metadata -> {
+                // if the partitioned topic is not found in zk, then the topic is not partitioned
+                if (metadata.isPresent()) {
+                    metadataFuture.complete(metadata.get());
+                } else {
+                    metadataFuture.complete(new PartitionedTopicMetadata());
+                }
+            }).exceptionally(ex -> {
+                metadataFuture.complete(new PartitionedTopicMetadata());
+                return null;
+            });
+        } catch (Exception e) {
+            metadataFuture.completeExceptionally(e);
+        }
+        return metadataFuture;
+    }
+
+	/**
      * Get the Topic object reference from the Pulsar broker
      */
     private PersistentTopic getTopicReference(DestinationName dn) {

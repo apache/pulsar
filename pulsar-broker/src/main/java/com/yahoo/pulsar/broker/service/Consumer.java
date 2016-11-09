@@ -448,7 +448,6 @@ public class Consumer {
     private static final Logger log = LoggerFactory.getLogger(Consumer.class);
 
     public void redeliverUnacknowledgedMessages() {
-
         // cleanup unackedMessage bucket and redeliver those unack-msgs again
         unackedMessages.set(0);
         blockedConsumerOnUnackedMsgs = false;

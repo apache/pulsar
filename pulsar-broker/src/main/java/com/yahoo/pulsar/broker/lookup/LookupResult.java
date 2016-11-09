@@ -30,41 +30,41 @@ import com.yahoo.pulsar.broker.namespace.NamespaceEphemeralData;
  */
 public class LookupResult {
     enum Type {
-        BrokerUrl, HttpRedirectUrl
+        BrokerUrl, RedirectUrl
     }
 
     private final Type type;
     private final LookupData lookupData;
-    private final URI httpRedirectAddress;
 
     public LookupResult(NamespaceEphemeralData namespaceEphemeralData) {
         this.type = Type.BrokerUrl;
         this.lookupData = new LookupData(namespaceEphemeralData.getNativeUrl(),
-                namespaceEphemeralData.getNativeUrlTls(), namespaceEphemeralData.getHttpUrl());
-        this.httpRedirectAddress = null;
+                namespaceEphemeralData.getNativeUrlTls(), namespaceEphemeralData.getHttpUrl(),
+                namespaceEphemeralData.getHttpUrlTls());
     }
 
-    public LookupResult(URI httpRedirectAddress) {
-        this.type = Type.HttpRedirectUrl;
-        this.lookupData = null;
-        this.httpRedirectAddress = httpRedirectAddress;
+    public LookupResult(String httpUrl, String httpUrlTls, String brokerServiceUrl, String brokerServiceUrlTls) {
+        this.type = Type.RedirectUrl; // type = reidrect => as current broker is
+                                      // not owner and prepares LookupResult
+                                      // with other broker's urls
+        this.lookupData = new LookupData(brokerServiceUrl, brokerServiceUrlTls, httpUrl, httpUrlTls);
     }
 
     public boolean isBrokerUrl() {
         return type == Type.BrokerUrl;
     }
 
-    public boolean isHttpRedirect() {
-        return type == Type.HttpRedirectUrl;
+    public boolean isRedirect() {
+        return type == Type.RedirectUrl;
     }
 
     public LookupData getLookupData() {
-        checkArgument(isBrokerUrl());
         return lookupData;
     }
 
-    public URI getHttpRedirectAddress() {
-        checkArgument(isHttpRedirect());
-        return httpRedirectAddress;
+    @Override
+    public String toString() {
+		return "LookupResult [type=" + type + ", lookupData=" + lookupData + "]";
     }
+    
 }

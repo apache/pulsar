@@ -30,7 +30,8 @@ public class LookupDataTest {
 
     @Test
     void withConstructor() {
-        LookupData data = new LookupData("pulsar://localhost:8888", "pulsar://localhost:8884", "http://localhost:8080");
+		LookupData data = new LookupData("pulsar://localhost:8888", "pulsar://localhost:8884", "http://localhost:8080",
+				"http://localhost:8081");
         assertEquals(data.getBrokerUrl(), "pulsar://localhost:8888");
         assertEquals(data.getHttpUrl(), "http://localhost:8080");
     }
@@ -38,7 +39,8 @@ public class LookupDataTest {
     @SuppressWarnings("unchecked")
     @Test
     void serializeToJsonTest() throws Exception {
-        LookupData data = new LookupData("pulsar://localhost:8888", "pulsar://localhost:8884", "http://localhost:8080");
+		LookupData data = new LookupData("pulsar://localhost:8888", "pulsar://localhost:8884", "http://localhost:8080",
+				"http://localhost:8081");
         ObjectMapper mapper = ObjectMapperFactory.getThreadLocal();
         String json = mapper.writeValueAsString(data);
 
@@ -49,5 +51,6 @@ public class LookupDataTest {
         assertEquals(jsonMap.get("brokerUrlSsl"), "");
         assertEquals(jsonMap.get("nativeUrl"), "pulsar://localhost:8888");
         assertEquals(jsonMap.get("httpUrl"), "http://localhost:8080");
+        assertEquals(jsonMap.get("httpUrlTls"), "http://localhost:8081");
     }
 }

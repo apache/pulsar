@@ -1238,7 +1238,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             pulsar.getConfiguration().setMaxUnackedMessagesPerConsumer(unAckedMessages);
         }
     }
-
+    
     @Test
     public void testUnackBlockRedeliverMessages() throws Exception {
         log.info("-- Starting {} test --", methodName);
@@ -1246,8 +1246,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         int unAckedMessages = pulsar.getConfiguration().getMaxUnackedMessagesPerConsumer();
         int totalReceiveMsg = 0;
         try {
-            final int unAckedMessagesBufferSize = 10;
-            final int receiverQueueSize = 20;
+            final int unAckedMessagesBufferSize = 20;
+            final int receiverQueueSize = 10;
             final int totalProducedMsgs = 100;
 
             pulsar.getConfiguration().setMaxUnackedMessagesPerConsumer(unAckedMessagesBufferSize);

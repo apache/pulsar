@@ -49,7 +49,7 @@ public class ZookeeperCacheLoader implements Closeable {
 
     private final OrderedSafeExecutor orderedExecutor = new OrderedSafeExecutor(8, "pulsar-discovery");
 
-    static final String LOADBALANCE_BROKERS_ROOT = "/loadbalance/brokers";
+    public static final String LOADBALANCE_BROKERS_ROOT = "/loadbalance/brokers";
 
     private static final int zooKeeperSessionTimeoutMillis = 30_000;
 

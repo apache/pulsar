@@ -25,10 +25,17 @@ public class ServiceConfig {
 
     // Zookeeper quorum connection string
     private String zookeeperServers;
+    // Port to use to server binary-proto request
+    private int servicePort = 5000;
+    // Port to use to server binary-proto-tls request
+    private int servicePortTls = 5001;
     // Port to use to server HTTP request
     private int webServicePort = 8080;
     // Port to use to server HTTPS request
     private int webServicePortTls = 8443;
+    // Control whether to bind directly on localhost rather than on normal
+    // hostname
+    private boolean bindOnLocalhost = false;
 
     /***** --- TLS --- ****/
     // Enable TLS
@@ -46,6 +53,22 @@ public class ServiceConfig {
         this.zookeeperServers = zookeeperServers;
     }
 
+    public int getServicePort() {
+        return servicePort;
+    }
+
+    public void setServicePort(int servicePort) {
+        this.servicePort = servicePort;
+    }
+
+    public int getServicePortTls() {
+        return servicePortTls;
+    }
+
+    public void setServicePortTls(int servicePortTls) {
+        this.servicePortTls = servicePortTls;
+    }
+    
     public int getWebServicePort() {
         return webServicePort;
     }
@@ -84,6 +107,14 @@ public class ServiceConfig {
 
     public void setTlsKeyFilePath(String tlsKeyFilePath) {
         this.tlsKeyFilePath = tlsKeyFilePath;
+    }
+
+    public boolean isBindOnLocalhost() {
+        return bindOnLocalhost;
+    }
+
+    public void setBindOnLocalhost(boolean bindOnLocalhost) {
+        this.bindOnLocalhost = bindOnLocalhost;
     }
 
 }
