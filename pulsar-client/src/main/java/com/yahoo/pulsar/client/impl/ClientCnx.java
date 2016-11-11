@@ -200,7 +200,7 @@ public class ClientCnx extends PulsarHandler {
             long sequenceId = sendError.getSequenceId();
             producers.get(producerId).recoverChecksumError(this, sequenceId);
         } else {
-            ctx.close();    
+            ctx.close();
         }
     }
 
@@ -245,7 +245,7 @@ public class ClientCnx extends PulsarHandler {
             log.warn("Consumer with id {} not found while closing consumer ", consumerId);
         }
     }
-    
+
     @Override
     protected boolean isHandshakeCompleted() {
         return state == State.Ready;

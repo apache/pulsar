@@ -125,9 +125,6 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     private final ScheduledExecutorService inactivityMonitor;
     private final ScheduledExecutorService messageExpiryMonitor;
 
-    private final ExecutorService lookupIoExecutor = new ThreadPoolExecutor(1, 16, 0L, TimeUnit.MILLISECONDS,
-            new LinkedBlockingQueue<Runnable>(), new DefaultThreadFactory("pulsar-lookup"));
-
     private DistributedIdGenerator producerNameGenerator;
 
     private final static String producerNameGeneratorPath = "/counters/producer-name";
@@ -382,11 +379,9 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                             pulsar.getConfiguration().getBrokerClientAuthenticationParameters());
                 }
                 if (configuration.isUseTls() && !data.getServiceUrlTls().isEmpty()) {
-                    return new PulsarClientImpl(data.getServiceUrlTls(), configuration, this.workerGroup,
-                            this.lookupIoExecutor);
+                    return new PulsarClientImpl(data.getServiceUrlTls(), configuration, this.workerGroup);
                 } else {
-                    return new PulsarClientImpl(data.getServiceUrl(), configuration, this.workerGroup,
-                            this.lookupIoExecutor);
+                    return new PulsarClientImpl(data.getServiceUrl(), configuration, this.workerGroup);
                 }
             } catch (Exception e) {
                 throw new RuntimeException(e);
