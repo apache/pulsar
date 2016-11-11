@@ -20,9 +20,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -62,7 +60,6 @@ public class PulsarClientImpl implements PulsarClient {
     private final ConnectionPool cnxPool;
     private final Timer timer;
     private final ExecutorProvider externalExecutorProvider;
-    private final ExecutorProvider internalExecutorProvider;
 
     enum State {
         Open, Closing, Closed
@@ -76,39 +73,28 @@ public class PulsarClientImpl implements PulsarClient {
     private final AtomicLong consumerIdGenerator = new AtomicLong();
     private final AtomicLong requestIdGenerator = new AtomicLong();
 
-    private final ExecutorService lookupIoExecutor;
+    private final EventLoopGroup eventLoopGroup;
 
     public PulsarClientImpl(String serviceUrl, ClientConfiguration conf) throws PulsarClientException {
-        this(serviceUrl, conf, getEventLoopGroup(conf), null);
+        this(serviceUrl, conf, getEventLoopGroup(conf));
     }
 
-    public PulsarClientImpl(String serviceUrl, ClientConfiguration conf, EventLoopGroup eventLoopGroup,
-            ExecutorService lookupIoExecutor) throws PulsarClientException {
+    public PulsarClientImpl(String serviceUrl, ClientConfiguration conf, EventLoopGroup eventLoopGroup)
+            throws PulsarClientException {
         if (serviceUrl == null || conf == null || eventLoopGroup == null) {
             throw new PulsarClientException.InvalidConfigurationException("Invalid client configuration");
         }
+        this.eventLoopGroup = eventLoopGroup;
         this.conf = conf;
         conf.getAuthentication().start();
-        httpClient = new HttpClient(serviceUrl, conf.getAuthentication(), lookupIoExecutor,
+        httpClient = new HttpClient(serviceUrl, conf.getAuthentication(), eventLoopGroup,
                 conf.isTlsAllowInsecureConnection(), conf.getTlsTrustCertsFilePath());
         lookup = new LookupService(httpClient, conf.isUseTls());
         partition = new PartitionMetadataLookupService(httpClient);
         cnxPool = new ConnectionPool(this, eventLoopGroup);
 
-        ExecutorService lookupIo;
-        if (lookupIoExecutor == null) {
-            // Create a new executor and store to close it at shutdown
-            lookupIo = new ThreadPoolExecutor(1, 16, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>(),
-                    new DefaultThreadFactory("pulsar-lookup"));
-            this.lookupIoExecutor = lookupIo;
-        } else {
-            lookupIo = lookupIoExecutor;
-            this.lookupIoExecutor = null;
-        }
-
         timer = new HashedWheelTimer(new DefaultThreadFactory("pulsar-timer"), 1, TimeUnit.MILLISECONDS);
         externalExecutorProvider = new ExecutorProvider(conf.getListenerThreads(), "pulsar-external-listener");
-        internalExecutorProvider = new ExecutorProvider(conf.getListenerThreads(), "pulsar-internal-listener");
         producers = Maps.newIdentityHashMap();
         consumers = Maps.newIdentityHashMap();
         state.set(State.Open);
@@ -338,15 +324,11 @@ public class PulsarClientImpl implements PulsarClient {
 
     @Override
     public void shutdown() throws PulsarClientException {
-        try {
+    	try {
             httpClient.close();
-            if (lookupIoExecutor != null) {
-                lookupIoExecutor.shutdownNow();
-            }
             cnxPool.close();
             timer.stop();
             externalExecutorProvider.shutdownNow();
-            internalExecutorProvider.shutdownNow();
             conf.getAuthentication().close();
         } catch (Throwable t) {
             log.warn("Failed to shutdown Pulsar client", t);
@@ -356,7 +338,6 @@ public class PulsarClientImpl implements PulsarClient {
 
     protected CompletableFuture<ClientCnx> getConnection(final String topic) {
         DestinationName destinationName = DestinationName.get(topic);
-
         return lookup.getBroker(destinationName).thenCompose((brokerAddress) -> cnxPool.getConnection(brokerAddress));
     }
 
@@ -366,10 +347,6 @@ public class PulsarClientImpl implements PulsarClient {
 
     ExecutorProvider externalExecutorProvider() {
         return externalExecutorProvider;
-    }
-
-    ExecutorProvider internalExecutorProvider() {
-        return internalExecutorProvider;
     }
 
     long newProducerId() {
@@ -382,6 +359,10 @@ public class PulsarClientImpl implements PulsarClient {
 
     long newRequestId() {
         return requestIdGenerator.getAndIncrement();
+    }
+
+    EventLoopGroup eventLoopGroup() {
+        return eventLoopGroup;
     }
 
     private CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(String topic) {

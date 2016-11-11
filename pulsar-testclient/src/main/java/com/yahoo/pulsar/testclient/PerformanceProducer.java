@@ -211,8 +211,7 @@ public class PerformanceProducer {
             clientConf.setAuthentication(arguments.authPluginClassName, arguments.authParams);
         }
 
-        PulsarClient client = new PulsarClientImpl(arguments.serviceURL, clientConf, eventLoopGroup,
-                Executors.newFixedThreadPool(16));
+        PulsarClient client = new PulsarClientImpl(arguments.serviceURL, clientConf, eventLoopGroup);
 
         ProducerConfiguration producerConf = new ProducerConfiguration();
         producerConf.setSendTimeout(0, TimeUnit.SECONDS);
