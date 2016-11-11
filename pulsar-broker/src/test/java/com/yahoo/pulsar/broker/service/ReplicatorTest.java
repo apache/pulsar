@@ -551,7 +551,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         for (Future<Void> result : results) {
             try {
-                result.get();
+                result.get(5, TimeUnit.SECONDS);
             } catch (Exception e) {
                 log.error("exception in getting future result ", e);
                 fail(String.format("replication test failed with %s exception", e.getMessage()));

@@ -611,7 +611,9 @@ public class Commands {
         messageMetadata.setPublishTime(builder.getPublishTime());
         messageMetadata.setProducerName(builder.getProducerName());
         messageMetadata.setSequenceId(builder.getSequenceId());
-        messageMetadata.setReplicatedFrom(builder.getReplicatedFrom());
+        if (builder.hasReplicatedFrom()) {
+            messageMetadata.setReplicatedFrom(builder.getReplicatedFrom());
+        }
         return builder.getSequenceId();
     }
 
