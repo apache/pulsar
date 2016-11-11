@@ -252,9 +252,10 @@ public class ReplicatorTestBase {
             ProducerConfiguration producerConfiguration = new ProducerConfiguration();
             if (batch) {
                 producerConfiguration.setBatchingEnabled(true);
+                producerConfiguration.setBatchingMaxPublishDelay(1, TimeUnit.SECONDS);
                 producerConfiguration.setBatchingMaxMessages(5);
             }
-            producer = client.createProducer(topicName);
+            producer = client.createProducer(topicName, producerConfiguration);
 
         }
 
