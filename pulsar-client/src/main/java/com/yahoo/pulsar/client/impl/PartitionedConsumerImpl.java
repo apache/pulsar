@@ -20,7 +20,9 @@ import static com.google.common.base.Preconditions.checkArgument;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -42,19 +44,28 @@ import com.yahoo.pulsar.common.naming.DestinationName;
 
 public class PartitionedConsumerImpl extends ConsumerBase {
 
-    private List<ConsumerImpl> consumers;
-    private int numPartitions;
-    private final ExecutorService internalListenerExecutor;
+    private final List<ConsumerImpl> consumers;
+
+    // Queue of partition consumers on which we have stopped calling receiveAsync() because the
+    // shared incoming queue was full
+    private final ConcurrentLinkedQueue<ConsumerImpl> pausedConsumers;
+
+    // Threshold for the shared queue. When the size of the shared queue goes below the threshold, we are going to
+    // resume receiving from the paused consumer partitions
+    private final int sharedQueueResumeThreshold;
+
+    private final int numPartitions;
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
     private final ConsumerStats stats;
 
     PartitionedConsumerImpl(PulsarClientImpl client, String topic, String subscription, ConsumerConfiguration conf,
             int numPartitions, ExecutorService listenerExecutor, CompletableFuture<Consumer> subscribeFuture) {
-        super(client, topic, subscription, conf, listenerExecutor, subscribeFuture, false /* use fixed size queue */ );
+        super(client, topic, subscription, conf, listenerExecutor, subscribeFuture);
         this.consumers = Lists.newArrayListWithCapacity(numPartitions);
+        this.pausedConsumers = new ConcurrentLinkedQueue<>();
+        this.sharedQueueResumeThreshold = maxReceiverQueueSize / 2;
         this.numPartitions = numPartitions;
-        // gets a new listener thread for the internal listener
-        this.internalListenerExecutor = client.internalExecutorProvider().getExecutor();
+
         stats = client.getConfiguration().getStatsIntervalSeconds() > 0 ? new ConsumerStats() : null;
         checkArgument(conf.getReceiverQueueSize() > 0,
                 "Receiver queue size needs to be greater than 0 for Partitioned Topics");
@@ -67,10 +78,8 @@ public class PartitionedConsumerImpl extends ConsumerBase {
         ConsumerConfiguration internalConfig = getInternalConsumerConfig();
         for (int partitionIndex = 0; partitionIndex < numPartitions; partitionIndex++) {
             String partitionName = DestinationName.get(topic).getPartition(partitionIndex).toString();
-            // use the same internal listener executor for all the partitions so that when the consumer queue is full
-            // all the partitions get blocked
             ConsumerImpl consumer = new ConsumerImpl(client, partitionName, subscription, internalConfig,
-                    internalListenerExecutor, partitionIndex, new CompletableFuture<Consumer>());
+                    client.externalExecutorProvider().getExecutor(), partitionIndex, new CompletableFuture<Consumer>());
             consumers.add(consumer);
             consumer.subscribeFuture().handle((cons, subscribeException) -> {
                 if (subscribeException != null) {
@@ -82,7 +91,7 @@ public class PartitionedConsumerImpl extends ConsumerBase {
                     if (subscribeFail.get() == null) {
                         try {
                             // We have successfully created N consumers, so we can start receiving messages now
-                            receiveMessages();
+                            starReceivingMessages();
                             state.set(State.Ready);
                             subscribeFuture().complete(PartitionedConsumerImpl.this);
                             log.info("[{}] [{}] Created partitioned consumer", topic, subscription);
@@ -104,9 +113,41 @@ public class PartitionedConsumerImpl extends ConsumerBase {
         }
     }
 
-    private void receiveMessages() throws PulsarClientException {
+    private void starReceivingMessages() throws PulsarClientException {
         for (ConsumerImpl consumer : consumers) {
-            consumer.receiveMessages(consumer.cnx(), conf.getReceiverQueueSize());
+            consumer.sendFlowPermitsToBroker(consumer.cnx(), conf.getReceiverQueueSize());
+            receiveMessageFromConsumer(consumer);
+        }
+    }
+
+    private void receiveMessageFromConsumer(ConsumerImpl consumer) {
+        consumer.receiveAsync().thenAccept(message -> {
+            // Process the message, add to the queue and trigger listener or async callback
+            messageReceived(message);
+
+            if (incomingMessages.size() >= maxReceiverQueueSize) {
+                // No more space left in shared queue, mark this consumer to be resumed later
+                pausedConsumers.add(consumer);
+            } else {
+                // Schedule next receiveAsync() if the incoming queue is not full. Use a different thread to avoid
+                // recursion and stack overflow
+                client.eventLoopGroup().execute(() -> {
+                    receiveMessageFromConsumer(consumer);
+                });
+            }
+        });
+    }
+
+    private void resumeReceivingFromPausedConsumersIfNeeded() {
+        if (incomingMessages.size() <= sharedQueueResumeThreshold && !pausedConsumers.isEmpty()) {
+            while (true) {
+                ConsumerImpl consumer = pausedConsumers.poll();
+                if (consumer == null) {
+                    break;
+                }
+
+                receiveMessageFromConsumer(consumer);
+            }
         }
     }
 
@@ -115,6 +156,7 @@ public class PartitionedConsumerImpl extends ConsumerBase {
         Message message;
         try {
             message = incomingMessages.take();
+            resumeReceivingFromPausedConsumersIfNeeded();
             return message;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -127,6 +169,7 @@ public class PartitionedConsumerImpl extends ConsumerBase {
         Message message;
         try {
             message = incomingMessages.poll(timeout, unit);
+            resumeReceivingFromPausedConsumersIfNeeded();
             return message;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -145,6 +188,7 @@ public class PartitionedConsumerImpl extends ConsumerBase {
             if (message == null) {
                 pendingReceives.add(result);
             } else {
+                resumeReceivingFromPausedConsumersIfNeeded();
                 result.complete(message);
             }
         } catch (InterruptedException e) {
@@ -278,40 +322,21 @@ public class PartitionedConsumerImpl extends ConsumerBase {
     }
 
     void messageReceived(Message message) {
-
-        boolean shouldLock = false;
+        lock.readLock().lock();
         try {
-            /**
-             * this method is thread-safe: as only 1 ConsumerImpl thread calls at a time. Lock only if incomingMessages
-             * (blocking-queue) is not full: else put(..) will block thread and will hold lock which may create deadlock
-             */
-            shouldLock = !(incomingMessages.remainingCapacity() == 0);
-            if (shouldLock) {
-                lock.readLock().lock();
-            }
             // if asyncReceive is waiting : return message to callback without adding to incomingMessages queue
             if (!pendingReceives.isEmpty()) {
                 CompletableFuture<Message> receivedFuture = pendingReceives.poll();
                 listenerExecutor.execute(() -> receivedFuture.complete(message));
-                // unlock if it is already locked
-                if (shouldLock) {
-                    lock.readLock().unlock();
-                }
             } else {
                 // Enqueue the message so that it can be retrieved when application calls receive()
                 // Waits for the queue to have space for the message
                 incomingMessages.put(message);
-                // unlock if it is already locked
-                if (shouldLock) {
-                    lock.readLock().unlock();
-                }
             }
         } catch (InterruptedException e) {
-            // unlock if it is already locked
-            if (shouldLock) {
-                lock.readLock().unlock();
-            }
             Thread.currentThread().interrupt();
+        } finally {
+            lock.readLock().unlock();
         }
 
         if (listener != null) {
@@ -350,11 +375,6 @@ public class PartitionedConsumerImpl extends ConsumerBase {
         if (conf.getAckTimeoutMillis() != 0) {
             internalConsumerConfig.setAckTimeout(conf.getAckTimeoutMillis(), TimeUnit.MILLISECONDS);
         }
-        internalConsumerConfig.setMessageListener((consumer, msg) -> {
-            if (msg != null) {
-                messageReceived(msg);
-            }
-        });
 
         return internalConsumerConfig;
     }
@@ -371,11 +391,11 @@ public class PartitionedConsumerImpl extends ConsumerBase {
         for (ConsumerImpl c : consumers) {
             List<MessageIdImpl> consumerMessageIds = new ArrayList<>();
             messageIds.removeIf(messageId -> {
-               if (messageId.getPartitionIndex() == c.getPartitionIndex()) {
-                   consumerMessageIds.add(messageId);
-                   return true;
-               }
-               return false;
+                if (messageId.getPartitionIndex() == c.getPartitionIndex()) {
+                    consumerMessageIds.add(messageId);
+                    return true;
+                }
+                return false;
             });
             c.redeliverUnacknowledgedMessages(consumerMessageIds);
         }
