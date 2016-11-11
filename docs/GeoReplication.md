@@ -70,13 +70,13 @@ Global namespaces need to be created in the ***global*** virtual cluster.
 For example:
 
 ```shell
-$ bin/pulsar admin namespaces create my-property/global/my-namespace
+$ bin/pulsar-admin namespaces create my-property/global/my-namespace
 ```
 
 Initially, the namespace is not assigned to any cluster.
 
 ```shell
-$ bin/pulsar admin namespaces set-clusters
+$ bin/pulsar-admin namespaces set-clusters
                           my-property/global/my-namespace \
                           --clusters us-west,us-east,us-cent
 ```
