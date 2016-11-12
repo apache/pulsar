@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -47,12 +48,17 @@ public class PartitionedConsumerImpl extends ConsumerBase {
     private final ExecutorService internalListenerExecutor;
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
     private final ConsumerStats stats;
+    private final AtomicInteger availablePermits;
+    private final int receiverQueueRefillThreshold;
+    private final AtomicBoolean receiveRunning = new AtomicBoolean(false);
 
     PartitionedConsumerImpl(PulsarClientImpl client, String topic, String subscription, ConsumerConfiguration conf,
             int numPartitions, ExecutorService listenerExecutor, CompletableFuture<Consumer> subscribeFuture) {
         super(client, topic, subscription, conf, listenerExecutor, subscribeFuture, false /* use fixed size queue */ );
         this.consumers = Lists.newArrayListWithCapacity(numPartitions);
         this.numPartitions = numPartitions;
+        this.availablePermits = new AtomicInteger(conf.getReceiverQueueSize());
+        this.receiverQueueRefillThreshold = conf.getReceiverQueueSize() / 2;
         // gets a new listener thread for the internal listener
         this.internalListenerExecutor = client.internalExecutorProvider().getExecutor();
         stats = client.getConfiguration().getStatsIntervalSeconds() > 0 ? new ConsumerStats() : null;
@@ -110,11 +116,20 @@ public class PartitionedConsumerImpl extends ConsumerBase {
         }
     }
 
+    private void incrementAvailablePermits() {
+        if (availablePermits.incrementAndGet() >= receiverQueueRefillThreshold) {
+            if (receiveRunning.compareAndSet(false, true)) {
+                listenerExecutor.execute(() -> receiveMessagesFromInternalConsumers(0));
+            }
+        }
+    }
+
     @Override
     protected Message internalReceive() throws PulsarClientException {
         Message message;
         try {
             message = incomingMessages.take();
+            incrementAvailablePermits();
             return message;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -127,6 +142,9 @@ public class PartitionedConsumerImpl extends ConsumerBase {
         Message message;
         try {
             message = incomingMessages.poll(timeout, unit);
+            if (message != null) {
+                incrementAvailablePermits();
+            }
             return message;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -145,6 +163,7 @@ public class PartitionedConsumerImpl extends ConsumerBase {
             if (message == null) {
                 pendingReceives.add(result);
             } else {
+                incrementAvailablePermits();
                 result.complete(message);
             }
         } catch (InterruptedException e) {
@@ -277,40 +296,55 @@ public class PartitionedConsumerImpl extends ConsumerBase {
 
     }
 
-    void messageReceived(Message message) {
-
-        boolean shouldLock = false;
-        try {
-            /**
-             * this method is thread-safe: as only 1 ConsumerImpl thread calls at a time. Lock only if incomingMessages
-             * (blocking-queue) is not full: else put(..) will block thread and will hold lock which may create deadlock
-             */
-            shouldLock = !(incomingMessages.remainingCapacity() == 0);
-            if (shouldLock) {
-                lock.readLock().lock();
+    void receiveMessagesFromInternalConsumers(int offset) {
+        while (availablePermits.get() > 0) {
+            Message msg = null;
+            // loop around consumers starting from offset consumer.
+            for (int i = offset; i < consumers.size()+offset; i++) {
+                int index = i%consumers.size();
+                try {
+                    msg = consumers.get(index).internalReceive(0, TimeUnit.NANOSECONDS);
+                } catch (PulsarClientException e) {
+                    log.warn("[{}] [{}] Receive listener was interrupted", topic, subscription, e);
+                    break;
+                }
+                if (msg != null) {
+                    // move offset to proceed with next consumer.
+                    offset = index + 1;
+                    break;
+                }
             }
+            if (msg == null) {
+                // we gave a whole loop through consumer and no messages was received.
+                break;
+            }
+            // a single thread should be adding messages, so we can be sure this will not block.
+            messageReceived(msg);
+        }
+        receiveRunning.set(false);
+    }
+
+    private void messageReceived(Message message) {
+        /*
+         * this method is thread-safe: as only 1 ConsumerImpl thread calls at a time. At this point we know
+         * that there is space in the queue and we're the only thread putting messages into it.
+         */
+        try {
+            lock.readLock().lock();
             // if asyncReceive is waiting : return message to callback without adding to incomingMessages queue
             if (!pendingReceives.isEmpty()) {
                 CompletableFuture<Message> receivedFuture = pendingReceives.poll();
                 listenerExecutor.execute(() -> receivedFuture.complete(message));
-                // unlock if it is already locked
-                if (shouldLock) {
-                    lock.readLock().unlock();
-                }
+                lock.readLock().unlock();
             } else {
                 // Enqueue the message so that it can be retrieved when application calls receive()
-                // Waits for the queue to have space for the message
+                // This call should not block, we know there is space in the queue.
                 incomingMessages.put(message);
-                // unlock if it is already locked
-                if (shouldLock) {
-                    lock.readLock().unlock();
-                }
-            }
-        } catch (InterruptedException e) {
-            // unlock if it is already locked
-            if (shouldLock) {
+                availablePermits.decrementAndGet();
                 lock.readLock().unlock();
             }
+        } catch (InterruptedException e) {
+            lock.readLock().unlock();
             Thread.currentThread().interrupt();
         }
 
@@ -350,9 +384,9 @@ public class PartitionedConsumerImpl extends ConsumerBase {
         if (conf.getAckTimeoutMillis() != 0) {
             internalConsumerConfig.setAckTimeout(conf.getAckTimeoutMillis(), TimeUnit.MILLISECONDS);
         }
-        internalConsumerConfig.setMessageListener((consumer, msg) -> {
-            if (msg != null) {
-                messageReceived(msg);
+        internalConsumerConfig.setReceiveListener((consumer) -> {
+            if (receiveRunning.compareAndSet(false, true)) {
+                receiveMessagesFromInternalConsumers(consumers.indexOf((ConsumerImpl) consumer));
             }
         });
 
