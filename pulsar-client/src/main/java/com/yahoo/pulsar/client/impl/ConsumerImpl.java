@@ -96,7 +96,7 @@ public class ConsumerImpl extends ConsumerBase {
 
     ConsumerImpl(PulsarClientImpl client, String topic, String subscription, ConsumerConfiguration conf,
             ExecutorService listenerExecutor, int partitionIndex, CompletableFuture<Consumer> subscribeFuture) {
-        super(client, topic, subscription, conf, listenerExecutor, subscribeFuture, true /* use growable queue */);
+        super(client, topic, subscription, conf, listenerExecutor, subscribeFuture);
         this.consumerId = client.newConsumerId();
         this.availablePermits = new AtomicInteger(0);
         this.subscribeTimeout = System.currentTimeMillis() + client.getConfiguration().getOperationTimeoutMs();
@@ -202,7 +202,7 @@ public class ConsumerImpl extends ConsumerBase {
         }
 
         if (message == null && conf.getReceiverQueueSize() == 0) {
-            receiveMessages(cnx(), 1);
+            sendFlowPermitsToBroker(cnx(), 1);
         } else if (message != null) {
             messageProcessed(message);
             result.complete(message);
@@ -226,7 +226,7 @@ public class ConsumerImpl extends ConsumerBase {
             waitingOnReceiveForZeroQueueSize = true;
             synchronized (this) {
                 if (isConnected()) {
-                    receiveMessages(cnx(), 1);
+                    sendFlowPermitsToBroker(cnx(), 1);
                 }
             }
             do {
@@ -465,7 +465,7 @@ public class ConsumerImpl extends ConsumerBase {
                             // If the connection is reset and someone is waiting for the messages
                             // send a flow command
                             if (waitingOnReceiveForZeroQueueSize) {
-                                receiveMessages(cnx, 1);
+                                sendFlowPermitsToBroker(cnx, 1);
                             }
                         } else {
                             // Consumer was closed while reconnecting, close the connection to make sure the broker
@@ -483,7 +483,7 @@ public class ConsumerImpl extends ConsumerBase {
                     // if the consumer is not partitioned or is re-connected and is partitioned, we send the flow
                     // command to receive messages
                     if (!(firstTimeConnect && partitionIndex > -1) && conf.getReceiverQueueSize() != 0) {
-                        receiveMessages(cnx, conf.getReceiverQueueSize());
+                        sendFlowPermitsToBroker(cnx, conf.getReceiverQueueSize());
                     }
                 }).exceptionally((e) -> {
                     cnx.removeConsumer(consumerId);
@@ -518,7 +518,7 @@ public class ConsumerImpl extends ConsumerBase {
     /**
      * send the flow command to have the broker start pushing messages
      */
-    void receiveMessages(ClientCnx cnx, int numMessages) {
+    void sendFlowPermitsToBroker(ClientCnx cnx, int numMessages) {
         if (cnx != null) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] Adding {} additional permits", topic, subscription, numMessages);
@@ -784,7 +784,7 @@ public class ConsumerImpl extends ConsumerBase {
 
         while (available >= receiverQueueRefillThreshold) {
             if (availablePermits.compareAndSet(available, 0)) {
-                receiveMessages(currentCnx, available);
+                sendFlowPermitsToBroker(currentCnx, available);
                 break;
             } else {
                 available = availablePermits.get();
@@ -882,7 +882,7 @@ public class ConsumerImpl extends ConsumerBase {
             }
             cnx.ctx().writeAndFlush(Commands.newRedeliverUnacknowledgedMessages(consumerId), cnx.ctx().voidPromise());
             if (currentSize > 0) {
-                receiveMessages(cnx, currentSize);
+                sendFlowPermitsToBroker(cnx, currentSize);
             }
             return;
         }

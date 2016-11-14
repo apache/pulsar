@@ -29,7 +29,6 @@ import com.yahoo.pulsar.client.api.PulsarClientException;
 import com.yahoo.pulsar.client.impl.BinaryProtoLookupService.LookupDataResult;
 import com.yahoo.pulsar.common.api.Commands;
 import com.yahoo.pulsar.common.api.PulsarHandler;
-import com.yahoo.pulsar.common.api.proto.PulsarApi.ServerError;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandCloseConsumer;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandCloseProducer;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConnected;
@@ -197,7 +196,7 @@ public class ClientCnx extends PulsarHandler {
             log.warn("{} Received unknown request id from server: {}", ctx.channel(), success.getRequestId());
         }
     }
-    
+
     @Override
     protected void handleLookupResponse(CommandLookupTopicResponse lookupResult) {
         log.info("Received Broker lookup response: {}", lookupResult.getResponse());
@@ -225,7 +224,7 @@ public class ClientCnx extends PulsarHandler {
             log.warn("{} Received unknown request id from server: {}", ctx.channel(), lookupResult.getRequestId());
         }
     }
-    
+
     @Override
     protected void handlePartitionResponse(CommandPartitionedTopicMetadataResponse lookupResult) {
         log.info("Received Broker Partition response: {}", lookupResult.getPartitions());
@@ -262,7 +261,7 @@ public class ClientCnx extends PulsarHandler {
             long sequenceId = sendError.getSequenceId();
             producers.get(producerId).recoverChecksumError(this, sequenceId);
         } else {
-            ctx.close();    
+            ctx.close();
         }
     }
 
@@ -307,7 +306,7 @@ public class ClientCnx extends PulsarHandler {
             log.warn("Consumer with id {} not found while closing consumer ", consumerId);
         }
     }
-    
+
     @Override
     protected boolean isHandshakeCompleted() {
         return state == State.Ready;
