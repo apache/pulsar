@@ -179,8 +179,7 @@ public class PerformanceConsumer {
         if (isNotBlank(arguments.authPluginClassName)) {
             clientConf.setAuthentication(arguments.authPluginClassName, arguments.authParams);
         }
-        PulsarClient pulsarClient = new PulsarClientImpl(arguments.serviceURL, clientConf, eventLoopGroup,
-                Executors.newFixedThreadPool(16));
+        PulsarClient pulsarClient = new PulsarClientImpl(arguments.serviceURL, clientConf, eventLoopGroup);
 
         List<Future<Consumer>> futures = Lists.newArrayList();
         ConsumerConfiguration consumerConfig = new ConsumerConfiguration();

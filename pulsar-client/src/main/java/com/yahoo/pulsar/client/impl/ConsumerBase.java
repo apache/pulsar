@@ -47,10 +47,12 @@ public abstract class ConsumerBase extends HandlerBase implements Consumer {
     protected final ExecutorService listenerExecutor;
     final BlockingQueue<Message> incomingMessages;
     protected final ConcurrentLinkedQueue<CompletableFuture<Message>> pendingReceives;
+    protected final int maxReceiverQueueSize;
 
     protected ConsumerBase(PulsarClientImpl client, String topic, String subscription, ConsumerConfiguration conf,
-            ExecutorService listenerExecutor, CompletableFuture<Consumer> subscribeFuture, boolean useGrowableQueue) {
+            ExecutorService listenerExecutor, CompletableFuture<Consumer> subscribeFuture) {
         super(client, topic);
+        this.maxReceiverQueueSize = conf.getReceiverQueueSize();
         this.subscription = subscription;
         this.conf = conf;
         this.consumerName = conf.getConsumerName() == null
@@ -59,11 +61,10 @@ public abstract class ConsumerBase extends HandlerBase implements Consumer {
         this.listener = conf.getMessageListener();
         if (conf.getReceiverQueueSize() <= 1) {
             this.incomingMessages = Queues.newArrayBlockingQueue(1);
-        } else if (useGrowableQueue) {
-            this.incomingMessages = new GrowableArrayBlockingQueue<>();
         } else {
-            this.incomingMessages = Queues.newArrayBlockingQueue(conf.getReceiverQueueSize());
+            this.incomingMessages = new GrowableArrayBlockingQueue<>();
         }
+
         this.listenerExecutor = listenerExecutor;
         this.pendingReceives = Queues.newConcurrentLinkedQueue();
     }
