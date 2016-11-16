@@ -41,7 +41,7 @@ import java.util.stream.Collectors;
  */
 public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
     // The interval for host usage check command
-    private final int hostUsageCheckInterval;
+    private final int hostUsageCheckIntervalMin;
     private long lastCollection;
     private double lastTotalNicUsageTx;
     private double lastTotalNicUsageRx;
@@ -52,11 +52,11 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
     private static final Logger LOG = LoggerFactory.getLogger(LinuxBrokerHostUsageImpl.class);
 
     public LinuxBrokerHostUsageImpl(PulsarService pulsar) {
-        this.hostUsageCheckInterval = pulsar.getConfiguration().getLoadBalancerHostUsageCheckIntervalMinutes();
+        this.hostUsageCheckIntervalMin = pulsar.getConfiguration().getLoadBalancerHostUsageCheckIntervalMinutes();
         this.systemBean = (OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean();
         this.lastCollection = 0L;
         this.usage = new SystemResourceUsage();
-        pulsar.getLoadManagerExecutor().scheduleAtFixedRate(this::calculateBrokerHostUsage, 0, hostUsageCheckInterval, TimeUnit.SECONDS);
+        pulsar.getLoadManagerExecutor().scheduleAtFixedRate(this::calculateBrokerHostUsage, 0, hostUsageCheckIntervalMin, TimeUnit.MINUTES);
     }
 
     @Override
