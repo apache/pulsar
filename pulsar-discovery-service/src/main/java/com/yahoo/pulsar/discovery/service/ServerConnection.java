@@ -70,7 +70,7 @@ public class ServerConnection extends PulsarHandler {
         if (LOG.isDebugEnabled()) {
             LOG.debug("Received PartitionMetadataLookup from {}", remoteAddress);
         }
-        sendLookupResponse(partitionMetadata.getRequestId());
+        sendPartitionMetadataResponse(partitionMetadata.getRequestId());
     }
     
     /**
@@ -97,6 +97,17 @@ public class ServerConnection extends PulsarHandler {
         }
     }
 
+    private void sendPartitionMetadataResponse(long requestId) {
+        try {
+            LoadReport availableBroker = discoveryProvider.nextBroker();
+            ctx.writeAndFlush(Commands.newPartitionMetadataResponse(availableBroker.getPulsarServiceUrl(),
+                    availableBroker.getPulsarServieUrlTls(), requestId));
+        } catch (PulsarServerException e) {
+            LOG.warn("[{}] Failed to get next active broker {}", remoteAddress, e.getMessage(), e);
+            ctx.writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.ServiceNotReady, e.getMessage(), requestId));
+        }
+    }
+    
     @Override
     protected boolean isHandshakeCompleted() {
         return state == State.Connected;
