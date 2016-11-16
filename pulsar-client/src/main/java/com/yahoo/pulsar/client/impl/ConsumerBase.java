@@ -16,6 +16,7 @@
 package com.yahoo.pulsar.client.impl;
 
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
@@ -316,5 +317,5 @@ public abstract class ConsumerBase extends HandlerBase implements Consumer {
      * the connected consumers. This is a non blocking call and doesn't throw an exception. In case the connection
      * breaks, the messages are redelivered after reconnect.
      */
-    protected abstract void redeliverUnacknowledgedMessages(List<MessageIdImpl> messageIds);
+    protected abstract void redeliverUnacknowledgedMessages(Set<MessageIdImpl> messageIds);
 }
