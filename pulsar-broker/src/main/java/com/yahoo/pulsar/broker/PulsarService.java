@@ -128,6 +128,7 @@ public class PulsarService implements AutoCloseable {
         this.brokerServiceUrlTls = brokerUrlTls(config);
         this.config = config;
         this.shutdownService = new MessagingServiceShutdownHook(this);
+        loadManagerExecutor = Executors.newSingleThreadScheduledExecutor();
     }
 
     /**
@@ -233,10 +234,10 @@ public class PulsarService implements AutoCloseable {
             managedLedgerClientFactory = new ManagedLedgerClientFactory(config, getZkClient(),
                     getBookKeeperClientFactory());
 
+            this.brokerService = new BrokerService(this);
+
             // Start load management service (even if load balancing is disabled)
             this.loadManager = new SimpleLoadManagerImpl(this);
-
-            this.brokerService = new BrokerService(this);
 
             this.startLoadManagementService();
 
@@ -400,11 +401,6 @@ public class PulsarService implements AutoCloseable {
         this.loadManager.start();
 
         if (config.isLoadBalancerEnabled()) {
-            if (loadManagerExecutor == null) {
-                loadManagerExecutor = Executors.newSingleThreadScheduledExecutor();
-                ;
-            }
-
             LOG.info("Starting load balancer");
             if (this.loadReportTask == null) {
                 long loadReportMinInterval = SimpleLoadManagerImpl.LOAD_REPORT_UPDATE_MIMIMUM_INTERVAL;
@@ -531,6 +527,10 @@ public class PulsarService implements AutoCloseable {
 
     public ScheduledExecutorService getExecutor() {
         return executor;
+    }
+
+    public ScheduledExecutorService getLoadManagerExecutor() {
+        return loadManagerExecutor;
     }
 
     public OrderedSafeExecutor getOrderedExecutor() {

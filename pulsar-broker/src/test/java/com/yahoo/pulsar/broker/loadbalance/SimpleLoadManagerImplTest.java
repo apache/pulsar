@@ -27,6 +27,7 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
+import org.apache.commons.lang3.SystemUtils;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.URL;
@@ -41,6 +42,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
+import com.yahoo.pulsar.broker.loadbalance.impl.*;
 import org.apache.bookkeeper.test.PortManager;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.zookeeper.CreateMode;
@@ -57,12 +59,6 @@ import com.google.common.collect.Sets;
 import com.yahoo.pulsar.broker.PulsarService;
 import com.yahoo.pulsar.broker.ServiceConfiguration;
 import com.yahoo.pulsar.broker.admin.AdminResource;
-import com.yahoo.pulsar.broker.loadbalance.impl.PulsarLoadReportImpl;
-import com.yahoo.pulsar.broker.loadbalance.impl.PulsarResourceDescription;
-import com.yahoo.pulsar.broker.loadbalance.impl.ResourceAvailabilityRanker;
-import com.yahoo.pulsar.broker.loadbalance.impl.SimpleLoadCalculatorImpl;
-import com.yahoo.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
-import com.yahoo.pulsar.broker.loadbalance.impl.SimpleResourceUnit;
 import com.yahoo.pulsar.client.admin.BrokerStats;
 import com.yahoo.pulsar.client.admin.PulsarAdmin;
 import com.yahoo.pulsar.client.api.Authentication;
@@ -443,14 +439,14 @@ public class SimpleLoadManagerImplTest {
 
     @Test
     public void testBrokerHostUsage() {
-        when(pulsar1.getConfiguration().getLoadBalancerHostUsageScriptPath()).thenReturn("usageScript");
-        BrokerHostUsage brokerUsage = new BrokerHostUsage(pulsar1);
-        try {
-            brokerUsage.getBrokerHostUsage();
-            fail();
-        } catch (IOException e) {
-            // Ok
+        BrokerHostUsage brokerUsage;
+        if (SystemUtils.IS_OS_LINUX) {
+            brokerUsage = new LinuxBrokerHostUsageImpl(pulsar1);
+        } else {
+            brokerUsage = new GenericBrokerHostUsageImpl(pulsar1);
         }
+        brokerUsage.getBrokerHostUsage();
+        // Ok
     }
 
     @Test
