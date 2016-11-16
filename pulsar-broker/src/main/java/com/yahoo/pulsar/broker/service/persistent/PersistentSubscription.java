@@ -17,7 +17,6 @@ package com.yahoo.pulsar.broker.service.persistent;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -296,19 +295,7 @@ public class PersistentSubscription implements Subscription {
     @Override
     public CompletableFuture<Void> resetCursor(long timestamp) {
         CompletableFuture<Void> future = new CompletableFuture<>();
-        synchronized (this) {
-            if (dispatcher != null && dispatcher.isConsumerConnected()) {
-                future.completeExceptionally(new SubscriptionBusyException("Subscription has active consumers"));
-                return future;
-            }
-        }
         PersistentMessageFinder persistentMessageFinder = new PersistentMessageFinder(topicName, cursor);
-        class Result {
-            Position position = null;
-        }
-
-        final Result result = new Result();
-        final CountDownLatch counter = new CountDownLatch(1);
 
         if (log.isDebugEnabled()) {
             log.debug("[{}][{}] Resetting subscription to timestamp {}", topicName, subName, timestamp);
@@ -316,8 +303,68 @@ public class PersistentSubscription implements Subscription {
         persistentMessageFinder.findMessages(timestamp, new AsyncCallbacks.FindEntryCallback() {
             @Override
             public void findEntryComplete(Position position, Object ctx) {
-                result.position = position;
-                counter.countDown();
+                final Position finalPosition;
+                if (position == null) {
+                    // this should not happen ideally unless a reset is requested for a time
+                    // that spans beyond the retention limits (time/size)
+                    finalPosition = cursor.getFirstPosition();
+                    if (finalPosition == null) {
+                        log.warn("[{}][{}] Unable to find position for timestamp {}. Unable to reset cursor to first position",
+                                topicName, subName, timestamp);
+                        future.completeExceptionally(
+                                new SubscriptionInvalidCursorPosition("Unable to find position for specified timestamp"));
+                        return;
+                    }
+                    log.info(
+                            "[{}][{}] Unable to find position for timestamp {}. Resetting cursor to first position {} in ledger",
+                            topicName, subName, timestamp, finalPosition);
+                } else {
+                    finalPosition = position;
+                }
+
+                if (!isFenced.compareAndSet(false, true)) {
+                    future.completeExceptionally(new SubscriptionBusyException("Failed to fence subscription"));
+                    return;
+                }
+
+                dispatcher.disconnect().whenComplete((aVoid, throwable) -> {
+                    if (throwable != null) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}][{}] Failed to disconnect consumer from subscription", topicName, subName, throwable);
+                        }
+                        isFenced.set(false);
+                        future.completeExceptionally(new SubscriptionBusyException("Failed to disconnect consumers from subscription"));
+                        return;
+                    }
+
+                    cursor.asyncResetCursor(finalPosition, new AsyncCallbacks.ResetCursorCallback() {
+                        @Override
+                        public void resetComplete(Object ctx) {
+                            if (log.isDebugEnabled()) {
+                                log.debug("[{}][{}] Successfully reset subscription to timestamp {}", topicName, subName,
+                                        timestamp);
+                            }
+                            isFenced.set(false);
+                            future.complete(null);
+                        }
+
+                        @Override
+                        public void resetFailed(ManagedLedgerException exception, Object ctx) {
+                            log.error("[{}][{}] Failed to reset subscription to timestamp {}", topicName, subName, timestamp,
+                                    exception);
+                            isFenced.set(false);
+                            // todo - retry on InvalidCursorPositionException
+                            // or should we just ask user to retry one more time?
+                            if (exception instanceof InvalidCursorPositionException) {
+                                future.completeExceptionally(new SubscriptionInvalidCursorPosition(exception.getMessage()));
+                            } else if (exception instanceof ConcurrentFindCursorPositionException) {
+                                future.completeExceptionally(new SubscriptionBusyException(exception.getMessage()));
+                            } else {
+                                future.completeExceptionally(new BrokerServiceException(exception));
+                            }
+                        }
+                    });
+                });
             }
 
             @Override
@@ -328,65 +375,9 @@ public class PersistentSubscription implements Subscription {
                 } else {
                     future.completeExceptionally(new BrokerServiceException(exception));
                 }
-                counter.countDown();
             }
         });
 
-        try {
-            counter.await();
-        } catch (Exception e) {
-            log.warn("[{}][{}] message find interrupted ", topicName, subName, e);
-            if (future.isCompletedExceptionally()) {
-                return future;
-            }
-            future.completeExceptionally(e);
-            return future;
-        }
-
-        if (future.isCompletedExceptionally()) {
-            return future;
-        }
-        if (result.position == null) {
-            // this should not happen ideally unless a reset is requested for a time
-            // that spans beyond the retention limits (time/size)
-            result.position = cursor.getFirstPosition();
-            if (result.position == null) {
-                log.warn("[{}][{}] Unable to find position for timestamp {}. Unable to reset cursor to first position",
-                        topicName, subName, timestamp);
-                future.completeExceptionally(
-                        new SubscriptionInvalidCursorPosition("Unable to find position for specified timestamp"));
-                return future;
-            }
-            log.info(
-                    "[{}][{}] Unable to find position for timestamp {}. Resetting cursor to first position {} in ledger",
-                    topicName, subName, timestamp, result.position);
-        }
-
-        cursor.asyncResetCursor(result.position, new AsyncCallbacks.ResetCursorCallback() {
-            @Override
-            public void resetComplete(Object ctx) {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}][{}] Successfully reset subscription to timestamp {}", topicName, subName,
-                            timestamp);
-                }
-                future.complete(null);
-            }
-
-            @Override
-            public void resetFailed(ManagedLedgerException exception, Object ctx) {
-                log.error("[{}][{}] Failed to reset subscription to timestamp {}", topicName, subName, timestamp,
-                        exception);
-                // todo - retry on InvalidCursorPositionException
-                // or should we just ask user to retry one more time?
-                if (exception instanceof InvalidCursorPositionException) {
-                    future.completeExceptionally(new SubscriptionInvalidCursorPosition(exception.getMessage()));
-                } else if (exception instanceof ConcurrentFindCursorPositionException) {
-                    future.completeExceptionally(new SubscriptionBusyException(exception.getMessage()));
-                } else {
-                    future.completeExceptionally(new BrokerServiceException(exception));
-                }
-            }
-        });
         return future;
     }
 

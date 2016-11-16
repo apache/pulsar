@@ -1118,19 +1118,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         }
         // messages should still be available due to retention
 
-        try {
-            admin.persistentTopics().resetCursor(topicName, "my-sub", messageTimestamp);
-        } catch (PulsarAdminException e) {
-            // due to active consumer
-            assertTrue(e instanceof PulsarAdminException.PreconditionFailedException, e.getMessage());
-        }
-
-        consumer.close();
-
-        // retry after closing consumer
         admin.persistentTopics().resetCursor(topicName, "my-sub", messageTimestamp);
 
-        consumer = pulsarClient.subscribe(topicName, "my-sub", conf);
         int receivedAfterReset = 0;
 
         for (int i = 4; i < 10; i++) {
@@ -1187,18 +1176,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             consumer.acknowledge(message);
         }
 
-        // messages should still be available due to retention
-        consumer.close();
-
         admin.persistentTopics().resetCursor(topicName, "my-sub", firstTimestamp);
 
-        messages = admin.persistentTopics().peekMessages(topicName, "my-sub", 10);
-        assertEquals(messages.size(), 6);
-        messages.forEach(message -> {
-            LOG.info("Peeked message: {}", new String(message.getData()));
-        });
-
-        consumer = pulsarClient.subscribe(topicName, "my-sub", conf);
         int receivedAfterReset = 0;
 
         // Should received messages from 4-9
@@ -1211,12 +1190,9 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         }
         assertEquals(receivedAfterReset, 6);
 
-        consumer.close();
-
         // Reset at 2nd timestamp
         receivedAfterReset = 0;
         admin.persistentTopics().resetCursor(topicName, "my-sub", secondTimestamp);
-        consumer = pulsarClient.subscribe(topicName, "my-sub", conf);
 
         // Should received messages from 7-9
         for (int i = 7; i < 10; i++) {
@@ -1264,19 +1240,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         }
         // messages should still be available due to retention
 
-        try {
-            admin.persistentTopics().resetCursor(topicName, "my-sub", timestamp);
-        } catch (PulsarAdminException e) {
-            // due to active consumer
-            assertTrue(e instanceof PulsarAdminException.ServerSideErrorException, e.getMessage());
-        }
-
-        consumer.close();
-
-        // retry after closing consumer
         admin.persistentTopics().resetCursor(topicName, "my-sub", timestamp);
-
-        consumer = pulsarClient.subscribe(topicName, "my-sub", conf);
 
         Set<String> expectedMessages = Sets.newHashSet();
         Set<String> receivedMessages = Sets.newHashSet();
@@ -1326,8 +1290,6 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             Message message = consumer.receive();
             consumer.acknowledge(message);
         }
-        CompletableFuture<Void> closeFuture = consumer.closeAsync();
-        closeFuture.get();
         // use invalid timestamp
         try {
             admin.persistentTopics().resetCursor(topicName, "my-sub", System.currentTimeMillis() - 190000);

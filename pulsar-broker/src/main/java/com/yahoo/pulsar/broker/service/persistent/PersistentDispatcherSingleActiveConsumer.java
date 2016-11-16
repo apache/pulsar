@@ -157,7 +157,7 @@ public final class PersistentDispatcherSingleActiveConsumer implements Dispatche
         closeFuture = new CompletableFuture<>();
 
         if (!consumers.isEmpty()) {
-            consumers.forEach(consumer -> consumer.disconnect());
+            consumers.forEach(Consumer::disconnect);
             if (havePendingRead && cursor.cancelPendingReadRequest()) {
                 havePendingRead = false;
             }
