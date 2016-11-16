@@ -186,10 +186,7 @@ public class ServiceConfiguration {
     private int loadBalancerReportUpdateThresholdPercentage = 10;
     // maximum interval to update load report
     private int loadBalancerReportUpdateMaxIntervalMinutes = 15;
-    // Path for the script used to retrieve system usage
-    @FieldContext(required = false)
-    private String loadBalancerHostUsageScriptPath;
-    // Frequency of sar report to collect
+    // Frequency of report to collect
     private int loadBalancerHostUsageCheckIntervalMinutes = 1;
     // Load shedding interval. Broker periodically checks whether some traffic
     // should be offload from
@@ -713,14 +710,6 @@ public class ServiceConfiguration {
 
     public void setLoadBalancerReportUpdateMaxIntervalMinutes(int loadBalancerReportUpdateMaxIntervalMinutes) {
         this.loadBalancerReportUpdateMaxIntervalMinutes = loadBalancerReportUpdateMaxIntervalMinutes;
-    }
-
-    public String getLoadBalancerHostUsageScriptPath() {
-        return loadBalancerHostUsageScriptPath;
-    }
-
-    public void setLoadBalancerHostUsageScriptPath(String loadBalancerHostUsageScriptPath) {
-        this.loadBalancerHostUsageScriptPath = loadBalancerHostUsageScriptPath;
     }
 
     public int getLoadBalancerHostUsageCheckIntervalMinutes() {

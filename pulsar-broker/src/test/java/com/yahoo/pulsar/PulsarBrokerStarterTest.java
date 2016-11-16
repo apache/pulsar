@@ -168,7 +168,6 @@ public class PulsarBrokerStarterTest {
         printWriter.println("managedLedgerDefaultAckQuorum=1");
 
         printWriter.println("loadBalancerEnabled=false");
-        printWriter.println("loadBalancerHostUsageScriptPath=/usr/bin/my_pulsar-broker-host-usage");
         printWriter.println("loadBalancerHostUsageCheckIntervalMinutes=4");
         printWriter.println("loadBalancerReportUpdateThresholdPercentage=15");
         printWriter.println("loadBalancerReportUpdateMaxIntervalMinutes=20");
@@ -186,7 +185,6 @@ public class PulsarBrokerStarterTest {
         Assert.assertTrue(ServiceConfiguration.class.isInstance(returnValue));
         ServiceConfiguration serviceConfig = (ServiceConfiguration) returnValue;
         Assert.assertEquals(serviceConfig.isLoadBalancerEnabled(), false);
-        Assert.assertEquals(serviceConfig.getLoadBalancerHostUsageScriptPath(), "/usr/bin/my_pulsar-broker-host-usage");
         Assert.assertEquals(serviceConfig.getLoadBalancerHostUsageCheckIntervalMinutes(), 4);
         Assert.assertEquals(serviceConfig.getLoadBalancerReportUpdateThresholdPercentage(), 15);
         Assert.assertEquals(serviceConfig.getLoadBalancerReportUpdateMaxIntervalMinutes(), 20);
