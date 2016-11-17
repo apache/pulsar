@@ -497,6 +497,7 @@ public class ServerCnxTest {
         doReturn(authorizationManager).when(brokerService).getAuthorizationManager();
         doReturn(true).when(brokerService).isAuthenticationEnabled();
         doReturn(true).when(brokerService).isAuthorizationEnabled();
+        doReturn("prod1").when(brokerService).generateUniqueProducerName();
         resetChannel();
         setChannelConnected();
 
