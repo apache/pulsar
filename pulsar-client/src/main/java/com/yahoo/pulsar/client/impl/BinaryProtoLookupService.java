@@ -15,7 +15,6 @@
  */
 package com.yahoo.pulsar.client.impl;
 
-import static com.yahoo.pulsar.client.impl.PulsarClientImpl.requestIdGenerator;
 import static java.lang.String.format;
 
 import java.net.InetSocketAddress;
@@ -34,13 +33,13 @@ import io.netty.buffer.ByteBuf;
 
 class BinaryProtoLookupService implements LookupService {
 
-    private final ConnectionPool cnxPool;
+    private final PulsarClientImpl client;
     protected final InetSocketAddress serviceAddress;
     private final boolean useTls;
 
-    public BinaryProtoLookupService(ConnectionPool cnxPool, String serviceUrl, boolean useTls)
+    public BinaryProtoLookupService(PulsarClientImpl client, String serviceUrl, boolean useTls)
             throws PulsarClientException {
-        this.cnxPool = cnxPool;
+        this.client = client;
         this.useTls = useTls;
         URI uri;
         try {
@@ -75,8 +74,8 @@ class BinaryProtoLookupService implements LookupService {
             DestinationName destination) {
         CompletableFuture<InetSocketAddress> addressFuture = new CompletableFuture<InetSocketAddress>();
 
-        cnxPool.getConnection(socketAddress).thenAccept(clientCnx -> {
-            long requestId = requestIdGenerator.getAndIncrement();
+        client.getCnxPool().getConnection(socketAddress).thenAccept(clientCnx -> {
+            long requestId = client.newRequestId();
             ByteBuf request = Commands.newLookup(destination.toString(), authoritative, requestId);
             clientCnx.newLookup(request, requestId).thenAccept(lookupDataResult -> {
                 URI uri = null;
@@ -133,8 +132,8 @@ class BinaryProtoLookupService implements LookupService {
 
         CompletableFuture<PartitionedTopicMetadata> partitionFuture = new CompletableFuture<PartitionedTopicMetadata>();
 
-        cnxPool.getConnection(socketAddress).thenAccept(clientCnx -> {
-            long requestId = requestIdGenerator.getAndIncrement();
+        client.getCnxPool().getConnection(socketAddress).thenAccept(clientCnx -> {
+            long requestId = client.newRequestId();
             ByteBuf request = Commands.newPartitionMetadataRequest(destination.toString(), requestId);
             clientCnx.newLookup(request, requestId).thenAccept(lookupDataResult -> {
                 try {

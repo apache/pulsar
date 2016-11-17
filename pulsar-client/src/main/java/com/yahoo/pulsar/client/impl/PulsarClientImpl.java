@@ -71,7 +71,7 @@ public class PulsarClientImpl implements PulsarClient {
 
     private final AtomicLong producerIdGenerator = new AtomicLong();
     private final AtomicLong consumerIdGenerator = new AtomicLong();
-    protected static final AtomicLong requestIdGenerator = new AtomicLong();
+    private final AtomicLong requestIdGenerator = new AtomicLong();
 
     private final EventLoopGroup eventLoopGroup;
 
@@ -93,7 +93,7 @@ public class PulsarClientImpl implements PulsarClient {
                     conf.isTlsAllowInsecureConnection(), conf.getTlsTrustCertsFilePath());
             lookup = new HttpLookupService(httpClient, conf.isUseTls());
         } else {
-            lookup = new BinaryProtoLookupService(cnxPool, serviceUrl, conf.isUseTls());
+            lookup = new BinaryProtoLookupService(this, serviceUrl, conf.isUseTls());
         }
         timer = new HashedWheelTimer(new DefaultThreadFactory("pulsar-timer"), 1, TimeUnit.MILLISECONDS);
         externalExecutorProvider = new ExecutorProvider(conf.getListenerThreads(), "pulsar-external-listener");
@@ -363,6 +363,10 @@ public class PulsarClientImpl implements PulsarClient {
 
     long newRequestId() {
         return requestIdGenerator.getAndIncrement();
+    }
+
+    ConnectionPool getCnxPool() {
+        return cnxPool;
     }
 
     EventLoopGroup eventLoopGroup() {
