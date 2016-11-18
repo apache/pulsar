@@ -93,7 +93,7 @@ flexible messaging model and an intuitive client API.</description>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
-    <bookkeeper.version>4.3.1.41-yahoo</bookkeeper.version>
+    <bookkeeper.version>4.3.1.42-yahoo</bookkeeper.version>
 
     <netty.version>4.0.40.Final</netty.version>
     <storm.version>0.9.5</storm.version>
