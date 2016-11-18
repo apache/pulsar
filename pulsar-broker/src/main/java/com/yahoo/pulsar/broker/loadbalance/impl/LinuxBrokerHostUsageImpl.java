@@ -159,7 +159,8 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
 
     private boolean isPhysicalNic(Path path) {
         try {
-            if (!Files.readSymbolicLink(path).toString().contains("/virtual/")) {
+            path = Files.isSymbolicLink(path) ? Files.readSymbolicLink(path) : path;
+            if (!path.toString().contains("/virtual/")) {
                 try {
                     Files.readAllBytes(path.resolve("speed"));
                     return true;
