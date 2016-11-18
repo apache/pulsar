@@ -111,7 +111,12 @@
                   <include>org.apache.commons:commons-lang3</include>
                   <include>commons-codec:commons-codec</include>
                   <include>commons-collections:commons-collections</include>
-                  <include>org.asynchttpclient:async-http-client</include>
+                  <include>org.asynchttpclient:*</include>
+                  <include>io.netty:netty-codec-http</include>
+                  <include>io.netty:netty-transport-native-epoll</include>
+                  <include>org.reactivestreams:reactive-streams</include>
+                  <include>com.typesafe.netty:netty-reactive-streams</include>
+                  <include>org.javassist:javassist</include>
                   <include>com.google.protobuf:protobuf-java</include>
                   <include>com.google.guava:guava</include>
                   <include>com.google.code.gson:gson</include>
@@ -122,7 +127,7 @@
                   <include>com.yahoo.pulsar:pulsar-common</include>
                   <include>com.yahoo.pulsar:pulsar-checksum</include>
                   <include>net.jpountz.lz4:lz4</include>
-                  <include>com.yahoo.datasketches:sketches-core</include>>
+                  <include>com.yahoo.datasketches:sketches-core</include>
                 </includes>
               </artifactSet>
               <filters>
@@ -137,10 +142,6 @@
                 <relocation>
                   <pattern>org.apache.commons</pattern>
                   <shadedPattern>com.yahoo.pulsar.shade.org.apache.commons</shadedPattern>
-                </relocation>
-                <relocation>
-                  <pattern>org.asynchttpclient</pattern>
-                  <shadedPattern>com.yahoo.pulsar.shade.org.asynchttpclient</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>com.google</pattern>
