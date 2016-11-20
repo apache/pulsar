@@ -11,3 +11,5 @@
   - [Geo-Replication](GeoReplication.md)
   - [WebSocket API](WebSocket.md)
   - [Apache Storm adaptor](PulsarStorm.md)
+* Internal Docs
+  - [Binary protocol specification](BinaryProtocol.md)
