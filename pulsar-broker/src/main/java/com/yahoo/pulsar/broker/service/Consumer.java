@@ -368,6 +368,7 @@ public class Consumer {
     public ConsumerStats getStats() {
         stats.availablePermits = getAvailablePermits();
         stats.unackedMessages = unackedMessages.get();
+        stats.blockedConsumerOnUnackedMsgs = blockedConsumerOnUnackedMsgs;
         return stats;
     }
 

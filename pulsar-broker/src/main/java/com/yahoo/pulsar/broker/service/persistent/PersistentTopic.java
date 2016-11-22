@@ -845,6 +845,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                     destStatsStream.writePair("consumerName", consumerStats.consumerName);
                     destStatsStream.writePair("availablePermits", consumerStats.availablePermits);
                     destStatsStream.writePair("unackedMessages", consumerStats.unackedMessages);
+                    destStatsStream.writePair("blockedConsumerOnUnackedMsgs", consumerStats.blockedConsumerOnUnackedMsgs);
                     destStatsStream.writePair("connectedSince", consumerStats.connectedSince);
                     destStatsStream.writePair("msgRateOut", consumerStats.msgRateOut);
                     destStatsStream.writePair("msgThroughputOut", consumerStats.msgThroughputOut);
