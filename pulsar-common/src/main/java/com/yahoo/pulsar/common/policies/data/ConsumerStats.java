@@ -37,6 +37,9 @@ public class ConsumerStats {
     
     /** Number of unacknowledged messages for the consumer */
     public int unackedMessages;
+    
+    /** Flag to verify if consumer is blocked due to reaching threshold of unacked messages */
+    public boolean blockedConsumerOnUnackedMsgs;
 
     /** Address of this consumer */
     public String address;
@@ -51,6 +54,7 @@ public class ConsumerStats {
         this.msgRateRedeliver += stats.msgRateRedeliver;
         this.availablePermits += stats.availablePermits;
         this.unackedMessages += stats.unackedMessages;
+        this.blockedConsumerOnUnackedMsgs = stats.blockedConsumerOnUnackedMsgs;
         return this;
     }
 }
