@@ -15,6 +15,10 @@
  */
 package com.yahoo.pulsar.discovery.service.server;
 
+import java.util.Properties;
+import java.util.Set;
+
+import com.google.common.collect.Sets;
 import com.yahoo.pulsar.discovery.service.web.DiscoveryServiceServlet;
 
 /**
@@ -23,8 +27,10 @@ import com.yahoo.pulsar.discovery.service.web.DiscoveryServiceServlet;
  */
 public class ServiceConfig {
 
-    // Zookeeper quorum connection string
+    // Local-Zookeeper quorum connection string
     private String zookeeperServers;
+    // Global-Zookeeper quorum connection string
+    private String globalZookeeperServers;
     // Port to use to server binary-proto request
     private int servicePort = 5000;
     // Port to use to server binary-proto-tls request
@@ -36,7 +42,18 @@ public class ServiceConfig {
     // Control whether to bind directly on localhost rather than on normal
     // hostname
     private boolean bindOnLocalhost = false;
-
+    
+    // Role names that are treated as "super-user", meaning they will be able to
+    // do all admin operations and publish/consume from all topics
+    private Set<String> superUserRoles = Sets.newTreeSet();
+    
+    // Enable authentication
+    private boolean authenticationEnabled = false;
+    // Authentication provider name list, which is a list of class names
+    private Set<String> authenticationProviders = Sets.newTreeSet();
+    // Enforce authorization
+    private boolean authorizationEnabled = false;
+    
     /***** --- TLS --- ****/
     // Enable TLS
     private boolean tlsEnabled = false;
@@ -44,6 +61,8 @@ public class ServiceConfig {
     private String tlsCertificateFilePath;
     // Path for the TLS private key file
     private String tlsKeyFilePath;
+    
+    private Properties properties = new Properties();
 
     public String getZookeeperServers() {
         return zookeeperServers;
@@ -51,6 +70,14 @@ public class ServiceConfig {
 
     public void setZookeeperServers(String zookeeperServers) {
         this.zookeeperServers = zookeeperServers;
+    }
+
+    public String getGlobalZookeeperServers() {
+        return globalZookeeperServers;
+    }
+
+    public void setGlobalZookeeperServers(String globalZookeeperServers) {
+        this.globalZookeeperServers = globalZookeeperServers;
     }
 
     public int getServicePort() {
@@ -117,4 +144,43 @@ public class ServiceConfig {
         this.bindOnLocalhost = bindOnLocalhost;
     }
 
+    public boolean isAuthenticationEnabled() {
+        return authenticationEnabled;
+    }
+
+    public void setAuthenticationEnabled(boolean authenticationEnabled) {
+        this.authenticationEnabled = authenticationEnabled;
+    }
+
+    public Set<String> getAuthenticationProviders() {
+        return authenticationProviders;
+    }
+
+    public void setAuthenticationProviders(Set<String> authenticationProviders) {
+        this.authenticationProviders = authenticationProviders;
+    }
+
+    public boolean isAuthorizationEnabled() {
+        return authorizationEnabled;
+    }
+
+    public void setAuthorizationEnabled(boolean authorizationEnabled) {
+        this.authorizationEnabled = authorizationEnabled;
+    }
+
+    public Set<String> getSuperUserRoles() {
+        return superUserRoles;
+    }
+
+    public void setSuperUserRoles(Set<String> superUserRoles) {
+        this.superUserRoles = superUserRoles;
+    }
+
+    public Properties getProperties() {
+        return properties;
+    }
+
+    public void setProperties(Properties properties) {
+        this.properties = properties;
+    }
 }

@@ -49,7 +49,7 @@ public final class PulsarApi {
       this.value = value;
     }
     
-    // @@protoc_insertion_point(enum_scope:com.yahoo.pulsar.common.api.proto.CompressionType)
+    // @@protoc_insertion_point(enum_scope:pulsar.proto.CompressionType)
   }
   
   public enum ServerError
@@ -114,7 +114,7 @@ public final class PulsarApi {
       this.value = value;
     }
     
-    // @@protoc_insertion_point(enum_scope:com.yahoo.pulsar.common.api.proto.ServerError)
+    // @@protoc_insertion_point(enum_scope:pulsar.proto.ServerError)
   }
   
   public enum AuthMethod
@@ -158,7 +158,7 @@ public final class PulsarApi {
       this.value = value;
     }
     
-    // @@protoc_insertion_point(enum_scope:com.yahoo.pulsar.common.api.proto.AuthMethod)
+    // @@protoc_insertion_point(enum_scope:pulsar.proto.AuthMethod)
   }
   
   public enum ProtocolVersion
@@ -214,7 +214,7 @@ public final class PulsarApi {
       this.value = value;
     }
     
-    // @@protoc_insertion_point(enum_scope:com.yahoo.pulsar.common.api.proto.ProtocolVersion)
+    // @@protoc_insertion_point(enum_scope:pulsar.proto.ProtocolVersion)
   }
   
   public interface MessageIdDataOrBuilder
@@ -713,7 +713,7 @@ public final class PulsarApi {
         return this;
       }
       
-      // @@protoc_insertion_point(builder_scope:com.yahoo.pulsar.common.api.proto.MessageIdData)
+      // @@protoc_insertion_point(builder_scope:pulsar.proto.MessageIdData)
     }
     
     static {
@@ -721,7 +721,7 @@ public final class PulsarApi {
       defaultInstance.initFields();
     }
     
-    // @@protoc_insertion_point(class_scope:com.yahoo.pulsar.common.api.proto.MessageIdData)
+    // @@protoc_insertion_point(class_scope:pulsar.proto.MessageIdData)
   }
   
   public interface KeyValueOrBuilder
@@ -1180,7 +1180,7 @@ public final class PulsarApi {
         
       }
       
-      // @@protoc_insertion_point(builder_scope:com.yahoo.pulsar.common.api.proto.KeyValue)
+      // @@protoc_insertion_point(builder_scope:pulsar.proto.KeyValue)
     }
     
     static {
@@ -1188,7 +1188,7 @@ public final class PulsarApi {
       defaultInstance.initFields();
     }
     
-    // @@protoc_insertion_point(class_scope:com.yahoo.pulsar.common.api.proto.KeyValue)
+    // @@protoc_insertion_point(class_scope:pulsar.proto.KeyValue)
   }
   
   public interface MessageMetadataOrBuilder
@@ -1206,7 +1206,7 @@ public final class PulsarApi {
     boolean hasPublishTime();
     long getPublishTime();
     
-    // repeated .com.yahoo.pulsar.common.api.proto.KeyValue properties = 4;
+    // repeated .pulsar.proto.KeyValue properties = 4;
     java.util.List<com.yahoo.pulsar.common.api.proto.PulsarApi.KeyValue> 
         getPropertiesList();
     com.yahoo.pulsar.common.api.proto.PulsarApi.KeyValue getProperties(int index);
@@ -1225,7 +1225,7 @@ public final class PulsarApi {
     int getReplicateToCount();
     String getReplicateTo(int index);
     
-    // optional .com.yahoo.pulsar.common.api.proto.CompressionType compression = 8 [default = NONE];
+    // optional .pulsar.proto.CompressionType compression = 8 [default = NONE];
     boolean hasCompression();
     com.yahoo.pulsar.common.api.proto.PulsarApi.CompressionType getCompression();
     
@@ -1324,7 +1324,7 @@ public final class PulsarApi {
       return publishTime_;
     }
     
-    // repeated .com.yahoo.pulsar.common.api.proto.KeyValue properties = 4;
+    // repeated .pulsar.proto.KeyValue properties = 4;
     public static final int PROPERTIES_FIELD_NUMBER = 4;
     private java.util.List<com.yahoo.pulsar.common.api.proto.PulsarApi.KeyValue> properties_;
     public java.util.List<com.yahoo.pulsar.common.api.proto.PulsarApi.KeyValue> getPropertiesList() {
@@ -1423,7 +1423,7 @@ public final class PulsarApi {
       return replicateTo_.get(index);
     }
     
-    // optional .com.yahoo.pulsar.common.api.proto.CompressionType compression = 8 [default = NONE];
+    // optional .pulsar.proto.CompressionType compression = 8 [default = NONE];
     public static final int COMPRESSION_FIELD_NUMBER = 8;
     private com.yahoo.pulsar.common.api.proto.PulsarApi.CompressionType compression_;
     public boolean hasCompression() {
@@ -2028,7 +2028,7 @@ public final class PulsarApi {
         return this;
       }
       
-      // repeated .com.yahoo.pulsar.common.api.proto.KeyValue properties = 4;
+      // repeated .pulsar.proto.KeyValue properties = 4;
       private java.util.List<com.yahoo.pulsar.common.api.proto.PulsarApi.KeyValue> properties_ =
         java.util.Collections.emptyList();
       private void ensurePropertiesIsMutable() {
@@ -2245,7 +2245,7 @@ public final class PulsarApi {
         
       }
       
-      // optional .com.yahoo.pulsar.common.api.proto.CompressionType compression = 8 [default = NONE];
+      // optional .pulsar.proto.CompressionType compression = 8 [default = NONE];
       private com.yahoo.pulsar.common.api.proto.PulsarApi.CompressionType compression_ = com.yahoo.pulsar.common.api.proto.PulsarApi.CompressionType.NONE;
       public boolean hasCompression() {
         return ((bitField0_ & 0x00000080) == 0x00000080);
@@ -2311,7 +2311,7 @@ public final class PulsarApi {
         return this;
       }
       
-      // @@protoc_insertion_point(builder_scope:com.yahoo.pulsar.common.api.proto.MessageMetadata)
+      // @@protoc_insertion_point(builder_scope:pulsar.proto.MessageMetadata)
     }
     
     static {
@@ -2319,13 +2319,13 @@ public final class PulsarApi {
       defaultInstance.initFields();
     }
     
-    // @@protoc_insertion_point(class_scope:com.yahoo.pulsar.common.api.proto.MessageMetadata)
+    // @@protoc_insertion_point(class_scope:pulsar.proto.MessageMetadata)
   }
   
   public interface SingleMessageMetadataOrBuilder
       extends com.google.protobuf.MessageLiteOrBuilder {
     
-    // repeated .com.yahoo.pulsar.common.api.proto.KeyValue properties = 1;
+    // repeated .pulsar.proto.KeyValue properties = 1;
     java.util.List<com.yahoo.pulsar.common.api.proto.PulsarApi.KeyValue> 
         getPropertiesList();
     com.yahoo.pulsar.common.api.proto.PulsarApi.KeyValue getProperties(int index);
@@ -2374,7 +2374,7 @@ public final class PulsarApi {
     }
     
     private int bitField0_;
-    // repeated .com.yahoo.pulsar.common.api.proto.KeyValue properties = 1;
+    // repeated .pulsar.proto.KeyValue properties = 1;
     public static final int PROPERTIES_FIELD_NUMBER = 1;
     private java.util.List<com.yahoo.pulsar.common.api.proto.PulsarApi.KeyValue> properties_;
     public java.util.List<com.yahoo.pulsar.common.api.proto.PulsarApi.KeyValue> getPropertiesList() {
@@ -2746,7 +2746,7 @@ public final class PulsarApi {
       
       private int bitField0_;
       
-      // repeated .com.yahoo.pulsar.common.api.proto.KeyValue properties = 1;
+      // repeated .pulsar.proto.KeyValue properties = 1;
       private java.util.List<com.yahoo.pulsar.common.api.proto.PulsarApi.KeyValue> properties_ =
         java.util.Collections.emptyList();
       private void ensurePropertiesIsMutable() {
@@ -2892,7 +2892,7 @@ public final class PulsarApi {
         return this;
       }
       
-      // @@protoc_insertion_point(builder_scope:com.yahoo.pulsar.common.api.proto.SingleMessageMetadata)
+      // @@protoc_insertion_point(builder_scope:pulsar.proto.SingleMessageMetadata)
     }
     
     static {
@@ -2900,7 +2900,7 @@ public final class PulsarApi {
       defaultInstance.initFields();
     }
     
-    // @@protoc_insertion_point(class_scope:com.yahoo.pulsar.common.api.proto.SingleMessageMetadata)
+    // @@protoc_insertion_point(class_scope:pulsar.proto.SingleMessageMetadata)
   }
   
   public interface CommandConnectOrBuilder
@@ -2910,7 +2910,7 @@ public final class PulsarApi {
     boolean hasClientVersion();
     String getClientVersion();
     
-    // optional .com.yahoo.pulsar.common.api.proto.AuthMethod auth_method = 2;
+    // optional .pulsar.proto.AuthMethod auth_method = 2;
     boolean hasAuthMethod();
     com.yahoo.pulsar.common.api.proto.PulsarApi.AuthMethod getAuthMethod();
     
@@ -2993,7 +2993,7 @@ public final class PulsarApi {
       }
     }
     
-    // optional .com.yahoo.pulsar.common.api.proto.AuthMethod auth_method = 2;
+    // optional .pulsar.proto.AuthMethod auth_method = 2;
     public static final int AUTH_METHOD_FIELD_NUMBER = 2;
     private com.yahoo.pulsar.common.api.proto.PulsarApi.AuthMethod authMethod_;
     public boolean hasAuthMethod() {
@@ -3427,7 +3427,7 @@ public final class PulsarApi {
         
       }
       
-      // optional .com.yahoo.pulsar.common.api.proto.AuthMethod auth_method = 2;
+      // optional .pulsar.proto.AuthMethod auth_method = 2;
       private com.yahoo.pulsar.common.api.proto.PulsarApi.AuthMethod authMethod_ = com.yahoo.pulsar.common.api.proto.PulsarApi.AuthMethod.AuthMethodNone;
       public boolean hasAuthMethod() {
         return ((bitField0_ & 0x00000002) == 0x00000002);
@@ -3532,7 +3532,7 @@ public final class PulsarApi {
         return this;
       }
       
-      // @@protoc_insertion_point(builder_scope:com.yahoo.pulsar.common.api.proto.CommandConnect)
+      // @@protoc_insertion_point(builder_scope:pulsar.proto.CommandConnect)
     }
     
     static {
@@ -3540,7 +3540,7 @@ public final class PulsarApi {
       defaultInstance.initFields();
     }
     
-    // @@protoc_insertion_point(class_scope:com.yahoo.pulsar.common.api.proto.CommandConnect)
+    // @@protoc_insertion_point(class_scope:pulsar.proto.CommandConnect)
   }
   
   public interface CommandConnectedOrBuilder
@@ -3954,7 +3954,7 @@ public final class PulsarApi {
         return this;
       }
       
-      // @@protoc_insertion_point(builder_scope:com.yahoo.pulsar.common.api.proto.CommandConnected)
+      // @@protoc_insertion_point(builder_scope:pulsar.proto.CommandConnected)
     }
     
     static {
@@ -3962,7 +3962,7 @@ public final class PulsarApi {
       defaultInstance.initFields();
     }
     
-    // @@protoc_insertion_point(class_scope:com.yahoo.pulsar.common.api.proto.CommandConnected)
+    // @@protoc_insertion_point(class_scope:pulsar.proto.CommandConnected)
   }
   
   public interface CommandSubscribeOrBuilder
@@ -3976,7 +3976,7 @@ public final class PulsarApi {
     boolean hasSubscription();
     String getSubscription();
     
-    // required .com.yahoo.pulsar.common.api.proto.CommandSubscribe.SubType subType = 3;
+    // required .pulsar.proto.CommandSubscribe.SubType subType = 3;
     boolean hasSubType();
     com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType getSubType();
     
@@ -4067,7 +4067,7 @@ public final class PulsarApi {
         this.value = value;
       }
       
-      // @@protoc_insertion_point(enum_scope:com.yahoo.pulsar.common.api.proto.CommandSubscribe.SubType)
+      // @@protoc_insertion_point(enum_scope:pulsar.proto.CommandSubscribe.SubType)
     }
     
     private int bitField0_;
@@ -4135,7 +4135,7 @@ public final class PulsarApi {
       }
     }
     
-    // required .com.yahoo.pulsar.common.api.proto.CommandSubscribe.SubType subType = 3;
+    // required .pulsar.proto.CommandSubscribe.SubType subType = 3;
     public static final int SUBTYPE_FIELD_NUMBER = 3;
     private com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType subType_;
     public boolean hasSubType() {
@@ -4659,7 +4659,7 @@ public final class PulsarApi {
         
       }
       
-      // required .com.yahoo.pulsar.common.api.proto.CommandSubscribe.SubType subType = 3;
+      // required .pulsar.proto.CommandSubscribe.SubType subType = 3;
       private com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType subType_ = com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType.Exclusive;
       public boolean hasSubType() {
         return ((bitField0_ & 0x00000004) == 0x00000004);
@@ -4761,7 +4761,7 @@ public final class PulsarApi {
         
       }
       
-      // @@protoc_insertion_point(builder_scope:com.yahoo.pulsar.common.api.proto.CommandSubscribe)
+      // @@protoc_insertion_point(builder_scope:pulsar.proto.CommandSubscribe)
     }
     
     static {
@@ -4769,7 +4769,7 @@ public final class PulsarApi {
       defaultInstance.initFields();
     }
     
-    // @@protoc_insertion_point(class_scope:com.yahoo.pulsar.common.api.proto.CommandSubscribe)
+    // @@protoc_insertion_point(class_scope:pulsar.proto.CommandSubscribe)
   }
   
   public interface CommandPartitionedTopicMetadataOrBuilder
@@ -5191,7 +5191,7 @@ public final class PulsarApi {
         return this;
       }
       
-      // @@protoc_insertion_point(builder_scope:com.yahoo.pulsar.common.api.proto.CommandPartitionedTopicMetadata)
+      // @@protoc_insertion_point(builder_scope:pulsar.proto.CommandPartitionedTopicMetadata)
     }
     
     static {
@@ -5199,7 +5199,7 @@ public final class PulsarApi {
       defaultInstance.initFields();
     }
     
-    // @@protoc_insertion_point(class_scope:com.yahoo.pulsar.common.api.proto.CommandPartitionedTopicMetadata)
+    // @@protoc_insertion_point(class_scope:pulsar.proto.CommandPartitionedTopicMetadata)
   }
   
   public interface CommandPartitionedTopicMetadataResponseOrBuilder
@@ -5213,23 +5213,15 @@ public final class PulsarApi {
     boolean hasRequestId();
     long getRequestId();
     
-    // optional .com.yahoo.pulsar.common.api.proto.CommandPartitionedTopicMetadataResponse.LookupType response = 3;
+    // optional .pulsar.proto.CommandPartitionedTopicMetadataResponse.LookupType response = 3;
     boolean hasResponse();
     com.yahoo.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadataResponse.LookupType getResponse();
     
-    // optional string brokerServiceUrl = 4;
-    boolean hasBrokerServiceUrl();
-    String getBrokerServiceUrl();
-    
-    // optional string brokerServiceUrlTls = 5;
-    boolean hasBrokerServiceUrlTls();
-    String getBrokerServiceUrlTls();
-    
-    // optional .com.yahoo.pulsar.common.api.proto.ServerError error = 6;
+    // optional .pulsar.proto.ServerError error = 4;
     boolean hasError();
     com.yahoo.pulsar.common.api.proto.PulsarApi.ServerError getError();
     
-    // optional string message = 7;
+    // optional string message = 5;
     boolean hasMessage();
     String getMessage();
   }
@@ -5269,23 +5261,20 @@ public final class PulsarApi {
     
     public enum LookupType
         implements com.google.protobuf.Internal.EnumLite {
-      Redirect(0, 0),
-      Success(1, 1),
-      Failed(2, 2),
+      Success(0, 0),
+      Failed(1, 1),
       ;
       
-      public static final int Redirect_VALUE = 0;
-      public static final int Success_VALUE = 1;
-      public static final int Failed_VALUE = 2;
+      public static final int Success_VALUE = 0;
+      public static final int Failed_VALUE = 1;
       
       
       public final int getNumber() { return value; }
       
       public static LookupType valueOf(int value) {
         switch (value) {
-          case 0: return Redirect;
-          case 1: return Success;
-          case 2: return Failed;
+          case 0: return Success;
+          case 1: return Failed;
           default: return null;
         }
       }
@@ -5308,7 +5297,7 @@ public final class PulsarApi {
         this.value = value;
       }
       
-      // @@protoc_insertion_point(enum_scope:com.yahoo.pulsar.common.api.proto.CommandPartitionedTopicMetadataResponse.LookupType)
+      // @@protoc_insertion_point(enum_scope:pulsar.proto.CommandPartitionedTopicMetadataResponse.LookupType)
     }
     
     private int bitField0_;
@@ -5332,7 +5321,7 @@ public final class PulsarApi {
       return requestId_;
     }
     
-    // optional .com.yahoo.pulsar.common.api.proto.CommandPartitionedTopicMetadataResponse.LookupType response = 3;
+    // optional .pulsar.proto.CommandPartitionedTopicMetadataResponse.LookupType response = 3;
     public static final int RESPONSE_FIELD_NUMBER = 3;
     private com.yahoo.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadataResponse.LookupType response_;
     public boolean hasResponse() {
@@ -5342,85 +5331,21 @@ public final class PulsarApi {
       return response_;
     }
     
-    // optional string brokerServiceUrl = 4;
-    public static final int BROKERSERVICEURL_FIELD_NUMBER = 4;
-    private java.lang.Object brokerServiceUrl_;
-    public boolean hasBrokerServiceUrl() {
-      return ((bitField0_ & 0x00000008) == 0x00000008);
-    }
-    public String getBrokerServiceUrl() {
-      java.lang.Object ref = brokerServiceUrl_;
-      if (ref instanceof String) {
-        return (String) ref;
-      } else {
-        com.google.protobuf.ByteString bs = 
-            (com.google.protobuf.ByteString) ref;
-        String s = bs.toStringUtf8();
-        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
-          brokerServiceUrl_ = s;
-        }
-        return s;
-      }
-    }
-    private com.google.protobuf.ByteString getBrokerServiceUrlBytes() {
-      java.lang.Object ref = brokerServiceUrl_;
-      if (ref instanceof String) {
-        com.google.protobuf.ByteString b = 
-            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
-        brokerServiceUrl_ = b;
-        return b;
-      } else {
-        return (com.google.protobuf.ByteString) ref;
-      }
-    }
-    
-    // optional string brokerServiceUrlTls = 5;
-    public static final int BROKERSERVICEURLTLS_FIELD_NUMBER = 5;
-    private java.lang.Object brokerServiceUrlTls_;
-    public boolean hasBrokerServiceUrlTls() {
-      return ((bitField0_ & 0x00000010) == 0x00000010);
-    }
-    public String getBrokerServiceUrlTls() {
-      java.lang.Object ref = brokerServiceUrlTls_;
-      if (ref instanceof String) {
-        return (String) ref;
-      } else {
-        com.google.protobuf.ByteString bs = 
-            (com.google.protobuf.ByteString) ref;
-        String s = bs.toStringUtf8();
-        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
-          brokerServiceUrlTls_ = s;
-        }
-        return s;
-      }
-    }
-    private com.google.protobuf.ByteString getBrokerServiceUrlTlsBytes() {
-      java.lang.Object ref = brokerServiceUrlTls_;
-      if (ref instanceof String) {
-        com.google.protobuf.ByteString b = 
-            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
-        brokerServiceUrlTls_ = b;
-        return b;
-      } else {
-        return (com.google.protobuf.ByteString) ref;
-      }
-    }
-    
-    // optional .com.yahoo.pulsar.common.api.proto.ServerError error = 6;
-    public static final int ERROR_FIELD_NUMBER = 6;
+    // optional .pulsar.proto.ServerError error = 4;
+    public static final int ERROR_FIELD_NUMBER = 4;
     private com.yahoo.pulsar.common.api.proto.PulsarApi.ServerError error_;
     public boolean hasError() {
-      return ((bitField0_ & 0x00000020) == 0x00000020);
+      return ((bitField0_ & 0x00000008) == 0x00000008);
     }
     public com.yahoo.pulsar.common.api.proto.PulsarApi.ServerError getError() {
       return error_;
     }
     
-    // optional string message = 7;
-    public static final int MESSAGE_FIELD_NUMBER = 7;
+    // optional string message = 5;
+    public static final int MESSAGE_FIELD_NUMBER = 5;
     private java.lang.Object message_;
     public boolean hasMessage() {
-      return ((bitField0_ & 0x00000040) == 0x00000040);
+      return ((bitField0_ & 0x00000010) == 0x00000010);
     }
     public String getMessage() {
       java.lang.Object ref = message_;
@@ -5451,9 +5376,7 @@ public final class PulsarApi {
     private void initFields() {
       partitions_ = 0;
       requestId_ = 0L;
-      response_ = com.yahoo.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadataResponse.LookupType.Redirect;
-      brokerServiceUrl_ = "";
-      brokerServiceUrlTls_ = "";
+      response_ = com.yahoo.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadataResponse.LookupType.Success;
       error_ = com.yahoo.pulsar.common.api.proto.PulsarApi.ServerError.UnknownError;
       message_ = "";
     }
@@ -5488,16 +5411,10 @@ public final class PulsarApi {
         output.writeEnum(3, response_.getNumber());
       }
       if (((bitField0_ & 0x00000008) == 0x00000008)) {
-        output.writeBytes(4, getBrokerServiceUrlBytes());
+        output.writeEnum(4, error_.getNumber());
       }
       if (((bitField0_ & 0x00000010) == 0x00000010)) {
-        output.writeBytes(5, getBrokerServiceUrlTlsBytes());
-      }
-      if (((bitField0_ & 0x00000020) == 0x00000020)) {
-        output.writeEnum(6, error_.getNumber());
-      }
-      if (((bitField0_ & 0x00000040) == 0x00000040)) {
-        output.writeBytes(7, getMessageBytes());
+        output.writeBytes(5, getMessageBytes());
       }
     }
     
@@ -5521,19 +5438,11 @@ public final class PulsarApi {
       }
       if (((bitField0_ & 0x00000008) == 0x00000008)) {
         size += com.google.protobuf.CodedOutputStream
-          .computeBytesSize(4, getBrokerServiceUrlBytes());
+          .computeEnumSize(4, error_.getNumber());
       }
       if (((bitField0_ & 0x00000010) == 0x00000010)) {
         size += com.google.protobuf.CodedOutputStream
-          .computeBytesSize(5, getBrokerServiceUrlTlsBytes());
-      }
-      if (((bitField0_ & 0x00000020) == 0x00000020)) {
-        size += com.google.protobuf.CodedOutputStream
-          .computeEnumSize(6, error_.getNumber());
-      }
-      if (((bitField0_ & 0x00000040) == 0x00000040)) {
-        size += com.google.protobuf.CodedOutputStream
-          .computeBytesSize(7, getMessageBytes());
+          .computeBytesSize(5, getMessageBytes());
       }
       memoizedSerializedSize = size;
       return size;
@@ -5652,16 +5561,12 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000001);
         requestId_ = 0L;
         bitField0_ = (bitField0_ & ~0x00000002);
-        response_ = com.yahoo.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadataResponse.LookupType.Redirect;
+        response_ = com.yahoo.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadataResponse.LookupType.Success;
         bitField0_ = (bitField0_ & ~0x00000004);
-        brokerServiceUrl_ = "";
-        bitField0_ = (bitField0_ & ~0x00000008);
-        brokerServiceUrlTls_ = "";
-        bitField0_ = (bitField0_ & ~0x00000010);
         error_ = com.yahoo.pulsar.common.api.proto.PulsarApi.ServerError.UnknownError;
-        bitField0_ = (bitField0_ & ~0x00000020);
+        bitField0_ = (bitField0_ & ~0x00000008);
         message_ = "";
-        bitField0_ = (bitField0_ & ~0x00000040);
+        bitField0_ = (bitField0_ & ~0x00000010);
         return this;
       }
       
@@ -5710,17 +5615,9 @@ public final class PulsarApi {
         if (((from_bitField0_ & 0x00000008) == 0x00000008)) {
           to_bitField0_ |= 0x00000008;
         }
-        result.brokerServiceUrl_ = brokerServiceUrl_;
+        result.error_ = error_;
         if (((from_bitField0_ & 0x00000010) == 0x00000010)) {
           to_bitField0_ |= 0x00000010;
-        }
-        result.brokerServiceUrlTls_ = brokerServiceUrlTls_;
-        if (((from_bitField0_ & 0x00000020) == 0x00000020)) {
-          to_bitField0_ |= 0x00000020;
-        }
-        result.error_ = error_;
-        if (((from_bitField0_ & 0x00000040) == 0x00000040)) {
-          to_bitField0_ |= 0x00000040;
         }
         result.message_ = message_;
         result.bitField0_ = to_bitField0_;
@@ -5737,12 +5634,6 @@ public final class PulsarApi {
         }
         if (other.hasResponse()) {
           setResponse(other.getResponse());
-        }
-        if (other.hasBrokerServiceUrl()) {
-          setBrokerServiceUrl(other.getBrokerServiceUrl());
-        }
-        if (other.hasBrokerServiceUrlTls()) {
-          setBrokerServiceUrlTls(other.getBrokerServiceUrlTls());
         }
         if (other.hasError()) {
           setError(other.getError());
@@ -5802,27 +5693,17 @@ public final class PulsarApi {
               }
               break;
             }
-            case 34: {
-              bitField0_ |= 0x00000008;
-              brokerServiceUrl_ = input.readBytes();
-              break;
-            }
-            case 42: {
-              bitField0_ |= 0x00000010;
-              brokerServiceUrlTls_ = input.readBytes();
-              break;
-            }
-            case 48: {
+            case 32: {
               int rawValue = input.readEnum();
               com.yahoo.pulsar.common.api.proto.PulsarApi.ServerError value = com.yahoo.pulsar.common.api.proto.PulsarApi.ServerError.valueOf(rawValue);
               if (value != null) {
-                bitField0_ |= 0x00000020;
+                bitField0_ |= 0x00000008;
                 error_ = value;
               }
               break;
             }
-            case 58: {
-              bitField0_ |= 0x00000040;
+            case 42: {
+              bitField0_ |= 0x00000010;
               message_ = input.readBytes();
               break;
             }
@@ -5874,8 +5755,8 @@ public final class PulsarApi {
         return this;
       }
       
-      // optional .com.yahoo.pulsar.common.api.proto.CommandPartitionedTopicMetadataResponse.LookupType response = 3;
-      private com.yahoo.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadataResponse.LookupType response_ = com.yahoo.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadataResponse.LookupType.Redirect;
+      // optional .pulsar.proto.CommandPartitionedTopicMetadataResponse.LookupType response = 3;
+      private com.yahoo.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadataResponse.LookupType response_ = com.yahoo.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadataResponse.LookupType.Success;
       public boolean hasResponse() {
         return ((bitField0_ & 0x00000004) == 0x00000004);
       }
@@ -5893,87 +5774,15 @@ public final class PulsarApi {
       }
       public Builder clearResponse() {
         bitField0_ = (bitField0_ & ~0x00000004);
-        response_ = com.yahoo.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadataResponse.LookupType.Redirect;
+        response_ = com.yahoo.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadataResponse.LookupType.Success;
         
         return this;
       }
       
-      // optional string brokerServiceUrl = 4;
-      private java.lang.Object brokerServiceUrl_ = "";
-      public boolean hasBrokerServiceUrl() {
-        return ((bitField0_ & 0x00000008) == 0x00000008);
-      }
-      public String getBrokerServiceUrl() {
-        java.lang.Object ref = brokerServiceUrl_;
-        if (!(ref instanceof String)) {
-          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
-          brokerServiceUrl_ = s;
-          return s;
-        } else {
-          return (String) ref;
-        }
-      }
-      public Builder setBrokerServiceUrl(String value) {
-        if (value == null) {
-    throw new NullPointerException();
-  }
-  bitField0_ |= 0x00000008;
-        brokerServiceUrl_ = value;
-        
-        return this;
-      }
-      public Builder clearBrokerServiceUrl() {
-        bitField0_ = (bitField0_ & ~0x00000008);
-        brokerServiceUrl_ = getDefaultInstance().getBrokerServiceUrl();
-        
-        return this;
-      }
-      void setBrokerServiceUrl(com.google.protobuf.ByteString value) {
-        bitField0_ |= 0x00000008;
-        brokerServiceUrl_ = value;
-        
-      }
-      
-      // optional string brokerServiceUrlTls = 5;
-      private java.lang.Object brokerServiceUrlTls_ = "";
-      public boolean hasBrokerServiceUrlTls() {
-        return ((bitField0_ & 0x00000010) == 0x00000010);
-      }
-      public String getBrokerServiceUrlTls() {
-        java.lang.Object ref = brokerServiceUrlTls_;
-        if (!(ref instanceof String)) {
-          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
-          brokerServiceUrlTls_ = s;
-          return s;
-        } else {
-          return (String) ref;
-        }
-      }
-      public Builder setBrokerServiceUrlTls(String value) {
-        if (value == null) {
-    throw new NullPointerException();
-  }
-  bitField0_ |= 0x00000010;
-        brokerServiceUrlTls_ = value;
-        
-        return this;
-      }
-      public Builder clearBrokerServiceUrlTls() {
-        bitField0_ = (bitField0_ & ~0x00000010);
-        brokerServiceUrlTls_ = getDefaultInstance().getBrokerServiceUrlTls();
-        
-        return this;
-      }
-      void setBrokerServiceUrlTls(com.google.protobuf.ByteString value) {
-        bitField0_ |= 0x00000010;
-        brokerServiceUrlTls_ = value;
-        
-      }
-      
-      // optional .com.yahoo.pulsar.common.api.proto.ServerError error = 6;
+      // optional .pulsar.proto.ServerError error = 4;
       private com.yahoo.pulsar.common.api.proto.PulsarApi.ServerError error_ = com.yahoo.pulsar.common.api.proto.PulsarApi.ServerError.UnknownError;
       public boolean hasError() {
-        return ((bitField0_ & 0x00000020) == 0x00000020);
+        return ((bitField0_ & 0x00000008) == 0x00000008);
       }
       public com.yahoo.pulsar.common.api.proto.PulsarApi.ServerError getError() {
         return error_;
@@ -5982,22 +5791,22 @@ public final class PulsarApi {
         if (value == null) {
           throw new NullPointerException();
         }
-        bitField0_ |= 0x00000020;
+        bitField0_ |= 0x00000008;
         error_ = value;
         
         return this;
       }
       public Builder clearError() {
-        bitField0_ = (bitField0_ & ~0x00000020);
+        bitField0_ = (bitField0_ & ~0x00000008);
         error_ = com.yahoo.pulsar.common.api.proto.PulsarApi.ServerError.UnknownError;
         
         return this;
       }
       
-      // optional string message = 7;
+      // optional string message = 5;
       private java.lang.Object message_ = "";
       public boolean hasMessage() {
-        return ((bitField0_ & 0x00000040) == 0x00000040);
+        return ((bitField0_ & 0x00000010) == 0x00000010);
       }
       public String getMessage() {
         java.lang.Object ref = message_;
@@ -6013,24 +5822,24 @@ public final class PulsarApi {
         if (value == null) {
     throw new NullPointerException();
   }
-  bitField0_ |= 0x00000040;
+  bitField0_ |= 0x00000010;
         message_ = value;
         
         return this;
       }
       public Builder clearMessage() {
-        bitField0_ = (bitField0_ & ~0x00000040);
+        bitField0_ = (bitField0_ & ~0x00000010);
         message_ = getDefaultInstance().getMessage();
         
         return this;
       }
       void setMessage(com.google.protobuf.ByteString value) {
-        bitField0_ |= 0x00000040;
+        bitField0_ |= 0x00000010;
         message_ = value;
         
       }
       
-      // @@protoc_insertion_point(builder_scope:com.yahoo.pulsar.common.api.proto.CommandPartitionedTopicMetadataResponse)
+      // @@protoc_insertion_point(builder_scope:pulsar.proto.CommandPartitionedTopicMetadataResponse)
     }
     
     static {
@@ -6038,7 +5847,7 @@ public final class PulsarApi {
       defaultInstance.initFields();
     }
     
-    // @@protoc_insertion_point(class_scope:com.yahoo.pulsar.common.api.proto.CommandPartitionedTopicMetadataResponse)
+    // @@protoc_insertion_point(class_scope:pulsar.proto.CommandPartitionedTopicMetadataResponse)
   }
   
   public interface CommandLookupTopicOrBuilder
@@ -6517,7 +6326,7 @@ public final class PulsarApi {
         return this;
       }
       
-      // @@protoc_insertion_point(builder_scope:com.yahoo.pulsar.common.api.proto.CommandLookupTopic)
+      // @@protoc_insertion_point(builder_scope:pulsar.proto.CommandLookupTopic)
     }
     
     static {
@@ -6525,7 +6334,7 @@ public final class PulsarApi {
       defaultInstance.initFields();
     }
     
-    // @@protoc_insertion_point(class_scope:com.yahoo.pulsar.common.api.proto.CommandLookupTopic)
+    // @@protoc_insertion_point(class_scope:pulsar.proto.CommandLookupTopic)
   }
   
   public interface CommandLookupTopicResponseOrBuilder
@@ -6539,7 +6348,7 @@ public final class PulsarApi {
     boolean hasBrokerServiceUrlTls();
     String getBrokerServiceUrlTls();
     
-    // optional .com.yahoo.pulsar.common.api.proto.CommandLookupTopicResponse.LookupType response = 3;
+    // optional .pulsar.proto.CommandLookupTopicResponse.LookupType response = 3;
     boolean hasResponse();
     com.yahoo.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse.LookupType getResponse();
     
@@ -6551,7 +6360,7 @@ public final class PulsarApi {
     boolean hasAuthoritative();
     boolean getAuthoritative();
     
-    // optional .com.yahoo.pulsar.common.api.proto.ServerError error = 6;
+    // optional .pulsar.proto.ServerError error = 6;
     boolean hasError();
     com.yahoo.pulsar.common.api.proto.PulsarApi.ServerError getError();
     
@@ -6634,7 +6443,7 @@ public final class PulsarApi {
         this.value = value;
       }
       
-      // @@protoc_insertion_point(enum_scope:com.yahoo.pulsar.common.api.proto.CommandLookupTopicResponse.LookupType)
+      // @@protoc_insertion_point(enum_scope:pulsar.proto.CommandLookupTopicResponse.LookupType)
     }
     
     private int bitField0_;
@@ -6702,7 +6511,7 @@ public final class PulsarApi {
       }
     }
     
-    // optional .com.yahoo.pulsar.common.api.proto.CommandLookupTopicResponse.LookupType response = 3;
+    // optional .pulsar.proto.CommandLookupTopicResponse.LookupType response = 3;
     public static final int RESPONSE_FIELD_NUMBER = 3;
     private com.yahoo.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse.LookupType response_;
     public boolean hasResponse() {
@@ -6732,7 +6541,7 @@ public final class PulsarApi {
       return authoritative_;
     }
     
-    // optional .com.yahoo.pulsar.common.api.proto.ServerError error = 6;
+    // optional .pulsar.proto.ServerError error = 6;
     public static final int ERROR_FIELD_NUMBER = 6;
     private com.yahoo.pulsar.common.api.proto.PulsarApi.ServerError error_;
     public boolean hasError() {
@@ -7230,7 +7039,7 @@ public final class PulsarApi {
         
       }
       
-      // optional .com.yahoo.pulsar.common.api.proto.CommandLookupTopicResponse.LookupType response = 3;
+      // optional .pulsar.proto.CommandLookupTopicResponse.LookupType response = 3;
       private com.yahoo.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse.LookupType response_ = com.yahoo.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse.LookupType.Redirect;
       public boolean hasResponse() {
         return ((bitField0_ & 0x00000004) == 0x00000004);
@@ -7296,7 +7105,7 @@ public final class PulsarApi {
         return this;
       }
       
-      // optional .com.yahoo.pulsar.common.api.proto.ServerError error = 6;
+      // optional .pulsar.proto.ServerError error = 6;
       private com.yahoo.pulsar.common.api.proto.PulsarApi.ServerError error_ = com.yahoo.pulsar.common.api.proto.PulsarApi.ServerError.UnknownError;
       public boolean hasError() {
         return ((bitField0_ & 0x00000020) == 0x00000020);
@@ -7356,7 +7165,7 @@ public final class PulsarApi {
         
       }
       
-      // @@protoc_insertion_point(builder_scope:com.yahoo.pulsar.common.api.proto.CommandLookupTopicResponse)
+      // @@protoc_insertion_point(builder_scope:pulsar.proto.CommandLookupTopicResponse)
     }
     
     static {
@@ -7364,7 +7173,7 @@ public final class PulsarApi {
       defaultInstance.initFields();
     }
     
-    // @@protoc_insertion_point(class_scope:com.yahoo.pulsar.common.api.proto.CommandLookupTopicResponse)
+    // @@protoc_insertion_point(class_scope:pulsar.proto.CommandLookupTopicResponse)
   }
   
   public interface CommandProducerOrBuilder
@@ -7945,7 +7754,7 @@ public final class PulsarApi {
         
       }
       
-      // @@protoc_insertion_point(builder_scope:com.yahoo.pulsar.common.api.proto.CommandProducer)
+      // @@protoc_insertion_point(builder_scope:pulsar.proto.CommandProducer)
     }
     
     static {
@@ -7953,7 +7762,7 @@ public final class PulsarApi {
       defaultInstance.initFields();
     }
     
-    // @@protoc_insertion_point(class_scope:com.yahoo.pulsar.common.api.proto.CommandProducer)
+    // @@protoc_insertion_point(class_scope:pulsar.proto.CommandProducer)
   }
   
   public interface CommandSendOrBuilder
@@ -8395,7 +8204,7 @@ public final class PulsarApi {
         return this;
       }
       
-      // @@protoc_insertion_point(builder_scope:com.yahoo.pulsar.common.api.proto.CommandSend)
+      // @@protoc_insertion_point(builder_scope:pulsar.proto.CommandSend)
     }
     
     static {
@@ -8403,7 +8212,7 @@ public final class PulsarApi {
       defaultInstance.initFields();
     }
     
-    // @@protoc_insertion_point(class_scope:com.yahoo.pulsar.common.api.proto.CommandSend)
+    // @@protoc_insertion_point(class_scope:pulsar.proto.CommandSend)
   }
   
   public interface CommandSendReceiptOrBuilder
@@ -8417,7 +8226,7 @@ public final class PulsarApi {
     boolean hasSequenceId();
     long getSequenceId();
     
-    // optional .com.yahoo.pulsar.common.api.proto.MessageIdData message_id = 3;
+    // optional .pulsar.proto.MessageIdData message_id = 3;
     boolean hasMessageId();
     com.yahoo.pulsar.common.api.proto.PulsarApi.MessageIdData getMessageId();
   }
@@ -8476,7 +8285,7 @@ public final class PulsarApi {
       return sequenceId_;
     }
     
-    // optional .com.yahoo.pulsar.common.api.proto.MessageIdData message_id = 3;
+    // optional .pulsar.proto.MessageIdData message_id = 3;
     public static final int MESSAGE_ID_FIELD_NUMBER = 3;
     private com.yahoo.pulsar.common.api.proto.PulsarApi.MessageIdData messageId_;
     public boolean hasMessageId() {
@@ -8841,7 +8650,7 @@ public final class PulsarApi {
         return this;
       }
       
-      // optional .com.yahoo.pulsar.common.api.proto.MessageIdData message_id = 3;
+      // optional .pulsar.proto.MessageIdData message_id = 3;
       private com.yahoo.pulsar.common.api.proto.PulsarApi.MessageIdData messageId_ = com.yahoo.pulsar.common.api.proto.PulsarApi.MessageIdData.getDefaultInstance();
       public boolean hasMessageId() {
         return ((bitField0_ & 0x00000004) == 0x00000004);
@@ -8884,7 +8693,7 @@ public final class PulsarApi {
         return this;
       }
       
-      // @@protoc_insertion_point(builder_scope:com.yahoo.pulsar.common.api.proto.CommandSendReceipt)
+      // @@protoc_insertion_point(builder_scope:pulsar.proto.CommandSendReceipt)
     }
     
     static {
@@ -8892,7 +8701,7 @@ public final class PulsarApi {
       defaultInstance.initFields();
     }
     
-    // @@protoc_insertion_point(class_scope:com.yahoo.pulsar.common.api.proto.CommandSendReceipt)
+    // @@protoc_insertion_point(class_scope:pulsar.proto.CommandSendReceipt)
   }
   
   public interface CommandSendErrorOrBuilder
@@ -8906,7 +8715,7 @@ public final class PulsarApi {
     boolean hasSequenceId();
     long getSequenceId();
     
-    // required .com.yahoo.pulsar.common.api.proto.ServerError error = 3;
+    // required .pulsar.proto.ServerError error = 3;
     boolean hasError();
     com.yahoo.pulsar.common.api.proto.PulsarApi.ServerError getError();
     
@@ -8969,7 +8778,7 @@ public final class PulsarApi {
       return sequenceId_;
     }
     
-    // required .com.yahoo.pulsar.common.api.proto.ServerError error = 3;
+    // required .pulsar.proto.ServerError error = 3;
     public static final int ERROR_FIELD_NUMBER = 3;
     private com.yahoo.pulsar.common.api.proto.PulsarApi.ServerError error_;
     public boolean hasError() {
@@ -9391,7 +9200,7 @@ public final class PulsarApi {
         return this;
       }
       
-      // required .com.yahoo.pulsar.common.api.proto.ServerError error = 3;
+      // required .pulsar.proto.ServerError error = 3;
       private com.yahoo.pulsar.common.api.proto.PulsarApi.ServerError error_ = com.yahoo.pulsar.common.api.proto.PulsarApi.ServerError.UnknownError;
       public boolean hasError() {
         return ((bitField0_ & 0x00000004) == 0x00000004);
@@ -9451,7 +9260,7 @@ public final class PulsarApi {
         
       }
       
-      // @@protoc_insertion_point(builder_scope:com.yahoo.pulsar.common.api.proto.CommandSendError)
+      // @@protoc_insertion_point(builder_scope:pulsar.proto.CommandSendError)
     }
     
     static {
@@ -9459,7 +9268,7 @@ public final class PulsarApi {
       defaultInstance.initFields();
     }
     
-    // @@protoc_insertion_point(class_scope:com.yahoo.pulsar.common.api.proto.CommandSendError)
+    // @@protoc_insertion_point(class_scope:pulsar.proto.CommandSendError)
   }
   
   public interface CommandMessageOrBuilder
@@ -9469,7 +9278,7 @@ public final class PulsarApi {
     boolean hasConsumerId();
     long getConsumerId();
     
-    // required .com.yahoo.pulsar.common.api.proto.MessageIdData message_id = 2;
+    // required .pulsar.proto.MessageIdData message_id = 2;
     boolean hasMessageId();
     com.yahoo.pulsar.common.api.proto.PulsarApi.MessageIdData getMessageId();
   }
@@ -9518,7 +9327,7 @@ public final class PulsarApi {
       return consumerId_;
     }
     
-    // required .com.yahoo.pulsar.common.api.proto.MessageIdData message_id = 2;
+    // required .pulsar.proto.MessageIdData message_id = 2;
     public static final int MESSAGE_ID_FIELD_NUMBER = 2;
     private com.yahoo.pulsar.common.api.proto.PulsarApi.MessageIdData messageId_;
     public boolean hasMessageId() {
@@ -9836,7 +9645,7 @@ public final class PulsarApi {
         return this;
       }
       
-      // required .com.yahoo.pulsar.common.api.proto.MessageIdData message_id = 2;
+      // required .pulsar.proto.MessageIdData message_id = 2;
       private com.yahoo.pulsar.common.api.proto.PulsarApi.MessageIdData messageId_ = com.yahoo.pulsar.common.api.proto.PulsarApi.MessageIdData.getDefaultInstance();
       public boolean hasMessageId() {
         return ((bitField0_ & 0x00000002) == 0x00000002);
@@ -9879,7 +9688,7 @@ public final class PulsarApi {
         return this;
       }
       
-      // @@protoc_insertion_point(builder_scope:com.yahoo.pulsar.common.api.proto.CommandMessage)
+      // @@protoc_insertion_point(builder_scope:pulsar.proto.CommandMessage)
     }
     
     static {
@@ -9887,7 +9696,7 @@ public final class PulsarApi {
       defaultInstance.initFields();
     }
     
-    // @@protoc_insertion_point(class_scope:com.yahoo.pulsar.common.api.proto.CommandMessage)
+    // @@protoc_insertion_point(class_scope:pulsar.proto.CommandMessage)
   }
   
   public interface CommandAckOrBuilder
@@ -9897,15 +9706,15 @@ public final class PulsarApi {
     boolean hasConsumerId();
     long getConsumerId();
     
-    // required .com.yahoo.pulsar.common.api.proto.CommandAck.AckType ack_type = 2;
+    // required .pulsar.proto.CommandAck.AckType ack_type = 2;
     boolean hasAckType();
     com.yahoo.pulsar.common.api.proto.PulsarApi.CommandAck.AckType getAckType();
     
-    // required .com.yahoo.pulsar.common.api.proto.MessageIdData message_id = 3;
+    // required .pulsar.proto.MessageIdData message_id = 3;
     boolean hasMessageId();
     com.yahoo.pulsar.common.api.proto.PulsarApi.MessageIdData getMessageId();
     
-    // optional .com.yahoo.pulsar.common.api.proto.CommandAck.ValidationError validation_error = 4;
+    // optional .pulsar.proto.CommandAck.ValidationError validation_error = 4;
     boolean hasValidationError();
     com.yahoo.pulsar.common.api.proto.PulsarApi.CommandAck.ValidationError getValidationError();
   }
@@ -9981,7 +9790,7 @@ public final class PulsarApi {
         this.value = value;
       }
       
-      // @@protoc_insertion_point(enum_scope:com.yahoo.pulsar.common.api.proto.CommandAck.AckType)
+      // @@protoc_insertion_point(enum_scope:pulsar.proto.CommandAck.AckType)
     }
     
     public enum ValidationError
@@ -10028,7 +9837,7 @@ public final class PulsarApi {
         this.value = value;
       }
       
-      // @@protoc_insertion_point(enum_scope:com.yahoo.pulsar.common.api.proto.CommandAck.ValidationError)
+      // @@protoc_insertion_point(enum_scope:pulsar.proto.CommandAck.ValidationError)
     }
     
     private int bitField0_;
@@ -10042,7 +9851,7 @@ public final class PulsarApi {
       return consumerId_;
     }
     
-    // required .com.yahoo.pulsar.common.api.proto.CommandAck.AckType ack_type = 2;
+    // required .pulsar.proto.CommandAck.AckType ack_type = 2;
     public static final int ACK_TYPE_FIELD_NUMBER = 2;
     private com.yahoo.pulsar.common.api.proto.PulsarApi.CommandAck.AckType ackType_;
     public boolean hasAckType() {
@@ -10052,7 +9861,7 @@ public final class PulsarApi {
       return ackType_;
     }
     
-    // required .com.yahoo.pulsar.common.api.proto.MessageIdData message_id = 3;
+    // required .pulsar.proto.MessageIdData message_id = 3;
     public static final int MESSAGE_ID_FIELD_NUMBER = 3;
     private com.yahoo.pulsar.common.api.proto.PulsarApi.MessageIdData messageId_;
     public boolean hasMessageId() {
@@ -10062,7 +9871,7 @@ public final class PulsarApi {
       return messageId_;
     }
     
-    // optional .com.yahoo.pulsar.common.api.proto.CommandAck.ValidationError validation_error = 4;
+    // optional .pulsar.proto.CommandAck.ValidationError validation_error = 4;
     public static final int VALIDATION_ERROR_FIELD_NUMBER = 4;
     private com.yahoo.pulsar.common.api.proto.PulsarApi.CommandAck.ValidationError validationError_;
     public boolean hasValidationError() {
@@ -10440,7 +10249,7 @@ public final class PulsarApi {
         return this;
       }
       
-      // required .com.yahoo.pulsar.common.api.proto.CommandAck.AckType ack_type = 2;
+      // required .pulsar.proto.CommandAck.AckType ack_type = 2;
       private com.yahoo.pulsar.common.api.proto.PulsarApi.CommandAck.AckType ackType_ = com.yahoo.pulsar.common.api.proto.PulsarApi.CommandAck.AckType.Individual;
       public boolean hasAckType() {
         return ((bitField0_ & 0x00000002) == 0x00000002);
@@ -10464,7 +10273,7 @@ public final class PulsarApi {
         return this;
       }
       
-      // required .com.yahoo.pulsar.common.api.proto.MessageIdData message_id = 3;
+      // required .pulsar.proto.MessageIdData message_id = 3;
       private com.yahoo.pulsar.common.api.proto.PulsarApi.MessageIdData messageId_ = com.yahoo.pulsar.common.api.proto.PulsarApi.MessageIdData.getDefaultInstance();
       public boolean hasMessageId() {
         return ((bitField0_ & 0x00000004) == 0x00000004);
@@ -10507,7 +10316,7 @@ public final class PulsarApi {
         return this;
       }
       
-      // optional .com.yahoo.pulsar.common.api.proto.CommandAck.ValidationError validation_error = 4;
+      // optional .pulsar.proto.CommandAck.ValidationError validation_error = 4;
       private com.yahoo.pulsar.common.api.proto.PulsarApi.CommandAck.ValidationError validationError_ = com.yahoo.pulsar.common.api.proto.PulsarApi.CommandAck.ValidationError.UncompressedSizeCorruption;
       public boolean hasValidationError() {
         return ((bitField0_ & 0x00000008) == 0x00000008);
@@ -10531,7 +10340,7 @@ public final class PulsarApi {
         return this;
       }
       
-      // @@protoc_insertion_point(builder_scope:com.yahoo.pulsar.common.api.proto.CommandAck)
+      // @@protoc_insertion_point(builder_scope:pulsar.proto.CommandAck)
     }
     
     static {
@@ -10539,7 +10348,7 @@ public final class PulsarApi {
       defaultInstance.initFields();
     }
     
-    // @@protoc_insertion_point(class_scope:com.yahoo.pulsar.common.api.proto.CommandAck)
+    // @@protoc_insertion_point(class_scope:pulsar.proto.CommandAck)
   }
   
   public interface CommandFlowOrBuilder
@@ -10924,7 +10733,7 @@ public final class PulsarApi {
         return this;
       }
       
-      // @@protoc_insertion_point(builder_scope:com.yahoo.pulsar.common.api.proto.CommandFlow)
+      // @@protoc_insertion_point(builder_scope:pulsar.proto.CommandFlow)
     }
     
     static {
@@ -10932,7 +10741,7 @@ public final class PulsarApi {
       defaultInstance.initFields();
     }
     
-    // @@protoc_insertion_point(class_scope:com.yahoo.pulsar.common.api.proto.CommandFlow)
+    // @@protoc_insertion_point(class_scope:pulsar.proto.CommandFlow)
   }
   
   public interface CommandUnsubscribeOrBuilder
@@ -11317,7 +11126,7 @@ public final class PulsarApi {
         return this;
       }
       
-      // @@protoc_insertion_point(builder_scope:com.yahoo.pulsar.common.api.proto.CommandUnsubscribe)
+      // @@protoc_insertion_point(builder_scope:pulsar.proto.CommandUnsubscribe)
     }
     
     static {
@@ -11325,7 +11134,7 @@ public final class PulsarApi {
       defaultInstance.initFields();
     }
     
-    // @@protoc_insertion_point(class_scope:com.yahoo.pulsar.common.api.proto.CommandUnsubscribe)
+    // @@protoc_insertion_point(class_scope:pulsar.proto.CommandUnsubscribe)
   }
   
   public interface CommandCloseProducerOrBuilder
@@ -11710,7 +11519,7 @@ public final class PulsarApi {
         return this;
       }
       
-      // @@protoc_insertion_point(builder_scope:com.yahoo.pulsar.common.api.proto.CommandCloseProducer)
+      // @@protoc_insertion_point(builder_scope:pulsar.proto.CommandCloseProducer)
     }
     
     static {
@@ -11718,7 +11527,7 @@ public final class PulsarApi {
       defaultInstance.initFields();
     }
     
-    // @@protoc_insertion_point(class_scope:com.yahoo.pulsar.common.api.proto.CommandCloseProducer)
+    // @@protoc_insertion_point(class_scope:pulsar.proto.CommandCloseProducer)
   }
   
   public interface CommandCloseConsumerOrBuilder
@@ -12103,7 +11912,7 @@ public final class PulsarApi {
         return this;
       }
       
-      // @@protoc_insertion_point(builder_scope:com.yahoo.pulsar.common.api.proto.CommandCloseConsumer)
+      // @@protoc_insertion_point(builder_scope:pulsar.proto.CommandCloseConsumer)
     }
     
     static {
@@ -12111,7 +11920,7 @@ public final class PulsarApi {
       defaultInstance.initFields();
     }
     
-    // @@protoc_insertion_point(class_scope:com.yahoo.pulsar.common.api.proto.CommandCloseConsumer)
+    // @@protoc_insertion_point(class_scope:pulsar.proto.CommandCloseConsumer)
   }
   
   public interface CommandRedeliverUnacknowledgedMessagesOrBuilder
@@ -12121,7 +11930,7 @@ public final class PulsarApi {
     boolean hasConsumerId();
     long getConsumerId();
     
-    // repeated .com.yahoo.pulsar.common.api.proto.MessageIdData message_ids = 2;
+    // repeated .pulsar.proto.MessageIdData message_ids = 2;
     java.util.List<com.yahoo.pulsar.common.api.proto.PulsarApi.MessageIdData> 
         getMessageIdsList();
     com.yahoo.pulsar.common.api.proto.PulsarApi.MessageIdData getMessageIds(int index);
@@ -12172,7 +11981,7 @@ public final class PulsarApi {
       return consumerId_;
     }
     
-    // repeated .com.yahoo.pulsar.common.api.proto.MessageIdData message_ids = 2;
+    // repeated .pulsar.proto.MessageIdData message_ids = 2;
     public static final int MESSAGE_IDS_FIELD_NUMBER = 2;
     private java.util.List<com.yahoo.pulsar.common.api.proto.PulsarApi.MessageIdData> messageIds_;
     public java.util.List<com.yahoo.pulsar.common.api.proto.PulsarApi.MessageIdData> getMessageIdsList() {
@@ -12501,7 +12310,7 @@ public final class PulsarApi {
         return this;
       }
       
-      // repeated .com.yahoo.pulsar.common.api.proto.MessageIdData message_ids = 2;
+      // repeated .pulsar.proto.MessageIdData message_ids = 2;
       private java.util.List<com.yahoo.pulsar.common.api.proto.PulsarApi.MessageIdData> messageIds_ =
         java.util.Collections.emptyList();
       private void ensureMessageIdsIsMutable() {
@@ -12590,7 +12399,7 @@ public final class PulsarApi {
         return this;
       }
       
-      // @@protoc_insertion_point(builder_scope:com.yahoo.pulsar.common.api.proto.CommandRedeliverUnacknowledgedMessages)
+      // @@protoc_insertion_point(builder_scope:pulsar.proto.CommandRedeliverUnacknowledgedMessages)
     }
     
     static {
@@ -12598,7 +12407,7 @@ public final class PulsarApi {
       defaultInstance.initFields();
     }
     
-    // @@protoc_insertion_point(class_scope:com.yahoo.pulsar.common.api.proto.CommandRedeliverUnacknowledgedMessages)
+    // @@protoc_insertion_point(class_scope:pulsar.proto.CommandRedeliverUnacknowledgedMessages)
   }
   
   public interface CommandSuccessOrBuilder
@@ -12918,7 +12727,7 @@ public final class PulsarApi {
         return this;
       }
       
-      // @@protoc_insertion_point(builder_scope:com.yahoo.pulsar.common.api.proto.CommandSuccess)
+      // @@protoc_insertion_point(builder_scope:pulsar.proto.CommandSuccess)
     }
     
     static {
@@ -12926,7 +12735,7 @@ public final class PulsarApi {
       defaultInstance.initFields();
     }
     
-    // @@protoc_insertion_point(class_scope:com.yahoo.pulsar.common.api.proto.CommandSuccess)
+    // @@protoc_insertion_point(class_scope:pulsar.proto.CommandSuccess)
   }
   
   public interface CommandProducerSuccessOrBuilder
@@ -13348,7 +13157,7 @@ public final class PulsarApi {
         
       }
       
-      // @@protoc_insertion_point(builder_scope:com.yahoo.pulsar.common.api.proto.CommandProducerSuccess)
+      // @@protoc_insertion_point(builder_scope:pulsar.proto.CommandProducerSuccess)
     }
     
     static {
@@ -13356,7 +13165,7 @@ public final class PulsarApi {
       defaultInstance.initFields();
     }
     
-    // @@protoc_insertion_point(class_scope:com.yahoo.pulsar.common.api.proto.CommandProducerSuccess)
+    // @@protoc_insertion_point(class_scope:pulsar.proto.CommandProducerSuccess)
   }
   
   public interface CommandErrorOrBuilder
@@ -13366,7 +13175,7 @@ public final class PulsarApi {
     boolean hasRequestId();
     long getRequestId();
     
-    // required .com.yahoo.pulsar.common.api.proto.ServerError error = 2;
+    // required .pulsar.proto.ServerError error = 2;
     boolean hasError();
     com.yahoo.pulsar.common.api.proto.PulsarApi.ServerError getError();
     
@@ -13419,7 +13228,7 @@ public final class PulsarApi {
       return requestId_;
     }
     
-    // required .com.yahoo.pulsar.common.api.proto.ServerError error = 2;
+    // required .pulsar.proto.ServerError error = 2;
     public static final int ERROR_FIELD_NUMBER = 2;
     private com.yahoo.pulsar.common.api.proto.PulsarApi.ServerError error_;
     public boolean hasError() {
@@ -13790,7 +13599,7 @@ public final class PulsarApi {
         return this;
       }
       
-      // required .com.yahoo.pulsar.common.api.proto.ServerError error = 2;
+      // required .pulsar.proto.ServerError error = 2;
       private com.yahoo.pulsar.common.api.proto.PulsarApi.ServerError error_ = com.yahoo.pulsar.common.api.proto.PulsarApi.ServerError.UnknownError;
       public boolean hasError() {
         return ((bitField0_ & 0x00000002) == 0x00000002);
@@ -13850,7 +13659,7 @@ public final class PulsarApi {
         
       }
       
-      // @@protoc_insertion_point(builder_scope:com.yahoo.pulsar.common.api.proto.CommandError)
+      // @@protoc_insertion_point(builder_scope:pulsar.proto.CommandError)
     }
     
     static {
@@ -13858,7 +13667,7 @@ public final class PulsarApi {
       defaultInstance.initFields();
     }
     
-    // @@protoc_insertion_point(class_scope:com.yahoo.pulsar.common.api.proto.CommandError)
+    // @@protoc_insertion_point(class_scope:pulsar.proto.CommandError)
   }
   
   public interface CommandPingOrBuilder
@@ -14107,7 +13916,7 @@ public final class PulsarApi {
       }
       
       
-      // @@protoc_insertion_point(builder_scope:com.yahoo.pulsar.common.api.proto.CommandPing)
+      // @@protoc_insertion_point(builder_scope:pulsar.proto.CommandPing)
     }
     
     static {
@@ -14115,7 +13924,7 @@ public final class PulsarApi {
       defaultInstance.initFields();
     }
     
-    // @@protoc_insertion_point(class_scope:com.yahoo.pulsar.common.api.proto.CommandPing)
+    // @@protoc_insertion_point(class_scope:pulsar.proto.CommandPing)
   }
   
   public interface CommandPongOrBuilder
@@ -14364,7 +14173,7 @@ public final class PulsarApi {
       }
       
       
-      // @@protoc_insertion_point(builder_scope:com.yahoo.pulsar.common.api.proto.CommandPong)
+      // @@protoc_insertion_point(builder_scope:pulsar.proto.CommandPong)
     }
     
     static {
@@ -14372,105 +14181,105 @@ public final class PulsarApi {
       defaultInstance.initFields();
     }
     
-    // @@protoc_insertion_point(class_scope:com.yahoo.pulsar.common.api.proto.CommandPong)
+    // @@protoc_insertion_point(class_scope:pulsar.proto.CommandPong)
   }
   
   public interface BaseCommandOrBuilder
       extends com.google.protobuf.MessageLiteOrBuilder {
     
-    // required .com.yahoo.pulsar.common.api.proto.BaseCommand.Type type = 1;
+    // required .pulsar.proto.BaseCommand.Type type = 1;
     boolean hasType();
     com.yahoo.pulsar.common.api.proto.PulsarApi.BaseCommand.Type getType();
     
-    // optional .com.yahoo.pulsar.common.api.proto.CommandConnect connect = 2;
+    // optional .pulsar.proto.CommandConnect connect = 2;
     boolean hasConnect();
     com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConnect getConnect();
     
-    // optional .com.yahoo.pulsar.common.api.proto.CommandConnected connected = 3;
+    // optional .pulsar.proto.CommandConnected connected = 3;
     boolean hasConnected();
     com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConnected getConnected();
     
-    // optional .com.yahoo.pulsar.common.api.proto.CommandSubscribe subscribe = 4;
+    // optional .pulsar.proto.CommandSubscribe subscribe = 4;
     boolean hasSubscribe();
     com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSubscribe getSubscribe();
     
-    // optional .com.yahoo.pulsar.common.api.proto.CommandProducer producer = 5;
+    // optional .pulsar.proto.CommandProducer producer = 5;
     boolean hasProducer();
     com.yahoo.pulsar.common.api.proto.PulsarApi.CommandProducer getProducer();
     
-    // optional .com.yahoo.pulsar.common.api.proto.CommandSend send = 6;
+    // optional .pulsar.proto.CommandSend send = 6;
     boolean hasSend();
     com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSend getSend();
     
-    // optional .com.yahoo.pulsar.common.api.proto.CommandSendReceipt send_receipt = 7;
+    // optional .pulsar.proto.CommandSendReceipt send_receipt = 7;
     boolean hasSendReceipt();
     com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSendReceipt getSendReceipt();
     
-    // optional .com.yahoo.pulsar.common.api.proto.CommandSendError send_error = 8;
+    // optional .pulsar.proto.CommandSendError send_error = 8;
     boolean hasSendError();
     com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSendError getSendError();
     
-    // optional .com.yahoo.pulsar.common.api.proto.CommandMessage message = 9;
+    // optional .pulsar.proto.CommandMessage message = 9;
     boolean hasMessage();
     com.yahoo.pulsar.common.api.proto.PulsarApi.CommandMessage getMessage();
     
-    // optional .com.yahoo.pulsar.common.api.proto.CommandAck ack = 10;
+    // optional .pulsar.proto.CommandAck ack = 10;
     boolean hasAck();
     com.yahoo.pulsar.common.api.proto.PulsarApi.CommandAck getAck();
     
-    // optional .com.yahoo.pulsar.common.api.proto.CommandFlow flow = 11;
+    // optional .pulsar.proto.CommandFlow flow = 11;
     boolean hasFlow();
     com.yahoo.pulsar.common.api.proto.PulsarApi.CommandFlow getFlow();
     
-    // optional .com.yahoo.pulsar.common.api.proto.CommandUnsubscribe unsubscribe = 12;
+    // optional .pulsar.proto.CommandUnsubscribe unsubscribe = 12;
     boolean hasUnsubscribe();
     com.yahoo.pulsar.common.api.proto.PulsarApi.CommandUnsubscribe getUnsubscribe();
     
-    // optional .com.yahoo.pulsar.common.api.proto.CommandSuccess success = 13;
+    // optional .pulsar.proto.CommandSuccess success = 13;
     boolean hasSuccess();
     com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSuccess getSuccess();
     
-    // optional .com.yahoo.pulsar.common.api.proto.CommandError error = 14;
+    // optional .pulsar.proto.CommandError error = 14;
     boolean hasError();
     com.yahoo.pulsar.common.api.proto.PulsarApi.CommandError getError();
     
-    // optional .com.yahoo.pulsar.common.api.proto.CommandCloseProducer close_producer = 15;
+    // optional .pulsar.proto.CommandCloseProducer close_producer = 15;
     boolean hasCloseProducer();
     com.yahoo.pulsar.common.api.proto.PulsarApi.CommandCloseProducer getCloseProducer();
     
-    // optional .com.yahoo.pulsar.common.api.proto.CommandCloseConsumer close_consumer = 16;
+    // optional .pulsar.proto.CommandCloseConsumer close_consumer = 16;
     boolean hasCloseConsumer();
     com.yahoo.pulsar.common.api.proto.PulsarApi.CommandCloseConsumer getCloseConsumer();
     
-    // optional .com.yahoo.pulsar.common.api.proto.CommandProducerSuccess producer_success = 17;
+    // optional .pulsar.proto.CommandProducerSuccess producer_success = 17;
     boolean hasProducerSuccess();
     com.yahoo.pulsar.common.api.proto.PulsarApi.CommandProducerSuccess getProducerSuccess();
     
-    // optional .com.yahoo.pulsar.common.api.proto.CommandPing ping = 18;
+    // optional .pulsar.proto.CommandPing ping = 18;
     boolean hasPing();
     com.yahoo.pulsar.common.api.proto.PulsarApi.CommandPing getPing();
     
-    // optional .com.yahoo.pulsar.common.api.proto.CommandPong pong = 19;
+    // optional .pulsar.proto.CommandPong pong = 19;
     boolean hasPong();
     com.yahoo.pulsar.common.api.proto.PulsarApi.CommandPong getPong();
     
-    // optional .com.yahoo.pulsar.common.api.proto.CommandRedeliverUnacknowledgedMessages redeliverUnacknowledgedMessages = 20;
+    // optional .pulsar.proto.CommandRedeliverUnacknowledgedMessages redeliverUnacknowledgedMessages = 20;
     boolean hasRedeliverUnacknowledgedMessages();
     com.yahoo.pulsar.common.api.proto.PulsarApi.CommandRedeliverUnacknowledgedMessages getRedeliverUnacknowledgedMessages();
     
-    // optional .com.yahoo.pulsar.common.api.proto.CommandPartitionedTopicMetadata partitionMetadata = 21;
+    // optional .pulsar.proto.CommandPartitionedTopicMetadata partitionMetadata = 21;
     boolean hasPartitionMetadata();
     com.yahoo.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadata getPartitionMetadata();
     
-    // optional .com.yahoo.pulsar.common.api.proto.CommandPartitionedTopicMetadataResponse partitionMetadataResponse = 22;
+    // optional .pulsar.proto.CommandPartitionedTopicMetadataResponse partitionMetadataResponse = 22;
     boolean hasPartitionMetadataResponse();
     com.yahoo.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadataResponse getPartitionMetadataResponse();
     
-    // optional .com.yahoo.pulsar.common.api.proto.CommandLookupTopic lookupTopic = 23;
+    // optional .pulsar.proto.CommandLookupTopic lookupTopic = 23;
     boolean hasLookupTopic();
     com.yahoo.pulsar.common.api.proto.PulsarApi.CommandLookupTopic getLookupTopic();
     
-    // optional .com.yahoo.pulsar.common.api.proto.CommandLookupTopicResponse lookupTopicResponse = 24;
+    // optional .pulsar.proto.CommandLookupTopicResponse lookupTopicResponse = 24;
     boolean hasLookupTopicResponse();
     com.yahoo.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse getLookupTopicResponse();
   }
@@ -14609,11 +14418,11 @@ public final class PulsarApi {
         this.value = value;
       }
       
-      // @@protoc_insertion_point(enum_scope:com.yahoo.pulsar.common.api.proto.BaseCommand.Type)
+      // @@protoc_insertion_point(enum_scope:pulsar.proto.BaseCommand.Type)
     }
     
     private int bitField0_;
-    // required .com.yahoo.pulsar.common.api.proto.BaseCommand.Type type = 1;
+    // required .pulsar.proto.BaseCommand.Type type = 1;
     public static final int TYPE_FIELD_NUMBER = 1;
     private com.yahoo.pulsar.common.api.proto.PulsarApi.BaseCommand.Type type_;
     public boolean hasType() {
@@ -14623,7 +14432,7 @@ public final class PulsarApi {
       return type_;
     }
     
-    // optional .com.yahoo.pulsar.common.api.proto.CommandConnect connect = 2;
+    // optional .pulsar.proto.CommandConnect connect = 2;
     public static final int CONNECT_FIELD_NUMBER = 2;
     private com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConnect connect_;
     public boolean hasConnect() {
@@ -14633,7 +14442,7 @@ public final class PulsarApi {
       return connect_;
     }
     
-    // optional .com.yahoo.pulsar.common.api.proto.CommandConnected connected = 3;
+    // optional .pulsar.proto.CommandConnected connected = 3;
     public static final int CONNECTED_FIELD_NUMBER = 3;
     private com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConnected connected_;
     public boolean hasConnected() {
@@ -14643,7 +14452,7 @@ public final class PulsarApi {
       return connected_;
     }
     
-    // optional .com.yahoo.pulsar.common.api.proto.CommandSubscribe subscribe = 4;
+    // optional .pulsar.proto.CommandSubscribe subscribe = 4;
     public static final int SUBSCRIBE_FIELD_NUMBER = 4;
     private com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSubscribe subscribe_;
     public boolean hasSubscribe() {
@@ -14653,7 +14462,7 @@ public final class PulsarApi {
       return subscribe_;
     }
     
-    // optional .com.yahoo.pulsar.common.api.proto.CommandProducer producer = 5;
+    // optional .pulsar.proto.CommandProducer producer = 5;
     public static final int PRODUCER_FIELD_NUMBER = 5;
     private com.yahoo.pulsar.common.api.proto.PulsarApi.CommandProducer producer_;
     public boolean hasProducer() {
@@ -14663,7 +14472,7 @@ public final class PulsarApi {
       return producer_;
     }
     
-    // optional .com.yahoo.pulsar.common.api.proto.CommandSend send = 6;
+    // optional .pulsar.proto.CommandSend send = 6;
     public static final int SEND_FIELD_NUMBER = 6;
     private com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSend send_;
     public boolean hasSend() {
@@ -14673,7 +14482,7 @@ public final class PulsarApi {
       return send_;
     }
     
-    // optional .com.yahoo.pulsar.common.api.proto.CommandSendReceipt send_receipt = 7;
+    // optional .pulsar.proto.CommandSendReceipt send_receipt = 7;
     public static final int SEND_RECEIPT_FIELD_NUMBER = 7;
     private com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSendReceipt sendReceipt_;
     public boolean hasSendReceipt() {
@@ -14683,7 +14492,7 @@ public final class PulsarApi {
       return sendReceipt_;
     }
     
-    // optional .com.yahoo.pulsar.common.api.proto.CommandSendError send_error = 8;
+    // optional .pulsar.proto.CommandSendError send_error = 8;
     public static final int SEND_ERROR_FIELD_NUMBER = 8;
     private com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSendError sendError_;
     public boolean hasSendError() {
@@ -14693,7 +14502,7 @@ public final class PulsarApi {
       return sendError_;
     }
     
-    // optional .com.yahoo.pulsar.common.api.proto.CommandMessage message = 9;
+    // optional .pulsar.proto.CommandMessage message = 9;
     public static final int MESSAGE_FIELD_NUMBER = 9;
     private com.yahoo.pulsar.common.api.proto.PulsarApi.CommandMessage message_;
     public boolean hasMessage() {
@@ -14703,7 +14512,7 @@ public final class PulsarApi {
       return message_;
     }
     
-    // optional .com.yahoo.pulsar.common.api.proto.CommandAck ack = 10;
+    // optional .pulsar.proto.CommandAck ack = 10;
     public static final int ACK_FIELD_NUMBER = 10;
     private com.yahoo.pulsar.common.api.proto.PulsarApi.CommandAck ack_;
     public boolean hasAck() {
@@ -14713,7 +14522,7 @@ public final class PulsarApi {
       return ack_;
     }
     
-    // optional .com.yahoo.pulsar.common.api.proto.CommandFlow flow = 11;
+    // optional .pulsar.proto.CommandFlow flow = 11;
     public static final int FLOW_FIELD_NUMBER = 11;
     private com.yahoo.pulsar.common.api.proto.PulsarApi.CommandFlow flow_;
     public boolean hasFlow() {
@@ -14723,7 +14532,7 @@ public final class PulsarApi {
       return flow_;
     }
     
-    // optional .com.yahoo.pulsar.common.api.proto.CommandUnsubscribe unsubscribe = 12;
+    // optional .pulsar.proto.CommandUnsubscribe unsubscribe = 12;
     public static final int UNSUBSCRIBE_FIELD_NUMBER = 12;
     private com.yahoo.pulsar.common.api.proto.PulsarApi.CommandUnsubscribe unsubscribe_;
     public boolean hasUnsubscribe() {
@@ -14733,7 +14542,7 @@ public final class PulsarApi {
       return unsubscribe_;
     }
     
-    // optional .com.yahoo.pulsar.common.api.proto.CommandSuccess success = 13;
+    // optional .pulsar.proto.CommandSuccess success = 13;
     public static final int SUCCESS_FIELD_NUMBER = 13;
     private com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSuccess success_;
     public boolean hasSuccess() {
@@ -14743,7 +14552,7 @@ public final class PulsarApi {
       return success_;
     }
     
-    // optional .com.yahoo.pulsar.common.api.proto.CommandError error = 14;
+    // optional .pulsar.proto.CommandError error = 14;
     public static final int ERROR_FIELD_NUMBER = 14;
     private com.yahoo.pulsar.common.api.proto.PulsarApi.CommandError error_;
     public boolean hasError() {
@@ -14753,7 +14562,7 @@ public final class PulsarApi {
       return error_;
     }
     
-    // optional .com.yahoo.pulsar.common.api.proto.CommandCloseProducer close_producer = 15;
+    // optional .pulsar.proto.CommandCloseProducer close_producer = 15;
     public static final int CLOSE_PRODUCER_FIELD_NUMBER = 15;
     private com.yahoo.pulsar.common.api.proto.PulsarApi.CommandCloseProducer closeProducer_;
     public boolean hasCloseProducer() {
@@ -14763,7 +14572,7 @@ public final class PulsarApi {
       return closeProducer_;
     }
     
-    // optional .com.yahoo.pulsar.common.api.proto.CommandCloseConsumer close_consumer = 16;
+    // optional .pulsar.proto.CommandCloseConsumer close_consumer = 16;
     public static final int CLOSE_CONSUMER_FIELD_NUMBER = 16;
     private com.yahoo.pulsar.common.api.proto.PulsarApi.CommandCloseConsumer closeConsumer_;
     public boolean hasCloseConsumer() {
@@ -14773,7 +14582,7 @@ public final class PulsarApi {
       return closeConsumer_;
     }
     
-    // optional .com.yahoo.pulsar.common.api.proto.CommandProducerSuccess producer_success = 17;
+    // optional .pulsar.proto.CommandProducerSuccess producer_success = 17;
     public static final int PRODUCER_SUCCESS_FIELD_NUMBER = 17;
     private com.yahoo.pulsar.common.api.proto.PulsarApi.CommandProducerSuccess producerSuccess_;
     public boolean hasProducerSuccess() {
@@ -14783,7 +14592,7 @@ public final class PulsarApi {
       return producerSuccess_;
     }
     
-    // optional .com.yahoo.pulsar.common.api.proto.CommandPing ping = 18;
+    // optional .pulsar.proto.CommandPing ping = 18;
     public static final int PING_FIELD_NUMBER = 18;
     private com.yahoo.pulsar.common.api.proto.PulsarApi.CommandPing ping_;
     public boolean hasPing() {
@@ -14793,7 +14602,7 @@ public final class PulsarApi {
       return ping_;
     }
     
-    // optional .com.yahoo.pulsar.common.api.proto.CommandPong pong = 19;
+    // optional .pulsar.proto.CommandPong pong = 19;
     public static final int PONG_FIELD_NUMBER = 19;
     private com.yahoo.pulsar.common.api.proto.PulsarApi.CommandPong pong_;
     public boolean hasPong() {
@@ -14803,7 +14612,7 @@ public final class PulsarApi {
       return pong_;
     }
     
-    // optional .com.yahoo.pulsar.common.api.proto.CommandRedeliverUnacknowledgedMessages redeliverUnacknowledgedMessages = 20;
+    // optional .pulsar.proto.CommandRedeliverUnacknowledgedMessages redeliverUnacknowledgedMessages = 20;
     public static final int REDELIVERUNACKNOWLEDGEDMESSAGES_FIELD_NUMBER = 20;
     private com.yahoo.pulsar.common.api.proto.PulsarApi.CommandRedeliverUnacknowledgedMessages redeliverUnacknowledgedMessages_;
     public boolean hasRedeliverUnacknowledgedMessages() {
@@ -14813,7 +14622,7 @@ public final class PulsarApi {
       return redeliverUnacknowledgedMessages_;
     }
     
-    // optional .com.yahoo.pulsar.common.api.proto.CommandPartitionedTopicMetadata partitionMetadata = 21;
+    // optional .pulsar.proto.CommandPartitionedTopicMetadata partitionMetadata = 21;
     public static final int PARTITIONMETADATA_FIELD_NUMBER = 21;
     private com.yahoo.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadata partitionMetadata_;
     public boolean hasPartitionMetadata() {
@@ -14823,7 +14632,7 @@ public final class PulsarApi {
       return partitionMetadata_;
     }
     
-    // optional .com.yahoo.pulsar.common.api.proto.CommandPartitionedTopicMetadataResponse partitionMetadataResponse = 22;
+    // optional .pulsar.proto.CommandPartitionedTopicMetadataResponse partitionMetadataResponse = 22;
     public static final int PARTITIONMETADATARESPONSE_FIELD_NUMBER = 22;
     private com.yahoo.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadataResponse partitionMetadataResponse_;
     public boolean hasPartitionMetadataResponse() {
@@ -14833,7 +14642,7 @@ public final class PulsarApi {
       return partitionMetadataResponse_;
     }
     
-    // optional .com.yahoo.pulsar.common.api.proto.CommandLookupTopic lookupTopic = 23;
+    // optional .pulsar.proto.CommandLookupTopic lookupTopic = 23;
     public static final int LOOKUPTOPIC_FIELD_NUMBER = 23;
     private com.yahoo.pulsar.common.api.proto.PulsarApi.CommandLookupTopic lookupTopic_;
     public boolean hasLookupTopic() {
@@ -14843,7 +14652,7 @@ public final class PulsarApi {
       return lookupTopic_;
     }
     
-    // optional .com.yahoo.pulsar.common.api.proto.CommandLookupTopicResponse lookupTopicResponse = 24;
+    // optional .pulsar.proto.CommandLookupTopicResponse lookupTopicResponse = 24;
     public static final int LOOKUPTOPICRESPONSE_FIELD_NUMBER = 24;
     private com.yahoo.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse lookupTopicResponse_;
     public boolean hasLookupTopicResponse() {
@@ -15974,7 +15783,7 @@ public final class PulsarApi {
       
       private int bitField0_;
       
-      // required .com.yahoo.pulsar.common.api.proto.BaseCommand.Type type = 1;
+      // required .pulsar.proto.BaseCommand.Type type = 1;
       private com.yahoo.pulsar.common.api.proto.PulsarApi.BaseCommand.Type type_ = com.yahoo.pulsar.common.api.proto.PulsarApi.BaseCommand.Type.CONNECT;
       public boolean hasType() {
         return ((bitField0_ & 0x00000001) == 0x00000001);
@@ -15998,7 +15807,7 @@ public final class PulsarApi {
         return this;
       }
       
-      // optional .com.yahoo.pulsar.common.api.proto.CommandConnect connect = 2;
+      // optional .pulsar.proto.CommandConnect connect = 2;
       private com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConnect connect_ = com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConnect.getDefaultInstance();
       public boolean hasConnect() {
         return ((bitField0_ & 0x00000002) == 0x00000002);
@@ -16041,7 +15850,7 @@ public final class PulsarApi {
         return this;
       }
       
-      // optional .com.yahoo.pulsar.common.api.proto.CommandConnected connected = 3;
+      // optional .pulsar.proto.CommandConnected connected = 3;
       private com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConnected connected_ = com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConnected.getDefaultInstance();
       public boolean hasConnected() {
         return ((bitField0_ & 0x00000004) == 0x00000004);
@@ -16084,7 +15893,7 @@ public final class PulsarApi {
         return this;
       }
       
-      // optional .com.yahoo.pulsar.common.api.proto.CommandSubscribe subscribe = 4;
+      // optional .pulsar.proto.CommandSubscribe subscribe = 4;
       private com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSubscribe subscribe_ = com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSubscribe.getDefaultInstance();
       public boolean hasSubscribe() {
         return ((bitField0_ & 0x00000008) == 0x00000008);
@@ -16127,7 +15936,7 @@ public final class PulsarApi {
         return this;
       }
       
-      // optional .com.yahoo.pulsar.common.api.proto.CommandProducer producer = 5;
+      // optional .pulsar.proto.CommandProducer producer = 5;
       private com.yahoo.pulsar.common.api.proto.PulsarApi.CommandProducer producer_ = com.yahoo.pulsar.common.api.proto.PulsarApi.CommandProducer.getDefaultInstance();
       public boolean hasProducer() {
         return ((bitField0_ & 0x00000010) == 0x00000010);
@@ -16170,7 +15979,7 @@ public final class PulsarApi {
         return this;
       }
       
-      // optional .com.yahoo.pulsar.common.api.proto.CommandSend send = 6;
+      // optional .pulsar.proto.CommandSend send = 6;
       private com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSend send_ = com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSend.getDefaultInstance();
       public boolean hasSend() {
         return ((bitField0_ & 0x00000020) == 0x00000020);
@@ -16213,7 +16022,7 @@ public final class PulsarApi {
         return this;
       }
       
-      // optional .com.yahoo.pulsar.common.api.proto.CommandSendReceipt send_receipt = 7;
+      // optional .pulsar.proto.CommandSendReceipt send_receipt = 7;
       private com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSendReceipt sendReceipt_ = com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSendReceipt.getDefaultInstance();
       public boolean hasSendReceipt() {
         return ((bitField0_ & 0x00000040) == 0x00000040);
@@ -16256,7 +16065,7 @@ public final class PulsarApi {
         return this;
       }
       
-      // optional .com.yahoo.pulsar.common.api.proto.CommandSendError send_error = 8;
+      // optional .pulsar.proto.CommandSendError send_error = 8;
       private com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSendError sendError_ = com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSendError.getDefaultInstance();
       public boolean hasSendError() {
         return ((bitField0_ & 0x00000080) == 0x00000080);
@@ -16299,7 +16108,7 @@ public final class PulsarApi {
         return this;
       }
       
-      // optional .com.yahoo.pulsar.common.api.proto.CommandMessage message = 9;
+      // optional .pulsar.proto.CommandMessage message = 9;
       private com.yahoo.pulsar.common.api.proto.PulsarApi.CommandMessage message_ = com.yahoo.pulsar.common.api.proto.PulsarApi.CommandMessage.getDefaultInstance();
       public boolean hasMessage() {
         return ((bitField0_ & 0x00000100) == 0x00000100);
@@ -16342,7 +16151,7 @@ public final class PulsarApi {
         return this;
       }
       
-      // optional .com.yahoo.pulsar.common.api.proto.CommandAck ack = 10;
+      // optional .pulsar.proto.CommandAck ack = 10;
       private com.yahoo.pulsar.common.api.proto.PulsarApi.CommandAck ack_ = com.yahoo.pulsar.common.api.proto.PulsarApi.CommandAck.getDefaultInstance();
       public boolean hasAck() {
         return ((bitField0_ & 0x00000200) == 0x00000200);
@@ -16385,7 +16194,7 @@ public final class PulsarApi {
         return this;
       }
       
-      // optional .com.yahoo.pulsar.common.api.proto.CommandFlow flow = 11;
+      // optional .pulsar.proto.CommandFlow flow = 11;
       private com.yahoo.pulsar.common.api.proto.PulsarApi.CommandFlow flow_ = com.yahoo.pulsar.common.api.proto.PulsarApi.CommandFlow.getDefaultInstance();
       public boolean hasFlow() {
         return ((bitField0_ & 0x00000400) == 0x00000400);
@@ -16428,7 +16237,7 @@ public final class PulsarApi {
         return this;
       }
       
-      // optional .com.yahoo.pulsar.common.api.proto.CommandUnsubscribe unsubscribe = 12;
+      // optional .pulsar.proto.CommandUnsubscribe unsubscribe = 12;
       private com.yahoo.pulsar.common.api.proto.PulsarApi.CommandUnsubscribe unsubscribe_ = com.yahoo.pulsar.common.api.proto.PulsarApi.CommandUnsubscribe.getDefaultInstance();
       public boolean hasUnsubscribe() {
         return ((bitField0_ & 0x00000800) == 0x00000800);
@@ -16471,7 +16280,7 @@ public final class PulsarApi {
         return this;
       }
       
-      // optional .com.yahoo.pulsar.common.api.proto.CommandSuccess success = 13;
+      // optional .pulsar.proto.CommandSuccess success = 13;
       private com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSuccess success_ = com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSuccess.getDefaultInstance();
       public boolean hasSuccess() {
         return ((bitField0_ & 0x00001000) == 0x00001000);
@@ -16514,7 +16323,7 @@ public final class PulsarApi {
         return this;
       }
       
-      // optional .com.yahoo.pulsar.common.api.proto.CommandError error = 14;
+      // optional .pulsar.proto.CommandError error = 14;
       private com.yahoo.pulsar.common.api.proto.PulsarApi.CommandError error_ = com.yahoo.pulsar.common.api.proto.PulsarApi.CommandError.getDefaultInstance();
       public boolean hasError() {
         return ((bitField0_ & 0x00002000) == 0x00002000);
@@ -16557,7 +16366,7 @@ public final class PulsarApi {
         return this;
       }
       
-      // optional .com.yahoo.pulsar.common.api.proto.CommandCloseProducer close_producer = 15;
+      // optional .pulsar.proto.CommandCloseProducer close_producer = 15;
       private com.yahoo.pulsar.common.api.proto.PulsarApi.CommandCloseProducer closeProducer_ = com.yahoo.pulsar.common.api.proto.PulsarApi.CommandCloseProducer.getDefaultInstance();
       public boolean hasCloseProducer() {
         return ((bitField0_ & 0x00004000) == 0x00004000);
@@ -16600,7 +16409,7 @@ public final class PulsarApi {
         return this;
       }
       
-      // optional .com.yahoo.pulsar.common.api.proto.CommandCloseConsumer close_consumer = 16;
+      // optional .pulsar.proto.CommandCloseConsumer close_consumer = 16;
       private com.yahoo.pulsar.common.api.proto.PulsarApi.CommandCloseConsumer closeConsumer_ = com.yahoo.pulsar.common.api.proto.PulsarApi.CommandCloseConsumer.getDefaultInstance();
       public boolean hasCloseConsumer() {
         return ((bitField0_ & 0x00008000) == 0x00008000);
@@ -16643,7 +16452,7 @@ public final class PulsarApi {
         return this;
       }
       
-      // optional .com.yahoo.pulsar.common.api.proto.CommandProducerSuccess producer_success = 17;
+      // optional .pulsar.proto.CommandProducerSuccess producer_success = 17;
       private com.yahoo.pulsar.common.api.proto.PulsarApi.CommandProducerSuccess producerSuccess_ = com.yahoo.pulsar.common.api.proto.PulsarApi.CommandProducerSuccess.getDefaultInstance();
       public boolean hasProducerSuccess() {
         return ((bitField0_ & 0x00010000) == 0x00010000);
@@ -16686,7 +16495,7 @@ public final class PulsarApi {
         return this;
       }
       
-      // optional .com.yahoo.pulsar.common.api.proto.CommandPing ping = 18;
+      // optional .pulsar.proto.CommandPing ping = 18;
       private com.yahoo.pulsar.common.api.proto.PulsarApi.CommandPing ping_ = com.yahoo.pulsar.common.api.proto.PulsarApi.CommandPing.getDefaultInstance();
       public boolean hasPing() {
         return ((bitField0_ & 0x00020000) == 0x00020000);
@@ -16729,7 +16538,7 @@ public final class PulsarApi {
         return this;
       }
       
-      // optional .com.yahoo.pulsar.common.api.proto.CommandPong pong = 19;
+      // optional .pulsar.proto.CommandPong pong = 19;
       private com.yahoo.pulsar.common.api.proto.PulsarApi.CommandPong pong_ = com.yahoo.pulsar.common.api.proto.PulsarApi.CommandPong.getDefaultInstance();
       public boolean hasPong() {
         return ((bitField0_ & 0x00040000) == 0x00040000);
@@ -16772,7 +16581,7 @@ public final class PulsarApi {
         return this;
       }
       
-      // optional .com.yahoo.pulsar.common.api.proto.CommandRedeliverUnacknowledgedMessages redeliverUnacknowledgedMessages = 20;
+      // optional .pulsar.proto.CommandRedeliverUnacknowledgedMessages redeliverUnacknowledgedMessages = 20;
       private com.yahoo.pulsar.common.api.proto.PulsarApi.CommandRedeliverUnacknowledgedMessages redeliverUnacknowledgedMessages_ = com.yahoo.pulsar.common.api.proto.PulsarApi.CommandRedeliverUnacknowledgedMessages.getDefaultInstance();
       public boolean hasRedeliverUnacknowledgedMessages() {
         return ((bitField0_ & 0x00080000) == 0x00080000);
@@ -16815,7 +16624,7 @@ public final class PulsarApi {
         return this;
       }
       
-      // optional .com.yahoo.pulsar.common.api.proto.CommandPartitionedTopicMetadata partitionMetadata = 21;
+      // optional .pulsar.proto.CommandPartitionedTopicMetadata partitionMetadata = 21;
       private com.yahoo.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadata partitionMetadata_ = com.yahoo.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadata.getDefaultInstance();
       public boolean hasPartitionMetadata() {
         return ((bitField0_ & 0x00100000) == 0x00100000);
@@ -16858,7 +16667,7 @@ public final class PulsarApi {
         return this;
       }
       
-      // optional .com.yahoo.pulsar.common.api.proto.CommandPartitionedTopicMetadataResponse partitionMetadataResponse = 22;
+      // optional .pulsar.proto.CommandPartitionedTopicMetadataResponse partitionMetadataResponse = 22;
       private com.yahoo.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadataResponse partitionMetadataResponse_ = com.yahoo.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadataResponse.getDefaultInstance();
       public boolean hasPartitionMetadataResponse() {
         return ((bitField0_ & 0x00200000) == 0x00200000);
@@ -16901,7 +16710,7 @@ public final class PulsarApi {
         return this;
       }
       
-      // optional .com.yahoo.pulsar.common.api.proto.CommandLookupTopic lookupTopic = 23;
+      // optional .pulsar.proto.CommandLookupTopic lookupTopic = 23;
       private com.yahoo.pulsar.common.api.proto.PulsarApi.CommandLookupTopic lookupTopic_ = com.yahoo.pulsar.common.api.proto.PulsarApi.CommandLookupTopic.getDefaultInstance();
       public boolean hasLookupTopic() {
         return ((bitField0_ & 0x00400000) == 0x00400000);
@@ -16944,7 +16753,7 @@ public final class PulsarApi {
         return this;
       }
       
-      // optional .com.yahoo.pulsar.common.api.proto.CommandLookupTopicResponse lookupTopicResponse = 24;
+      // optional .pulsar.proto.CommandLookupTopicResponse lookupTopicResponse = 24;
       private com.yahoo.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse lookupTopicResponse_ = com.yahoo.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse.getDefaultInstance();
       public boolean hasLookupTopicResponse() {
         return ((bitField0_ & 0x00800000) == 0x00800000);
@@ -16987,7 +16796,7 @@ public final class PulsarApi {
         return this;
       }
       
-      // @@protoc_insertion_point(builder_scope:com.yahoo.pulsar.common.api.proto.BaseCommand)
+      // @@protoc_insertion_point(builder_scope:pulsar.proto.BaseCommand)
     }
     
     static {
@@ -16995,7 +16804,7 @@ public final class PulsarApi {
       defaultInstance.initFields();
     }
     
-    // @@protoc_insertion_point(class_scope:com.yahoo.pulsar.common.api.proto.BaseCommand)
+    // @@protoc_insertion_point(class_scope:pulsar.proto.BaseCommand)
   }
   
   

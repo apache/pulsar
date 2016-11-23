@@ -44,6 +44,7 @@ public class DiscoveryServiceWebTest {
         }
         PrintWriter printWriter = new PrintWriter(new OutputStreamWriter(new FileOutputStream(testConfigFile)));
         printWriter.println("zookeeperServers=z1.pulsar.com,z2.pulsar.com,z3.pulsar.com");
+        printWriter.println("globalZookeeperServers=z1.pulsar.com,z2.pulsar.com,z3.pulsar.com");
         printWriter.println("webServicePort=" + port);
         printWriter.close();
         testConfigFile.deleteOnExit();

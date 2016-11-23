@@ -59,6 +59,6 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
         }
         ch.pipeline().addLast("frameDecoder",
                 new PulsarLengthFieldFrameDecoder(PulsarDecoder.MaxFrameSize, 0, 4, 0, 4));
-        ch.pipeline().addLast("handler", new ServerConnection(discoveryService.getDiscoveryProvider()));
+        ch.pipeline().addLast("handler", new ServerConnection(discoveryService));
     }
 }

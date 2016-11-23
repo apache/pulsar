@@ -106,8 +106,10 @@ public class DiscoveryServiceStarter {
             ServiceConfig config = new ServiceConfig();
             Properties properties = new Properties();
             properties.load(inStream);
+            config.setProperties(properties);
             update((Map) properties, config);
             checkArgument(!isEmpty(config.getZookeeperServers()), "zookeeperServers must be provided");
+            checkArgument(!isEmpty(config.getGlobalZookeeperServers()), "global-zookeeperServers must be provided");
             return config;
         } finally {
             if (inStream != null) {
