@@ -93,7 +93,7 @@ flexible messaging model and an intuitive client API.</description>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
-    <bookkeeper.version>4.3.1.42-yahoo</bookkeeper.version>
+    <bookkeeper.version>4.3.1.45-yahoo</bookkeeper.version>
 
     <netty.version>4.0.40.Final</netty.version>
     <storm.version>0.9.5</storm.version>
@@ -103,7 +103,7 @@ flexible messaging model and an intuitive client API.</description>
 
   <dependencyManagement>
     <dependencies>
-    
+
       <dependency>
         <groupId>org.asynchttpclient</groupId>
         <artifactId>async-http-client</artifactId>
@@ -139,7 +139,7 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>powermock-module-testng</artifactId>
         <version>1.6.5</version>
       </dependency>
-      
+
       <dependency>
     	<groupId>com.googlecode.jmockit</groupId>
     	<artifactId>jmockit</artifactId>
@@ -310,7 +310,7 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>jersey-container-servlet-core</artifactId>
         <version>2.23.2</version>
       </dependency>
-      
+
       <dependency>
         <groupId>org.glassfish.jersey.containers</groupId>
         <artifactId>jersey-container-servlet</artifactId>
