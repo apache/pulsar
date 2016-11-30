@@ -29,11 +29,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
@@ -44,6 +41,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.commons.lang.SystemUtils;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
@@ -381,11 +379,11 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                     configuration.setAuthentication(pulsar.getConfiguration().getBrokerClientAuthenticationPlugin(),
                             pulsar.getConfiguration().getBrokerClientAuthenticationParameters());
                 }
-                if (configuration.isUseTls() && !data.getServiceUrlTls().isEmpty()) {
-                    return new PulsarClientImpl(data.getServiceUrlTls(), configuration, this.workerGroup);
-                } else {
-                    return new PulsarClientImpl(data.getServiceUrl(), configuration, this.workerGroup);
-                }
+                String clusterUrl = configuration.isUseTls() ? (isNotBlank(data.getBrokerServiceUrlTls())
+                        ? data.getBrokerServiceUrlTls() : data.getServiceUrlTls()) : null;
+                clusterUrl = (isNotBlank(clusterUrl)) ? clusterUrl
+                        : (isNotBlank(data.getBrokerServiceUrl()) ? data.getBrokerServiceUrl() : data.getServiceUrl());
+                return new PulsarClientImpl(clusterUrl, configuration, this.workerGroup);
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
