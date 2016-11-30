@@ -136,8 +136,8 @@ as well as the Pulsar metadata.
 $ bin/pulsar initialize-cluster-metadata --cluster us-west \
                                          --zookeeper zk1.us-west.example.com:2181 \
                                          --global-zookeeper zk1.us-west.example.com:2184 \
-                                         --service-url http://pulsar.us-west.example.com:8080/ \
-                                         --service-url-tls https://pulsar.us-west.example.com:8443/
+                                         --service-url pulsar://pulsar.us-west.example.com:6650/ \
+                                         --service-url-tls pulsar+ssl://pulsar.us-west.example.com:6651/
 ```
 
 #### BookKeeper
@@ -241,8 +241,7 @@ only requirement is that when the client does a HTTP request on
 `http://pulsar.us-west.example.com:8080/` it must be redirected (through DNS, IP
 or HTTP redirect) to an active broker, without preference.
 
-The included discovery service works with HTTP redirect and it maintains the
-list of active brokers from ZooKeeper.
+The included discovery service maintains the list of active brokers from ZooKeeper and it supports lookup redirection with HTTP and also with [binary protocol](https://github.com/yahoo/pulsar/blob/master/docs/BinaryProtocol.md#service-discovery).
 
 Add the ZK servers in `conf/discovery.conf`:
 ```shell

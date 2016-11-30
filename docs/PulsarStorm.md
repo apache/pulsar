@@ -55,7 +55,7 @@ MessageToValuesMapper messageToValuesMapper = new MessageToValuesMapper() {
 
 // Configure a Pulsar Spout
 PulsarSpoutConfiguration spoutConf = new PulsarSpoutConfiguration();
-spoutConf.setServiceUrl("http://broker.messaging.usw.example.com:8080");
+spoutConf.setServiceUrl("pulsar://broker.messaging.usw.example.com:6650");
 spoutConf.setTopic("persistent://my-property/usw/my-ns/my-topic1");
 spoutConf.setSubscriptionName("my-subscriber-name1");
 spoutConf.setMessageToValuesMapper(messageToValuesMapper);
@@ -95,7 +95,7 @@ TupleToMessageMapper tupleToMessageMapper = new TupleToMessageMapper() {
 
 // Configure a Pulsar Bolt
 PulsarBoltConfiguration boltConf = new PulsarBoltConfiguration();
-boltConf.setServiceUrl("http://broker.messaging.usw.example.com:8080");
+boltConf.setServiceUrl("pulsar://broker.messaging.usw.example.com:6650");
 boltConf.setTopic("persistent://my-property/usw/my-ns/my-topic2");
 boltConf.setTupleToMessageMapper(tupleToMessageMapper);
         

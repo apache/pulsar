@@ -136,7 +136,7 @@ authParams.put("tlsKeyFile", "/path/to/client-cert.pem");
 conf.setAuthentication(AuthenticationTls.class.getName(), authParams);
 
 PulsarClient client = PulsarClient.create(
-                        "https://my-broker.com:4443", conf);
+                        "pulsar+ssl://my-broker.com:6651", conf);
 ```
 
 #### Configure CLI tools
