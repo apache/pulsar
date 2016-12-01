@@ -19,7 +19,8 @@ import com.yahoo.pulsar.broker.PulsarService;
 import com.yahoo.pulsar.broker.ServiceConfiguration;
 import com.yahoo.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.zookeeper.data.Stat;
-import org.json.JSONObject;
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -67,9 +68,9 @@ public class AdvertisedAddressTest {
         Assert.assertEquals( pulsar.getWebServiceAddress(), String.format("http://%s:%d", advertisedAddress, BROKER_WEBSERVICE_PORT) );
         String brokerZkPath = String.format("/loadbalance/brokers/%s:%d", pulsar.getAdvertisedAddress(), BROKER_WEBSERVICE_PORT);
         String bkBrokerData = new String(bkEnsemble.getZkClient().getData(brokerZkPath, false, new Stat()), StandardCharsets.UTF_8);
-        JSONObject jsonBkBrokerData = new JSONObject(bkBrokerData);
-        Assert.assertEquals( jsonBkBrokerData.get("pulsarServiceUrl"), pulsar.getBrokerServiceUrl() );
-        Assert.assertEquals( jsonBkBrokerData.get("webServiceUrl"), pulsar.getWebServiceAddress() );
+        JsonObject jsonBkBrokerData = new Gson().fromJson(bkBrokerData, JsonObject.class);
+        Assert.assertEquals( jsonBkBrokerData.get("pulsarServiceUrl").getAsString(), pulsar.getBrokerServiceUrl() );
+        Assert.assertEquals( jsonBkBrokerData.get("webServiceUrl").getAsString(), pulsar.getWebServiceAddress() );
     }
 
 }

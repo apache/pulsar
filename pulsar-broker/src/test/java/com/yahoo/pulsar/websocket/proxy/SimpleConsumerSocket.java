@@ -26,8 +26,10 @@ import org.eclipse.jetty.websocket.api.annotations.OnWebSocketClose;
 import org.eclipse.jetty.websocket.api.annotations.OnWebSocketConnect;
 import org.eclipse.jetty.websocket.api.annotations.OnWebSocketMessage;
 import org.eclipse.jetty.websocket.api.annotations.WebSocket;
-import org.json.JSONException;
-import org.json.JSONObject;
+import com.google.gson.Gson;
+import com.google.gson.JsonParseException;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,12 +65,12 @@ public class SimpleConsumerSocket {
     }
 
     @OnWebSocketMessage
-    public void onMessage(String msg) throws JSONException, IOException {
-        JSONObject message = new JSONObject(msg);
-        JSONObject ack = new JSONObject();
-        String messageId = message.getString(X_PULSAR_MESSAGE_ID).toString();
+    public void onMessage(String msg) throws JsonParseException, IOException {
+        JsonObject message = new Gson().fromJson(msg, JsonObject.class);
+        JsonObject ack = new JsonObject();
+        String messageId = message.get(X_PULSAR_MESSAGE_ID).getAsString();
         consumerBuffer.add(messageId);
-        ack.put("messageId", messageId);
+        ack.add("messageId", new JsonPrimitive(messageId));
         // Acking the proxy
         this.getRemote().sendString(ack.toString());
     }

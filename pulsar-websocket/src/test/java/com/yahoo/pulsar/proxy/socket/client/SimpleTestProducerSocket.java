@@ -32,8 +32,9 @@ import org.eclipse.jetty.websocket.api.annotations.OnWebSocketConnect;
 import org.eclipse.jetty.websocket.api.annotations.OnWebSocketMessage;
 import org.eclipse.jetty.websocket.api.annotations.WebSocket;
 
-import org.json.JSONException;
-import org.json.JSONObject;
+import com.google.gson.Gson;
+import com.google.gson.JsonParseException;
+import com.google.gson.JsonObject;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,14 +64,14 @@ public class SimpleTestProducerSocket {
     }
 
     @OnWebSocketConnect
-    public void onConnect(Session session) throws InterruptedException, IOException, JSONException {
+    public void onConnect(Session session) throws InterruptedException, IOException, JsonParseException {
         log.info("Got conneceted to the proxy");
         this.session = session;
     }
 
     @OnWebSocketMessage
-    public void onMessage(String msg) throws JSONException {
-        JSONObject json = new JSONObject(msg);
+    public void onMessage(String msg) throws JsonParseException {
+        JsonObject json = new Gson().fromJson(msg, JsonObject.class);
         long endTimeNs = System.nanoTime();
         long startTime = endTimeNs;
         if (startTimeMap.get(json.get(CONTEXT)) != null)
@@ -88,12 +89,12 @@ public class SimpleTestProducerSocket {
     }
 
     public void sendMsg(String context, int sizeOfMessage)
-            throws IOException, JSONException, InterruptedException, ExecutionException {
+            throws IOException, JsonParseException, InterruptedException, ExecutionException {
         byte[] payload = new byte[sizeOfMessage];
         String message = getEncoder().encodeToString(payload);
         String timeStamp = "{\"content\": \"" + message + "\",\"context\": \"" + context
                 + "\", \"pulsar-properties\" : {\"test\" :[\"test\"]}}";
-        String sampleMsg = new JSONObject(timeStamp).toString();
+        String sampleMsg = new Gson().fromJson(timeStamp, JsonObject.class).toString();
         if (this.session != null && this.session.isOpen() && this.session.getRemote() != null) {
             startTimeMap.put(context, System.nanoTime());
             this.session.getRemote().sendStringByFuture(sampleMsg).get();
