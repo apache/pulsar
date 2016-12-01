@@ -15,14 +15,12 @@
  */
 package com.yahoo.pulsar.broker.service.persistent;
 
-import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
-import com.yahoo.pulsar.common.api.proto.PulsarApi;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -30,7 +28,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,7 +59,7 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
     private CompletableFuture<Void> closeFuture = null;
     private TreeSet<PositionImpl> messagesToReplay;
 
-    private int consumerIndex = 0;
+    private int currentConsumerRoundRobinIndex = 0;
     private boolean havePendingRead = false;
     private boolean havePendingReplayRead = false;
     private boolean shouldRewindBeforeReadingOrReplaying = false;
@@ -98,6 +95,7 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
         }
 
         consumerList.add(consumer);
+        consumerList.sort((c1, c2) -> c1.getPriorityLevel() - c2.getPriorityLevel());
         consumerSet.add(consumer);
     }
 
@@ -352,27 +350,77 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
 
     }
 
-    private Consumer getNextConsumer() {
+    /**
+     * Broker will first dispatch messages to upper priority-level consumers if they
+     * have permits, else broker will consider next priority level consumers. 
+     * Also on the same priority-level, it selects consumer in round-robin manner. 
+     * </p> 
+     * If subscription has consumer-A with  priorityLevel 1 and Consumer-B with priorityLevel 2 then broker will dispatch 
+     * messages to only consumer-A until it runs out permit and then broker starts dispatching messages to Consumer-B.
+     * 
+     * Consumer PriorityLevel Permits
+     * C1       1             2
+     * C2       1             1
+     * C3       1             1
+     * C4       1             2
+     * C5       1             1
+     * Result of getNextConsumer(): C1, C2, C3, C1, C4, C5, C4
+     * @return
+     */
+    public Consumer getNextConsumer() {
         if (consumerList.isEmpty() || closeFuture != null) {
             // abort read if no consumers are connected or if disconnect is initiated
             return null;
         }
 
-        if (consumerIndex >= consumerList.size()) {
-            consumerIndex = 0;
+        if (currentConsumerRoundRobinIndex >= consumerList.size()) {
+            currentConsumerRoundRobinIndex = 0;
         }
         
-        // find next available unblocked consumer
-        int unblockedConsumerIndex = consumerIndex;
+        // index of resulting consumer which will be returned 
+        int resultingAvailableConsumerIndex = 0;
+        boolean scanFromBeginningIfCurrentConsumerNotAvailable = true;
+        int firstConsumerIndexOfCurrentPriorityLevel = -1;
         do {
-            if (isConsumerAvailable(consumerList.get(unblockedConsumerIndex))) {
-                consumerIndex = unblockedConsumerIndex;
-                return consumerList.get(consumerIndex++);
+            int priorityLevel = consumerList.get(currentConsumerRoundRobinIndex).getPriorityLevel()
+                    - consumerList.get(resultingAvailableConsumerIndex).getPriorityLevel();
+
+            boolean isSamePriorityLevel = priorityLevel == 0;
+            // store first-consumer index with same-priority as currentConsumerRoundRobinIndex
+            if (isSamePriorityLevel && firstConsumerIndexOfCurrentPriorityLevel == -1) {
+                firstConsumerIndexOfCurrentPriorityLevel = resultingAvailableConsumerIndex;
             }
-            if (++unblockedConsumerIndex >= consumerList.size()) {
-                unblockedConsumerIndex = 0;
+
+            // skip already served same-priority-consumer to select consumer in round-robin manner
+            resultingAvailableConsumerIndex = (isSamePriorityLevel
+                    && currentConsumerRoundRobinIndex > resultingAvailableConsumerIndex)
+                            ? currentConsumerRoundRobinIndex : resultingAvailableConsumerIndex;
+
+            // if resultingAvailableConsumerIndex moved ahead of currentConsumerRoundRobinIndex: then we should
+            // check skipped consumer which had same priority as currentConsumerRoundRobinIndex consumer
+            boolean isLastConsumerBlocked = (currentConsumerRoundRobinIndex == (consumerList.size() - 1)
+                    && !isConsumerAvailable(consumerList.get(currentConsumerRoundRobinIndex)));
+            boolean shouldScanCurrentLevel = priorityLevel < 0 || isLastConsumerBlocked;
+            if (shouldScanCurrentLevel && scanFromBeginningIfCurrentConsumerNotAvailable) {
+                for (int i = firstConsumerIndexOfCurrentPriorityLevel; i < currentConsumerRoundRobinIndex; i++) {
+                    Consumer nextConsumer = consumerList.get(i);
+                    if (isConsumerAvailable(nextConsumer)) {
+                        currentConsumerRoundRobinIndex = i + 1;
+                        return nextConsumer;
+                    }
+                }
+                scanFromBeginningIfCurrentConsumerNotAvailable = false;
             }
-        } while (unblockedConsumerIndex != consumerIndex);
+
+            Consumer nextConsumer = consumerList.get(resultingAvailableConsumerIndex);
+            if (isConsumerAvailable(nextConsumer)) {
+                currentConsumerRoundRobinIndex = resultingAvailableConsumerIndex + 1;
+                return nextConsumer;
+            }
+            if (++resultingAvailableConsumerIndex >= consumerList.size()) {
+                break;
+            }
+        } while (true);
 
         // not found unblocked consumer
         return null;

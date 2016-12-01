@@ -3991,6 +3991,10 @@ public final class PulsarApi {
     // optional string consumer_name = 6;
     boolean hasConsumerName();
     String getConsumerName();
+    
+    // optional int32 priority_level = 7;
+    boolean hasPriorityLevel();
+    int getPriorityLevel();
   }
   public static final class CommandSubscribe extends
       com.google.protobuf.GeneratedMessageLite
@@ -4197,6 +4201,16 @@ public final class PulsarApi {
       }
     }
     
+    // optional int32 priority_level = 7;
+    public static final int PRIORITY_LEVEL_FIELD_NUMBER = 7;
+    private int priorityLevel_;
+    public boolean hasPriorityLevel() {
+      return ((bitField0_ & 0x00000040) == 0x00000040);
+    }
+    public int getPriorityLevel() {
+      return priorityLevel_;
+    }
+    
     private void initFields() {
       topic_ = "";
       subscription_ = "";
@@ -4204,6 +4218,7 @@ public final class PulsarApi {
       consumerId_ = 0L;
       requestId_ = 0L;
       consumerName_ = "";
+      priorityLevel_ = 0;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -4260,6 +4275,9 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000020) == 0x00000020)) {
         output.writeBytes(6, getConsumerNameBytes());
       }
+      if (((bitField0_ & 0x00000040) == 0x00000040)) {
+        output.writeInt32(7, priorityLevel_);
+      }
     }
     
     private int memoizedSerializedSize = -1;
@@ -4291,6 +4309,10 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000020) == 0x00000020)) {
         size += com.google.protobuf.CodedOutputStream
           .computeBytesSize(6, getConsumerNameBytes());
+      }
+      if (((bitField0_ & 0x00000040) == 0x00000040)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeInt32Size(7, priorityLevel_);
       }
       memoizedSerializedSize = size;
       return size;
@@ -4417,6 +4439,8 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000010);
         consumerName_ = "";
         bitField0_ = (bitField0_ & ~0x00000020);
+        priorityLevel_ = 0;
+        bitField0_ = (bitField0_ & ~0x00000040);
         return this;
       }
       
@@ -4474,6 +4498,10 @@ public final class PulsarApi {
           to_bitField0_ |= 0x00000020;
         }
         result.consumerName_ = consumerName_;
+        if (((from_bitField0_ & 0x00000040) == 0x00000040)) {
+          to_bitField0_ |= 0x00000040;
+        }
+        result.priorityLevel_ = priorityLevel_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -4497,6 +4525,9 @@ public final class PulsarApi {
         }
         if (other.hasConsumerName()) {
           setConsumerName(other.getConsumerName());
+        }
+        if (other.hasPriorityLevel()) {
+          setPriorityLevel(other.getPriorityLevel());
         }
         return this;
       }
@@ -4579,6 +4610,11 @@ public final class PulsarApi {
             case 50: {
               bitField0_ |= 0x00000020;
               consumerName_ = input.readBytes();
+              break;
+            }
+            case 56: {
+              bitField0_ |= 0x00000040;
+              priorityLevel_ = input.readInt32();
               break;
             }
           }
@@ -4759,6 +4795,27 @@ public final class PulsarApi {
         bitField0_ |= 0x00000020;
         consumerName_ = value;
         
+      }
+      
+      // optional int32 priority_level = 7;
+      private int priorityLevel_ ;
+      public boolean hasPriorityLevel() {
+        return ((bitField0_ & 0x00000040) == 0x00000040);
+      }
+      public int getPriorityLevel() {
+        return priorityLevel_;
+      }
+      public Builder setPriorityLevel(int value) {
+        bitField0_ |= 0x00000040;
+        priorityLevel_ = value;
+        
+        return this;
+      }
+      public Builder clearPriorityLevel() {
+        bitField0_ = (bitField0_ & ~0x00000040);
+        priorityLevel_ = 0;
+        
+        return this;
       }
       
       // @@protoc_insertion_point(builder_scope:pulsar.proto.CommandSubscribe)

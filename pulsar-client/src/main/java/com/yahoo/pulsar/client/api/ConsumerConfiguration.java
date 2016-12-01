@@ -46,6 +46,8 @@ public class ConsumerConfiguration implements Serializable {
     private String consumerName = null;
 
     private long ackTimeoutMillis = 0;
+    
+    private int priorityLevel = 0;
 
     /**
      * @return the configured timeout in milliseconds for unacked messages.
@@ -170,5 +172,25 @@ public class ConsumerConfiguration implements Serializable {
         checkArgument(consumerName != null && !consumerName.equals(""));
         this.consumerName = consumerName;
         return this;
+    }
+    
+    public int getPriorityLevel() {
+        return priorityLevel;
+    }
+
+    /**
+     * Sets priority level for the shared subscription consumers to which broker gives more priority while dispatching
+     * messages.
+     * </p> 
+     * In Shared subscription mode, broker will first dispatch messages to upper priority-level consumers if they
+     * have permits, else broker will consider next priority level consumers.
+     * </p> 
+     * If subscription has consumer-A with  priorityLevel 1 and Consumer-B with priorityLevel 2 then broker will dispatch 
+     * messages to only consumer-A until it runs out permit and then broker starts dispatching messages to Consumer-B.
+     * 
+     * @param priorityLevel
+     */
+    public void setPriorityLevel(int priorityLevel) {
+        this.priorityLevel = priorityLevel;
     }
 }

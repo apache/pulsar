@@ -91,6 +91,7 @@ public class ConsumerImpl extends ConsumerBase {
     private final ConcurrentSkipListMap<MessageIdImpl, BitSet> batchMessageAckTracker;
 
     private final ConsumerStats stats;
+    private final int priorityLevel;
 
     ConsumerImpl(PulsarClientImpl client, String topic, String subscription, ConsumerConfiguration conf,
                  ExecutorService listenerExecutor, CompletableFuture<Consumer> subscribeFuture) {
@@ -106,6 +107,7 @@ public class ConsumerImpl extends ConsumerBase {
         this.partitionIndex = partitionIndex;
         this.receiverQueueRefillThreshold = conf.getReceiverQueueSize() / 2;
         this.codecProvider = new CompressionCodecProvider();
+        this.priorityLevel = conf.getPriorityLevel();
         batchMessageAckTracker = new ConcurrentSkipListMap<>();
         if (client.getConfiguration().getStatsIntervalSeconds() > 0) {
             stats = new ConsumerStats(client, conf, this);
@@ -457,9 +459,8 @@ public class ConsumerImpl extends ConsumerBase {
         log.info("[{}][{}] Subscribing to topic on cnx {}", topic, subscription, cnx.ctx().channel());
 
         long requestId = client.newRequestId();
-        cnx.sendRequestWithId(
-            Commands.newSubscribe(topic, subscription, consumerId, requestId, getSubType(), consumerName),
-            requestId).thenRun(() -> {
+        cnx.sendRequestWithId(Commands.newSubscribe(topic, subscription, consumerId, requestId, getSubType(),
+                priorityLevel, consumerName), requestId).thenRun(() -> {
             synchronized (ConsumerImpl.this) {
                 int currentSize = incomingMessages.size();
                 incomingMessages.clear();

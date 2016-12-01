@@ -60,6 +60,7 @@ public class Consumer {
     private final String appId;
 
     private final long consumerId;
+    private final int priorityLevel;
     private final String consumerName;
     private final Rate msgOut;
     private final Rate msgRedeliver;
@@ -87,12 +88,13 @@ public class Consumer {
     private volatile int unackedMessages = 0;
     private volatile boolean blockedConsumerOnUnackedMsgs = false;
 
-    public Consumer(Subscription subscription, SubType subType, long consumerId, String consumerName,
+    public Consumer(Subscription subscription, SubType subType, long consumerId, int priorityLevel, String consumerName,
             int maxUnackedMessages, ServerCnx cnx, String appId) throws BrokerServiceException {
 
         this.subscription = subscription;
         this.subType = subType;
         this.consumerId = consumerId;
+        this.priorityLevel = priorityLevel;
         this.consumerName = consumerName;
         this.maxUnackedMessages = maxUnackedMessages;
         this.cnx = cnx;
@@ -454,8 +456,10 @@ public class Consumer {
     public ConcurrentOpenHashMap<PositionImpl, Integer> getPendingAcks() {
         return pendingAcks;
     }
-
-    private static final Logger log = LoggerFactory.getLogger(Consumer.class);
+    
+    public int getPriorityLevel() {
+        return priorityLevel;
+    }
 
     public void redeliverUnacknowledgedMessages() {
         // cleanup unackedMessage bucket and redeliver those unack-msgs again
@@ -504,4 +508,6 @@ public class Consumer {
             subscription.consumerFlow(this, numberOfBlockedPermits);
         }
     }
+    
+    private static final Logger log = LoggerFactory.getLogger(Consumer.class);
 }
