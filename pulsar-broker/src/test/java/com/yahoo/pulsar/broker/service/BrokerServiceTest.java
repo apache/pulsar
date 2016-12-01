@@ -30,9 +30,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -301,23 +300,23 @@ public class BrokerServiceTest extends BrokerTestBase {
         }
         consumer.close();
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
-        JSONArray metrics = brokerStatsClient.getMetrics();
-        assertEquals(metrics.length(), 4, metrics.toString());
+        JsonArray metrics = brokerStatsClient.getMetrics();
+        assertEquals(metrics.size(), 4, metrics.toString());
 
         // these metrics seem to be arriving in different order at different times...
         // is the order really relevant here?
         boolean namespaceDimensionFound = false;
         boolean topicLoadTimesDimensionFound = false;
-        for ( int i=0; i<metrics.length(); i++ ) {
+        for ( int i=0; i<metrics.size(); i++ ) {
             try {
-                String data = metrics.getJSONObject(i).getString("dimensions");
+                String data = metrics.get(i).getAsJsonObject().get("dimensions").toString();
                 if (!namespaceDimensionFound && data.contains("prop/use/ns-abc")) {
                     namespaceDimensionFound = true;
                 }
                 if (!topicLoadTimesDimensionFound && data.contains("prop/use/ns-abc")) {
                     topicLoadTimesDimensionFound = true;
                 }
-            } catch (JSONException e) { /* it's possible there's no dimensions */ }
+            } catch (Exception e) { /* it's possible there's no dimensions */ }
         }
 
         assertTrue(namespaceDimensionFound && topicLoadTimesDimensionFound);
@@ -346,20 +345,20 @@ public class BrokerServiceTest extends BrokerTestBase {
         }
 
         rolloverPerIntervalStats();
-        JSONObject destinationStats = brokerStatsClient.getDestinations();
-        assertEquals(destinationStats.length(), 2, destinationStats.toString());
+        JsonObject destinationStats = brokerStatsClient.getDestinations();
+        assertEquals(destinationStats.size(), 2, destinationStats.toString());
 
         for (String ns : nsList) {
-            JSONObject nsObject = destinationStats.getJSONObject(ns);
+            JsonObject nsObject = destinationStats.getAsJsonObject(ns);
             List<String> topicList = admin.namespaces().getDestinations(ns);
             for (String topic : topicList) {
                 NamespaceBundle bundle = (NamespaceBundle) pulsar.getNamespaceService()
                         .getBundle(DestinationName.get(topic));
-                JSONObject bundleObject = nsObject.getJSONObject(bundle.getBundleRange());
-                JSONObject topicObject = bundleObject.getJSONObject("persistent");
+                JsonObject bundleObject = nsObject.getAsJsonObject(bundle.getBundleRange());
+                JsonObject topicObject = bundleObject.getAsJsonObject("persistent");
                 AtomicBoolean topicPresent = new AtomicBoolean();
-                topicObject.keys().forEachRemaining(persistentTopic -> {
-                    if (persistentTopic.equals(topic)) {
+                topicObject.entrySet().iterator().forEachRemaining(persistentTopic -> {
+                    if (persistentTopic.getKey().equals(topic)) {
                         topicPresent.set(true);
                     }
                 });

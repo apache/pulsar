@@ -35,8 +35,9 @@ import org.apache.bookkeeper.test.PortManager;
 import org.apache.zookeeper.ZooKeeper;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.filter.LoggingFilter;
-import org.json.JSONException;
-import org.json.JSONObject;
+import com.google.gson.Gson;
+import com.google.gson.JsonParseException;
+import com.google.gson.JsonObject;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -103,7 +104,7 @@ public class DiscoveryServiceWebTest extends ProducerConsumerBase {
 
     }
 
-    public String hitBrokerService(String method, String url, Object data) throws JSONException {
+    public String hitBrokerService(String method, String url, Object data) throws JsonParseException {
 
         Response response = null;
         try {
@@ -123,8 +124,8 @@ public class DiscoveryServiceWebTest extends ProducerConsumerBase {
             fail();
         }
 
-        JSONObject jsonObject = new JSONObject(response.readEntity(String.class));
-        String serviceResponse = jsonObject.getString("reason");
+        JsonObject jsonObject = new Gson().fromJson(response.readEntity(String.class), JsonObject.class);
+        String serviceResponse = jsonObject.get("reason").getAsString();
         return serviceResponse;
     }
     

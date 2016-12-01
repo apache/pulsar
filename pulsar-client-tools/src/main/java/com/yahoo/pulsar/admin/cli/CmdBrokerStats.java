@@ -20,8 +20,10 @@ import java.io.Writer;
 import java.nio.charset.Charset;
 import java.util.List;
 
-import org.json.JSONArray;
-import org.json.JSONObject;
+import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.google.gson.stream.JsonWriter;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
@@ -33,7 +35,7 @@ import com.yahoo.pulsar.common.util.ObjectMapperFactory;
 
 @Parameters(commandDescription = "Operations to collect broker statistics")
 public class CmdBrokerStats extends CmdBase {
-    public static final int DEFAULT_INDENTATION = 4;
+    public static final String DEFAULT_INDENTATION = "    ";
     public static final Charset UTF_8 = Charset.forName("UTF-8");
     public static Writer out = new OutputStreamWriter(System.out, UTF_8);
 
@@ -44,14 +46,18 @@ public class CmdBrokerStats extends CmdBase {
 
         @Override
         void run() throws Exception {
-            JSONArray metrics = admin.brokerStats().getMetrics();
+            JsonArray metrics = admin.brokerStats().getMetrics();
 
-            for (int i = 0; i < metrics.length(); i++) {
-                JSONObject m = (JSONObject) metrics.get(i);
-                out.write(indent ? m.toString(DEFAULT_INDENTATION) : m.toString());
+            for (int i = 0; i < metrics.size(); i++) {
+                JsonObject m = (JsonObject) metrics.get(i);
+                JsonWriter jsonWriter = new JsonWriter(out);
                 if (indent) {
+                    jsonWriter.setIndent(DEFAULT_INDENTATION);
+                    new Gson().toJson(m, jsonWriter);
                     out.write('\n');
                     out.write('\n');
+                } else {
+                    new Gson().toJson(m, jsonWriter);
                 }
                 out.flush();
             }
@@ -65,8 +71,12 @@ public class CmdBrokerStats extends CmdBase {
 
         @Override
         void run() throws Exception {
-            JSONArray result = admin.brokerStats().getMBeans();
-            out.write(indent ? result.toString(DEFAULT_INDENTATION) : result.toString());
+            JsonArray result = admin.brokerStats().getMBeans();
+            JsonWriter jsonWriter = new JsonWriter(out);
+            if (indent) {
+                jsonWriter.setIndent(DEFAULT_INDENTATION);
+            }
+            new Gson().toJson(result, jsonWriter);
             out.flush();
         }
 
@@ -79,8 +89,12 @@ public class CmdBrokerStats extends CmdBase {
 
         @Override
         void run() throws Exception {
-            JSONObject result = admin.brokerStats().getDestinations();
-            out.write(indent ? result.toString(DEFAULT_INDENTATION) : result.toString());
+            JsonObject result = admin.brokerStats().getDestinations();
+            JsonWriter jsonWriter = new JsonWriter(out);
+            if (indent) {
+                jsonWriter.setIndent(DEFAULT_INDENTATION);
+            }
+            new Gson().toJson(result, jsonWriter);
             out.flush();
         }
 
