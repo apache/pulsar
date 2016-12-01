@@ -17,8 +17,9 @@ package com.yahoo.pulsar.client.admin.internal;
 
 import javax.ws.rs.client.WebTarget;
 
-import org.json.JSONArray;
-import org.json.JSONObject;
+import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 
 import com.yahoo.pulsar.client.admin.BrokerStats;
 import com.yahoo.pulsar.client.admin.PulsarAdminException;
@@ -40,10 +41,10 @@ public class BrokerStatsImpl extends BaseResource implements BrokerStats {
     }
     
     @Override
-    public JSONArray getMetrics() throws PulsarAdminException {
+    public JsonArray getMetrics() throws PulsarAdminException {
         try {
             String json = request(brokerStats.path("/metrics")).get(String.class);
-            return new JSONArray(json);
+            return new Gson().fromJson(json, JsonArray.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -59,51 +60,51 @@ public class BrokerStatsImpl extends BaseResource implements BrokerStats {
     }
 
     @Override
-    public JSONArray getMBeans() throws PulsarAdminException {
+    public JsonArray getMBeans() throws PulsarAdminException {
         try {
             String json = request(brokerStats.path("/mbeans")).get(String.class);
-            return new JSONArray(json);
+            return new Gson().fromJson(json, JsonArray.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
     }
 
     @Override
-    public JSONObject getDestinations() throws PulsarAdminException {
+    public JsonObject getDestinations() throws PulsarAdminException {
         try {
             String json = request(brokerStats.path("/destinations")).get(String.class);
-            return new JSONObject(json);
+            return new Gson().fromJson(json, JsonObject.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
     }
 
-    public JSONObject getLoadReport() throws PulsarAdminException {
+    public JsonObject getLoadReport() throws PulsarAdminException {
         try {
             String json = request(brokerStats.path("/load-report")).get(String.class);
-            return new JSONObject(json);
+            return new Gson().fromJson(json, JsonObject.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
     }
 
     @Override
-    public JSONObject getPendingBookieOpsStats() throws PulsarAdminException {
+    public JsonObject getPendingBookieOpsStats() throws PulsarAdminException {
         try {
             String json = request(brokerStats.path("/bookieops")).get(String.class);
-            return new JSONObject(json);
+            return new Gson().fromJson(json, JsonObject.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
     }
 
-    public JSONObject getBrokerResourceAvailability(String property, String cluster, String namespace)
+    public JsonObject getBrokerResourceAvailability(String property, String cluster, String namespace)
             throws PulsarAdminException {
         try {
             String json = request(
                     brokerStats.path("/broker-resource-availability").path(property).path(cluster).path(namespace))
                             .get(String.class);
-            return new JSONObject(json);
+            return new Gson().fromJson(json, JsonObject.class);
         } catch (Exception e) {
             throw getApiException(e);
         }

@@ -15,8 +15,8 @@
  */
 package com.yahoo.pulsar.client.admin;
 
-import org.json.JSONArray;
-import org.json.JSONObject;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 
 import com.yahoo.pulsar.common.stats.AllocatorStats;
 
@@ -32,7 +32,7 @@ public interface BrokerStats {
      * @throws PulsarAdminException
      */
 
-    JSONArray getMetrics() throws PulsarAdminException;
+    JsonArray getMetrics() throws PulsarAdminException;
 
     /**
      * Requests JSON string server mbean dump
@@ -42,7 +42,7 @@ public interface BrokerStats {
      * @return
      * @throws PulsarAdminException
      */
-    JSONArray getMBeans() throws PulsarAdminException;
+    JsonArray getMBeans() throws PulsarAdminException;
 
     /**
      * Returns JSON string destination stats
@@ -52,9 +52,9 @@ public interface BrokerStats {
      * @return
      * @throws PulsarAdminException
      */
-    JSONObject getDestinations() throws PulsarAdminException;
+    JsonObject getDestinations() throws PulsarAdminException;
 
-    JSONObject getPendingBookieOpsStats() throws PulsarAdminException;
+    JsonObject getPendingBookieOpsStats() throws PulsarAdminException;
 
     AllocatorStats getAllocatorStats(String allocatorName) throws PulsarAdminException;
 }

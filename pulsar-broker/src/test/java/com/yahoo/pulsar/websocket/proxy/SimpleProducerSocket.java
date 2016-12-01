@@ -27,8 +27,9 @@ import org.eclipse.jetty.websocket.api.annotations.OnWebSocketClose;
 import org.eclipse.jetty.websocket.api.annotations.OnWebSocketConnect;
 import org.eclipse.jetty.websocket.api.annotations.OnWebSocketMessage;
 import org.eclipse.jetty.websocket.api.annotations.WebSocket;
-import org.json.JSONException;
-import org.json.JSONObject;
+import com.google.gson.Gson;
+import com.google.gson.JsonParseException;
+import com.google.gson.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -67,7 +68,7 @@ public class SimpleProducerSocket {
     }
 
     @OnWebSocketConnect
-    public void onConnect(Session session) throws InterruptedException, IOException, JSONException {
+    public void onConnect(Session session) throws InterruptedException, IOException, JsonParseException {
         log.info("Got connect: {}", session);
         this.session = session;
         for (int i = 0; i < 10; i++) {
@@ -77,9 +78,9 @@ public class SimpleProducerSocket {
     }
 
     @OnWebSocketMessage
-    public void onMessage(String msg) throws JSONException {
-        JSONObject ack = new JSONObject(msg);
-        producerBuffer.add((String) ack.get("messageId"));
+    public void onMessage(String msg) throws JsonParseException {
+        JsonObject ack = new Gson().fromJson(msg, JsonObject.class);
+        producerBuffer.add(ack.get("messageId").getAsString());
     }
 
     public RemoteEndpoint getRemote() {
