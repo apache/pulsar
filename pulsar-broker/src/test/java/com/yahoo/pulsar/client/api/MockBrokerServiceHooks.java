@@ -27,6 +27,14 @@ public interface MockBrokerServiceHooks {
         public void apply(ChannelHandlerContext ctx, PulsarApi.CommandConnect connect);
     }
 
+    public interface CommandPartitionLookupHook {
+        public void apply(ChannelHandlerContext ctx, PulsarApi.CommandPartitionedTopicMetadata connect);
+    }
+
+    public interface CommandTopicLookupHook {
+        public void apply(ChannelHandlerContext ctx, PulsarApi.CommandLookupTopic connect);
+    }
+
     public interface CommandSubscribeHook {
         public void apply(ChannelHandlerContext ctx, PulsarApi.CommandSubscribe subscribe);
     }

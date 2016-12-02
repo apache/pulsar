@@ -32,6 +32,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import com.yahoo.pulsar.common.api.Commands;
+import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse.LookupType;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.ServerError;
 import com.yahoo.pulsar.client.api.ClientConfiguration;
 import com.yahoo.pulsar.client.api.Consumer;
@@ -299,6 +300,43 @@ public class ClientErrorsTest {
     @Test
     public void testPartitionedSubscribeFailWithoutRetry() throws Exception {
         subscribeFailWithoutRetry("persistent://prop/use/ns/part-t1");
+    }
+    
+    @Test
+    public void testLookupWithDisconnection() throws Exception {
+        final String brokerUrl = "pulsar://127.0.0.1:" + BROKER_SERVICE_PORT;
+        PulsarClient client = PulsarClient.create(brokerUrl);
+        final AtomicInteger counter = new AtomicInteger(0);
+        String topic = "persistent://prop/use/ns/t1";
+
+        mockBrokerService.setHandlePartitionLookup((ctx, lookup) -> {
+            ctx.writeAndFlush(Commands.newPartitionMetadataResponse(0, lookup.getRequestId()));
+        });
+
+        mockBrokerService.setHandleLookup((ctx, lookup) -> {
+            if (counter.incrementAndGet() == 1) {
+                // piggyback unknown error to relay assertion failure
+                ctx.close();
+                return;
+            }
+            ctx.writeAndFlush(
+                    Commands.newLookupResponse(brokerUrl, null, true, LookupType.Connect, lookup.getRequestId()));
+        });
+
+        try {
+            ConsumerConfiguration conf = new ConsumerConfiguration();
+            conf.setSubscriptionType(SubscriptionType.Exclusive);
+            Consumer consumer = client.subscribe(topic, "sub1", conf);
+        } catch (Exception e) {
+            if (e.getMessage().equals(ASSERTION_ERROR)) {
+                fail("Subscribe should not retry on persistence error");
+            }
+            assertTrue(e instanceof PulsarClientException.BrokerPersistenceException);
+        }
+        mockBrokerService.resetHandlePartitionLookup();
+        mockBrokerService.resetHandleLookup();
+        client.close();
+
     }
 
     private void subscribeFailWithoutRetry(String topic) throws Exception {
