@@ -37,6 +37,8 @@ import com.yahoo.pulsar.client.api.MockBrokerServiceHooks.CommandAckHook;
 import com.yahoo.pulsar.client.api.MockBrokerServiceHooks.CommandCloseConsumerHook;
 import com.yahoo.pulsar.client.api.MockBrokerServiceHooks.CommandCloseProducerHook;
 import com.yahoo.pulsar.client.api.MockBrokerServiceHooks.CommandConnectHook;
+import com.yahoo.pulsar.client.api.MockBrokerServiceHooks.CommandTopicLookupHook;
+import com.yahoo.pulsar.client.api.MockBrokerServiceHooks.CommandPartitionLookupHook;
 import com.yahoo.pulsar.client.api.MockBrokerServiceHooks.CommandFlowHook;
 import com.yahoo.pulsar.client.api.MockBrokerServiceHooks.CommandProducerHook;
 import com.yahoo.pulsar.client.api.MockBrokerServiceHooks.CommandSendHook;
@@ -45,7 +47,10 @@ import com.yahoo.pulsar.client.api.MockBrokerServiceHooks.CommandUnsubscribeHook
 import com.yahoo.pulsar.common.api.Commands;
 import com.yahoo.pulsar.common.api.PulsarDecoder;
 import com.yahoo.pulsar.common.api.proto.PulsarApi;
+import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandLookupTopic;
+import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadata;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSend;
+import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse.LookupType;
 import com.yahoo.pulsar.common.lookup.data.LookupData;
 import com.yahoo.pulsar.common.partition.PartitionedTopicMetadata;
 
@@ -129,6 +134,27 @@ public class MockBrokerService {
             }
             // default
             ctx.writeAndFlush(Commands.newConnected(connect));
+        }
+        
+        @Override
+        protected void handlePartitionMetadataRequest(CommandPartitionedTopicMetadata request) {
+            if (handlePartitionlookup != null) {
+                handlePartitionlookup.apply(ctx, request);
+                return;
+            }
+            // default
+            ctx.writeAndFlush(Commands.newPartitionMetadataResponse(0, request.getRequestId()));
+        }
+
+        @Override
+        protected void handleLookup(CommandLookupTopic lookup) {
+            if (handleTopiclookup != null) {
+                handleTopiclookup.apply(ctx, lookup);
+                return;
+            }
+            // default
+            ctx.writeAndFlush(Commands.newLookupResponse("pulsar://127.0.0.1:" + brokerServicePort, null, true,
+                    LookupType.Connect, lookup.getRequestId()));
         }
 
         @Override
@@ -224,6 +250,8 @@ public class MockBrokerService {
     private final int brokerServicePortTls;
 
     private CommandConnectHook handleConnect = null;
+    private CommandTopicLookupHook handleTopiclookup = null;
+    private CommandPartitionLookupHook handlePartitionlookup = null;
     private CommandSubscribeHook handleSubscribe = null;
     private CommandProducerHook handleProducer = null;
     private CommandSendHook handleSend = null;
@@ -317,6 +345,22 @@ public class MockBrokerService {
 
     public void resetHandleConnect() {
         handleConnect = null;
+    }
+    
+    public void setHandlePartitionLookup(CommandPartitionLookupHook hook) {
+        handlePartitionlookup = hook;
+    }
+
+    public void resetHandlePartitionLookup() {
+        handlePartitionlookup = null;
+    }
+    
+    public void setHandleLookup(CommandTopicLookupHook hook) {
+        handleTopiclookup = hook;
+    }
+    
+    public void resetHandleLookup() {
+        handleTopiclookup = null;
     }
 
     public void setHandleSubscribe(CommandSubscribeHook hook) {
