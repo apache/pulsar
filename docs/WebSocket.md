@@ -271,10 +271,10 @@ ws.on('message', function(message) {
 ```javascript
 var WebSocket = require('ws');
 var socket = new WebSocket(
-	"ws://localhost:6080/pubilsh/persistent/my-property/us-west/my-ns/my-topic1/my-sub-1")
+	"ws://localhost:8080/ws/consumer/persistent/my-property/us-west/my-ns/my-topic1/my-sub1")
 
 socket.onmessage = function(pckt){
-	var receiveMsg = pckt.data;
+	var receiveMsg = JSON.parse(pckt.data);
 	var ackMsg = {"messageId" : receiveMsg.messageId}
 	socket.send(JSON.stringify(ackMsg));      
 };
