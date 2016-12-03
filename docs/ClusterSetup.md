@@ -246,7 +246,11 @@ list of active brokers from ZooKeeper.
 
 Add the ZK servers in `conf/discovery.conf`:
 ```shell
+# Zookeeper quorum connection string
 zookeeperServers=zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181
+
+# Global zookeeper quorum connection string
+globalZookeeperServers=zk1.us-west.example.com:2184,zk2.us-west.example.com:2184,zk3.us-west.example.com:2184
 ```
 
 Start the service:

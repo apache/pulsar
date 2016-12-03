@@ -352,6 +352,7 @@ public class Commands {
                 .newBuilder();
         partitionMetadataResponseBuilder.setRequestId(requestId);
         partitionMetadataResponseBuilder.setError(error);
+        partitionMetadataResponseBuilder.setResponse(CommandPartitionedTopicMetadataResponse.LookupType.Failed);
         if (errorMsg != null) {
             partitionMetadataResponseBuilder.setMessage(errorMsg);
         }
@@ -377,23 +378,6 @@ public class Commands {
         return res;
     }
 
-    public static ByteBuf newPartitionMetadataResponse(String brokerServiceUrl, String brokerServiceUrlTls,
-            long requestId) {
-        CommandPartitionedTopicMetadataResponse.Builder partitionMetadataResponseBuilder = CommandPartitionedTopicMetadataResponse
-                .newBuilder();
-        partitionMetadataResponseBuilder.setBrokerServiceUrl(brokerServiceUrl);
-        partitionMetadataResponseBuilder.setBrokerServiceUrlTls(brokerServiceUrlTls);
-        partitionMetadataResponseBuilder.setResponse(CommandPartitionedTopicMetadataResponse.LookupType.Redirect);
-        partitionMetadataResponseBuilder.setRequestId(requestId);
-
-        CommandPartitionedTopicMetadataResponse partitionMetadataResponse = partitionMetadataResponseBuilder.build();
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.PARTITIONED_METADATA_RESPONSE)
-                .setPartitionMetadataResponse(partitionMetadataResponse));
-        partitionMetadataResponseBuilder.recycle();
-        partitionMetadataResponse.recycle();
-        return res;
-    }
-    
     public static ByteBuf newPartitionMetadataResponse(int partitions, long requestId) {
         CommandPartitionedTopicMetadataResponse.Builder partitionMetadataResponseBuilder = CommandPartitionedTopicMetadataResponse
                 .newBuilder();

@@ -532,8 +532,7 @@ consumer is created. There is no need to do this after reconnections.
 
 The discovery of partitioned topics metadata works very similar to the topic
 lookup. The client send a request to the service discovery address and the
-response will contain either the actual metadata or a redirect to a certain
-broker address.
+response will contain actual metadata.
 
 ##### Command PartitionedTopicMetadata
 
@@ -558,16 +557,5 @@ CommandPartitionedTopicMetadataResponse {
   "request_id" : 1,
   "response" : "Success",
   "partitions" : 32
-}
-```
-
-Example of response with redirection:
-
-```json
-CommandPartitionedTopicMetadataResponse {
-  "request_id" : 1,
-  "response" : "Redirect",
-  "brokerServiceUrl" : "pulsar://broker-2.example.com:6650",
-  "brokerServiceUrlTls" : "pulsar+ssl://broker-2.example.com:6651"
 }
 ```

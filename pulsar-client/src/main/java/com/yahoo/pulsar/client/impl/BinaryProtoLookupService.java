@@ -137,31 +137,7 @@ class BinaryProtoLookupService implements LookupService {
             ByteBuf request = Commands.newPartitionMetadataRequest(destination.toString(), requestId);
             clientCnx.newLookup(request, requestId).thenAccept(lookupDataResult -> {
                 try {
-                    URI uri = null;
-                    // (1) if redirect request for different broker lookup
-                    if (lookupDataResult.redirect) {
-
-                        if (useTls) {
-                            uri = new URI(lookupDataResult.brokerUrlTls);
-                        } else {
-                            String serviceUrl = lookupDataResult.brokerUrl;
-                            uri = new URI(serviceUrl);
-                        }
-                        InetSocketAddress responseBrokerAddress = new InetSocketAddress(uri.getHost(), uri.getPort());
-                        //(1.a) retry getPartitionedMetadata with different redirected broker
-                        getPartitionedTopicMetadata(responseBrokerAddress, destination).thenAccept(metadata -> {
-                            partitionFuture.complete(metadata);
-                        }).exceptionally((lookupException) -> {
-                            // lookup failed
-                            log.warn("[{}] lookup failed : {}", destination.toString(), lookupException.getMessage(),
-                                    lookupException);
-                            partitionFuture.completeExceptionally(lookupException);
-                            return null;
-                        });
-                    } else {
-                        // (2) received result partitions
-                        partitionFuture.complete(new PartitionedTopicMetadata(lookupDataResult.partitions));
-                    }
+                    partitionFuture.complete(new PartitionedTopicMetadata(lookupDataResult.partitions));
                 } catch (Exception e) {
                     partitionFuture.completeExceptionally(new PulsarClientException.LookupException(
                             format("Failed to parse partition-response redirect=%s , partitions with %s",
@@ -200,12 +176,9 @@ class BinaryProtoLookupService implements LookupService {
             this.redirect = redirect;
         }
         
-        public LookupDataResult(int partitions, String brokerUrl, String brokerUrlTls, boolean redirect) {
+        public LookupDataResult(int partitions) {
             super();
-            this.brokerUrl = brokerUrl;
-            this.brokerUrlTls = brokerUrlTls;
             this.partitions = partitions;
-            this.redirect = redirect;
         }
 
     }

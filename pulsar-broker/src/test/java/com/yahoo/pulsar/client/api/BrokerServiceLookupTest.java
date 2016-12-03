@@ -20,6 +20,7 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.net.URI;
@@ -34,6 +35,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+import javax.naming.AuthenticationException;
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
@@ -52,6 +54,8 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.yahoo.pulsar.broker.PulsarService;
 import com.yahoo.pulsar.broker.ServiceConfiguration;
+import com.yahoo.pulsar.broker.authentication.AuthenticationDataSource;
+import com.yahoo.pulsar.broker.authentication.AuthenticationProvider;
 import com.yahoo.pulsar.broker.loadbalance.LoadManager;
 import com.yahoo.pulsar.broker.loadbalance.impl.SimpleResourceUnit;
 import com.yahoo.pulsar.broker.namespace.NamespaceService;
@@ -475,6 +479,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
     
     }
     
+    
     /**
      * Verify discovery-service binary-proto lookup using tls
      * 
@@ -547,5 +552,204 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         producer.close();
     
     }
-    
+
+    @Test
+    public void testDiscoveryLookupAuthAndAuthSuccess() throws Exception {
+
+        // (1) start discovery service
+        ServiceConfig config = new ServiceConfig();
+        config.setServicePort(nextFreePort());
+        config.setBindOnLocalhost(true);
+        // add Authentication Provider
+        Set<String> providersClassNames = Sets.newHashSet(MockAuthenticationProvider.class.getName());
+        config.setAuthenticationProviders(providersClassNames);
+        // enable authentication and authorization
+        config.setAuthenticationEnabled(true);
+        config.setAuthorizationEnabled(true);
+        DiscoveryService discoveryService = spy(new DiscoveryService(config));
+        doReturn(mockZooKeeperClientFactory).when(discoveryService).getZooKeeperClientFactory();
+        discoveryService.start();
+
+        // (2) lookup using discovery service
+        final String discoverySvcUrl = discoveryService.getServiceUrl();
+        ClientConfiguration clientConfig = new ClientConfiguration();
+        // set authentication data
+        clientConfig.setAuthentication(new Authentication() {
+            @Override
+            public void close() throws IOException {
+            }
+            @Override
+            public String getAuthMethodName() {
+                return "auth";
+            }
+            @Override
+            public AuthenticationDataProvider getAuthData() throws PulsarClientException {
+                return new AuthenticationDataProvider() {
+                };
+            }
+            @Override
+            public void configure(Map<String, String> authParams) {
+            }
+            @Override
+            public void start() throws PulsarClientException {
+            }
+        });
+
+        PulsarClient pulsarClient = PulsarClient.create(discoverySvcUrl, clientConfig);
+        Consumer consumer = pulsarClient.subscribe("persistent://my-property/use2/my-ns/my-topic1",
+                "my-subscriber-name", new ConsumerConfiguration());
+        Producer producer = pulsarClient.createProducer("persistent://my-property/use2/my-ns/my-topic1",
+                new ProducerConfiguration());
+        for (int i = 0; i < 10; i++) {
+            String message = "my-message-" + i;
+            producer.send(message.getBytes());
+        }
+        Message msg = null;
+        Set<String> messageSet = Sets.newHashSet();
+        for (int i = 0; i < 10; i++) {
+            msg = consumer.receive(5, TimeUnit.SECONDS);
+            String receivedMessage = new String(msg.getData());
+            log.debug("Received message: [{}]", receivedMessage);
+            String expectedMessage = "my-message-" + i;
+            testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
+        }
+        // Acknowledge the consumption of all messages at once
+        consumer.acknowledgeCumulative(msg);
+        consumer.close();
+        producer.close();
+    }
+
+    @Test
+    public void testDiscoveryLookupAuthenticationFailure() throws Exception {
+
+        // (1) start discovery service
+        ServiceConfig config = new ServiceConfig();
+        config.setServicePort(nextFreePort());
+        config.setBindOnLocalhost(true);
+        // set Authentication provider which fails authentication
+        Set<String> providersClassNames = Sets.newHashSet(MockAuthenticationProviderFail.class.getName());
+        config.setAuthenticationProviders(providersClassNames);
+        // enable authentication
+        config.setAuthenticationEnabled(true);
+        config.setAuthorizationEnabled(true);
+        DiscoveryService discoveryService = spy(new DiscoveryService(config));
+        doReturn(mockZooKeeperClientFactory).when(discoveryService).getZooKeeperClientFactory();
+        discoveryService.start();
+        // (2) lookup using discovery service
+        final String discoverySvcUrl = discoveryService.getServiceUrl();
+        ClientConfiguration clientConfig = new ClientConfiguration();
+        // set authentication data
+        clientConfig.setAuthentication(new Authentication() {
+            @Override
+            public void close() throws IOException {
+            }
+            @Override
+            public String getAuthMethodName() {
+                return "auth";
+            }
+            @Override
+            public AuthenticationDataProvider getAuthData() throws PulsarClientException {
+                return new AuthenticationDataProvider() {
+                };
+            }
+            @Override
+            public void configure(Map<String, String> authParams) {
+            }
+            @Override
+            public void start() throws PulsarClientException {
+            }
+        });
+        PulsarClient pulsarClient = PulsarClient.create(discoverySvcUrl, clientConfig);
+        try {
+            pulsarClient.subscribe("persistent://my-property/use2/my-ns/my-topic1", "my-subscriber-name",
+                    new ConsumerConfiguration());
+            Assert.fail("should have failed due to authentication");
+        } catch (PulsarClientException e) {
+            // Ok: expected
+        }
+    }
+
+    @Test
+    public void testDiscoveryLookupAuthorizationFailure() throws Exception {
+
+        // (1) start discovery service
+        ServiceConfig config = new ServiceConfig();
+        config.setServicePort(nextFreePort());
+        config.setBindOnLocalhost(true);
+        // set Authentication provider which returns "invalid" appid so, authorization fails 
+        Set<String> providersClassNames = Sets.newHashSet(MockAuthorizationProviderFail.class.getName());
+        config.setAuthenticationProviders(providersClassNames);
+        // enable authentication
+        config.setAuthenticationEnabled(true);
+        config.setAuthorizationEnabled(true);
+        DiscoveryService discoveryService = spy(new DiscoveryService(config));
+        doReturn(mockZooKeeperClientFactory).when(discoveryService).getZooKeeperClientFactory();
+        discoveryService.start();
+        // (2) lookup using discovery service
+        final String discoverySvcUrl = discoveryService.getServiceUrl();
+        ClientConfiguration clientConfig = new ClientConfiguration();
+        // set authentication data
+        clientConfig.setAuthentication(new Authentication() {
+            @Override
+            public void close() throws IOException {
+            }
+            @Override
+            public String getAuthMethodName() {
+                return "auth";
+            }
+            @Override
+            public AuthenticationDataProvider getAuthData() throws PulsarClientException {
+                return new AuthenticationDataProvider() {
+                };
+            }
+            @Override
+            public void configure(Map<String, String> authParams) {
+            }
+            @Override
+            public void start() throws PulsarClientException {
+            }
+        });
+        PulsarClient pulsarClient = PulsarClient.create(discoverySvcUrl, clientConfig);
+        try {
+            pulsarClient.subscribe("persistent://my-property/use2/my-ns/my-topic1", "my-subscriber-name",
+                    new ConsumerConfiguration());
+            Assert.fail("should have failed due to authentication");
+        } catch (PulsarClientException e) {
+            // Ok: expected
+            Assert.assertTrue(e instanceof PulsarClientException.LookupException);
+        }
+    }
+
+    /**** helper classes ****/
+
+    public static class MockAuthenticationProvider implements AuthenticationProvider {
+        @Override
+        public void close() throws IOException {
+        }
+        @Override
+        public void initialize(ServiceConfiguration config) throws IOException {
+        }
+        @Override
+        public String getAuthMethodName() {
+            return "auth";
+        }
+        @Override
+        public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
+            return "appid1";
+        }
+    }
+
+    public static class MockAuthenticationProviderFail extends MockAuthenticationProvider {
+        @Override
+        public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
+            throw new AuthenticationException("authentication failed");
+        }
+    }
+
+    public static class MockAuthorizationProviderFail extends MockAuthenticationProvider {
+        @Override
+        public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
+            return "invalid";
+        }
+    }
 }

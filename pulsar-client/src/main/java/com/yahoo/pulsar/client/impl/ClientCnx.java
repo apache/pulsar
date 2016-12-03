@@ -34,7 +34,6 @@ import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandCloseProducer;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConnected;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandError;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse;
-import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse.LookupType;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandMessage;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadataResponse;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandProducerSuccess;
@@ -207,7 +206,7 @@ public class ClientCnx extends PulsarHandler {
 
         if (requestFuture != null) {
             // Complete future with exception if : Result.response=fail/null
-            if (lookupResult.getResponse() == null || LookupType.Failed.equals(lookupResult.getResponse())) {
+            if (!lookupResult.hasResponse() || CommandLookupTopicResponse.LookupType.Failed.equals(lookupResult.getResponse())) {
                 if (lookupResult.hasError()) {
                     requestFuture.completeExceptionally(
                             getPulsarClientException(lookupResult.getError(), lookupResult.getMessage()));
@@ -217,7 +216,7 @@ public class ClientCnx extends PulsarHandler {
                 }
             } else {
                 // return LookupDataResult when Result.response = connect/redirect
-                boolean redirect = LookupType.Redirect.equals(lookupResult.getResponse());
+                boolean redirect = CommandLookupTopicResponse.LookupType.Redirect.equals(lookupResult.getResponse());
                 requestFuture.complete(new LookupDataResult(lookupResult.getBrokerServiceUrl(),
                         lookupResult.getBrokerServiceUrlTls(), redirect, lookupResult.getAuthoritative()));
             }
@@ -235,7 +234,7 @@ public class ClientCnx extends PulsarHandler {
 
         if (requestFuture != null) {
             // Complete future with exception if : Result.response=fail/null
-            if (lookupResult.getResponse() == null || LookupType.Failed.equals(lookupResult.getResponse())) {
+            if (!lookupResult.hasResponse() || CommandPartitionedTopicMetadataResponse.LookupType.Failed.equals(lookupResult.getResponse())) {
                 if (lookupResult.hasError()) {
                     requestFuture.completeExceptionally(
                             getPulsarClientException(lookupResult.getError(), lookupResult.getMessage()));
@@ -245,9 +244,7 @@ public class ClientCnx extends PulsarHandler {
                 }
             } else {
                 // return LookupDataResult when Result.response = success/redirect
-                boolean redirect = LookupType.Redirect.equals(lookupResult.getResponse());
-                requestFuture.complete(new LookupDataResult(lookupResult.getPartitions(),
-                        lookupResult.getBrokerServiceUrl(), lookupResult.getBrokerServiceUrlTls(), redirect));
+                requestFuture.complete(new LookupDataResult(lookupResult.getPartitions()));
             }
         } else {
             log.warn("{} Received unknown request id from server: {}", ctx.channel(), lookupResult.getRequestId());

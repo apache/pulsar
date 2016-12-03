@@ -105,7 +105,7 @@ public class DiscoveryServiceTest extends BaseDiscoveryTestSetup {
         workerGroup.shutdownGracefully();
     }
 
-    @Test(enabled = true)
+    @Test
     public void testClientServerConnectionTls() throws Exception {
         addBrokerToZk(2);
         // 1. client connects to DiscoveryService, 2. Client receive service-lookup response
@@ -119,7 +119,7 @@ public class DiscoveryServiceTest extends BaseDiscoveryTestSetup {
         }
         workerGroup.shutdownGracefully();
     }
-    
+
     /**
      * creates ClientHandler channel to connect and communicate with server
      * 
