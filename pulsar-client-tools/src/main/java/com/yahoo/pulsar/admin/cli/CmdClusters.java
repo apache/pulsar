@@ -52,10 +52,17 @@ public class CmdClusters extends CmdBase {
 
         @Parameter(names = "--url-secure", description = "service-url for secure connection", required = false)
         private String serviceUrlTls;
+        
+        @Parameter(names = "--broker-url", description = "broker-service-url", required = false)
+        private String brokerServiceUrl;
+        
+        @Parameter(names = "--broker-url-secure", description = "broker-service-url for secure connection", required = false)
+        private String brokerServiceUrlTls;
 
         void run() throws PulsarAdminException {
             String cluster = getOneArgument(params);
-            admin.clusters().createCluster(cluster, new ClusterData(serviceUrl, serviceUrlTls));
+            admin.clusters().createCluster(cluster,
+                    new ClusterData(serviceUrl, serviceUrlTls, brokerServiceUrl, brokerServiceUrlTls));
         }
     }
 
@@ -69,10 +76,17 @@ public class CmdClusters extends CmdBase {
 
         @Parameter(names = "--url-secure", description = "service-url for secure connection", required = false)
         private String serviceUrlTls;
+        
+        @Parameter(names = "--broker-url", description = "broker-service-url", required = false)
+        private String brokerServiceUrl;
+        
+        @Parameter(names = "--broker-url-secure", description = "broker-service-url for secure connection", required = false)
+        private String brokerServiceUrlTls;
 
         void run() throws PulsarAdminException {
             String cluster = getOneArgument(params);
-            admin.clusters().updateCluster(cluster, new ClusterData(serviceUrl, serviceUrlTls));
+            admin.clusters().updateCluster(cluster,
+                    new ClusterData(serviceUrl, serviceUrlTls, brokerServiceUrl, brokerServiceUrlTls));
         }
     }
 
