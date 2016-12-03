@@ -15,12 +15,19 @@
  */
 package com.yahoo.pulsar.discovery.service;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import java.net.InetAddress;
 
 import org.apache.commons.lang.SystemUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.yahoo.pulsar.broker.PulsarServerException;
+import com.yahoo.pulsar.broker.ServiceConfiguration;
+import com.yahoo.pulsar.broker.authentication.AuthenticationService;
+import com.yahoo.pulsar.broker.authorization.AuthorizationManager;
+import com.yahoo.pulsar.broker.cache.ConfigurationCacheService;
 import com.yahoo.pulsar.discovery.service.server.ServiceConfig;
 import com.yahoo.pulsar.zookeeper.ZooKeeperClientFactory;
 import com.yahoo.pulsar.zookeeper.ZookeeperClientFactoryImpl;
@@ -48,6 +55,9 @@ public class DiscoveryService {
     private final ServiceConfig config;
     private final String serviceUrl;
     private final String serviceUrlTls;
+    private ConfigurationCacheService configurationCacheService;
+    private AuthenticationService authenticationService;
+    private AuthorizationManager authorizationManager;
     private ZooKeeperClientFactory zkClientFactory = null;
     private BrokerDiscoveryProvider discoveryProvider;
     private final EventLoopGroup acceptorGroup;
@@ -57,11 +67,10 @@ public class DiscoveryService {
     private final int numThreads = Runtime.getRuntime().availableProcessors();
 
     public DiscoveryService(ServiceConfig serviceConfig) {
-
+        checkNotNull(serviceConfig);
         this.config = serviceConfig;
         this.serviceUrl = serviceUrl();
         this.serviceUrlTls = serviceUrlTls();
-        discoveryProvider = new BrokerDiscoveryProvider(serviceConfig);
         EventLoopGroup acceptorEventLoop, workersEventLoop;
         if (SystemUtils.IS_OS_LINUX) {
             try {
@@ -84,7 +93,12 @@ public class DiscoveryService {
      * @throws Exception
      */
     public void start() throws Exception {
-        discoveryProvider.start(getZooKeeperClientFactory());
+        discoveryProvider = new BrokerDiscoveryProvider(this.config, getZooKeeperClientFactory());
+        this.configurationCacheService = new ConfigurationCacheService(
+                discoveryProvider.globalZkCache.getLocalZkCache());
+        ServiceConfiguration serviceConfiguration = createServiceConfiguration(config);
+        authenticationService = new AuthenticationService(serviceConfiguration);
+        authorizationManager = new AuthorizationManager(serviceConfiguration, configurationCacheService);
         startServer();
     }
 
@@ -140,6 +154,15 @@ public class DiscoveryService {
         workerGroup.shutdownGracefully();
     }
 
+    private ServiceConfiguration createServiceConfiguration(ServiceConfig config) {
+    	ServiceConfiguration serviceConfiguration = new ServiceConfiguration();
+    	serviceConfiguration.setAuthenticationEnabled(config.isAuthenticationEnabled());
+    	serviceConfiguration.setAuthorizationEnabled(config.isAuthorizationEnabled());
+    	serviceConfiguration.setAuthenticationProviders(config.getAuthenticationProviders());
+    	serviceConfiguration.setProperties(config.getProperties());
+		return serviceConfiguration;
+	}
+    
     /**
      * Derive the host
      *
@@ -180,5 +203,25 @@ public class DiscoveryService {
         return serviceUrlTls;
     }
 
-    private static final Logger LOG = LoggerFactory.getLogger(DiscoveryService.class);
+    public ServiceConfig getConfiguration() {
+    	return config;
+    }
+    
+    public AuthenticationService getAuthenticationService() {
+        return authenticationService;
+    }
+
+    public AuthorizationManager getAuthorizationManager() {
+        return authorizationManager;
+    }
+
+    public ConfigurationCacheService getConfigurationCacheService() {
+        return configurationCacheService;
+    }
+
+    public void setConfigurationCacheService(ConfigurationCacheService configurationCacheService) {
+        this.configurationCacheService = configurationCacheService;
+    }
+	
+	private static final Logger LOG = LoggerFactory.getLogger(DiscoveryService.class);
 }
