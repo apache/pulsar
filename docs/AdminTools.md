@@ -400,7 +400,7 @@ It provisions a new cluster in Pulsar. It also requires Pulsar super-user privil
 ###### CLI
 
 ```
-$ pulsar-admin clusters create --url http://my-cluster.org.com:8080/ cl1
+$ pulsar-admin clusters create --url http://my-cluster.org.com:8080/ --broker-url pulsar://my-cluster.org.com:6650/ cl1
 ```
 
 ```
@@ -416,7 +416,7 @@ PUT /admin/clusters/{cluster}
 ###### Java
 
 ```java
-admin.clusters().createCluster(cluster, new ClusterData(serviceUrl, serviceUrlTls))
+admin.clusters().createCluster(cluster, new ClusterData(serviceUrl, serviceUrlTls, brokerServiceUrl, brokerServiceUrlTls))
 ```
 
 
@@ -434,7 +434,9 @@ $ pulsar-admin clusters get cl1
 ```json
 {
     "serviceUrl": "http://my-cluster.org.com:8080/",
-    "serviceUrlTls": null
+    "serviceUrlTls": null,
+    "brokerServiceUrl": "pulsar://my-cluster.org.com:6650/",
+    "brokerServiceUrlTls": null
 }
 ```
 
@@ -458,7 +460,7 @@ It updates cluster configuration data for a given existing cluster.
 ###### CLI
 
 ```
-$ pulsar-admin clusters update --url http://my-cluster.org.com:4081/ cl1
+$ pulsar-admin clusters update --url http://my-cluster.org.com:4081/ --broker-url pulsar://my-cluster.org.com:3350/ cl1
 ```
 
 ```
@@ -474,7 +476,7 @@ POST /admin/clusters/{cluster}
 ###### Java
 
 ```java
-admin.clusters().updateCluster(cluster, new ClusterData(serviceUrl, serviceUrlTls))
+admin.clusters().updateCluster(cluster, new ClusterData(serviceUrl, serviceUrlTls, brokerServiceUrl, brokerServiceUrlTls))
 ```
 
 
