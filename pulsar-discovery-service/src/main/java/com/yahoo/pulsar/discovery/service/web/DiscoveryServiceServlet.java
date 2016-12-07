@@ -15,6 +15,8 @@
  */
 package com.yahoo.pulsar.discovery.service.web;
 
+import static org.apache.bookkeeper.util.MathUtils.signSafeMod;
+
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -151,7 +153,7 @@ public class DiscoveryServiceServlet extends HttpServlet {
             throw new RestException(Status.SERVICE_UNAVAILABLE, "No active broker is available");
         } else {
             int brokersCount = availableBrokers.size();
-            int nextIdx = Math.abs(counter.getAndIncrement()) % brokersCount;
+            int nextIdx = signSafeMod(counter.getAndIncrement(), brokersCount);
             return availableBrokers.get(nextIdx);
         }
     }
