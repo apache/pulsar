@@ -34,7 +34,6 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
 
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -456,6 +455,7 @@ public class ConsumerImpl extends ConsumerBase {
             Commands.newSubscribe(topic, subscription, consumerId, requestId, getSubType(), consumerName),
             requestId).thenRun(() -> {
             synchronized (ConsumerImpl.this) {
+                int currentSize = incomingMessages.size();
                 incomingMessages.clear();
                 unAckedMessageTracker.clear();
                 batchMessageAckTracker.clear();
@@ -464,9 +464,10 @@ public class ConsumerImpl extends ConsumerBase {
                         cnx.channel().remoteAddress(), consumerId);
 
                     availablePermits.set(0);
-                    // If the connection is reset and someone is waiting for the messages
-                    // send a flow command
-                    if (waitingOnReceiveForZeroQueueSize) {
+                    // For zerosize queue : If the connection is reset and someone is waiting for the messages
+                    // or queue was not empty: send a flow command
+                    if (waitingOnReceiveForZeroQueueSize
+                            || (conf.getReceiverQueueSize() == 0 && currentSize > 0)) {
                         sendFlowPermitsToBroker(cnx, 1);
                     }
                 } else {
@@ -663,22 +664,28 @@ public class ConsumerImpl extends ConsumerBase {
             // thread while the message processing happens
             listenerExecutor.execute(() -> {
                 for (int i = 0; i < numMessages; i++) {
-                    Message msg;
                     try {
-                        msg = internalReceive();
+                        Message msg = internalReceive(0, TimeUnit.MILLISECONDS);
+                        // complete the callback-loop in case queue is cleared up
+                        if (msg == null) {
+                            if (log.isDebugEnabled()) {
+                                log.debug("[{}] [{}] Message has been cleared from the queue", topic, subscription);
+                            }
+                            break;
+                        }
+                        try {
+                            if (log.isDebugEnabled()) {
+                                log.debug("[{}][{}] Calling message listener for message {}", topic, subscription, msg);
+                            }
+                            listener.received(ConsumerImpl.this, msg);
+                        } catch (Throwable t) {
+                            log.error("[{}][{}] Message listener error in processing message: {}", topic, subscription,
+                                    msg, t);
+                        }
+
                     } catch (PulsarClientException e) {
                         log.warn("[{}] [{}] Failed to dequeue the message for listener", topic, subscription, e);
                         return;
-                    }
-
-                    try {
-                        if (log.isDebugEnabled()) {
-                            log.debug("[{}][{}] Calling message listener for message {}", topic, subscription, msg);
-                        }
-                        listener.received(ConsumerImpl.this, msg);
-                    } catch (Throwable t) {
-                        log.error("[{}][{}] Message listener error in processing message: {}", topic, subscription, msg,
-                            t);
                     }
                 }
             });
