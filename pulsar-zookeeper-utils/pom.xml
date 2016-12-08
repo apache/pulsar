@@ -42,6 +42,11 @@
     </dependency>
 
     <dependency>
+      <groupId>org.apache.bookkeeper.stats</groupId>
+      <artifactId>datasketches-metrics-provider</artifactId>
+    </dependency>
+
+    <dependency>
       <groupId>com.github.ben-manes.caffeine</groupId>
       <artifactId>caffeine</artifactId>
     </dependency>
