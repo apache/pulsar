@@ -22,6 +22,7 @@ import java.util.concurrent.CompletableFuture;
 import com.yahoo.pulsar.client.util.FutureUtil;
 import com.yahoo.pulsar.common.lookup.data.LookupData;
 import com.yahoo.pulsar.common.naming.DestinationName;
+import static com.yahoo.pulsar.common.util.Codec.encode;
 
 class LookupService {
 
@@ -36,7 +37,7 @@ class LookupService {
 
     @SuppressWarnings("deprecation")
     public CompletableFuture<InetSocketAddress> getBroker(DestinationName destination) {
-        return httpClient.get(BasePath + destination.getLookupName(), LookupData.class).thenCompose(lookupData -> {
+        return httpClient.get(BasePath + getLookupName(destination), LookupData.class).thenCompose(lookupData -> {
             // Convert LookupData into as SocketAddress, handling exceptions
             try {
                 URI uri;
@@ -55,5 +56,11 @@ class LookupService {
                 return FutureUtil.failedFuture(e);
             }
         });
+    }
+    
+    public static String getLookupName(DestinationName destination) {
+        return String.format("%s/%s/%s/%s/%s", destination.getDomain(), destination.getProperty(),
+                destination.getCluster(), destination.getNamespacePortion(),
+                encode(destination.getLocalName()).replaceAll("\\+", "%20"));
     }
 }

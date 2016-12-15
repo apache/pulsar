@@ -59,7 +59,10 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Starting {} test --", methodName);
 
         int numPartitions = 4;
-        DestinationName dn = DestinationName.get("persistent://my-property/use/my-ns/my-partitionedtopic1");
+        // creating topicName with special characters such as space,{,\,*,. for encoding
+        final String specialCharacter = "! * ' ( ) ; : @ & = + $ , /\\ ? % # [ ]";
+        final String topicName = "my-partitionedtopic1" + specialCharacter;
+        DestinationName dn = DestinationName.get("persistent://my-property/use/my-ns/" + topicName);
 
         ConsumerConfiguration conf = new ConsumerConfiguration();
         conf.setSubscriptionType(SubscriptionType.Exclusive);
