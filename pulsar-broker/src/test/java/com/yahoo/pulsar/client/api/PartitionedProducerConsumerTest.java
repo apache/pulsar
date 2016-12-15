@@ -379,6 +379,57 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
 
         log.info("-- Exiting {} test --", methodName);
     }
+    
+    @Test(timeOut = 4000)
+    public void testAsyncPartitionedProducerConsumerQueueSizeOne() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        final int totalMsg = 100;
+        final Set<String> produceMsgs = Sets.newHashSet();
+        final Set<String> consumeMsgs = Sets.newHashSet();
+
+        int numPartitions = 4;
+        DestinationName dn = DestinationName.get("persistent://my-property/use/my-ns/my-partitionedtopic1");
+
+        ConsumerConfiguration conf = new ConsumerConfiguration();
+        conf.setReceiverQueueSize(1);
+
+        admin.persistentTopics().createPartitionedTopic(dn.toString(), numPartitions);
+
+        ProducerConfiguration producerConf = new ProducerConfiguration();
+        producerConf.setMessageRoutingMode(MessageRoutingMode.RoundRobinPartition);
+        Producer producer = pulsarClient.createProducer(dn.toString(), producerConf);
+
+        Consumer consumer = pulsarClient.subscribe(dn.toString(), "my-partitioned-subscriber", conf);
+
+        // produce messages
+        for (int i = 0; i < totalMsg; i++) {
+            String message = "my-message-" + i;
+            produceMsgs.add(message);
+            producer.send(message.getBytes());
+        }
+
+        System.out.println(" start receiving messages :");
+
+        // receive messages
+        CountDownLatch latch = new CountDownLatch(totalMsg);
+        receiveAsync(consumer, totalMsg, 0, latch, consumeMsgs, Executors.newFixedThreadPool(1));
+
+        latch.await();
+
+        // verify message produced correctly
+        assertEquals(produceMsgs.size(), totalMsg);
+        // verify produced and consumed messages must be exactly same
+        produceMsgs.removeAll(consumeMsgs);
+        assertTrue(produceMsgs.isEmpty());
+
+        producer.close();
+        consumer.unsubscribe();
+        consumer.close();
+        admin.persistentTopics().deletePartitionedTopic(dn.toString());
+
+        log.info("-- Exiting {} test --", methodName);
+    }
 
     private void receiveAsync(Consumer consumer, int totalMessage, int currentMessage, CountDownLatch latch,
             final Set<String> consumeMsg, ExecutorService executor) throws PulsarClientException {
