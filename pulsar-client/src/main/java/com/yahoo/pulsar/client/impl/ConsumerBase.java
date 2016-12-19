@@ -51,16 +51,16 @@ public abstract class ConsumerBase extends HandlerBase implements Consumer {
     protected final int maxReceiverQueueSize;
 
     protected ConsumerBase(PulsarClientImpl client, String topic, String subscription, ConsumerConfiguration conf,
-            ExecutorService listenerExecutor, CompletableFuture<Consumer> subscribeFuture) {
+            int receiverQueueSize, ExecutorService listenerExecutor, CompletableFuture<Consumer> subscribeFuture) {
         super(client, topic);
-        this.maxReceiverQueueSize = conf.getReceiverQueueSize();
+        this.maxReceiverQueueSize = receiverQueueSize;
         this.subscription = subscription;
         this.conf = conf;
         this.consumerName = conf.getConsumerName() == null
                 ? DigestUtils.sha1Hex(UUID.randomUUID().toString()).substring(0, 5) : conf.getConsumerName();
         this.subscribeFuture = subscribeFuture;
         this.listener = conf.getMessageListener();
-        if (conf.getReceiverQueueSize() <= 1) {
+        if (receiverQueueSize <= 1) {
             this.incomingMessages = Queues.newArrayBlockingQueue(1);
         } else {
             this.incomingMessages = new GrowableArrayBlockingQueue<>();
