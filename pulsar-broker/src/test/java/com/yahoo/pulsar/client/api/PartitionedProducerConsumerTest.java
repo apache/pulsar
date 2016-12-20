@@ -95,6 +95,25 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
 
         log.info("-- Exiting {} test --", methodName);
     }
+    
+    @Test
+    public void testPartitionedTopicNameWithSpecialCharacter() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        int numPartitions = 4;
+        final String specialCharacter = "! * ' ( ) ; : @ & = + $ , /\\ ? % # [ ]";
+        final String topicName = "my-partitionedtopic1" + specialCharacter;
+        DestinationName dn = DestinationName.get("persistent://my-property/use/my-ns/" + topicName);
+        admin.persistentTopics().createPartitionedTopic(dn.toString(), numPartitions);
+
+        ProducerConfiguration producerConf = new ProducerConfiguration();
+        producerConf.setMessageRoutingMode(MessageRoutingMode.RoundRobinPartition);
+        // Try to create producer which does lookup and create connection with broker
+        Producer producer = pulsarClient.createProducer(dn.toString(), producerConf);
+        producer.close();
+        admin.persistentTopics().deletePartitionedTopic(dn.toString());
+        log.info("-- Exiting {} test --", methodName);
+    }
 
     @Test
     public void testSinglePartitionProducer() throws Exception {

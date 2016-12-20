@@ -20,6 +20,7 @@ import java.net.URISyntaxException;
 import java.util.concurrent.CompletableFuture;
 
 import javax.ws.rs.DefaultValue;
+import javax.ws.rs.Encoded;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
@@ -45,6 +46,8 @@ import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse.Lo
 import com.yahoo.pulsar.common.api.proto.PulsarApi.ServerError;
 import com.yahoo.pulsar.common.lookup.data.LookupData;
 import com.yahoo.pulsar.common.policies.data.ClusterData;
+import com.yahoo.pulsar.common.util.Codec;
+
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import io.netty.buffer.ByteBuf;
@@ -57,10 +60,10 @@ public class DestinationLookup extends PulsarWebResource {
     @Path("persistent/{property}/{cluster}/{namespace}/{dest}")
     @Produces(MediaType.APPLICATION_JSON)
     public void lookupDestinationAsync(@PathParam("property") String property, @PathParam("cluster") String cluster,
-            @PathParam("namespace") String namespace, @PathParam("dest") String dest,
+            @PathParam("namespace") String namespace, @PathParam("dest") @Encoded String dest,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @Suspended AsyncResponse asyncResponse) {
-
+        dest = Codec.decode(dest);
         DestinationName topic = DestinationName.get("persistent", property, cluster, namespace, dest);
 
         try {
