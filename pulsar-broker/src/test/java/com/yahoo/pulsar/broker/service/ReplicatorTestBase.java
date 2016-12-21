@@ -169,9 +169,12 @@ public class ReplicatorTestBase {
         admin3 = new PulsarAdmin(url3, (Authentication) null);
 
         // Provision the global namespace
-        admin1.clusters().createCluster("r1", new ClusterData(url1.toString()));
-        admin1.clusters().createCluster("r2", new ClusterData(url2.toString()));
-        admin1.clusters().createCluster("r3", new ClusterData(url3.toString()));
+        admin1.clusters().createCluster("r1", new ClusterData(url1.toString(), null, pulsar1.getBrokerServiceUrl(),
+                pulsar1.getBrokerServiceUrlTls()));
+        admin1.clusters().createCluster("r2", new ClusterData(url2.toString(), null, pulsar2.getBrokerServiceUrl(),
+                pulsar1.getBrokerServiceUrlTls()));
+        admin1.clusters().createCluster("r3", new ClusterData(url3.toString(), null, pulsar3.getBrokerServiceUrl(),
+                pulsar1.getBrokerServiceUrlTls()));
 
         admin1.clusters().createCluster("global", new ClusterData("http://global:8080"));
         admin1.properties().createProperty("pulsar",
@@ -182,6 +185,9 @@ public class ReplicatorTestBase {
         assertEquals(admin2.clusters().getCluster("r1").getServiceUrl(), url1.toString());
         assertEquals(admin2.clusters().getCluster("r2").getServiceUrl(), url2.toString());
         assertEquals(admin2.clusters().getCluster("r3").getServiceUrl(), url3.toString());
+        assertEquals(admin2.clusters().getCluster("r1").getBrokerServiceUrl(), pulsar1.getBrokerServiceUrl());
+        assertEquals(admin2.clusters().getCluster("r2").getBrokerServiceUrl(), pulsar2.getBrokerServiceUrl());
+        assertEquals(admin2.clusters().getCluster("r3").getBrokerServiceUrl(), pulsar3.getBrokerServiceUrl());
         /*
          * assertEquals(admin2.clusters().getCluster("global").getServiceUrl(), "http://global:8080");
          * assertEquals(admin2.properties().getPropertyAdmin("pulsar").getAdminRoles(), Lists.newArrayList("appid1",
