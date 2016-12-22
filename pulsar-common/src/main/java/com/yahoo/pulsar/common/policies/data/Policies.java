@@ -73,4 +73,15 @@ public class Policies {
         bundle.setBoundaries(boundaries);
         return bundle;
     }
+
+    @Override
+    public String toString() {
+        return Objects.toStringHelper(this).add("auth_policies", auth_policies)
+                .add("replication_clusters", replication_clusters).add("bundles", bundles)
+                .add("backlog_quota_map", backlog_quota_map).add("persistence", persistence)
+                .add("latency_stats_sample_rate", latency_stats_sample_rate)
+                .add("message_ttl_in_seconds", message_ttl_in_seconds).add("retention_policies", retention_policies)
+                .add("deleted", deleted).toString();
+    }
+    
 }

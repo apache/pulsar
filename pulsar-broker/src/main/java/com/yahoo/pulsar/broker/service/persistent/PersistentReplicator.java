@@ -605,7 +605,8 @@ public class PersistentReplicator implements ReadEntriesCallback, DeleteCallback
             return disconnectFuture;
         }
 
-        if (producer != null && state.compareAndSet(State.Started, State.Stopping)) {
+        if (producer != null && (state.compareAndSet(State.Starting, State.Stopping)
+                || state.compareAndSet(State.Started, State.Stopping))) {
             log.info("[{}][{} -> {}] Disconnect replicator at position {} with backlog {}", topicName, localCluster,
                     remoteCluster, cursor.getMarkDeletedPosition(), cursor.getNumberOfEntriesInBacklog());
             return closeProducerAsync();
