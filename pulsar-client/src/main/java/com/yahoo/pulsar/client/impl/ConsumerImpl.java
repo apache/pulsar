@@ -427,6 +427,10 @@ public class ConsumerImpl extends ConsumerBase {
                         } else if (ackType == AckType.Cumulative) {
                             stats.incrementNumAcksSent(unAckedMessageTracker.removeMessagesTill(msgId));
                         }
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}] [{}] Successfully acknowledged message - {}, acktype {}", subscription,
+                                    consumerName, messageId, ackType);
+                        }
                         ackFuture.complete(null);
                     } else {
                         stats.incrementNumAcksFailed();
@@ -588,7 +592,8 @@ public class ConsumerImpl extends ConsumerBase {
 
     void messageReceived(MessageIdData messageId, ByteBuf headersAndPayload, ClientCnx cnx) {
         if (log.isDebugEnabled()) {
-            log.debug("[{}][{}] Received message: {}", topic, subscription, messageId);
+            log.debug("[{}][{}] Received message: {}/{}", topic, subscription, messageId.getLedgerId(),
+                    messageId.getEntryId());
         }
 
         MessageMetadata msgMetadata = null;
@@ -905,6 +910,10 @@ public class ConsumerImpl extends ConsumerBase {
             if (currentSize > 0) {
                 sendFlowPermitsToBroker(cnx, currentSize);
             }
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] [{}] Redeliver unacked messages and send {} permits", subscription, consumerName,
+                        currentSize);
+            }
             return;
         }
         if (cnx == null || (state.get() == State.Connecting)) {
@@ -945,6 +954,10 @@ public class ConsumerImpl extends ConsumerBase {
                 increaseAvailablePermits(cnx, messagesFromQueue);
             }
             builder.recycle();
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] [{}] Redeliver unacked messages and increase {} permits", subscription, consumerName,
+                        messagesFromQueue);
+            }
             return;
         }
         if (cnx == null || (state.get() == State.Connecting)) {

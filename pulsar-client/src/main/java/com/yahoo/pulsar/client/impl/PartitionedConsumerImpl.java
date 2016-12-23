@@ -52,10 +52,6 @@ public class PartitionedConsumerImpl extends ConsumerBase {
     // shared incoming queue was full
     private final ConcurrentLinkedQueue<ConsumerImpl> pausedConsumers;
 
-    // Threshold for the shared queue. When the size of the shared queue goes below the threshold, we are going to
-    // resume receiving from the paused consumer partitions
-    private final int sharedQueueResumeThreshold;
-
     private final int numPartitions;
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
     private final ConsumerStats stats;
@@ -66,7 +62,6 @@ public class PartitionedConsumerImpl extends ConsumerBase {
                 subscribeFuture);
         this.consumers = Lists.newArrayListWithCapacity(numPartitions);
         this.pausedConsumers = new ConcurrentLinkedQueue<>();
-        this.sharedQueueResumeThreshold = maxReceiverQueueSize / 2;
         this.numPartitions = numPartitions;
 
         stats = client.getConfiguration().getStatsIntervalSeconds() > 0 ? new ConsumerStats() : null;
@@ -142,7 +137,7 @@ public class PartitionedConsumerImpl extends ConsumerBase {
     }
 
     private void resumeReceivingFromPausedConsumersIfNeeded() {
-        if (incomingMessages.size() <= sharedQueueResumeThreshold && !pausedConsumers.isEmpty()) {
+        if (incomingMessages.size() < maxReceiverQueueSize && !pausedConsumers.isEmpty()) {
             while (true) {
                 ConsumerImpl consumer = pausedConsumers.poll();
                 if (consumer == null) {
@@ -327,6 +322,9 @@ public class PartitionedConsumerImpl extends ConsumerBase {
     void messageReceived(Message message) {
         lock.readLock().lock();
         try {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}][{}] Received message from partitioned-consumer {}", topic, subscription, message.getMessageId());
+            }
             // if asyncReceive is waiting : return message to callback without adding to incomingMessages queue
             if (!pendingReceives.isEmpty()) {
                 CompletableFuture<Message> receivedFuture = pendingReceives.poll();
@@ -355,7 +353,9 @@ public class PartitionedConsumerImpl extends ConsumerBase {
                 }
 
                 try {
-                    log.debug("[{}][{}] Calling message listener for message {}", topic, subscription, message);
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}][{}] Calling message listener for message {}", topic, subscription, message);
+                    }
                     listener.received(PartitionedConsumerImpl.this, msg);
                 } catch (Throwable t) {
                     log.error("[{}][{}] Message listener error in processing message: {}", topic, subscription, message,
