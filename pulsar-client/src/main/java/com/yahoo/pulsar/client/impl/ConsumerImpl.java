@@ -428,8 +428,8 @@ public class ConsumerImpl extends ConsumerBase {
                             stats.incrementNumAcksSent(unAckedMessageTracker.removeMessagesTill(msgId));
                         }
                         if (log.isDebugEnabled()) {
-                            log.debug("[{}] [{}] Successfully acknowledged message - {}, acktype {}", subscription,
-                                    consumerName, messageId, ackType);
+                            log.debug("[{}] [{}] [{}] Successfully acknowledged message - {}, acktype {}", subscription,
+                                    topic, consumerName, messageId, ackType);
                         }
                         ackFuture.complete(null);
                     } else {
@@ -680,12 +680,12 @@ public class ConsumerImpl extends ConsumerBase {
                         }
                         try {
                             if (log.isDebugEnabled()) {
-                                log.debug("[{}][{}] Calling message listener for message {}", topic, subscription, msg);
+                                log.debug("[{}][{}] Calling message listener for message {}", topic, subscription, msg.getMessageId());
                             }
                             listener.received(ConsumerImpl.this, msg);
                         } catch (Throwable t) {
                             log.error("[{}][{}] Message listener error in processing message: {}", topic, subscription,
-                                    msg, t);
+                                    msg.getMessageId(), t);
                         }
 
                     } catch (PulsarClientException e) {
@@ -911,8 +911,8 @@ public class ConsumerImpl extends ConsumerBase {
                 sendFlowPermitsToBroker(cnx, currentSize);
             }
             if (log.isDebugEnabled()) {
-                log.debug("[{}] [{}] Redeliver unacked messages and send {} permits", subscription, consumerName,
-                        currentSize);
+                log.debug("[{}] [{}] [{}] Redeliver unacked messages and send {} permits", subscription, topic,
+                        consumerName, currentSize);
             }
             return;
         }
@@ -955,8 +955,8 @@ public class ConsumerImpl extends ConsumerBase {
             }
             builder.recycle();
             if (log.isDebugEnabled()) {
-                log.debug("[{}] [{}] Redeliver unacked messages and increase {} permits", subscription, consumerName,
-                        messagesFromQueue);
+                log.debug("[{}] [{}] [{}] Redeliver unacked messages and increase {} permits", subscription, topic,
+                        consumerName, messagesFromQueue);
             }
             return;
         }

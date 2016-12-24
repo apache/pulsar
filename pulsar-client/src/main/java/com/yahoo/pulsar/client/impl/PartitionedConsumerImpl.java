@@ -52,6 +52,10 @@ public class PartitionedConsumerImpl extends ConsumerBase {
     // shared incoming queue was full
     private final ConcurrentLinkedQueue<ConsumerImpl> pausedConsumers;
 
+    // Threshold for the shared queue. When the size of the shared queue goes below the threshold, we are going to
+    // resume receiving from the paused consumer partitions
+    private final int sharedQueueResumeThreshold;
+
     private final int numPartitions;
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
     private final ConsumerStats stats;
@@ -62,6 +66,7 @@ public class PartitionedConsumerImpl extends ConsumerBase {
                 subscribeFuture);
         this.consumers = Lists.newArrayListWithCapacity(numPartitions);
         this.pausedConsumers = new ConcurrentLinkedQueue<>();
+        this.sharedQueueResumeThreshold = maxReceiverQueueSize / 2;
         this.numPartitions = numPartitions;
 
         stats = client.getConfiguration().getStatsIntervalSeconds() > 0 ? new ConsumerStats() : null;
@@ -123,8 +128,10 @@ public class PartitionedConsumerImpl extends ConsumerBase {
             // Process the message, add to the queue and trigger listener or async callback
             messageReceived(message);
 
-            if (incomingMessages.size() >= maxReceiverQueueSize) {
-                // No more space left in shared queue, mark this consumer to be resumed later
+            if (incomingMessages.size() >= maxReceiverQueueSize
+                    || (incomingMessages.size() > sharedQueueResumeThreshold && !pausedConsumers.isEmpty())) {
+                // mark this consumer to be resumed later: if No more space left in shared queue, 
+                // or if any consumer is already paused (to create fair chance for already paused consumers)
                 pausedConsumers.add(consumer);
             } else {
                 // Schedule next receiveAsync() if the incoming queue is not full. Use a different thread to avoid
@@ -137,7 +144,7 @@ public class PartitionedConsumerImpl extends ConsumerBase {
     }
 
     private void resumeReceivingFromPausedConsumersIfNeeded() {
-        if (incomingMessages.size() < maxReceiverQueueSize && !pausedConsumers.isEmpty()) {
+        if (incomingMessages.size() <= sharedQueueResumeThreshold && !pausedConsumers.isEmpty()) {
             while (true) {
                 ConsumerImpl consumer = pausedConsumers.poll();
                 if (consumer == null) {
@@ -354,7 +361,7 @@ public class PartitionedConsumerImpl extends ConsumerBase {
 
                 try {
                     if (log.isDebugEnabled()) {
-                        log.debug("[{}][{}] Calling message listener for message {}", topic, subscription, message);
+                        log.debug("[{}][{}] Calling message listener for message {}", topic, subscription, message.getMessageId());
                     }
                     listener.received(PartitionedConsumerImpl.this, msg);
                 } catch (Throwable t) {
