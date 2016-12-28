@@ -529,7 +529,16 @@ public class PersistentTopicsImpl extends BaseResource implements PersistentTopi
         } catch (Exception e) {
             throw getApiException(e);
         }
+    }
 
+    @Override
+    public CompletableFuture<Void> resetCursorAsync(String destination, String subName, long timestamp) {
+        DestinationName ds = validateTopic(destination);
+        String encodedSubName = Codec.encode(subName);
+        return asyncPostRequest(
+                persistentTopics.path(ds.getNamespace()).path(ds.getEncodedLocalName()).path("subscription")
+                        .path(encodedSubName).path("resetcursor").path(String.valueOf(timestamp)),
+                Entity.entity("", MediaType.APPLICATION_JSON));
     }
 
     /*
