@@ -52,7 +52,7 @@ public abstract class ConsumerBase extends HandlerBase implements Consumer {
     protected ConsumerBase(PulsarClientImpl client, String topic, String subscription, ConsumerConfiguration conf,
             int receiverQueueSize, ExecutorService listenerExecutor, CompletableFuture<Consumer> subscribeFuture) {
         super(client, topic);
-        this.maxReceiverQueueSize = conf.getReceiverQueueSize();
+        this.maxReceiverQueueSize = receiverQueueSize;
         this.subscription = subscription;
         this.conf = conf;
         this.consumerName = conf.getConsumerName() == null

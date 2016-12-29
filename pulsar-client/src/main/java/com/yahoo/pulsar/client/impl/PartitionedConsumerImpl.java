@@ -325,6 +325,10 @@ public class PartitionedConsumerImpl extends ConsumerBase {
     void messageReceived(Message message) {
         lock.readLock().lock();
         try {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}][{}] Received message from partitioned-consumer {}", topic, subscription,
+                        message.getMessageId());
+            }
             // if asyncReceive is waiting : return message to callback without adding to incomingMessages queue
             if (!pendingReceives.isEmpty()) {
                 CompletableFuture<Message> receivedFuture = pendingReceives.poll();
@@ -353,7 +357,8 @@ public class PartitionedConsumerImpl extends ConsumerBase {
                 }
 
                 try {
-                    log.debug("[{}][{}] Calling message listener for message {}", topic, subscription, message);
+                    log.debug("[{}][{}] Calling message listener for message {}", topic, subscription,
+                            message.getMessageId());
                     listener.received(PartitionedConsumerImpl.this, msg);
                 } catch (Throwable t) {
                     log.error("[{}][{}] Message listener error in processing message: {}", topic, subscription, message,
