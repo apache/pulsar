@@ -431,6 +431,70 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
+    /**
+     * It verifies that consumer consumes from all the partitions fairly.
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testFairDistributionForPartitionConsumers() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        final int numPartitions = 2;
+        final String topicName = "persistent://my-property/use/my-ns/my-topic";
+        final String producer1Msg = "producer1";
+        final String producer2Msg = "producer2";
+        final int queueSize = 10;
+
+        ConsumerConfiguration conf = new ConsumerConfiguration();
+        conf.setReceiverQueueSize(queueSize);
+
+        admin.persistentTopics().createPartitionedTopic(topicName, numPartitions);
+
+        ProducerConfiguration producerConf = new ProducerConfiguration();
+        producerConf.setMessageRoutingMode(MessageRoutingMode.RoundRobinPartition);
+        Producer producer1 = pulsarClient.createProducer(topicName + "-partition-0", producerConf);
+        Producer producer2 = pulsarClient.createProducer(topicName + "-partition-1", producerConf);
+
+        Consumer consumer = pulsarClient.subscribe(topicName, "my-partitioned-subscriber", conf);
+
+        int partition2Msgs = 0;
+
+        // produce messages on Partition-1: which will makes partitioned-consumer's queue full
+        for (int i = 0; i < queueSize - 1; i++) {
+            producer1.send((producer1Msg + "-" + i).getBytes());
+        }
+
+        Thread.sleep(1000);
+
+        // now queue is full : so, partition-2 consumer will be pushed to paused-consumer list
+        for (int i = 0; i < 5; i++) {
+            producer2.send((producer2Msg + "-" + i).getBytes());
+        }
+
+        // now, Queue should take both partition's messages
+        // also: we will keep producing messages to partition-1
+        int produceMsgInPartition1AfterNumberOfConsumeMessages = 2;
+        for (int i = 0; i < 3 * queueSize; i++) {
+            Message msg = consumer.receive();
+            partition2Msgs += (new String(msg.getData())).startsWith(producer2Msg) ? 1 : 0;
+            if (i >= produceMsgInPartition1AfterNumberOfConsumeMessages) {
+                producer1.send(producer1Msg.getBytes());
+                Thread.sleep(100);
+            }
+
+        }
+
+        assertTrue(partition2Msgs >= 4);
+        producer1.close();
+        producer2.close();
+        consumer.unsubscribe();
+        consumer.close();
+        admin.persistentTopics().deletePartitionedTopic(topicName);
+
+        log.info("-- Exiting {} test --", methodName);
+    }
+    
     private void receiveAsync(Consumer consumer, int totalMessage, int currentMessage, CountDownLatch latch,
             final Set<String> consumeMsg, ExecutorService executor) throws PulsarClientException {
         if (currentMessage < totalMessage) {
