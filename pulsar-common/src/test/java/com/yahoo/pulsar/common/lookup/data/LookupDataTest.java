@@ -19,10 +19,10 @@ import static org.testng.Assert.assertEquals;
 
 import java.util.Map;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.testng.annotations.Test;
 
-import com.yahoo.pulsar.common.lookup.data.LookupData;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.yahoo.pulsar.common.util.Codec;
 import com.yahoo.pulsar.common.util.ObjectMapperFactory;
 
 @Test
@@ -49,5 +49,15 @@ public class LookupDataTest {
         assertEquals(jsonMap.get("brokerUrlSsl"), "");
         assertEquals(jsonMap.get("nativeUrl"), "pulsar://localhost:8888");
         assertEquals(jsonMap.get("httpUrl"), "http://localhost:8080");
+    }
+
+    @Test
+    void testUrlEncoder() {
+        final String str = "specialCharacters_+&*%{}() \\/$@#^%";
+        final String urlEncoded = Codec.encode(str);
+        final String uriEncoded = urlEncoded.replaceAll("//+", "%20");
+        assertEquals("specialCharacters_%2B%26*%25%7B%7D%28%29+%5C%2F%24%40%23%5E%25", urlEncoded);
+        assertEquals(str, Codec.decode(urlEncoded));
+        assertEquals(Codec.decode(urlEncoded), Codec.decode(uriEncoded));
     }
 }
