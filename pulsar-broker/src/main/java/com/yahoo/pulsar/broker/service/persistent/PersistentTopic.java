@@ -118,6 +118,8 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     public final String replicatorPrefix;
 
     private static final double MESSAGE_EXPIRY_THRESHOLD = 1.5;
+    
+    private static final long POLICY_UPDATE_FAILURE_RETRY_TIME_SECONDS = 60;
 
     public static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS").withZone(ZoneId.systemDefault());
 
@@ -662,15 +664,13 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
                 @Override
                 public void deleteCursorFailed(ManagedLedgerException exception, Object ctx) {
-                    log.error("[{}] Failed to delete cursor {}", topic, name);
-                    // Connect the producers back
-                    replicators.get(remoteCluster).startProducer();
+                    log.error("[{}] Failed to delete cursor {} {}", topic, name, exception.getMessage(), exception);
                     future.completeExceptionally(new PersistenceException(exception));
                 }
             }, null);
 
         }).exceptionally(e -> {
-            log.error("[{}] Failed to close replication producer {}", topic, name);
+            log.error("[{}] Failed to close replication producer {} {}", topic, name, e.getMessage(), e);
             future.completeExceptionally(e);
             return null;
         });
@@ -1071,7 +1071,19 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         producers.forEach(Producer::checkPermissions);
         subscriptions.forEach((subName, sub) -> sub.getConsumers().forEach(Consumer::checkPermissions));
         checkMessageExpiry();
-        return checkReplication();
+        CompletableFuture<Void> result = new CompletableFuture<Void>();
+        checkReplication().thenAccept(res -> {
+            log.info("Policies updated successfully {}", data);
+            result.complete(null);
+        }).exceptionally(th -> {
+            log.error("Policies update failed {} {}, scheduled retry in {} seconds", data, th.getMessage(),
+                    POLICY_UPDATE_FAILURE_RETRY_TIME_SECONDS, th);
+            brokerService.executor().schedule(this::checkReplication, POLICY_UPDATE_FAILURE_RETRY_TIME_SECONDS,
+                    TimeUnit.SECONDS);
+            result.completeExceptionally(th);
+            return null;
+        });
+        return result;
     }
 
     /**
