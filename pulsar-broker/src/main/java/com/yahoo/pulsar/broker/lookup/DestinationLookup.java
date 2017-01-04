@@ -21,6 +21,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 
 import javax.ws.rs.DefaultValue;
+import javax.ws.rs.Encoded;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
@@ -36,6 +37,7 @@ import org.slf4j.LoggerFactory;
 import com.yahoo.pulsar.common.lookup.data.LookupData;
 import com.yahoo.pulsar.common.naming.DestinationName;
 import com.yahoo.pulsar.broker.web.NoSwaggerDocumentation;
+import com.yahoo.pulsar.common.util.Codec;
 
 @Path("/v2/destination/")
 @NoSwaggerDocumentation
@@ -45,8 +47,9 @@ public class DestinationLookup extends LookupResource {
     @Path("persistent/{property}/{cluster}/{namespace}/{dest}")
     @Produces(MediaType.APPLICATION_JSON)
     public LookupData lookupDestination(@PathParam("property") String property, @PathParam("cluster") String cluster,
-            @PathParam("namespace") String namespace, @PathParam("dest") String dest,
+            @PathParam("namespace") String namespace, @PathParam("dest") @Encoded String dest,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) throws URISyntaxException {
+        dest = Codec.decode(dest);
         DestinationName fqdn = DestinationName.get("persistent", property, cluster, namespace, dest);
         return lookupFQDN(fqdn, authoritative);
     }

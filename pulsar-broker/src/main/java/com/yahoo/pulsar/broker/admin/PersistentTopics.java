@@ -32,6 +32,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.ws.rs.DELETE;
 import javax.ws.rs.DefaultValue;
+import javax.ws.rs.Encoded;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
@@ -86,6 +87,7 @@ import com.yahoo.pulsar.common.policies.data.PersistentTopicStats;
 import com.yahoo.pulsar.common.policies.data.Policies;
 import com.yahoo.pulsar.common.util.Codec;
 import com.yahoo.pulsar.zookeeper.ZooKeeperCache.Deserializer;
+import static com.yahoo.pulsar.common.util.Codec.decode;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
@@ -159,7 +161,8 @@ public class PersistentTopics extends AdminResource {
             @ApiResponse(code = 404, message = "Namespace doesn't exist") })
     public Map<String, Set<AuthAction>> getPermissionsOnDestination(@PathParam("property") String property,
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
-            @PathParam("destination") String destination) {
+            @PathParam("destination") @Encoded String destination) {
+        destination = decode(destination);
         // This operation should be reading from zookeeper and it should be allowed without having admin privileges
         validateAdminAccessOnProperty(property);
 
@@ -217,7 +220,8 @@ public class PersistentTopics extends AdminResource {
             @ApiResponse(code = 409, message = "Concurrent modification") })
     public void grantPermissionsOnDestination(@PathParam("property") String property,
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
-            @PathParam("destination") String destination, @PathParam("role") String role, Set<AuthAction> actions) {
+            @PathParam("destination") @Encoded String destination, @PathParam("role") String role, Set<AuthAction> actions) {
+        destination = decode(destination);
         // This operation should be reading from zookeeper and it should be allowed without having admin privileges
         validateAdminAccessOnProperty(property);
         validatePoliciesReadOnlyAccess();
@@ -264,7 +268,8 @@ public class PersistentTopics extends AdminResource {
             @ApiResponse(code = 412, message = "Permissions are not set at the destination level") })
     public void revokePermissionsOnDestination(@PathParam("property") String property,
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
-            @PathParam("destination") String destination, @PathParam("role") String role) {
+            @PathParam("destination") @Encoded String destination, @PathParam("role") String role) {
+        destination = decode(destination);
         // This operation should be reading from zookeeper and it should be allowed without having admin privileges
         validateAdminAccessOnProperty(property);
         validatePoliciesReadOnlyAccess();
@@ -317,8 +322,9 @@ public class PersistentTopics extends AdminResource {
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 409, message = "Partitioned topic already exist") })
     public void createPartitionedTopic(@PathParam("property") String property, @PathParam("cluster") String cluster,
-            @PathParam("namespace") String namespace, @PathParam("destination") String destination, int numPartitions,
+            @PathParam("namespace") String namespace, @PathParam("destination") @Encoded String destination, int numPartitions,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        destination = decode(destination);
         DestinationName dn = DestinationName.get(domain(), property, cluster, namespace, destination);
         validateAdminAccessOnProperty(dn.getProperty());
         if (numPartitions <= 1) {
@@ -345,41 +351,12 @@ public class PersistentTopics extends AdminResource {
     @Path("/{property}/{cluster}/{namespace}/{destination}/partitions")
     @ApiOperation(value = "Get partitioned topic metadata.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
-    public PartitionedTopicMetadata getPartitionedTopicMetadata(@PathParam("property") String property,
+    public PartitionedTopicMetadata getPartitionedMetadata(@PathParam("property") String property,
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
-            @PathParam("destination") String destination,
+            @PathParam("destination") @Encoded String destination,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
-        DestinationName dn = DestinationName.get(domain(), property, cluster, namespace, destination);
-        validateClusterOwnership(dn.getCluster());
-
-        try {
-            checkConnect(dn);
-        } catch (RestException e) {
-            validateAdminAccessOnProperty(dn.getProperty());
-        }
-
-        String path = path(PARTITIONED_TOPIC_PATH_ZNODE, property, cluster, namespace, domain(),
-                dn.getEncodedLocalName());
-        PartitionedTopicMetadata partitionMetadata;
-        try {
-            // gets the number of partitions from the zk cache
-            partitionMetadata = globalZkCache().getData(path, new Deserializer<PartitionedTopicMetadata>() {
-
-                @Override
-                public PartitionedTopicMetadata deserialize(String key, byte[] content) throws Exception {
-                    return jsonMapper().readValue(content, PartitionedTopicMetadata.class);
-                }
-            });
-        } catch (Exception e) {
-            // if the partitioned topic is not found in zk cache, it returns zero
-            partitionMetadata = new PartitionedTopicMetadata();
-        }
-
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] Total number of partitions for topic {} is {}", clientAppId(), dn,
-                    partitionMetadata.partitions);
-        }
-        return partitionMetadata;
+        destination = decode(destination);
+        return getPartitionedTopicMetadata(property, cluster, namespace, destination, authoritative);
     }
 
     @DELETE
@@ -388,8 +365,9 @@ public class PersistentTopics extends AdminResource {
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Partitioned topic does not exist") })
     public void deletePartitionedTopic(@PathParam("property") String property, @PathParam("cluster") String cluster,
-            @PathParam("namespace") String namespace, @PathParam("destination") String destination,
+            @PathParam("namespace") String namespace, @PathParam("destination") @Encoded String destination,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        destination = decode(destination);
         DestinationName dn = DestinationName.get(domain(), property, cluster, namespace, destination);
         validateAdminAccessOnProperty(dn.getProperty());
         PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(property, cluster, namespace,
@@ -461,8 +439,9 @@ public class PersistentTopics extends AdminResource {
             @ApiResponse(code = 404, message = "Topic does not exist"),
             @ApiResponse(code = 412, message = "Topic has active producers/subscriptions") })
     public void deleteTopic(@PathParam("property") String property, @PathParam("cluster") String cluster,
-            @PathParam("namespace") String namespace, @PathParam("destination") String destination,
+            @PathParam("namespace") String namespace, @PathParam("destination") @Encoded String destination,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        destination = decode(destination);
         DestinationName dn = DestinationName.get(domain(), property, cluster, namespace, destination);
         validateAdminOperationOnDestination(dn, authoritative);
         PersistentTopic topic = getTopicReference(dn);
@@ -491,8 +470,9 @@ public class PersistentTopics extends AdminResource {
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic does not exist") })
     public List<String> getSubscriptions(@PathParam("property") String property, @PathParam("cluster") String cluster,
-            @PathParam("namespace") String namespace, @PathParam("destination") String destination,
+            @PathParam("namespace") String namespace, @PathParam("destination") @Encoded String destination,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        destination = decode(destination);
         DestinationName dn = DestinationName.get(domain(), property, cluster, namespace, destination);
         List<String> subscriptions = Lists.newArrayList();
         PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(property, cluster, namespace,
@@ -527,8 +507,9 @@ public class PersistentTopics extends AdminResource {
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic does not exist") })
     public PersistentTopicStats getStats(@PathParam("property") String property, @PathParam("cluster") String cluster,
-            @PathParam("namespace") String namespace, @PathParam("destination") String destination,
+            @PathParam("namespace") String namespace, @PathParam("destination") @Encoded String destination,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        destination = decode(destination);
         DestinationName dn = DestinationName.get(domain(), property, cluster, namespace, destination);
         validateAdminOperationOnDestination(dn, authoritative);
         PersistentTopic topic = getTopicReference(dn);
@@ -542,8 +523,9 @@ public class PersistentTopics extends AdminResource {
             @ApiResponse(code = 404, message = "Topic does not exist") })
     public PersistentTopicInternalStats getInternalStats(@PathParam("property") String property,
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
-            @PathParam("destination") String destination,
+            @PathParam("destination") @Encoded String destination,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        destination = decode(destination);
         DestinationName dn = DestinationName.get(domain(), property, cluster, namespace, destination);
         validateAdminOperationOnDestination(dn, authoritative);
         PersistentTopic topic = getTopicReference(dn);
@@ -557,8 +539,9 @@ public class PersistentTopics extends AdminResource {
             @ApiResponse(code = 404, message = "Topic does not exist") })
     public PartitionedTopicStats getPartitionedStats(@PathParam("property") String property,
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
-            @PathParam("destination") String destination,
+            @PathParam("destination") @Encoded String destination,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        destination = decode(destination);
         DestinationName dn = DestinationName.get(domain(), property, cluster, namespace, destination);
         PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(property, cluster, namespace,
                 destination, authoritative);
@@ -586,10 +569,10 @@ public class PersistentTopics extends AdminResource {
             @ApiResponse(code = 404, message = "Topic does not exist"),
             @ApiResponse(code = 412, message = "Subscription has active consumers") })
     public void deleteSubscription(@PathParam("property") String property, @PathParam("cluster") String cluster,
-            @PathParam("namespace") String namespace, @PathParam("destination") String destination,
+            @PathParam("namespace") String namespace, @PathParam("destination") @Encoded String destination,
             @PathParam("subName") String subName,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
-
+        destination = decode(destination);
         DestinationName dn = DestinationName.get(domain(), property, cluster, namespace, destination);
         PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(property, cluster, namespace,
                 destination, authoritative);
@@ -631,9 +614,10 @@ public class PersistentTopics extends AdminResource {
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic or subscription does not exist") })
     public void skipAllMessages(@PathParam("property") String property, @PathParam("cluster") String cluster,
-            @PathParam("namespace") String namespace, @PathParam("destination") String destination,
+            @PathParam("namespace") String namespace, @PathParam("destination") @Encoded String destination,
             @PathParam("subName") String subName,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        destination = decode(destination);
         DestinationName dn = DestinationName.get(domain(), property, cluster, namespace, destination);
         PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(property, cluster, namespace,
                 destination, authoritative);
@@ -677,9 +661,10 @@ public class PersistentTopics extends AdminResource {
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic or subscription does not exist") })
     public void skipMessages(@PathParam("property") String property, @PathParam("cluster") String cluster,
-            @PathParam("namespace") String namespace, @PathParam("destination") String destination,
+            @PathParam("namespace") String namespace, @PathParam("destination") @Encoded String destination,
             @PathParam("subName") String subName, @PathParam("numMessages") int numMessages,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        destination = decode(destination);
         DestinationName dn = DestinationName.get(domain(), property, cluster, namespace, destination);
         PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(property, cluster, namespace,
                 destination, authoritative);
@@ -713,48 +698,12 @@ public class PersistentTopics extends AdminResource {
     @ApiOperation(value = "Expire messages on a topic subscription.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic or subscription does not exist") })
-    public void expireMessages(@PathParam("property") String property, @PathParam("cluster") String cluster,
-            @PathParam("namespace") String namespace, @PathParam("destination") String destination,
+    public void expireTopicMessages(@PathParam("property") String property, @PathParam("cluster") String cluster,
+            @PathParam("namespace") String namespace, @PathParam("destination") @Encoded String destination,
             @PathParam("subName") String subName, @PathParam("expireTimeInSeconds") int expireTimeInSeconds,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
-        DestinationName dn = DestinationName.get(domain(), property, cluster, namespace, destination);
-        PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(property, cluster, namespace,
-                destination, authoritative);
-        if (partitionMetadata.partitions > 0) {
-            // expire messages for each partition destination
-            try {
-                for (int i = 0; i < partitionMetadata.partitions; i++) {
-                    pulsar().getAdminClient().persistentTopics().expireMessages(dn.getPartition(i).toString(), subName,
-                            expireTimeInSeconds);
-                }
-            } catch (Exception e) {
-                throw new RestException(e);
-            }
-        } else {
-            // validate ownership and redirect if current broker is not owner
-            validateAdminOperationOnDestination(dn, authoritative);
-            PersistentTopic topic = getTopicReference(dn);
-            try {
-                if (subName.startsWith(topic.replicatorPrefix)) {
-                    String remoteCluster = PersistentReplicator.getRemoteCluster(subName);
-                    PersistentReplicator repl = topic.getPersistentReplicator(remoteCluster);
-                    checkNotNull(repl);
-                    repl.expireMessages(expireTimeInSeconds);
-                } else {
-                    PersistentSubscription sub = topic.getPersistentSubscription(subName);
-                    checkNotNull(sub);
-                    sub.expireMessages(expireTimeInSeconds);
-                }
-                log.info("[{}] Message expire started up to {} on {} {}", clientAppId(), expireTimeInSeconds, dn,
-                        subName);
-            } catch (NullPointerException npe) {
-                throw new RestException(Status.NOT_FOUND, "Subscription not found");
-            } catch (Exception exception) {
-                log.error("[{}] Failed to expire messages up to {} on {} with subscription {} {}", clientAppId(),
-                        expireTimeInSeconds, dn, subName, exception);
-                throw new RestException(exception);
-            }
-        }
+        destination = decode(destination);
+        expireMessages(property, cluster, namespace, destination, subName, expireTimeInSeconds, authoritative);
     }
     
     @POST
@@ -764,8 +713,9 @@ public class PersistentTopics extends AdminResource {
             @ApiResponse(code = 404, message = "Topic or subscription does not exist") })
     public void expireMessagesForAllSubscriptions(@PathParam("property") String property,
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
-            @PathParam("destination") String destination, @PathParam("expireTimeInSeconds") int expireTimeInSeconds,
+            @PathParam("destination") @Encoded String destinationName, @PathParam("expireTimeInSeconds") int expireTimeInSeconds,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        final String destination = decode(destinationName);
         DestinationName dn = DestinationName.get(domain(), property, cluster, namespace, destination);
         PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(property, cluster, namespace,
                 destination, authoritative);
@@ -802,10 +752,10 @@ public class PersistentTopics extends AdminResource {
             @ApiResponse(code = 405, message = "Not supported for global topics"),
             @ApiResponse(code = 412, message = "Subscription has active consumers") })
     public void resetCursor(@PathParam("property") String property, @PathParam("cluster") String cluster,
-            @PathParam("namespace") String namespace, @PathParam("destination") String destination,
+            @PathParam("namespace") String namespace, @PathParam("destination") @Encoded String destination,
             @PathParam("subName") String subName, @PathParam("timestamp") long timestamp,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
-
+        destination = decode(destination);
         DestinationName dn = DestinationName.get(domain(), property, cluster, namespace, destination);
         PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(property, cluster, namespace,
                 destination, authoritative);
@@ -878,9 +828,10 @@ public class PersistentTopics extends AdminResource {
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic, subscription or the message position does not exist") })
     public Response peekNthMessage(@PathParam("property") String property, @PathParam("cluster") String cluster,
-            @PathParam("namespace") String namespace, @PathParam("destination") String destination,
+            @PathParam("namespace") String namespace, @PathParam("destination") @Encoded String destination,
             @PathParam("subName") String subName, @PathParam("messagePosition") int messagePosition,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        destination = decode(destination);
         DestinationName dn = DestinationName.get(domain(), property, cluster, namespace, destination);
         PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(property, cluster, namespace,
                 destination, authoritative);
@@ -960,8 +911,9 @@ public class PersistentTopics extends AdminResource {
             @ApiResponse(code = 404, message = "Namespace does not exist") })
     public PersistentOfflineTopicStats getBacklog(@PathParam("property") String property,
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
-            @PathParam("destination") String destination,
+            @PathParam("destination") @Encoded String destination,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        destination = decode(destination);
         validateAdminAccessOnProperty(property);
         // Validate that namespace exists, throw 404 if it doesn't exist
         // note that we do not want to load the topic and hence skip validateAdminOperationOnDestination()
@@ -999,6 +951,83 @@ public class PersistentTopics extends AdminResource {
         return offlineTopicStats;
     }
 
+    public PartitionedTopicMetadata getPartitionedTopicMetadata(String property, String cluster, String namespace,
+            String destination, boolean authoritative) {
+        DestinationName dn = DestinationName.get(domain(), property, cluster, namespace, destination);
+        validateClusterOwnership(dn.getCluster());
+
+        try {
+            checkConnect(dn);
+        } catch (RestException e) {
+            validateAdminAccessOnProperty(dn.getProperty());
+        }
+
+        String path = path(PARTITIONED_TOPIC_PATH_ZNODE, property, cluster, namespace, domain(),
+                dn.getEncodedLocalName());
+        PartitionedTopicMetadata partitionMetadata;
+        try {
+            // gets the number of partitions from the zk cache
+            partitionMetadata = globalZkCache().getData(path, new Deserializer<PartitionedTopicMetadata>() {
+
+                @Override
+                public PartitionedTopicMetadata deserialize(String key, byte[] content) throws Exception {
+                    return jsonMapper().readValue(content, PartitionedTopicMetadata.class);
+                }
+            });
+        } catch (Exception e) {
+            // if the partitioned topic is not found in zk cache, it returns zero
+            partitionMetadata = new PartitionedTopicMetadata();
+        }
+
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] Total number of partitions for topic {} is {}", clientAppId(), dn,
+                    partitionMetadata.partitions);
+        }
+        return partitionMetadata;
+    }
+    
+    public void expireMessages(String property, String cluster, String namespace, String destination, String subName,
+            int expireTimeInSeconds, boolean authoritative) {
+        DestinationName dn = DestinationName.get(domain(), property, cluster, namespace, destination);
+        PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(property, cluster, namespace,
+                destination, authoritative);
+        if (partitionMetadata.partitions > 0) {
+            // expire messages for each partition destination
+            try {
+                for (int i = 0; i < partitionMetadata.partitions; i++) {
+                    pulsar().getAdminClient().persistentTopics().expireMessages(dn.getPartition(i).toString(), subName,
+                            expireTimeInSeconds);
+                }
+            } catch (Exception e) {
+                throw new RestException(e);
+            }
+        } else {
+            // validate ownership and redirect if current broker is not owner
+            validateAdminOperationOnDestination(dn, authoritative);
+            PersistentTopic topic = getTopicReference(dn);
+            try {
+                if (subName.startsWith(topic.replicatorPrefix)) {
+                    String remoteCluster = PersistentReplicator.getRemoteCluster(subName);
+                    PersistentReplicator repl = topic.getPersistentReplicator(remoteCluster);
+                    checkNotNull(repl);
+                    repl.expireMessages(expireTimeInSeconds);
+                } else {
+                    PersistentSubscription sub = topic.getPersistentSubscription(subName);
+                    checkNotNull(sub);
+                    sub.expireMessages(expireTimeInSeconds);
+                }
+                log.info("[{}] Message expire started up to {} on {} {}", clientAppId(), expireTimeInSeconds, dn,
+                        subName);
+            } catch (NullPointerException npe) {
+                throw new RestException(Status.NOT_FOUND, "Subscription not found");
+            } catch (Exception exception) {
+                log.error("[{}] Failed to expire messages up to {} on {} with subscription {} {}", clientAppId(),
+                        expireTimeInSeconds, dn, subName, exception);
+                throw new RestException(exception);
+            }
+        }
+    }
+    
     /**
      * Get the Topic object reference from the Pulsar broker
      */
