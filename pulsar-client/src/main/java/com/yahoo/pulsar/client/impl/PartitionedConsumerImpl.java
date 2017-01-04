@@ -126,8 +126,10 @@ public class PartitionedConsumerImpl extends ConsumerBase {
             // Process the message, add to the queue and trigger listener or async callback
             messageReceived(message);
 
-            if (incomingMessages.size() >= maxReceiverQueueSize) {
-                // No more space left in shared queue, mark this consumer to be resumed later
+            if (incomingMessages.size() >= maxReceiverQueueSize
+                    || (incomingMessages.size() > sharedQueueResumeThreshold && !pausedConsumers.isEmpty())) {
+                // mark this consumer to be resumed later: if No more space left in shared queue,
+                // or if any consumer is already paused (to create fair chance for already paused consumers)
                 pausedConsumers.add(consumer);
             } else {
                 // Schedule next receiveAsync() if the incoming queue is not full. Use a different thread to avoid
