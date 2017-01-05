@@ -21,16 +21,20 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.List;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -44,10 +48,12 @@ import com.yahoo.pulsar.broker.namespace.OwnedBundle;
 import com.yahoo.pulsar.broker.namespace.OwnershipCache;
 import com.yahoo.pulsar.broker.service.persistent.PersistentReplicator;
 import com.yahoo.pulsar.broker.service.persistent.PersistentTopic;
-import com.yahoo.pulsar.client.admin.PulsarAdminException;
 import com.yahoo.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
+import com.yahoo.pulsar.client.api.ClientConfiguration;
 import com.yahoo.pulsar.client.api.MessageBuilder;
+import com.yahoo.pulsar.client.api.Producer;
 import com.yahoo.pulsar.client.api.PulsarClient;
+import com.yahoo.pulsar.client.impl.PulsarClientImpl;
 import com.yahoo.pulsar.common.naming.DestinationName;
 import com.yahoo.pulsar.common.naming.NamespaceBundle;
 import com.yahoo.pulsar.common.naming.NamespaceName;
@@ -154,6 +160,46 @@ public class ReplicatorTest extends ReplicatorTestBase {
         Assert.assertNotNull(replicationClients3.get("r2"));
 
         // Case 3: TODO: Once automatic cleanup is implemented, add tests case to verify auto removal of clusters
+    }
+    
+    @Test
+    public void testConcurrentReplicator() throws Exception {
+
+        log.info("--- Starting ReplicatorTest::testConfigChange ---");
+
+        final DestinationName dest = DestinationName.get(String.format("persistent://pulsar/global/ns1/topic-%d", 0));
+        ClientConfiguration conf = new ClientConfiguration();
+        conf.setStatsInterval(0, TimeUnit.SECONDS);
+        Producer producer = PulsarClient.create(url1.toString(), conf).createProducer(dest.toString());
+        producer.close();
+        
+        PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService().getTopic(dest.toString()).get();
+
+        PulsarClientImpl pulsarClient = spy((PulsarClientImpl) pulsar1.getBrokerService().getReplicationClient("r3"));
+        final Method startRepl = PersistentTopic.class.getDeclaredMethod("startReplicator", String.class);
+        startRepl.setAccessible(true);
+
+        Field replClientField = BrokerService.class.getDeclaredField("replicationClients");
+        replClientField.setAccessible(true);
+        ConcurrentOpenHashMap<String, PulsarClient> replicationClients = (ConcurrentOpenHashMap<String, PulsarClient>) replClientField
+                .get(pulsar1.getBrokerService());
+        replicationClients.put("r3", pulsarClient);
+
+        ExecutorService executor = Executors.newFixedThreadPool(5);
+        for (int i = 0; i < 5; i++) {
+            executor.submit(() -> {
+                try {
+                    startRepl.invoke(topic, "r3");
+                } catch (Exception e) {
+                    fail("setting replicator failed", e);
+                }
+            });
+        }
+        Thread.sleep(3000);
+
+        Mockito.verify(pulsarClient, Mockito.times(1)).createProducerAsync(Mockito.anyString(), Mockito.anyObject(),
+                Mockito.anyString());
+
     }
 
     @Test(enabled = false)
