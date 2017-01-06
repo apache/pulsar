@@ -733,6 +733,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             long backlogEntries = cursor.getNumberOfEntries();
             if (backlogEntries > maxActiveCursorBacklogEntries) {
                 PositionImpl readPosition = (PositionImpl) cursor.getReadPosition();
+                readPosition = isValidPosition(readPosition) ? readPosition : getNextValidPosition(readPosition);
+                if (readPosition == null) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] Couldn't find valid read position [{}] {}", name, cursor.getName(),
+                                cursor.getReadPosition());
+                    }
+                    continue;
+                }
                 try {
                     asyncReadEntry(readPosition, new ReadEntryCallback() {
 
