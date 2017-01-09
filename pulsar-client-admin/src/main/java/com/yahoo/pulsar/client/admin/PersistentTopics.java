@@ -689,4 +689,16 @@ public interface PersistentTopics {
      *             Unexpected error
      */
     void resetCursor(String destination, String subName, long timestamp) throws PulsarAdminException;
+
+    /**
+     * Reset cursor position on a topic subscription
+     *
+     * @param destination
+     *            Destination name
+     * @param subName
+     *            Subscription name
+     * @param timestamp
+     *            reset subscription to position closest to time in ms since epoch
+     */
+    CompletableFuture<Void> resetCursorAsync(String destination, String subName, long timestamp);
 }
