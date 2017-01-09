@@ -633,7 +633,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             @Override
             public void openCursorComplete(ManagedCursor cursor, Object ctx) {
                 String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
-                replicators.put(remoteCluster, new PersistentReplicator(PersistentTopic.this, cursor, localCluster,
+                replicators.computeIfAbsent(remoteCluster, r -> new PersistentReplicator(PersistentTopic.this, cursor, localCluster,
                         remoteCluster, brokerService));
                 future.complete(null);
             }
