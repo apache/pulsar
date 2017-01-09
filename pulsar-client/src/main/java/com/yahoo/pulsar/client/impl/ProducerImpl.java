@@ -390,7 +390,10 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
             synchronized (this) {
                 state.set(State.Closed);
                 client.cleanupProducer(this);
-                pendingMessages.forEach(msg -> msg.cmd.release());
+                pendingMessages.forEach(msg -> {
+                    msg.cmd.release();
+                    msg.recycle();
+                });
                 pendingMessages.clear();
             }
 
@@ -421,7 +424,10 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
                 synchronized (ProducerImpl.this) {
                     log.info("[{}] [{}] Closed Producer", topic, producerName);
                     state.set(State.Closed);
-                    pendingMessages.forEach(msg -> msg.cmd.release());
+                    pendingMessages.forEach(msg -> {
+                        msg.cmd.release();
+                        msg.recycle();
+                    });
                     pendingMessages.clear();
                 }
 
@@ -935,6 +941,7 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
                             op.sequenceId, t);
                 }
                 ReferenceCountUtil.safeRelease(op.cmd);
+                op.recycle();
             });
             semaphore.release(releaseCount.get());
             pendingMessages.clear();
