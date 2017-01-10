@@ -1690,7 +1690,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test(invocationCount=10)
+    @Test
     public void testBlockUnackedConsumerRedeliverySpecificMessagesCloseConsumerWhileProduce() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
