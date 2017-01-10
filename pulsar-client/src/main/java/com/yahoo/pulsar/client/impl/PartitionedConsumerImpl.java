@@ -128,8 +128,10 @@ public class PartitionedConsumerImpl extends ConsumerBase {
             // Process the message, add to the queue and trigger listener or async callback
             messageReceived(message);
 
-            if (incomingMessages.size() >= maxReceiverQueueSize) {
-                // No more space left in shared queue, mark this consumer to be resumed later
+            if (incomingMessages.size() >= maxReceiverQueueSize
+                    || (incomingMessages.size() > sharedQueueResumeThreshold && !pausedConsumers.isEmpty())) {
+                // mark this consumer to be resumed later: if No more space left in shared queue, 
+                // or if any consumer is already paused (to create fair chance for already paused consumers)
                 pausedConsumers.add(consumer);
             } else {
                 // Schedule next receiveAsync() if the incoming queue is not full. Use a different thread to avoid
@@ -327,6 +329,9 @@ public class PartitionedConsumerImpl extends ConsumerBase {
     void messageReceived(Message message) {
         lock.readLock().lock();
         try {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}][{}] Received message from partitioned-consumer {}", topic, subscription, message.getMessageId());
+            }
             // if asyncReceive is waiting : return message to callback without adding to incomingMessages queue
             if (!pendingReceives.isEmpty()) {
                 CompletableFuture<Message> receivedFuture = pendingReceives.poll();
@@ -355,7 +360,9 @@ public class PartitionedConsumerImpl extends ConsumerBase {
                 }
 
                 try {
-                    log.debug("[{}][{}] Calling message listener for message {}", topic, subscription, message);
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}][{}] Calling message listener for message {}", topic, subscription, message.getMessageId());
+                    }
                     listener.received(PartitionedConsumerImpl.this, msg);
                 } catch (Throwable t) {
                     log.error("[{}][{}] Message listener error in processing message: {}", topic, subscription, message,
