@@ -17,6 +17,7 @@ package com.yahoo.pulsar.broker.namespace;
 
 import static com.google.common.base.Preconditions.checkState;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -37,6 +38,7 @@ import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.RemovalCause;
 import com.github.benmanes.caffeine.cache.RemovalListener;
+import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.yahoo.pulsar.broker.PulsarService;
 import com.yahoo.pulsar.client.util.FutureUtil;
@@ -141,26 +143,6 @@ public class OwnershipCache {
         }
     }
 
-    private class OwnedServiceUnitCacheRemovalListener implements RemovalListener<String, OwnedBundle> {
-
-        @Override
-        public void onRemoval(String key, OwnedBundle value, RemovalCause cause) {
-            LOG.info("Removing ownership for {}", key);
-            // Under the cache sync lock, removing the ZNode
-            // If succeeded, we guaranteed that the cache entry is removed together w/ ZNode
-
-            localZkCache.getZooKeeper().delete(key, -1, (rc, path, ctx) -> {
-                if (rc == KeeperException.Code.OK.intValue()) {
-                    LOG.info("Removed zk lock for service unit: {}", key);
-                } else {
-                    LOG.warn("Failed to delete the namespace ephemeral node. key={}", key,
-                            KeeperException.Code.get(rc));
-                }
-            }, null);
-            ownershipReadOnlyCache.invalidate(key);
-        }
-    }
-
     /**
      * Constructor of <code>OwnershipCache</code>
      *
@@ -179,7 +161,6 @@ public class OwnershipCache {
         this.ownershipReadOnlyCache = pulsar.getLocalZkCacheService().ownerInfoCache();
         // ownedBundlesCache contains all namespaces that are owned by the local broker
         this.ownedBundlesCache = Caffeine.newBuilder().executor(MoreExecutors.sameThreadExecutor())
-                .removalListener(new OwnedServiceUnitCacheRemovalListener())
                 .buildAsync(new OwnedServiceUnitCacheLoader());
     }
 
@@ -268,8 +249,22 @@ public class OwnershipCache {
      * Method to remove the ownership of local broker on the <code>NamespaceBundle</code>, if owned
      *
      */
-    public void removeOwnership(NamespaceBundle bundle) {
-        ownedBundlesCache.synchronous().invalidate(ServiceUnitZkUtils.path(bundle));
+    public CompletableFuture<Void> removeOwnership(NamespaceBundle bundle) {
+        CompletableFuture<Void> result = new CompletableFuture<>();
+        String key = ServiceUnitZkUtils.path(bundle);
+        localZkCache.getZooKeeper().delete(key, -1, (rc, path, ctx) -> {
+            if (rc == KeeperException.Code.OK.intValue() || rc == KeeperException.Code.NONODE.intValue()) {
+                LOG.info("[{}] Removed zk lock for service unit: {}", key, KeeperException.Code.get(rc));
+                ownedBundlesCache.synchronous().invalidate(key);
+                ownershipReadOnlyCache.invalidate(key);
+                result.complete(null);
+            } else {
+                LOG.warn("[{}] Failed to delete the namespace ephemeral node. key={}", key,
+                        KeeperException.Code.get(rc));
+                result.completeExceptionally(KeeperException.create(rc));
+            }
+        }, null);
+        return result;
     }
 
     /**
@@ -278,22 +273,18 @@ public class OwnershipCache {
      * @param bundles
      *            <code>NamespaceBundles</code> to remove from ownership cache
      */
-    public void removeOwnership(NamespaceBundles bundles) {
-        boolean hasError = false;
+    public CompletableFuture<Void> removeOwnership(NamespaceBundles bundles) {
+        List<CompletableFuture<Void>> allFutures = Lists.newArrayList();
         for (NamespaceBundle bundle : bundles.getBundles()) {
             if (getOwnedBundle(bundle) == null) {
                 // continue
                 continue;
             }
-            try {
-                this.removeOwnership(bundle);
-            } catch (Exception e) {
-                LOG.warn(String.format("Failed to remove ownership of a service unit: %s", bundle), e);
-                hasError = true;
-            }
+            allFutures.add(this.removeOwnership(bundle));
         }
-        checkState(!hasError, "Not able to remove all owned bundles");
+        return FutureUtil.waitForAll(allFutures);
     }
+    
 
     /**
      * Method to access the map of all <code>ServiceUnit</code> objects owned by the local broker
@@ -330,17 +321,32 @@ public class OwnershipCache {
         }
     }
 
+    /**
+     * Disable bundle in local cache and on zk
+     * 
+     * @param bundle
+     * @throws Exception
+     */
     public void disableOwnership(NamespaceBundle bundle) throws Exception {
         String path = ServiceUnitZkUtils.path(bundle);
-
+        updateBundleState(bundle, false);
+        localZkCache.getZooKeeper().setData(path, jsonMapper.writeValueAsBytes(selfOwnerInfoDisabled), -1);
+        ownershipReadOnlyCache.invalidate(path);
+    }
+    
+    /**
+     * Update bundle state in a local cache
+     * 
+     * @param bundle
+     * @throws Exception
+     */
+    public void updateBundleState(NamespaceBundle bundle, boolean isActive) throws Exception {
+        String path = ServiceUnitZkUtils.path(bundle);
         // Disable owned instance in local cache
         CompletableFuture<OwnedBundle> f = ownedBundlesCache.getIfPresent(path);
         if (f != null && f.isDone() && !f.isCompletedExceptionally()) {
-            f.join().setActive(false);
+            f.join().setActive(isActive);
         }
-
-        localZkCache.getZooKeeper().setData(path, jsonMapper.writeValueAsBytes(selfOwnerInfoDisabled), -1);
-        ownershipReadOnlyCache.invalidate(path);
     }
 
     public NamespaceEphemeralData getSelfOwnerInfo() {

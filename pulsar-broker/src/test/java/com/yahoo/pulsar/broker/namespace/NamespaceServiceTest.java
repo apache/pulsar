@@ -18,6 +18,7 @@ package com.yahoo.pulsar.broker.namespace;
 import static com.yahoo.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
 import static com.yahoo.pulsar.broker.web.PulsarWebResource.joinPath;
 import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -39,6 +40,8 @@ import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.zookeeper.data.Stat;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -48,7 +51,10 @@ import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.google.common.collect.Lists;
 import com.google.common.hash.Hashing;
 import com.yahoo.pulsar.broker.service.BrokerTestBase;
+import com.yahoo.pulsar.broker.service.Topic;
 import com.yahoo.pulsar.broker.service.persistent.PersistentTopic;
+import com.yahoo.pulsar.client.api.Consumer;
+import com.yahoo.pulsar.client.api.ConsumerConfiguration;
 import com.yahoo.pulsar.common.naming.DestinationName;
 import com.yahoo.pulsar.common.naming.NamespaceBundle;
 import com.yahoo.pulsar.common.naming.NamespaceBundleFactory;
@@ -56,6 +62,7 @@ import com.yahoo.pulsar.common.naming.NamespaceBundles;
 import com.yahoo.pulsar.common.naming.NamespaceName;
 import com.yahoo.pulsar.common.policies.data.Policies;
 import com.yahoo.pulsar.common.util.ObjectMapperFactory;
+import com.yahoo.pulsar.common.util.collections.ConcurrentOpenHashMap;
 
 public class NamespaceServiceTest extends BrokerTestBase {
 
@@ -232,10 +239,45 @@ public class NamespaceServiceTest extends BrokerTestBase {
         NamespaceBundle bundle = bundles.getBundles().get(0);
         assertNotNull(ownershipCache.tryAcquiringOwnership(bundle));
         assertNotNull(ownershipCache.getOwnedBundle(bundle));
-        ownershipCache.removeOwnership(bundles);
+        ownershipCache.removeOwnership(bundles).get();
         assertNull(ownershipCache.getOwnedBundle(bundle));
     }
 
+    @Test
+    public void testUnloadNamespaceBundleFailure() throws Exception {
+
+        final String topicName = "persistent://my-property/use/my-ns/my-topic1";
+        ConsumerConfiguration conf = new ConsumerConfiguration();
+        Consumer consumer = pulsarClient.subscribe(topicName, "my-subscriber-name", conf);
+        ConcurrentOpenHashMap<String, CompletableFuture<Topic>> topics = pulsar.getBrokerService().getTopics();
+        Topic spyTopic = spy(topics.get(topicName).get());
+        topics.clear();
+        CompletableFuture<Topic> topicFuture = CompletableFuture.completedFuture(spyTopic);
+        // add mock topic
+        topics.put(topicName, topicFuture);
+        doAnswer(new Answer<CompletableFuture<Void>>() {
+            @Override
+            public CompletableFuture<Void> answer(InvocationOnMock invocation) throws Throwable {
+                CompletableFuture<Void> result = new CompletableFuture<>();
+                result.completeExceptionally(new RuntimeException("first time failed"));
+                return result;
+            }
+        }).when(spyTopic).close();
+        NamespaceBundle bundle = pulsar.getNamespaceService().getBundle(DestinationName.get(topicName));
+        try {
+            pulsar.getNamespaceService().unloadNamespaceBundle(bundle);
+        } catch (Exception e) {
+            // fail
+            fail(e.getMessage());
+        }
+        try {
+            pulsar.getLocalZkCache().getZooKeeper().getData(ServiceUnitZkUtils.path(bundle), null, null);
+            fail("it should fail as node is not present");
+        } catch (org.apache.zookeeper.KeeperException.NoNodeException e) {
+            // ok
+        }
+    }
+    
     @SuppressWarnings("unchecked")
     private Pair<NamespaceBundles, List<NamespaceBundle>> splitBundles(NamespaceBundleFactory utilityFactory,
             NamespaceName nsname, NamespaceBundles bundles, NamespaceBundle targetBundle) throws Exception {
