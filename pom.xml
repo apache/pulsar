@@ -187,7 +187,7 @@ flexible messaging model and an intuitive client API.</description>
 
       <dependency>
         <groupId>org.apache.bookkeeper.stats</groupId>
-        <artifactId>codahale-metrics-provider</artifactId>
+        <artifactId>datasketches-metrics-provider</artifactId>
         <version>${bookkeeper.version}</version>
       </dependency>
 
