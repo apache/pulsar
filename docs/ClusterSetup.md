@@ -333,7 +333,9 @@ $ bin/pulsar-admin persistent stats persistent://test/us-west/ns1/my-topic
 
 ## Monitoring
 
-Pulsar metrics can be collected from the brokers and are exported in JSON format.
+### Broker stats
+
+Pulsar broker metrics can be collected from the brokers and are exported in JSON format.
 
 There are two main types of metrics:
 
@@ -349,3 +351,22 @@ bin/pulsar-admin broker-stats monitoring-metrics
 ```
 
 All the message rates are updated every 1min.
+
+### BookKeeper stats
+
+There are several stats frameworks that works with BookKeeper and that
+can be enabled by changing the `statsProviderClass` in
+`conf/bookkeeper.conf`.
+
+By following the instructions above, the `DataSketchesMetricsProvider`
+will be enabled. It features a very efficient way to compute latency
+quantiles, along with rates and counts.
+
+The stats are dumped every interval into a JSON file that is overwritten
+each time.
+
+```properties
+statsProviderClass=org.apache.bokkeeper.stats.datasketches.DataSketchesMetricsProvider
+dataSketchesMetricsJsonFileReporter=data/bookie-stats.json
+dataSketchesMetricsUpdateIntervalSeconds=60
+```

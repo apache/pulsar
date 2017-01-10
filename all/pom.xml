@@ -59,6 +59,11 @@
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-log4j12</artifactId>
     </dependency>
+
+    <dependency>
+      <groupId>org.apache.bookkeeper.stats</groupId>
+      <artifactId>datasketches-metrics-provider</artifactId>
+    </dependency>
   </dependencies>
 
   <build>
