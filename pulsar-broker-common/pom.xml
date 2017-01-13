@@ -51,5 +51,11 @@
       <groupId>javax.servlet</groupId>
       <artifactId>javax.servlet-api</artifactId>
     </dependency>
+
+    <dependency>
+      <groupId>com.yahoo.athenz</groupId>
+      <artifactId>zpe_java_client</artifactId>
+    </dependency>
+
   </dependencies>
 </project>
