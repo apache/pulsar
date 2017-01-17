@@ -26,6 +26,7 @@ import javax.servlet.ServletException;
 import javax.websocket.DeploymentException;
 
 import org.apache.bookkeeper.util.OrderedSafeExecutor;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,6 +40,7 @@ import com.yahoo.pulsar.client.api.ClientConfiguration;
 import com.yahoo.pulsar.client.api.PulsarClient;
 import com.yahoo.pulsar.client.api.PulsarClientException;
 import com.yahoo.pulsar.common.policies.data.ClusterData;
+import com.yahoo.pulsar.websocket.service.WebSocketProxyConfiguration;
 import com.yahoo.pulsar.zookeeper.GlobalZooKeeperCache;
 import com.yahoo.pulsar.zookeeper.ZooKeeperCache;
 import com.yahoo.pulsar.zookeeper.ZooKeeperClientFactory;
@@ -68,13 +70,11 @@ public class WebSocketService implements Closeable {
 
     private ClusterData localCluster;
 
-    public WebSocketService(ServiceConfiguration config) throws PulsarClientException, MalformedURLException,
-            ServletException, DeploymentException, PulsarServerException {
-        this(null, config);
+    public WebSocketService(WebSocketProxyConfiguration config) {
+        this(createClusterData(config), createServiceConfiguration(config));
     }
 
-    public WebSocketService(ClusterData localCluster, ServiceConfiguration config) throws PulsarClientException,
-            MalformedURLException, ServletException, DeploymentException, PulsarServerException {
+    public WebSocketService(ClusterData localCluster, ServiceConfiguration config) {
         this.config = config;
         this.localCluster = localCluster;
     }
@@ -82,20 +82,29 @@ public class WebSocketService implements Closeable {
     public void start() throws PulsarServerException, PulsarClientException, MalformedURLException, ServletException,
             DeploymentException {
 
-        this.globalZkCache = new GlobalZooKeeperCache(getZooKeeperClientFactory(),
-                (int) config.getZooKeeperSessionTimeoutMillis(), config.getGlobalZookeeperServers(),
-                this.orderedExecutor, this.executor);
-        try {
-            this.globalZkCache.start();
-        } catch (IOException e) {
-            throw new PulsarServerException(e);
+        if (isNotBlank(config.getGlobalZookeeperServers())) {
+            this.globalZkCache = new GlobalZooKeeperCache(getZooKeeperClientFactory(),
+                    (int) config.getZooKeeperSessionTimeoutMillis(), config.getGlobalZookeeperServers(),
+                    this.orderedExecutor, this.executor);
+            try {
+                this.globalZkCache.start();
+            } catch (IOException e) {
+                throw new PulsarServerException(e);
+            }
+            this.configurationCacheService = new ConfigurationCacheService(getGlobalZkCache());
+            log.info("Global Zookeeper cache started");
         }
 
-        this.configurationCacheService = new ConfigurationCacheService(getGlobalZkCache());
-        log.info("Global Zookeeper cache started");
+        // start authorizationManager
+        if (config.isAuthorizationEnabled()) {
+            if (configurationCacheService == null) {
+                throw new PulsarServerException(
+                        "Failed to initialize authorization manager due to empty GlobalZookeeperServers");
+            }
+            authorizationManager = new AuthorizationManager(this.config, configurationCacheService);
+        }
+        // start authentication service
         authenticationService = new AuthenticationService(this.config);
-        authorizationManager = new AuthorizationManager(this.config, configurationCacheService);
-
         log.info("Pulsar WebSocket Service started");
     }
 
@@ -163,7 +172,37 @@ public class WebSocketService implements Closeable {
         }
     }
 
+    private static ClusterData createClusterData(WebSocketProxyConfiguration config) {
+        if (isNotBlank(config.getServiceUrl()) || isNotBlank(config.getServiceUrlTls())) {
+            return new ClusterData(config.getServiceUrl(), config.getServiceUrlTls());
+        } else {
+            return null;
+        }
+    }
+    
+    private static ServiceConfiguration createServiceConfiguration(WebSocketProxyConfiguration config) {
+        ServiceConfiguration serviceConfig = new ServiceConfiguration();
+        serviceConfig.setClusterName(config.getClusterName());
+        serviceConfig.setWebServicePort(config.getWebServicePort());
+        serviceConfig.setWebServicePortTls(config.getWebServicePortTls());
+        serviceConfig.setAuthenticationEnabled(config.isAuthenticationEnabled());
+        serviceConfig.setAuthenticationProviders(config.getAuthenticationProviders());
+        serviceConfig.setBrokerClientAuthenticationPlugin(config.getBrokerClientAuthenticationPlugin());
+        serviceConfig.setBrokerClientAuthenticationParameters(config.getBrokerClientAuthenticationParameters());
+        serviceConfig.setAuthorizationEnabled(config.isAuthorizationEnabled());
+        serviceConfig.setSuperUserRoles(config.getSuperUserRoles());
+        serviceConfig.setGlobalZookeeperServers(config.getGlobalZookeeperServers());
+        serviceConfig.setZooKeeperSessionTimeoutMillis(config.getZooKeeperSessionTimeoutMillis());
+        serviceConfig.setTlsEnabled(config.isTlsEnabled());
+        serviceConfig.setTlsCertificateFilePath(config.getTlsCertificateFilePath());
+        serviceConfig.setTlsKeyFilePath(config.getTlsKeyFilePath());
+        return serviceConfig;
+    }
+
     private ClusterData retrieveClusterData() throws PulsarServerException {
+        if (configurationCacheService == null) {
+            throw new PulsarServerException("Failed to retrieve Cluster data due to empty GlobalZookeeperServers");
+        }
         try {
             String path = "/admin/clusters/" + config.getClusterName();
             return localCluster = configurationCacheService.clustersCache().get(path)

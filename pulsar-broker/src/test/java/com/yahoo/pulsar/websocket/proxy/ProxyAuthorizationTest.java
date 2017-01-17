@@ -29,7 +29,6 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import com.yahoo.pulsar.broker.ServiceConfiguration;
 import com.yahoo.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import com.yahoo.pulsar.broker.authorization.AuthorizationManager;
 import com.yahoo.pulsar.client.admin.PulsarAdminException;
@@ -38,6 +37,7 @@ import com.yahoo.pulsar.common.policies.data.AuthAction;
 import com.yahoo.pulsar.common.policies.data.ClusterData;
 import com.yahoo.pulsar.common.policies.data.PropertyAdmin;
 import com.yahoo.pulsar.websocket.WebSocketService;
+import com.yahoo.pulsar.websocket.service.WebSocketProxyConfiguration;
 
 public class ProxyAuthorizationTest extends MockedPulsarServiceBaseTest {
     private WebSocketService service;
@@ -53,8 +53,10 @@ public class ProxyAuthorizationTest extends MockedPulsarServiceBaseTest {
         conf.setClusterName("c1");
         internalSetup();
 
-        ServiceConfiguration config = new ServiceConfiguration();
+        WebSocketProxyConfiguration config = new WebSocketProxyConfiguration();
         Set<String> superUser = Sets.newHashSet("");
+        config.setAuthorizationEnabled(true);
+        config.setGlobalZookeeperServers("dummy-zk-servers");
         config.setSuperUserRoles(superUser);
         config.setClusterName("c1");
         config.setWebServicePort(TEST_PORT);

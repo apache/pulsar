@@ -16,12 +16,18 @@
 package com.yahoo.pulsar.websocket.service;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+import static com.yahoo.pulsar.common.util.FieldParser.update;
+
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.Map;
+import java.util.Properties;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.yahoo.pulsar.broker.ServiceConfiguration;
-import com.yahoo.pulsar.broker.ServiceConfigurationLoader;
 import com.yahoo.pulsar.websocket.WebSocketConsumerServlet;
 import com.yahoo.pulsar.websocket.WebSocketProducerServlet;
 import com.yahoo.pulsar.websocket.WebSocketService;
@@ -34,7 +40,7 @@ public class WebSocketServiceStarter {
             // load config file and start proxy service
             String configFile = args[0];
             log.info("Loading configuration from {}", configFile);
-            ServiceConfiguration config = ServiceConfigurationLoader.create(configFile);
+            WebSocketProxyConfiguration config = load(configFile);
             ProxyServer proxyServer = new ProxyServer(config);
             WebSocketService service = new WebSocketService(config);
             start(proxyServer, service);
@@ -49,6 +55,23 @@ public class WebSocketServiceStarter {
         proxyServer.addWebSocketServlet(WebSocketConsumerServlet.SERVLET_PATH, new WebSocketConsumerServlet(service));
         proxyServer.start();
         service.start();
+    }
+    
+    @SuppressWarnings({ "unchecked", "rawtypes" })
+    public static WebSocketProxyConfiguration load(String configFile) throws IOException, IllegalArgumentException {
+        final InputStream inStream = new FileInputStream(configFile);
+        try {
+            checkNotNull(inStream, "Unbable to read config file " + configFile);
+            WebSocketProxyConfiguration config = new WebSocketProxyConfiguration();
+            Properties properties = new Properties();
+            properties.load(inStream);
+            update((Map) properties, config);
+            return config;
+        } finally {
+            if (inStream != null) {
+                inStream.close();
+            }
+        }
     }
 
     private static final Logger log = LoggerFactory.getLogger(WebSocketServiceStarter.class);

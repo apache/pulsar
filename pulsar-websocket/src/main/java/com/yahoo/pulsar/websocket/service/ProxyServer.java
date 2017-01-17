@@ -44,7 +44,6 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
 import com.yahoo.pulsar.broker.PulsarServerException;
-import com.yahoo.pulsar.broker.ServiceConfiguration;
 import com.yahoo.pulsar.client.api.PulsarClientException;
 import com.yahoo.pulsar.common.util.SecurityUtility;
 
@@ -54,9 +53,9 @@ public class ProxyServer {
     private final ExecutorService executorService;
     private final Server server;
     private final List<Handler> handlers = Lists.newArrayList();
-    private final ServiceConfiguration conf;
+    private final WebSocketProxyConfiguration conf;
 
-    public ProxyServer(ServiceConfiguration config)
+    public ProxyServer(WebSocketProxyConfiguration config)
             throws PulsarClientException, MalformedURLException, PulsarServerException {
         this.conf = config;
         this.executorService = Executors.newFixedThreadPool(2 * Runtime.getRuntime().availableProcessors(),
