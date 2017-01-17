@@ -15,12 +15,10 @@
  */
 package com.yahoo.pulsar.broker.service;
 
-import static com.yahoo.pulsar.broker.ServiceConfigurationLoader.create;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
 import java.net.URL;
-import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.TimeUnit;
@@ -77,7 +75,7 @@ public class BacklogQuotaManagerTest {
             bkEnsemble.start();
 
             // start pulsar service
-            config = create(new Properties(System.getProperties()));
+            config = new ServiceConfiguration();
             config.setZookeeperServers("127.0.0.1" + ":" + ZOOKEEPER_PORT);
             config.setWebServicePort(BROKER_WEBSERVICE_PORT);
             config.setClusterName("usc");

@@ -15,7 +15,7 @@
  */
 package com.yahoo.pulsar.common.naming;
 
-import static com.yahoo.pulsar.broker.ServiceConfigurationLoader.isComplete;
+import static com.yahoo.pulsar.common.configuration.PulsarConfigurationLoader.isComplete;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
@@ -26,9 +26,9 @@ import java.util.Properties;
 
 import org.testng.annotations.Test;
 
-import com.yahoo.pulsar.broker.FieldContext;
 import com.yahoo.pulsar.broker.ServiceConfiguration;
-import com.yahoo.pulsar.broker.ServiceConfigurationLoader;
+import com.yahoo.pulsar.common.configuration.FieldContext;
+import com.yahoo.pulsar.common.configuration.PulsarConfigurationLoader;
 
 public class ServiceConfigurationLoaderTest {
 
@@ -36,7 +36,7 @@ public class ServiceConfigurationLoaderTest {
     public void testServiceConfiguraitonLoadingStream() throws Exception {
         final String fileName = "configurations/pulsar_broker_test.conf"; // test-resource file
         InputStream stream = this.getClass().getClassLoader().getResourceAsStream(fileName);
-        final ServiceConfiguration serviceConfig = ServiceConfigurationLoader.create(stream);
+        final ServiceConfiguration serviceConfig = PulsarConfigurationLoader.create(stream, ServiceConfiguration.class);
         assertNotNull(serviceConfig);
     }
 
@@ -45,7 +45,7 @@ public class ServiceConfigurationLoaderTest {
         final String zk = "localhost:2184";
         final Properties prop = new Properties();
         prop.setProperty("zookeeperServers", zk);
-        final ServiceConfiguration serviceConfig = ServiceConfigurationLoader.create(prop);
+        final ServiceConfiguration serviceConfig = new ServiceConfiguration();
         assertNotNull(serviceConfig);
         assertEquals(serviceConfig.getZookeeperServers(), zk);
     }
@@ -55,7 +55,7 @@ public class ServiceConfigurationLoaderTest {
         final String zk = "localhost:2184";
         final Properties prop = new Properties();
         prop.setProperty("zookeeperServers", zk);
-        final ServiceConfiguration serviceConfig = ServiceConfigurationLoader.create(prop);
+        final ServiceConfiguration serviceConfig = new ServiceConfiguration();
         assertEquals(serviceConfig.getZookeeperServers(), zk);
     }
 

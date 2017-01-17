@@ -31,7 +31,7 @@ import java.util.Properties;
 import org.testng.annotations.Test;
 
 import com.yahoo.pulsar.broker.ServiceConfiguration;
-import com.yahoo.pulsar.broker.ServiceConfigurationLoader;
+import com.yahoo.pulsar.common.configuration.PulsarConfigurationLoader;
 
 /**
  * 
@@ -51,7 +51,7 @@ public class ServiceConfigurationTest {
         final String zookeeperServer = "localhost:2184";
         final int brokerServicePort = 1000;
         InputStream newStream = updateProp(zookeeperServer, String.valueOf(brokerServicePort), "ns1,ns2");
-        final ServiceConfiguration config = ServiceConfigurationLoader.create(newStream);
+        final ServiceConfiguration config = PulsarConfigurationLoader.create(newStream, ServiceConfiguration.class);
         assertTrue(isNotBlank(config.getZookeeperServers()));
         assertTrue(config.getBrokerServicePort() == brokerServicePort);
         assertEquals(config.getBootstrapNamespaces().get(1), "ns2");
@@ -66,7 +66,7 @@ public class ServiceConfigurationTest {
     public void testInitFailure() throws Exception {
         final String zookeeperServer = "localhost:2184";
         InputStream newStream = updateProp(zookeeperServer, String.valueOf("invalid-string"), null);
-        ServiceConfigurationLoader.create(newStream);
+        PulsarConfigurationLoader.create(newStream, ServiceConfiguration.class);
     }
 
     private InputStream updateProp(String zookeeperServer, String brokerServicePort, String namespace)

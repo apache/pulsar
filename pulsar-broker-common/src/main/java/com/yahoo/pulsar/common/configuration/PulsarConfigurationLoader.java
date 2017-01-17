@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.yahoo.pulsar.broker;
+package com.yahoo.pulsar.common.configuration;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.yahoo.pulsar.common.util.FieldParser.update;
@@ -30,22 +30,23 @@ import java.util.Properties;
  * 
  *
  */
-public class ServiceConfigurationLoader {
+public class PulsarConfigurationLoader {
 
     /**
-     * Creates ServiceConfiguration and loads it with populated attribute values loaded from provided property file.
+     * Creates PulsarConfiguration and loads it with populated attribute values loaded from provided property file.
      * 
      * @param configFile
      * @throws IOException
      * @throws IllegalArgumentException
      */
-    public static ServiceConfiguration create(String configFile) throws IOException, IllegalArgumentException {
+    public static <T extends PulsarConfiguration> T create(String configFile,
+            Class<? extends PulsarConfiguration> clazz) throws IOException, IllegalArgumentException {
         checkNotNull(configFile);
-        return create(new FileInputStream(configFile));
+        return create(new FileInputStream(configFile), clazz);
     }
 
     /**
-     * Creates ServiceConfiguration and loads it with populated attribute values loaded from provided inputstream
+     * Creates PulsarConfiguration and loads it with populated attribute values loaded from provided inputstream
      * property file.
      * 
      * @param inStream
@@ -54,12 +55,13 @@ public class ServiceConfigurationLoader {
      * @throws IllegalArgumentException
      *             if the input stream contains incorrect value type
      */
-    public static ServiceConfiguration create(InputStream inStream) throws IOException, IllegalArgumentException {
+    public static <T extends PulsarConfiguration> T create(InputStream inStream,
+            Class<? extends PulsarConfiguration> clazz) throws IOException, IllegalArgumentException {
         try {
             checkNotNull(inStream);
             Properties properties = new Properties();
             properties.load(inStream);
-            return (create(properties));
+            return (create(properties, clazz));
         } finally {
             if (inStream != null) {
                 inStream.close();
@@ -68,11 +70,17 @@ public class ServiceConfigurationLoader {
     }
 
     @SuppressWarnings({ "rawtypes", "unchecked" })
-    public static ServiceConfiguration create(Properties properties) throws IOException, IllegalArgumentException {
+    private static <T extends PulsarConfiguration> T create(Properties properties,
+            Class<? extends PulsarConfiguration> clazz) throws IOException, IllegalArgumentException {
         checkNotNull(properties);
-        ServiceConfiguration configuration = new ServiceConfiguration();
-        configuration.setProperties(properties);
-        update((Map) properties, configuration);
+        T configuration = null;
+        try {
+            configuration = (T) clazz.newInstance();
+            configuration.setProperties(properties);
+            update((Map) properties, configuration);
+        } catch (InstantiationException | IllegalAccessException e) {
+            throw new IllegalArgumentException("Failed to instantiate " + clazz.getName(), e);
+        }
         return configuration;
     }
 
