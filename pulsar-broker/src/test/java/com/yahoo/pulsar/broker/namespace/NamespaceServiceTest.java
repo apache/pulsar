@@ -19,6 +19,8 @@ import static com.yahoo.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POL
 import static com.yahoo.pulsar.broker.web.PulsarWebResource.joinPath;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
@@ -34,11 +36,14 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.zookeeper.data.Stat;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -48,7 +53,10 @@ import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.google.common.collect.Lists;
 import com.google.common.hash.Hashing;
 import com.yahoo.pulsar.broker.service.BrokerTestBase;
+import com.yahoo.pulsar.broker.service.Topic;
 import com.yahoo.pulsar.broker.service.persistent.PersistentTopic;
+import com.yahoo.pulsar.client.api.Consumer;
+import com.yahoo.pulsar.client.api.ConsumerConfiguration;
 import com.yahoo.pulsar.common.naming.DestinationName;
 import com.yahoo.pulsar.common.naming.NamespaceBundle;
 import com.yahoo.pulsar.common.naming.NamespaceBundleFactory;
@@ -56,6 +64,7 @@ import com.yahoo.pulsar.common.naming.NamespaceBundles;
 import com.yahoo.pulsar.common.naming.NamespaceName;
 import com.yahoo.pulsar.common.policies.data.Policies;
 import com.yahoo.pulsar.common.util.ObjectMapperFactory;
+import com.yahoo.pulsar.common.util.collections.ConcurrentOpenHashMap;
 
 public class NamespaceServiceTest extends BrokerTestBase {
 
@@ -236,6 +245,52 @@ public class NamespaceServiceTest extends BrokerTestBase {
         assertNull(ownershipCache.getOwnedBundle(bundle));
     }
 
+    
+    @Test
+    public void testUnloadNamespaceBundleFailure() throws Exception {
+
+        final String topicName = "persistent://my-property/use/my-ns/my-topic1";
+        final AtomicInteger count = new AtomicInteger(0);
+        ConsumerConfiguration conf = new ConsumerConfiguration();
+        Consumer consumer = pulsarClient.subscribe(topicName, "my-subscriber-name", conf);
+        ConcurrentOpenHashMap<String, CompletableFuture<Topic>> topics = pulsar.getBrokerService().getTopics();
+        Topic spyTopic = spy(topics.get(topicName).get());
+        topics.clear();
+        CompletableFuture<Topic> topicFuture = CompletableFuture.completedFuture(spyTopic);
+        // add mock topic
+        topics.put(topicName, topicFuture);
+        doAnswer(new Answer<CompletableFuture<Void>>() {
+            @Override
+            public CompletableFuture<Void> answer(InvocationOnMock invocation) throws Throwable {
+                if (count.getAndIncrement() > 0) {
+                    doCallRealMethod().when(spyTopic).close();
+                    spyTopic.close();
+                    return CompletableFuture.completedFuture(null);
+                } else {
+                    CompletableFuture<Void> result = new CompletableFuture<>();
+                    result.completeExceptionally(new RuntimeException("first time failed"));
+                    return result;
+                }
+            }
+        }).when(spyTopic).close();
+        // update retry time
+        Field retryField = OwnedBundle.class.getDeclaredField("ENABLE_OWNERSHIP_FAILURE_RETRY_TIME_SECONDS");
+        retryField.setAccessible(true);
+        retryField.set(null, 2);
+        try {
+            pulsar.getNamespaceService()
+                    .unloadNamespaceBundle(pulsar.getNamespaceService().getBundle(DestinationName.get(topicName)));
+            fail("It should have failed and retry should unload this namespace bundle");
+        } catch (Exception e) {
+            // Ok
+        }
+        // wait to get task to be retried
+        Thread.sleep(5000);
+        Field isFencedField = PersistentTopic.class.getDeclaredField("isFenced");
+        isFencedField.setAccessible(true);
+        assertTrue((boolean)isFencedField.get(spyTopic));
+    }
+    
     @SuppressWarnings("unchecked")
     private Pair<NamespaceBundles, List<NamespaceBundle>> splitBundles(NamespaceBundleFactory utilityFactory,
             NamespaceName nsname, NamespaceBundles bundles, NamespaceBundle targetBundle) throws Exception {

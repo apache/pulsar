@@ -15,6 +15,7 @@
  */
 package com.yahoo.pulsar.broker.namespace;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -36,6 +37,7 @@ public class OwnedBundle {
      */
     private final ReentrantReadWriteLock nsLock = new ReentrantReadWriteLock();
     private final AtomicBoolean isActive = new AtomicBoolean(true);
+    private static int ENABLE_OWNERSHIP_FAILURE_RETRY_TIME_SECONDS = 60;
 
     /**
      * constructor
@@ -101,23 +103,37 @@ public class OwnedBundle {
             this.nsLock.writeLock().unlock();
         }
 
-        int unloadedTopics = 0;
-        try {
-            LOG.info("Disabling ownership: {}", this.bundle);
-            pulsar.getNamespaceService().getOwnershipCache().disableOwnership(this.bundle);
-
-            // Handle unload of persistent topics
-            unloadedTopics = pulsar.getBrokerService().unloadServiceUnit(bundle).get();
-            pulsar.getNamespaceService().getOwnershipCache().removeOwnership(bundle);
-        } catch (Exception e) {
-            LOG.error(String.format("failed to unload a namespace. ns=%s", bundle.toString()), e);
-            throw new RuntimeException(e);
-        }
-
+        LOG.info("Disabling ownership: {}", this.bundle);
+        pulsar.getNamespaceService().getOwnershipCache().disableOwnership(this.bundle);
+        int unloadedTopics = unloadBundleAndRetryOnFailure(pulsar).get();
         double unloadBundleTime = TimeUnit.NANOSECONDS.toMillis((System.nanoTime() - unloadBundleStartTime));
-        LOG.info("Unloading {} namespace-bundle with {} topics completed in {} ms", this.bundle, unloadedTopics, unloadBundleTime);
+        LOG.info("Unloading {} namespace-bundle with {} topics completed in {} ms", this.bundle, unloadedTopics,
+                unloadBundleTime);
     }
 
+    private CompletableFuture<Integer> unloadBundleAndRetryOnFailure(PulsarService pulsar) {
+        CompletableFuture<Integer> result = new CompletableFuture<>();
+        // Handle unload of persistent topics
+        pulsar.getBrokerService().unloadServiceUnit(bundle).handle((unloadedTopics, ex) -> {
+            if (ex == null) {
+                try {
+                    pulsar.getNamespaceService().getOwnershipCache().removeOwnership(bundle);
+                    result.complete(unloadedTopics);
+                    return null;
+                } catch (Exception e) {
+                    ex = e;
+                }
+            }
+            LOG.error("Failed to unload a namespace. ns={} retry unloading after {}", bundle.toString(),
+                    ENABLE_OWNERSHIP_FAILURE_RETRY_TIME_SECONDS, ex);
+            result.completeExceptionally(ex);
+            pulsar.getBrokerService().executor().schedule(() -> unloadBundleAndRetryOnFailure(pulsar),
+                    ENABLE_OWNERSHIP_FAILURE_RETRY_TIME_SECONDS, TimeUnit.SECONDS);
+            return null;
+        });
+        return result;
+    }
+    
     /**
      * Access method to the namespace state to check whether the namespace is active or not
      *
