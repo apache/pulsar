@@ -966,7 +966,7 @@ It shows configured persistence policies of a given namespace.
 ###### CLI
 
 ```
-$ pulsar-admin namespaces set-persistence test-property/cl1/ns1
+$ pulsar-admin namespaces get-persistence test-property/cl1/ns1
 ```
 
 ```json
