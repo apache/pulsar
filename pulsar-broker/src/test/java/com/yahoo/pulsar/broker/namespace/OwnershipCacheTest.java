@@ -258,7 +258,7 @@ public class OwnershipCacheTest {
         // case 1: no one owns the namespace
         assertFalse(cache.getOwnerAsync(bundle).get().isPresent());
 
-        cache.removeOwnership(bundle);
+        cache.removeOwnership(bundle).get();
         assertTrue(cache.getOwnedBundles().isEmpty());
 
         // case 2: this broker owns the namespace
@@ -267,6 +267,7 @@ public class OwnershipCacheTest {
         assertTrue(!data1.isDisabled());
         assertTrue(cache.getOwnedBundles().size() == 1);
         cache.removeOwnership(bundle);
+        Thread.sleep(500);
         assertTrue(cache.getOwnedBundles().isEmpty());
 
         Thread.sleep(500);

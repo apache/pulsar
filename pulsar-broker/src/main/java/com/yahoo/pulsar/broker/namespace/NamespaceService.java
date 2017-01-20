@@ -677,15 +677,15 @@ public class NamespaceService {
     }
 
     public void removeOwnedServiceUnit(NamespaceName nsName) throws Exception {
-        ownershipCache.removeOwnership(getFullBundle(nsName));
+        ownershipCache.removeOwnership(getFullBundle(nsName)).get();
     }
 
     public void removeOwnedServiceUnit(NamespaceBundle nsBundle) throws Exception {
-        ownershipCache.removeOwnership(nsBundle);
+        ownershipCache.removeOwnership(nsBundle).get();
     }
 
     public void removeOwnedServiceUnits(NamespaceName nsName, BundlesData bundleData) throws Exception {
-        ownershipCache.removeOwnership(bundleFactory.getBundles(nsName, bundleData));
+        ownershipCache.removeOwnership(bundleFactory.getBundles(nsName, bundleData)).get();
     }
 
     public NamespaceBundleFactory getNamespaceBundleFactory() {
