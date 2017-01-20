@@ -236,7 +236,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         }
 
         // restore the namespace state
-        ownerCache.removeOwnership(globalNsBundle);
+        ownerCache.removeOwnership(globalNsBundle).get();
         ownerCache.tryAcquiringOwnership(globalNsBundle);
     }
 
