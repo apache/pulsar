@@ -1715,4 +1715,87 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }
     }
     
+    @Test
+    public void testRedeliveryFailOverConsumer() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        final int receiverQueueSize = 10;
+
+        ConsumerConfiguration conf = new ConsumerConfiguration();
+        conf.setReceiverQueueSize(receiverQueueSize);
+        conf.setSubscriptionType(SubscriptionType.Failover);
+        // Only subscribe consumer
+        ConsumerImpl consumer = (ConsumerImpl) pulsarClient
+                .subscribe("persistent://my-property/use/my-ns/unacked-topic", "subscriber-1", conf);
+
+        ProducerConfiguration producerConf = new ProducerConfiguration();
+
+        Producer producer = pulsarClient.createProducer("persistent://my-property/use/my-ns/unacked-topic",
+                producerConf);
+
+        // (1) First round to produce-consume messages
+        int consumeMsgInParts = 4;
+        for (int i = 0; i < receiverQueueSize; i++) {
+            String message = "my-message-" + i;
+            producer.send(message.getBytes());
+            Thread.sleep(10);
+        }
+        // (1.a) consume first consumeMsgInParts msgs and trigger redeliver
+        Message msg = null;
+        List<Message> messages1 = Lists.newArrayList();
+        for (int i = 0; i < consumeMsgInParts; i++) {
+            msg = consumer.receive(1, TimeUnit.SECONDS);
+            if (msg != null) {
+                messages1.add(msg);
+                consumer.acknowledge(msg);
+                log.info("Received message: " + new String(msg.getData()));
+            } else {
+                break;
+            }
+        }
+        assertEquals(messages1.size(), consumeMsgInParts);
+        consumer.redeliverUnacknowledgedMessages();
+
+        // (1.b) consume second consumeMsgInParts msgs and trigger redeliver
+        messages1.clear();
+        for (int i = 0; i < consumeMsgInParts; i++) {
+            msg = consumer.receive(1, TimeUnit.SECONDS);
+            if (msg != null) {
+                messages1.add(msg);
+                consumer.acknowledge(msg);
+                log.info("Received message: " + new String(msg.getData()));
+            } else {
+                break;
+            }
+        }
+        assertEquals(messages1.size(), consumeMsgInParts);
+        consumer.redeliverUnacknowledgedMessages();
+
+        // (2) Second round to produce-consume messages
+        for (int i = 0; i < receiverQueueSize; i++) {
+            String message = "my-message-" + i;
+            producer.send(message.getBytes());
+            Thread.sleep(100);
+        }
+
+        int remainingMsgs = (2 * receiverQueueSize) - (2 * consumeMsgInParts);
+        messages1.clear();
+        for (int i = 0; i < remainingMsgs; i++) {
+            msg = consumer.receive(1, TimeUnit.SECONDS);
+            if (msg != null) {
+                messages1.add(msg);
+                consumer.acknowledge(msg);
+                log.info("Received message: " + new String(msg.getData()));
+            } else {
+                break;
+            }
+        }
+        assertEquals(messages1.size(), remainingMsgs);
+
+        producer.close();
+        consumer.close();
+        log.info("-- Exiting {} test --", methodName);
+
+    }
+    
 }
