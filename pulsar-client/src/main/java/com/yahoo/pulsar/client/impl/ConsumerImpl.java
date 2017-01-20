@@ -785,7 +785,11 @@ public class ConsumerImpl extends ConsumerBase {
     }
 
     private void increaseAvailablePermits(ClientCnx currentCnx) {
-        int available = availablePermits.incrementAndGet();
+        increaseAvailablePermits(currentCnx, 1);
+    }
+
+    private void increaseAvailablePermits(ClientCnx currentCnx, int delta) {
+        int available = availablePermits.addAndGet(delta);
 
         while (available >= receiverQueueRefillThreshold) {
             if (availablePermits.compareAndSet(available, 0)) {
@@ -881,13 +885,12 @@ public class ConsumerImpl extends ConsumerBase {
             synchronized (this) {
                 currentSize = incomingMessages.size();
                 incomingMessages.clear();
-                availablePermits.set(0);
                 unAckedMessageTracker.clear();
                 batchMessageAckTracker.clear();
             }
             cnx.ctx().writeAndFlush(Commands.newRedeliverUnacknowledgedMessages(consumerId), cnx.ctx().voidPromise());
             if (currentSize > 0) {
-                sendFlowPermitsToBroker(cnx, currentSize);
+                increaseAvailablePermits(cnx, currentSize);
             }
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] [{}] Redeliver unacked messages and send {} permits", subscription, topic,
