@@ -40,10 +40,10 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import com.yahoo.pulsar.broker.ServiceConfiguration;
 import com.yahoo.pulsar.client.api.ProducerConsumerBase;
 import com.yahoo.pulsar.websocket.WebSocketService;
 import com.yahoo.pulsar.websocket.service.ProxyServer;
+import com.yahoo.pulsar.websocket.service.WebSocketProxyConfiguration;
 import com.yahoo.pulsar.websocket.service.WebSocketServiceStarter;
 
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
@@ -64,13 +64,14 @@ public class ProxyPublishConsumeTls extends ProducerConsumerBase {
         super.internalSetup();
         super.producerBaseSetup();
 
-        ServiceConfiguration config = new ServiceConfiguration();
+        WebSocketProxyConfiguration config = new WebSocketProxyConfiguration();
         config.setWebServicePort(TEST_PORT);
         config.setWebServicePortTls(TLS_TEST_PORT);
         config.setTlsEnabled(true);
         config.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
         config.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         config.setClusterName("use");
+        config.setGlobalZookeeperServers("dummy-zk-servers");
         service = spy(new WebSocketService(config));
         doReturn(mockZooKeeperClientFactory).when(service).getZooKeeperClientFactory();
         proxyServer = new ProxyServer(config);

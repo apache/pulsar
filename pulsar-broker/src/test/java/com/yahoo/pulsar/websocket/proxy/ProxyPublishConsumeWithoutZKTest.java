@@ -1,4 +1,3 @@
-
 /**
  * Copyright 2016 Yahoo Inc.
  *
@@ -23,7 +22,6 @@ import java.net.URI;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.bookkeeper.test.PortManager;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
 import org.eclipse.jetty.websocket.client.WebSocketClient;
@@ -34,21 +32,17 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import com.google.common.collect.Sets;
-import com.yahoo.pulsar.broker.ServiceConfiguration;
 import com.yahoo.pulsar.client.api.ProducerConsumerBase;
 import com.yahoo.pulsar.websocket.WebSocketService;
 import com.yahoo.pulsar.websocket.service.ProxyServer;
 import com.yahoo.pulsar.websocket.service.WebSocketProxyConfiguration;
 import com.yahoo.pulsar.websocket.service.WebSocketServiceStarter;
 
-public class ProxyAuthenticationTest extends ProducerConsumerBase {
+public class ProxyPublishConsumeWithoutZKTest extends ProducerConsumerBase {
     protected String methodName;
+    private static final String CONSUME_URI = "ws://localhost:6080/ws/consumer/persistent/my-property/use/my-ns/my-topic/my-sub";
+    private static final String PRODUCE_URI = "ws://localhost:6080/ws/producer/persistent/my-property/use/my-ns/my-topic/";
     private static final int TEST_PORT = 6080;
-    private static final String CONSUME_URI = "ws://localhost:" + TEST_PORT
-            + "/ws/consumer/persistent/my-property/use/my-ns/my-topic/my-sub";
-    private static final String PRODUCE_URI = "ws://localhost:" + TEST_PORT
-            + "/ws/producer/persistent/my-property/use/my-ns/my-topic/";
     private ProxyServer proxyServer;
     private WebSocketService service;
 
@@ -60,9 +54,8 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
         WebSocketProxyConfiguration config = new WebSocketProxyConfiguration();
         config.setWebServicePort(TEST_PORT);
         config.setClusterName("use");
-        config.setAuthenticationEnabled(true);
-        config.setAuthenticationProviders(
-                Sets.newHashSet("com.yahoo.pulsar.websocket.proxy.MockAuthenticationProvider"));
+        config.setServiceUrl(pulsar.getWebServiceAddress());
+        config.setServiceUrlTls(pulsar.getWebServiceAddressTls());
         service = spy(new WebSocketService(config));
         doReturn(mockZooKeeperClientFactory).when(service).getZooKeeperClientFactory();
         proxyServer = new ProxyServer(config);
@@ -76,11 +69,10 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
         service.close();
         proxyServer.stop();
         log.info("Finished Cleaning Up Test setup");
-
     }
 
     @Test
-    public void socketTest() throws InterruptedException {
+    public void socketTest() throws Exception {
         URI consumeUri = URI.create(CONSUME_URI);
         URI produceUri = URI.create(PRODUCE_URI);
 
@@ -102,13 +94,11 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
             Thread.sleep(1000);
             Assert.assertTrue(consumerFuture.get().isOpen());
             Assert.assertTrue(producerFuture.get().isOpen());
-
+            
             consumeSocket.awaitClose(1, TimeUnit.SECONDS);
             produceSocket.awaitClose(1, TimeUnit.SECONDS);
             Assert.assertTrue(produceSocket.getBuffer().size() > 0);
             Assert.assertEquals(produceSocket.getBuffer(), consumeSocket.getBuffer());
-        } catch (Throwable t) {
-            log.error(t.getMessage());
         } finally {
             try {
                 consumeClient.stop();
@@ -119,5 +109,5 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
         }
     }
 
-    private static final Logger log = LoggerFactory.getLogger(ProxyAuthenticationTest.class);
+    private static final Logger log = LoggerFactory.getLogger(ProxyPublishConsumeWithoutZKTest.class);
 }
