@@ -70,7 +70,7 @@ public class PulsarConfigurationLoader {
     }
 
     @SuppressWarnings({ "rawtypes", "unchecked" })
-    private static <T extends PulsarConfiguration> T create(Properties properties,
+    protected static <T extends PulsarConfiguration> T create(Properties properties,
             Class<? extends PulsarConfiguration> clazz) throws IOException, IllegalArgumentException {
         checkNotNull(properties);
         T configuration = null;

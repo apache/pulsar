@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.yahoo.pulsar.common.naming;
+package com.yahoo.pulsar.common.configuration;
 
 import static com.yahoo.pulsar.common.configuration.PulsarConfigurationLoader.isComplete;
 import static org.testng.Assert.assertEquals;
@@ -21,42 +21,75 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.InputStream;
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
 import java.util.Properties;
 
 import org.testng.annotations.Test;
 
 import com.yahoo.pulsar.broker.ServiceConfiguration;
-import com.yahoo.pulsar.common.configuration.FieldContext;
-import com.yahoo.pulsar.common.configuration.PulsarConfigurationLoader;
 
-public class ServiceConfigurationLoaderTest {
+public class PulsarConfigurationLoaderTest {
 
     @Test
-    public void testServiceConfiguraitonLoadingStream() throws Exception {
-        final String fileName = "configurations/pulsar_broker_test.conf"; // test-resource file
-        InputStream stream = this.getClass().getClassLoader().getResourceAsStream(fileName);
+    public void testPulsarConfiguraitonLoadingStream() throws Exception {
+        File testConfigFile = new File("tmp." + System.currentTimeMillis() + ".properties");
+        if (testConfigFile.exists()) {
+            testConfigFile.delete();
+        }
+        final String zkServer = "z1.example.com,z2.example.com,z3.example.com";
+        PrintWriter printWriter = new PrintWriter(new OutputStreamWriter(new FileOutputStream(testConfigFile)));
+        printWriter.println("zookeeperServers=" + zkServer);
+        printWriter.println("globalZookeeperServers=gz1.example.com,gz2.example.com,gz3.example.com/foo");
+        printWriter.println("brokerDeleteInactiveTopicsEnabled=true");
+        printWriter.println("statusFilePath=/tmp/status.html");
+        printWriter.println("managedLedgerDefaultEnsembleSize=1");
+        printWriter.println("backlogQuotaDefaultLimitGB=18");
+        printWriter.println("clusterName=usc");
+        printWriter.println("brokerClientAuthenticationPlugin=test.xyz.client.auth.plugin");
+        printWriter.println("brokerClientAuthenticationParameters=role:my-role");
+        printWriter.println("superUserRoles=appid1,appid2");
+        printWriter.println("brokerServicePort=7777");
+        printWriter.println("managedLedgerDefaultMarkDeleteRateLimit=5.0");
+        printWriter.close();
+        testConfigFile.deleteOnExit();
+        InputStream stream = new FileInputStream(testConfigFile);
         final ServiceConfiguration serviceConfig = PulsarConfigurationLoader.create(stream, ServiceConfiguration.class);
         assertNotNull(serviceConfig);
+        assertEquals(serviceConfig.getZookeeperServers(), zkServer);
+        assertEquals(serviceConfig.isBrokerDeleteInactiveTopicsEnabled(), true);
+        assertEquals(serviceConfig.getBacklogQuotaDefaultLimitGB(), 18);
+        assertEquals(serviceConfig.getClusterName(), "usc");
+        assertEquals(serviceConfig.getBrokerClientAuthenticationParameters(), "role:my-role");
+        assertEquals(serviceConfig.getBrokerServicePort(), 7777);
     }
 
     @Test
-    public void testServiceConfiguraitonLoadingProp() throws Exception {
+    public void testPulsarConfiguraitonLoadingProp() throws Exception {
         final String zk = "localhost:2184";
         final Properties prop = new Properties();
         prop.setProperty("zookeeperServers", zk);
-        final ServiceConfiguration serviceConfig = new ServiceConfiguration();
+        final ServiceConfiguration serviceConfig = PulsarConfigurationLoader.create(prop, ServiceConfiguration.class);
         assertNotNull(serviceConfig);
         assertEquals(serviceConfig.getZookeeperServers(), zk);
     }
 
     @Test
-    public void testServiceConfiguraitonComplete() throws Exception {
+    public void testPulsarConfiguraitonComplete() throws Exception {
         final String zk = "localhost:2184";
         final Properties prop = new Properties();
         prop.setProperty("zookeeperServers", zk);
-        final ServiceConfiguration serviceConfig = new ServiceConfiguration();
-        assertEquals(serviceConfig.getZookeeperServers(), zk);
+        final ServiceConfiguration serviceConfig = PulsarConfigurationLoader.create(prop, ServiceConfiguration.class);
+        try {
+            isComplete(serviceConfig);
+            fail("it should fail as config is not complete");
+        } catch (IllegalArgumentException e) {
+            // Ok
+        }
     }
 
     @Test
