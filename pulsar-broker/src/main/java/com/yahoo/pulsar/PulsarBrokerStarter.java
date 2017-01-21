@@ -15,8 +15,8 @@
  */
 package com.yahoo.pulsar;
 
-import static com.yahoo.pulsar.broker.ServiceConfigurationLoader.create;
-import static com.yahoo.pulsar.broker.ServiceConfigurationLoader.isComplete;
+import static com.yahoo.pulsar.common.configuration.PulsarConfigurationLoader.create;
+import static com.yahoo.pulsar.common.configuration.PulsarConfigurationLoader.isComplete;
 
 import java.io.FileInputStream;
 
@@ -33,7 +33,7 @@ public class PulsarBrokerStarter {
     private static ServiceConfiguration loadConfig(String configFile) throws Exception {
         SLF4JBridgeHandler.removeHandlersForRootLogger();
         SLF4JBridgeHandler.install();
-        ServiceConfiguration config = create((new FileInputStream(configFile)));
+        ServiceConfiguration config = create((new FileInputStream(configFile)), ServiceConfiguration.class);
         // it validates provided configuration is completed
         isComplete(config);
         return config;

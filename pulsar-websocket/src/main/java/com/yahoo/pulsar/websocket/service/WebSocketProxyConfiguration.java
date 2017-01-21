@@ -15,12 +15,14 @@
  */
 package com.yahoo.pulsar.websocket.service;
 
+import java.util.Properties;
 import java.util.Set;
 
 import com.google.common.collect.Sets;
-import com.yahoo.pulsar.broker.FieldContext;
+import com.yahoo.pulsar.common.configuration.FieldContext;
+import com.yahoo.pulsar.common.configuration.PulsarConfiguration;
 
-public class WebSocketProxyConfiguration {
+public class WebSocketProxyConfiguration implements PulsarConfiguration {
 
     // Name of the cluster to which this broker belongs to
     @FieldContext(required = true)
@@ -63,6 +65,8 @@ public class WebSocketProxyConfiguration {
     private String tlsCertificateFilePath;
     // Path for the TLS private key file
     private String tlsKeyFilePath;
+    
+    private Properties properties = new Properties();
 
     public String getClusterName() {
         return clusterName;
@@ -198,6 +202,14 @@ public class WebSocketProxyConfiguration {
 
     public void setTlsKeyFilePath(String tlsKeyFilePath) {
         this.tlsKeyFilePath = tlsKeyFilePath;
+    }
+    
+    public Properties getProperties() {
+        return properties;
+    }
+
+    public void setProperties(Properties properties) {
+        this.properties = properties;
     }
 
 }

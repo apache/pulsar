@@ -29,9 +29,9 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.yahoo.pulsar.broker.PulsarService;
 import com.yahoo.pulsar.broker.ServiceConfiguration;
-import com.yahoo.pulsar.broker.ServiceConfigurationLoader;
 import com.yahoo.pulsar.client.admin.PulsarAdmin;
 import com.yahoo.pulsar.client.admin.PulsarAdminException;
+import com.yahoo.pulsar.common.configuration.PulsarConfigurationLoader;
 import com.yahoo.pulsar.common.policies.data.ClusterData;
 import com.yahoo.pulsar.common.policies.data.PropertyAdmin;
 import com.yahoo.pulsar.zookeeper.LocalBookkeeperEnsemble;
@@ -96,8 +96,8 @@ public class PulsarStandaloneStarter {
             return;
         }
 
-        this.config = ServiceConfigurationLoader.create((new FileInputStream(configFile)));
-        ServiceConfigurationLoader.isComplete(config);
+        this.config = PulsarConfigurationLoader.create((new FileInputStream(configFile)), ServiceConfiguration.class);
+        PulsarConfigurationLoader.isComplete(config);
         // Set ZK server's host to localhost
         config.setZookeeperServers("127.0.0.1:" + zkPort);
         config.setGlobalZookeeperServers("127.0.0.1:" + zkPort);

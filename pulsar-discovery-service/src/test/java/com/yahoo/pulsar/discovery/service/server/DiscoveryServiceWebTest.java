@@ -25,6 +25,8 @@ import java.io.PrintWriter;
 
 import org.testng.annotations.Test;
 
+import com.yahoo.pulsar.common.configuration.PulsarConfigurationLoader;
+
 /**
  * 1. starts discovery service a. loads broker list from zk 2. http-client calls multiple http request: GET, PUT and
  * POST. 3. discovery service redirects to appropriate brokers in round-robin 4. client receives unknown host exception
@@ -48,7 +50,7 @@ public class DiscoveryServiceWebTest {
         printWriter.println("webServicePort=" + port);
         printWriter.close();
         testConfigFile.deleteOnExit();
-        final ServiceConfig config = DiscoveryServiceStarter.load(testConfigFile.getAbsolutePath());
+        final ServiceConfig config = PulsarConfigurationLoader.create(testConfigFile.getAbsolutePath(), ServiceConfig.class);
         final ServerManager server = new ServerManager(config);
         DiscoveryServiceStarter.startWebService(server, config);
         assertTrue(server.isStarted());
