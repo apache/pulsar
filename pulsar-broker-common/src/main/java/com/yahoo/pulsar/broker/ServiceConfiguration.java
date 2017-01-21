@@ -22,13 +22,15 @@ import java.util.Set;
 
 import com.google.common.collect.Sets;
 import com.yahoo.pulsar.client.impl.auth.AuthenticationDisabled;
+import com.yahoo.pulsar.common.configuration.FieldContext;
+import com.yahoo.pulsar.common.configuration.PulsarConfiguration;
 
 /**
  *
  * Pulsar service configuration object.
  *
  */
-public class ServiceConfiguration {
+public class ServiceConfiguration implements PulsarConfiguration{
 
     /***** --- pulsar configuration --- ****/
     // Zookeeper quorum connection string

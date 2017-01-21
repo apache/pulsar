@@ -19,13 +19,14 @@ import java.util.Properties;
 import java.util.Set;
 
 import com.google.common.collect.Sets;
+import com.yahoo.pulsar.common.configuration.PulsarConfiguration;
 import com.yahoo.pulsar.discovery.service.web.DiscoveryServiceServlet;
 
 /**
  * Service Configuration to start :{@link DiscoveryServiceServlet}
  *
  */
-public class ServiceConfig {
+public class ServiceConfig implements PulsarConfiguration{
 
     // Local-Zookeeper quorum connection string
     private String zookeeperServers;

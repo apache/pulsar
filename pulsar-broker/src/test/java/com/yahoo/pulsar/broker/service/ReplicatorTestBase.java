@@ -15,13 +15,11 @@
  */
 package com.yahoo.pulsar.broker.service;
 
-import static com.yahoo.pulsar.broker.ServiceConfigurationLoader.create;
 import static org.testng.Assert.assertEquals;
 
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -104,7 +102,7 @@ public class ReplicatorTestBase {
         // NOTE: we have to instantiate a new copy of System.getProperties() to make sure pulsar1 and pulsar2 have
         // completely
         // independent config objects instead of referring to the same properties object
-        ServiceConfiguration config1 = create(new Properties(System.getProperties()));
+        ServiceConfiguration config1 = new ServiceConfiguration();
         config1.setClusterName("r1");
         config1.setWebServicePort(webServicePort1);
         config1.setZookeeperServers("127.0.0.1:" + zkPort1);
@@ -128,7 +126,7 @@ public class ReplicatorTestBase {
         bkEnsemble2.start();
 
         int webServicePort2 = PortManager.nextFreePort();
-        config2 = create(new Properties(System.getProperties()));
+        config2 = new ServiceConfiguration();
         config2.setClusterName("r2");
         config2.setWebServicePort(webServicePort2);
         config2.setZookeeperServers("127.0.0.1:" + zkPort2);
@@ -152,7 +150,7 @@ public class ReplicatorTestBase {
         bkEnsemble3.start();
 
         int webServicePort3 = PortManager.nextFreePort();
-        config3 = create(new Properties(System.getProperties()));
+        config3 = new ServiceConfiguration();
         config3.setClusterName("r3");
         config3.setWebServicePort(webServicePort3);
         config3.setZookeeperServers("127.0.0.1:" + zkPort3);

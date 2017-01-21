@@ -16,23 +16,18 @@
 package com.yahoo.pulsar.discovery.service.server;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.yahoo.pulsar.common.util.FieldParser.update;
 import static java.lang.Thread.setDefaultUncaughtExceptionHandler;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.slf4j.bridge.SLF4JBridgeHandler.install;
 import static org.slf4j.bridge.SLF4JBridgeHandler.removeHandlersForRootLogger;
 
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.Map;
-import java.util.Properties;
 import java.util.TreeMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.yahoo.pulsar.common.configuration.PulsarConfigurationLoader;
 import com.yahoo.pulsar.discovery.service.DiscoveryService;
 import com.yahoo.pulsar.discovery.service.web.DiscoveryServiceServlet;
 
@@ -52,7 +47,9 @@ public class DiscoveryServiceStarter {
         });
 
         // load config file
-        final ServiceConfig config = load(configFile);
+        final ServiceConfig config = PulsarConfigurationLoader.create(configFile, ServiceConfig.class);
+        checkArgument(!isEmpty(config.getZookeeperServers()), "zookeeperServers must be provided");
+        checkArgument(!isEmpty(config.getGlobalZookeeperServers()), "global-zookeeperServers must be provided");
         
         // create broker service
         DiscoveryService discoveryService = new DiscoveryService(config);
@@ -95,26 +92,6 @@ public class DiscoveryServiceStarter {
         } catch (Exception e) {
             log.error("Failed to start discovery service.", e);
             Runtime.getRuntime().halt(1);
-        }
-    }
-
-    @SuppressWarnings({ "unchecked", "rawtypes" })
-    public static ServiceConfig load(String configFile) throws IOException, IllegalArgumentException {
-        final InputStream inStream = new FileInputStream(configFile);
-        try {
-            checkNotNull(inStream, "Unbable to read config file " + configFile);
-            ServiceConfig config = new ServiceConfig();
-            Properties properties = new Properties();
-            properties.load(inStream);
-            config.setProperties(properties);
-            update((Map) properties, config);
-            checkArgument(!isEmpty(config.getZookeeperServers()), "zookeeperServers must be provided");
-            checkArgument(!isEmpty(config.getGlobalZookeeperServers()), "global-zookeeperServers must be provided");
-            return config;
-        } finally {
-            if (inStream != null) {
-                inStream.close();
-            }
         }
     }
 
