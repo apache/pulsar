@@ -18,6 +18,7 @@ package com.yahoo.pulsar.admin.cli;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 import com.yahoo.pulsar.client.admin.PulsarAdmin;
+import com.yahoo.pulsar.client.admin.PulsarAdminException;
 
 @Parameters(commandDescription = "Operations about brokers")
 public class CmdBrokers extends CmdBase {
@@ -48,9 +49,21 @@ public class CmdBrokers extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Update number of lookup permits allowed simultaneously for throttling ")
+    private class UpdateLookupPermitsCmd extends CliCommand {
+        @Parameter(description = "number of lookup permits", required = true)
+        private int permits;
+
+        @Override
+        void run() throws PulsarAdminException {
+            admin.lookups().updateLookupPermits(permits);
+        }
+    }
+
     CmdBrokers(PulsarAdmin admin) {
         super("brokers", admin);
         jcommander.addCommand("list", new List());
         jcommander.addCommand("namespaces", new Namespaces());
+        jcommander.addCommand("updateLookupPermits", new UpdateLookupPermitsCmd());
     }
 }

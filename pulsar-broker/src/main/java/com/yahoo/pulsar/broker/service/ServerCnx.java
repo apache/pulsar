@@ -153,15 +153,26 @@ public class ServerCnx extends PulsarHandler {
         }
         final long requestId = lookup.getRequestId();
         final String topic = lookup.getTopic();
-        lookupDestinationAsync(getBrokerService().pulsar(), DestinationName.get(topic), lookup.getAuthoritative(),
-                getRole(), lookup.getRequestId()).thenAccept(lookupResponse -> {
-                    ctx.writeAndFlush(lookupResponse);
-                }).exceptionally(ex -> {
-                    // it should never happen
-                    log.warn("[{}] lookup failed with error {}, {}", remoteAddress, topic, ex.getMessage(), ex);
-                    ctx.writeAndFlush(newLookupResponse(ServerError.ServiceNotReady, ex.getMessage(), requestId));
-                    return null;
-                });
+        if (service.getLookupRequestSemaphore().tryAcquire()) {
+            lookupDestinationAsync(getBrokerService().pulsar(), DestinationName.get(topic), lookup.getAuthoritative(),
+                    getRole(), lookup.getRequestId()).handle((lookupResponse, ex) -> {
+                        if (ex == null) {
+                            ctx.writeAndFlush(lookupResponse);
+                        } else {
+                            // it should never happen
+                            log.warn("[{}] lookup failed with error {}, {}", remoteAddress, topic, ex.getMessage(), ex);
+                            ctx.writeAndFlush(
+                                    newLookupResponse(ServerError.ServiceNotReady, ex.getMessage(), requestId));
+                        }
+                        service.getLookupRequestSemaphore().release();
+                        return null;
+                    });
+        } else {
+            log.warn("[{}] Failed lookup due to too many lookup-requets {}", remoteAddress, topic);
+            ctx.writeAndFlush(newLookupResponse(ServerError.TooManyRequest,
+                    "Failed due to too many pending lookup requests", requestId));
+        }
+
     }
 
     @Override
@@ -171,24 +182,33 @@ public class ServerCnx extends PulsarHandler {
         }
         final long requestId = partitionMetadata.getRequestId();
         final String topic = partitionMetadata.getTopic();
-        getPartitionedTopicMetadata(getBrokerService().pulsar(), getRole(), DestinationName.get(topic))
-                .thenAccept(metadata -> {
-                    int partitions = metadata.partitions;
-                    ctx.writeAndFlush(Commands.newPartitionMetadataResponse(partitions, requestId));
-                }).exceptionally(ex -> {
-                    if (ex instanceof PulsarClientException) {
-                        log.warn("Failed to authorize {} at [{}] on topic {} : {}", getRole(), remoteAddress, topic,
-                                ex.getMessage());
-                        ctx.writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.AuthorizationError,
-                                ex.getMessage(), requestId));
-                    } else {
-                        log.warn("Failed to get Partitioned Metadata [{}] {}: {}", remoteAddress, topic,
-                                ex.getMessage(), ex);
-                        ctx.writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.ServiceNotReady,
-                                ex.getMessage(), requestId));
-                    }
-                    return null;
-                });
+        if (service.getLookupRequestSemaphore().tryAcquire()) {
+            getPartitionedTopicMetadata(getBrokerService().pulsar(), getRole(), DestinationName.get(topic))
+                    .handle((metadata, ex) -> {
+                        if (ex == null) {
+                            int partitions = metadata.partitions;
+                            ctx.writeAndFlush(Commands.newPartitionMetadataResponse(partitions, requestId));
+                        } else {
+                            if (ex instanceof PulsarClientException) {
+                                log.warn("Failed to authorize {} at [{}] on topic {} : {}", getRole(), remoteAddress,
+                                        topic, ex.getMessage());
+                                ctx.writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.AuthorizationError,
+                                        ex.getMessage(), requestId));
+                            } else {
+                                log.warn("Failed to get Partitioned Metadata [{}] {}: {}", remoteAddress, topic,
+                                        ex.getMessage(), ex);
+                                ctx.writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.ServiceNotReady,
+                                        ex.getMessage(), requestId));
+                            }
+                        }
+                        service.getLookupRequestSemaphore().release();
+                        return null;
+                    });
+        } else {
+            log.warn("[{}] Failed Partition-Metadata lookup due to too many lookup-requets {}", remoteAddress, topic);
+            ctx.writeAndFlush(newLookupResponse(ServerError.TooManyRequest,
+                    "Failed due to too many pending lookup requests", requestId));
+        }
     }
     
     @Override

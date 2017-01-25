@@ -16,27 +16,32 @@
 package com.yahoo.pulsar.broker.service;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 import java.io.IOException;
+import java.lang.reflect.Method;
+import java.net.URI;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 import com.yahoo.pulsar.broker.service.persistent.PersistentTopic;
 import com.yahoo.pulsar.client.admin.BrokerStats;
 import com.yahoo.pulsar.client.api.Authentication;
@@ -46,13 +51,16 @@ import com.yahoo.pulsar.client.api.ConsumerConfiguration;
 import com.yahoo.pulsar.client.api.Message;
 import com.yahoo.pulsar.client.api.Producer;
 import com.yahoo.pulsar.client.api.PulsarClient;
+import com.yahoo.pulsar.client.api.PulsarClientException;
 import com.yahoo.pulsar.client.api.SubscriptionType;
+import com.yahoo.pulsar.client.impl.ConsumerImpl;
+import com.yahoo.pulsar.client.impl.ProducerImpl;
 import com.yahoo.pulsar.client.impl.auth.AuthenticationTls;
 import com.yahoo.pulsar.common.naming.DestinationName;
 import com.yahoo.pulsar.common.naming.NamespaceBundle;
 import com.yahoo.pulsar.common.policies.data.PersistentSubscriptionStats;
 import com.yahoo.pulsar.common.policies.data.PersistentTopicStats;
-
+import com.yahoo.pulsar.common.util.ObjectMapperFactory;
 /**
  */
 public class BrokerServiceTest extends BrokerTestBase {
@@ -702,6 +710,235 @@ public class BrokerServiceTest extends BrokerTestBase {
             fail("should not fail");
         } finally {
             pulsarClient.close();
+        }
+    }
+
+    /**
+     * Verifies: admin-rest api creates throttling zk-node if it's not already present.
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testThrottlingLookupPermitZKCreate() throws Exception {
+        final int newPermit = 50;
+        admin.lookups().updateLookupPermits(newPermit);
+        Thread.sleep(500);
+        byte[] content = mockZookKeeper.getData(BrokerService.LOOKUP_THROTTLING_PATH, null, null);
+        int zkPermit = Integer.parseInt((String) ObjectMapperFactory.getThreadLocal().readValue(content, HashMap.class)
+                .get(BrokerService.THROTTLING_LOOKUP_REQUEST_KEY));
+        assertEquals(newPermit, zkPermit);
+    }
+
+    /**
+     * Verifies: updating zk-thottling node reflects broker-maxConcurrentLookupRequest and updates semaphore.
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testThrottlingLookupRequestSemaphore() throws Exception {
+        BrokerService service = pulsar.getBrokerService();
+        // create a znode for permits
+        admin.lookups().updateLookupPermits(10);
+        Thread.sleep(500);
+        // get zk node in cache and listner is already registered, so next
+        // zk-update will update permits value in brokerService
+        Method getPermitZkNodeMethod = BrokerService.class.getDeclaredMethod("getLookupRequestPermits");
+        getPermitZkNodeMethod.setAccessible(true);
+        getPermitZkNodeMethod.invoke(service);
+        // update zknode with permit value
+        admin.lookups().updateLookupPermits(0);
+        Thread.sleep(500);
+        assertEquals(service.lookupRequestSemaphore.get().availablePermits(), 0);
+    }
+
+    /**
+     * Broker has maxConcurrentLookupRequest = 0 so, it rejects incoming lookup request and it cause consumer creation
+     * failure.
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testLookupThrottlingForClientByBroker0Permit() throws Exception {
+
+        BrokerService service = pulsar.getBrokerService();
+
+        final String topicName = "persistent://prop/usw/my-ns/newTopic";
+
+        com.yahoo.pulsar.client.api.ClientConfiguration clientConf = new com.yahoo.pulsar.client.api.ClientConfiguration();
+        clientConf.setStatsInterval(0, TimeUnit.SECONDS);
+        String lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT).toString();
+        PulsarClient pulsarClient = PulsarClient.create(lookupUrl, clientConf);
+
+        ConsumerConfiguration consumerConfig = new ConsumerConfiguration();
+        Consumer consumer = pulsarClient.subscribe(topicName, "mysub", consumerConfig);
+        consumer.close();
+
+        // update throttling-permit into zk
+        // create a znode for permits
+        admin.lookups().updateLookupPermits(10);
+        Thread.sleep(500);
+        // get zk node in cache and listner is already registered, so next
+        // zk-update will update permits value in brokerService
+        Method getPermitZkNodeMethod = BrokerService.class.getDeclaredMethod("getLookupRequestPermits");
+        getPermitZkNodeMethod.setAccessible(true);
+        getPermitZkNodeMethod.invoke(service);
+        // update zknode with permit value
+        admin.lookups().updateLookupPermits(0);
+
+        try {
+            consumer = pulsarClient.subscribe(topicName, "mysub", consumerConfig);
+            consumer.close();
+            fail("It should fail as throttling should not receive any request");
+        } catch (com.yahoo.pulsar.client.api.PulsarClientException.TooManyLookupRequestException e) {
+            // ok as throttling set to 0
+        }
+    }
+    
+    /**
+     * Verifies: Broker side throttling: 
+     * 1. concurrent_consumer_creation > maxConcurrentLookupRequest at broker
+     * 2. few of the consumer creation must fail with TooManyLookupRequestException.
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testLookupThrottlingForClientByBroker() throws Exception {
+
+        BrokerService service = pulsar.getBrokerService();
+
+        final String topicName = "persistent://prop/usw/my-ns/newTopic";
+
+        com.yahoo.pulsar.client.api.ClientConfiguration clientConf = new com.yahoo.pulsar.client.api.ClientConfiguration();
+        clientConf.setStatsInterval(0, TimeUnit.SECONDS);
+        clientConf.setIoThreads(20);
+        clientConf.setConnectionsPerBroker(20);
+        String lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT).toString();
+        PulsarClient pulsarClient = PulsarClient.create(lookupUrl, clientConf);
+
+        ConsumerConfiguration consumerConfig = new ConsumerConfiguration();
+        consumerConfig.setSubscriptionType(SubscriptionType.Shared);
+
+        // create a throttling-znode for permits
+        admin.lookups().updateLookupPermits(10);
+        Thread.sleep(500);
+        // get zk node in cache and listner is already registered, so next
+        // zk-update will update permits value in brokerService
+        Method getPermitZkNodeMethod = BrokerService.class.getDeclaredMethod("getLookupRequestPermits");
+        getPermitZkNodeMethod.setAccessible(true);
+        getPermitZkNodeMethod.invoke(service);
+        // update zknode with permit value: 1 (only 1 concurrent request allows)
+        admin.lookups().updateLookupPermits(1);
+        Thread.sleep(500);
+
+        List<Consumer> successfulConsumers = Lists.newArrayList();
+        ExecutorService executor = Executors.newFixedThreadPool(10);
+        final int totalConsumers = 20;
+        CountDownLatch latch = new CountDownLatch(totalConsumers);
+        for (int i = 0; i < totalConsumers; i++) {
+            executor.execute(() -> {
+                try {
+                    successfulConsumers.add(pulsarClient.subscribe(topicName, "mysub", consumerConfig));
+                } catch (PulsarClientException.TooManyLookupRequestException e) {
+                    // ok
+                } catch (Exception e) {
+                    fail("it shouldn't failed");
+                }
+                latch.countDown();
+            });
+        }
+        latch.await();
+
+        for (int i = 0; i < successfulConsumers.size(); i++) {
+            successfulConsumers.get(i).close();
+        }
+        pulsarClient.close();
+        assertNotEquals(successfulConsumers.size(), totalConsumers);
+    }
+
+    /**
+     * This testcase make sure that once consumer lost connection with broker, it always reconnects with broker by retrying on
+     * throttling-error exception also.
+     * 1. all consumers get connected
+     * 2. broker restarts with maxConcurrentLookupRequest = 1
+     * 3. consumers reconnect and some get TooManyRequestException and again retries
+     * 4. eventually all consumers will successfully connect to broker
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testLookupThrottlingForClientByBrokerInternalRetry() throws Exception {
+
+        final String topicName = "persistent://prop/usw/my-ns/newTopic";
+
+        com.yahoo.pulsar.client.api.ClientConfiguration clientConf = new com.yahoo.pulsar.client.api.ClientConfiguration();
+        clientConf.setStatsInterval(0, TimeUnit.SECONDS);
+        clientConf.setIoThreads(20);
+        clientConf.setConnectionsPerBroker(20);
+        String lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT).toString();
+        PulsarClient pulsarClient = PulsarClient.create(lookupUrl, clientConf);
+        // update permit to allow all consumers to get connect first time
+        admin.lookups().updateLookupPermits(100);
+        ConsumerConfiguration consumerConfig = new ConsumerConfiguration();
+        consumerConfig.setSubscriptionType(SubscriptionType.Shared);
+        List<Consumer> consumers = Lists.newArrayList();
+        ExecutorService executor = Executors.newFixedThreadPool(10);
+        final int totalConsumers = 8;
+        CountDownLatch latch = new CountDownLatch(totalConsumers);
+        for (int i = 0; i < totalConsumers; i++) {
+            executor.execute(() -> {
+                try {
+                    consumers.add(pulsarClient.subscribe(topicName, "mysub", consumerConfig));
+                } catch (PulsarClientException.TooManyLookupRequestException e) {
+                    // ok
+                } catch (Exception e) {
+                    fail("it shouldn't failed");
+                }
+                latch.countDown();
+            });
+        }
+        latch.await();
+
+        stopBroker();
+        int actualValue = conf.getMaxConcurrentLookupRequest();
+        conf.setMaxConcurrentLookupRequest(1);
+        startBroker();
+        // wait for consumer to reconnect
+        Thread.sleep(3000);
+
+        int totalConnectedConsumers = 0;
+        for (int i = 0; i < consumers.size(); i++) {
+            if (((ConsumerImpl) consumers.get(i)).isConnected()) {
+                totalConnectedConsumers++;
+            }
+            consumers.get(i).close();
+
+        }
+        assertEquals(totalConnectedConsumers, totalConsumers);
+
+        pulsarClient.close();
+        conf.setMaxConcurrentLookupRequest(actualValue);
+    }
+    
+    /**
+     * Verifies: client side throttling.
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testLookupThrottlingForClientByClient() throws Exception {
+        final String topicName = "persistent://prop/usw/my-ns/newTopic";
+
+        com.yahoo.pulsar.client.api.ClientConfiguration clientConf = new com.yahoo.pulsar.client.api.ClientConfiguration();
+        clientConf.setStatsInterval(0, TimeUnit.SECONDS);
+        clientConf.setConcurrentLookupRequest(0);
+        String lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT).toString();
+        PulsarClient pulsarClient = PulsarClient.create(lookupUrl, clientConf);
+
+        try {
+            Consumer consumer = pulsarClient.subscribe(topicName, "mysub", new ConsumerConfiguration());
+            fail("It should fail as throttling should not receive any request");
+        } catch (com.yahoo.pulsar.client.api.PulsarClientException.TooManyLookupRequestException e) {
+            // ok as throttling set to 0
         }
     }
 

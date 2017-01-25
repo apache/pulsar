@@ -19,6 +19,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 import static org.apache.commons.collections.CollectionUtils.isEmpty;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -27,11 +28,14 @@ import java.net.URI;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
@@ -41,7 +45,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.commons.lang.SystemUtils;
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
@@ -77,8 +80,10 @@ import com.yahoo.pulsar.common.policies.data.PersistentTopicStats;
 import com.yahoo.pulsar.common.policies.data.Policies;
 import com.yahoo.pulsar.common.policies.data.RetentionPolicies;
 import com.yahoo.pulsar.common.policies.data.loadbalancer.NamespaceBundleStats;
+import com.yahoo.pulsar.common.util.ObjectMapperFactory;
 import com.yahoo.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import com.yahoo.pulsar.zookeeper.ZooKeeperCacheListener;
+import com.yahoo.pulsar.zookeeper.ZooKeeperDataCache;
 
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBuf;
@@ -119,6 +124,9 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     private AuthorizationManager authorizationManager = null;
     private final ScheduledExecutorService statsUpdater;
     private final ScheduledExecutorService backlogQuotaChecker;
+    
+    private final ZooKeeperDataCache<Map<String, String>> dynamicConfigurationCache;
+    protected final AtomicReference<Semaphore> lookupRequestSemaphore;
 
     private final ScheduledExecutorService inactivityMonitor;
     private final ScheduledExecutorService messageExpiryMonitor;
@@ -126,6 +134,9 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     private DistributedIdGenerator producerNameGenerator;
 
     private final static String producerNameGeneratorPath = "/counters/producer-name";
+
+    public static final String LOOKUP_THROTTLING_PATH = "/loadbalance/settings/throttling";
+    public static final String THROTTLING_LOOKUP_REQUEST_KEY = "maxConcurrentLookupRequest";
 
     private final BacklogQuotaManager backlogQuotaManager;
 
@@ -186,6 +197,14 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         this.backlogQuotaChecker = Executors
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-backlog-quota-checker"));
         this.authenticationService = new AuthenticationService(pulsar.getConfiguration());
+        this.dynamicConfigurationCache = new ZooKeeperDataCache<Map<String, String>>(pulsar.getLocalZkCache()) {
+            @Override
+            public Map<String, String> deserialize(String key, byte[] content) throws Exception {
+                return ObjectMapperFactory.getThreadLocal().readValue(content, HashMap.class);
+            }
+        };
+        this.lookupRequestSemaphore = new AtomicReference<Semaphore>(new Semaphore(getLookupRequestPermits(), true));
+        registerListenerToUpdateLookupRequest();
 
         PersistentReplicator.setReplicatorQueueSize(pulsar.getConfiguration().getReplicationProducerQueueSize());
     }
@@ -598,6 +617,10 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     public Map<String, NamespaceBundleStats> getBundleStats() {
         return pulsarStats.getBundleStats();
     }
+    
+    public Semaphore getLookupRequestSemaphore() {
+        return lookupRequestSemaphore.get();
+    }
 
     public void checkGC(int gcIntervalInSeconds) {
         topics.forEach((n, t) -> {
@@ -819,6 +842,39 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
     public AuthenticationService getAuthenticationService() {
         return authenticationService;
+    }
+    
+    private int getLookupRequestPermits() {
+        int pendingLookupRequest = pulsar.getConfiguration().getMaxConcurrentLookupRequest();
+        try {
+            Optional<Map<String, String>> data = dynamicConfigurationCache.get(LOOKUP_THROTTLING_PATH);
+            if (data.isPresent() && data.get().get(THROTTLING_LOOKUP_REQUEST_KEY) != null) {
+                pendingLookupRequest = Integer.parseInt(data.get().get(THROTTLING_LOOKUP_REQUEST_KEY));
+            }
+        } catch (Exception e) {
+            log.warn("Got exception when reading ZooKeeper path [{}]:", LOOKUP_THROTTLING_PATH, e);
+        }
+        if (log.isDebugEnabled()) {
+            log.debug("Configured maxConcurrentLookupRequest {}", pendingLookupRequest);
+        }
+        return pendingLookupRequest;
+    }
+
+    private void registerListenerToUpdateLookupRequest() {
+        // register listener for future update
+        dynamicConfigurationCache.registerListener(new ZooKeeperCacheListener<Map<String, String>>() {
+            @Override
+            public void onUpdate(String path, Map<String, String> data, Stat stat) {
+                if (LOOKUP_THROTTLING_PATH.equals(path)) {
+                    if (data.get(THROTTLING_LOOKUP_REQUEST_KEY) != null) {
+                        int pendingLookupRequest = Integer.parseInt(data.get(THROTTLING_LOOKUP_REQUEST_KEY));
+                        lookupRequestSemaphore.set(new Semaphore(pendingLookupRequest, true));
+                    } else {
+                        log.info("{} removed {} from zk", LOOKUP_THROTTLING_PATH, THROTTLING_LOOKUP_REQUEST_KEY);
+                    }
+                }
+            }
+        });
     }
 
     public List<PersistentTopic> getAllTopicsFromNamespaceBundle(String namespace, String bundle) {

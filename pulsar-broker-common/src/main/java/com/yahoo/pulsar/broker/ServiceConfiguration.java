@@ -87,6 +87,8 @@ public class ServiceConfiguration implements PulsarConfiguration{
     // messages to consumer once, this limit reaches until consumer starts acknowledging messages back
     // Using a value of 0, is disabling unackedMessage-limit check and consumer can receive messages without any restriction
     private int maxUnackedMessagesPerConsumer = 50000;
+    // Max number of concurrent lookup request broker allows to throttle heavy incoming lookup traffic
+    private int maxConcurrentLookupRequest = 20000;
 
     /***** --- TLS --- ****/
     // Enable TLS
@@ -414,6 +416,14 @@ public class ServiceConfiguration implements PulsarConfiguration{
 
     public void setMaxUnackedMessagesPerConsumer(int maxUnackedMessagesPerConsumer) {
         this.maxUnackedMessagesPerConsumer = maxUnackedMessagesPerConsumer;
+    }
+
+    public int getMaxConcurrentLookupRequest() {
+        return maxConcurrentLookupRequest;
+    }
+
+    public void setMaxConcurrentLookupRequest(int maxConcurrentLookupRequest) {
+        this.maxConcurrentLookupRequest = maxConcurrentLookupRequest;
     }
 
     public boolean isTlsEnabled() {

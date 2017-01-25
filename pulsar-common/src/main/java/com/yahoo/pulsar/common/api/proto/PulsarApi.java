@@ -64,6 +64,7 @@ public final class PulsarApi {
     ProducerBlockedQuotaExceededError(7, 7),
     ProducerBlockedQuotaExceededException(8, 8),
     ChecksumError(9, 9),
+    TooManyRequest(10, 10),
     ;
     
     public static final int UnknownError_VALUE = 0;
@@ -76,6 +77,7 @@ public final class PulsarApi {
     public static final int ProducerBlockedQuotaExceededError_VALUE = 7;
     public static final int ProducerBlockedQuotaExceededException_VALUE = 8;
     public static final int ChecksumError_VALUE = 9;
+    public static final int TooManyRequest_VALUE = 10;
     
     
     public final int getNumber() { return value; }
@@ -92,6 +94,7 @@ public final class PulsarApi {
         case 7: return ProducerBlockedQuotaExceededError;
         case 8: return ProducerBlockedQuotaExceededException;
         case 9: return ChecksumError;
+        case 10: return TooManyRequest;
         default: return null;
       }
     }

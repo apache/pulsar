@@ -16,10 +16,11 @@
 package com.yahoo.pulsar.client.admin.internal;
 
 import javax.ws.rs.ClientErrorException;
+import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
 
-import com.yahoo.pulsar.client.admin.PulsarAdminException;
 import com.yahoo.pulsar.client.admin.Lookup;
+import com.yahoo.pulsar.client.admin.PulsarAdminException;
 import com.yahoo.pulsar.client.api.Authentication;
 import com.yahoo.pulsar.common.lookup.data.LookupData;
 import com.yahoo.pulsar.common.naming.DestinationName;
@@ -48,6 +49,15 @@ public class LookupImpl extends BaseResource implements Lookup {
         try {
             DestinationName destName = DestinationName.get(destination);
             return doDestinationLookup(v2lookup.path("/destination"), destName);
+        } catch (Exception e) {
+            throw getLookupApiException(e);
+        }
+    }
+
+    @Override
+    public void updateLookupPermits(int permits) throws PulsarAdminException {
+        try {
+            request(v2lookup.path("/destination/permits/").path(Integer.toString(permits))).put(Entity.json(""));
         } catch (Exception e) {
             throw getLookupApiException(e);
         }
