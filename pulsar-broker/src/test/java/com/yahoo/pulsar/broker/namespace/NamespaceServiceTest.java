@@ -57,6 +57,13 @@ import com.yahoo.pulsar.common.naming.NamespaceName;
 import com.yahoo.pulsar.common.naming.ServiceUnitId;
 import com.yahoo.pulsar.common.policies.data.Policies;
 import com.yahoo.pulsar.common.util.ObjectMapperFactory;
+import static org.mockito.Mockito.doAnswer;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
+import com.yahoo.pulsar.broker.service.Topic;
+import com.yahoo.pulsar.client.api.Consumer;
+import com.yahoo.pulsar.client.api.ConsumerConfiguration;
+import com.yahoo.pulsar.common.util.collections.ConcurrentOpenHashMap;
 
 public class NamespaceServiceTest extends BrokerTestBase {
 
@@ -244,5 +251,40 @@ public class NamespaceServiceTest extends BrokerTestBase {
         bCacheField.setAccessible(true);
         ((LoadingCache<NamespaceName, NamespaceBundles>) bCacheField.get(utilityFactory)).put(nsname, bundles);
         return utilityFactory.splitBundles(targetBundle, 2);
+    }
+    
+    @Test
+    public void testUnloadNamespaceBundleFailure() throws Exception {
+
+        final String topicName = "persistent://my-property/use/my-ns/my-topic1";
+        ConsumerConfiguration conf = new ConsumerConfiguration();
+        Consumer consumer = pulsarClient.subscribe(topicName, "my-subscriber-name", conf);
+        ConcurrentOpenHashMap<String, CompletableFuture<Topic>> topics = pulsar.getBrokerService().getTopics();
+        Topic spyTopic = spy(topics.get(topicName).get());
+        topics.clear();
+        CompletableFuture<Topic> topicFuture = CompletableFuture.completedFuture(spyTopic);
+        // add mock topic
+        topics.put(topicName, topicFuture);
+        doAnswer(new Answer<CompletableFuture<Void>>() {
+            @Override
+            public CompletableFuture<Void> answer(InvocationOnMock invocation) throws Throwable {
+                CompletableFuture<Void> result = new CompletableFuture<>();
+                result.completeExceptionally(new RuntimeException("first time failed"));
+                return result;
+            }
+        }).when(spyTopic).close();
+        ServiceUnitId bundle = pulsar.getNamespaceService().getBundle(DestinationName.get(topicName));
+        try {
+            pulsar.getNamespaceService().unloadNamespaceBundle((NamespaceBundle) bundle);
+        } catch (Exception e) {
+            // fail
+            fail(e.getMessage());
+        }
+        try {
+            pulsar.getLocalZkCache().getZooKeeper().getData(ServiceUnitZkUtils.path(bundle), null, null);
+            fail("it should fail as node is not present");
+        } catch (org.apache.zookeeper.KeeperException.NoNodeException e) {
+            // ok
+        }
     }
 }

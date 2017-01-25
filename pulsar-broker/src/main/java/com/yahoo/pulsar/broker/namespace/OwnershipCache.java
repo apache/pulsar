@@ -151,23 +151,6 @@ public class OwnershipCache {
         }
     }
 
-    private class OwnedServiceUnitCacheRemovalListener implements RemovalListener<String, OwnedServiceUnit> {
-
-        @Override
-        public void onRemoval(RemovalNotification<String, OwnedServiceUnit> notification) {
-            // Under the cache sync lock, removing the ZNode
-            // If succeeded, we guaranteed that the cache entry is removed together w/ ZNode
-            try {
-                localZkCache.getZooKeeper().delete(notification.getKey(), -1);
-                ownershipReadOnlyCache.invalidate(notification.getKey());
-
-                LOG.info("Removed zk lock for service unit: {}", notification.getKey());
-            } catch (Exception e) {
-                LOG.error("Failed to delete the namespace ephemeral node. key={}", notification.getKey(), e);
-            }
-        }
-    }
-
     /**
      * Constructor of <code>OwnershipCache</code>
      *
@@ -187,8 +170,7 @@ public class OwnershipCache {
         this.localZkCache = pulsar.getLocalZkCache();
         this.ownershipReadOnlyCache = pulsar.getLocalZkCacheService().ownerInfoCache();
         // ownedServiceUnitsCache contains all namespaces that are owned by the local broker
-        this.ownedServiceUnitsCache = CacheBuilder.newBuilder()
-                .removalListener(new OwnedServiceUnitCacheRemovalListener()).build(new OwnedServiceUnitCacheLoader());
+        this.ownedServiceUnitsCache = CacheBuilder.newBuilder().build(new OwnedServiceUnitCacheLoader());
     }
 
     /**
@@ -237,9 +219,21 @@ public class OwnershipCache {
      *
      * @param suId
      *            identifier of the <code>ServiceUnit</code>
+     * @throws Exception 
      */
-    public void removeOwnership(ServiceUnitId suname) {
-        this.ownedServiceUnitsCache.invalidate(ServiceUnitZkUtils.path(suname));
+    public void removeOwnership(ServiceUnitId suname) throws Exception {
+        // Under the cache sync lock, removing the ZNode
+        // If succeeded, we guaranteed that the cache entry is removed together w/ ZNode
+        String key = ServiceUnitZkUtils.path(suname);
+        try {
+            localZkCache.getZooKeeper().delete(key, -1);
+            this.ownedServiceUnitsCache.invalidate(key);
+            this.ownershipReadOnlyCache.invalidate(key);
+            LOG.info("Removed zk lock for service unit: {}", key);
+        } catch (KeeperException.NoNodeException e) {
+            LOG.warn("[{}] Failed to delete the namespace ephemeral node. key={}", key, e.getMessage());
+        }
+
     }
 
     /**
@@ -282,5 +276,19 @@ public class OwnershipCache {
         String path = ServiceUnitZkUtils.path(suName);
         localZkCache.getZooKeeper().setData(path, jsonMapper.writeValueAsBytes(selfOwnerInfos[1]), -1);
         this.ownershipReadOnlyCache.invalidate(path);
+    }
+    
+    /**
+     * Update bundle state in a local cache
+     * 
+     * @param bundle
+     * @throws Exception
+     */
+    public void updateBundleState(ServiceUnitId bundle, boolean isActive) throws Exception {
+        // Disable owned instance in local cache
+        OwnedServiceUnit ownedServiceUnit = getOwnedServiceUnit(bundle);
+        if (ownedServiceUnit != null) {
+            ownedServiceUnit.setActive(isActive);
+        }
     }
 }

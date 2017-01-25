@@ -104,11 +104,25 @@ public class OwnedServiceUnit {
         int unloadedTopics = 0;
         try {
             LOG.info("Disabling ownership: {}", this.suName);
-            pulsar.getNamespaceService().getOwnershipCache().disableOwnership(this.suName);
+            pulsar.getNamespaceService().getOwnershipCache().updateBundleState(this.suName, false);
 
-            // Handle unload of persistent topics
-            unloadedTopics = pulsar.getBrokerService().unloadServiceUnit(suName).get();
-            pulsar.getNamespaceService().getOwnershipCache().removeOwnership(suName);
+            // close topics forcefully
+            try {
+                unloadedTopics = pulsar.getBrokerService().unloadServiceUnit(suName).get();
+            } catch (Exception e) {
+                // ignore topic-close failure to unload bundle
+                LOG.error("Failed to close topics under namespace {}", suName.toString(), e);
+            }
+            
+            // delete ownership node on zk
+            try {
+                pulsar.getNamespaceService().getOwnershipCache().removeOwnership(suName);
+            } catch (Exception e) {
+                // Failed to remove ownership node: enable namespace-bundle again so, it can serve new topics
+                pulsar.getNamespaceService().getOwnershipCache().updateBundleState(this.suName, true);
+                throw new RuntimeException(String.format("Failed to delete ownership node %s", suName.toString()),
+                        e.getCause());
+            }
         } catch (Exception e) {
             LOG.error(String.format("failed to unload a namespace. ns=%s", suName.toString()), e);
             throw new RuntimeException(e);
@@ -125,5 +139,9 @@ public class OwnedServiceUnit {
      */
     public boolean isActive() {
         return this.isActive.get();
+    }
+    
+    public void setActive(boolean active) {
+        isActive.set(active);
     }
 }
