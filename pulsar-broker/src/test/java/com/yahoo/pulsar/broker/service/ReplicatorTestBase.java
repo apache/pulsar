@@ -182,6 +182,8 @@ public class ReplicatorTestBase {
         assertEquals(admin2.clusters().getCluster("r1").getServiceUrl(), url1.toString());
         assertEquals(admin2.clusters().getCluster("r2").getServiceUrl(), url2.toString());
         assertEquals(admin2.clusters().getCluster("r3").getServiceUrl(), url3.toString());
+        admin1.namespaces().createNamespace("pulsar/global/ns1");
+        admin1.namespaces().setNamespaceReplicationClusters("pulsar/global/ns1", Lists.newArrayList("r1", "r2"));
         /*
          * assertEquals(admin2.clusters().getCluster("global").getServiceUrl(), "http://global:8080");
          * assertEquals(admin2.properties().getPropertyAdmin("pulsar").getAdminRoles(), Lists.newArrayList("appid1",

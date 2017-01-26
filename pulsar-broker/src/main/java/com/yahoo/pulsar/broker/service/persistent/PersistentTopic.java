@@ -544,6 +544,22 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
         return closeFuture;
     }
+    
+    private CompletableFuture<Void> checkReplicationAndRetryOnFailure() {
+        CompletableFuture<Void> result = new CompletableFuture<Void>();
+        checkReplication().thenAccept(res -> {
+            log.info("[{}] Policies updated successfully", topic);
+            result.complete(null);
+        }).exceptionally(th -> {
+            log.error("[{}] Policies update failed {}, scheduled retry in {} seconds", topic, th.getMessage(),
+                    POLICY_UPDATE_FAILURE_RETRY_TIME_SECONDS, th);
+            brokerService.executor().schedule(this::checkReplicationAndRetryOnFailure,
+                    POLICY_UPDATE_FAILURE_RETRY_TIME_SECONDS, TimeUnit.SECONDS);
+            result.completeExceptionally(th);
+            return null;
+        });
+        return result;
+    }
 
     @Override
     public CompletableFuture<Void> checkReplication() {
@@ -632,8 +648,8 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             @Override
             public void openCursorComplete(ManagedCursor cursor, Object ctx) {
                 String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
-                replicators.put(remoteCluster, new PersistentReplicator(PersistentTopic.this, cursor, localCluster,
-                        remoteCluster, brokerService));
+                replicators.computeIfAbsent(remoteCluster, r -> new PersistentReplicator(PersistentTopic.this, cursor,
+                        localCluster, remoteCluster, brokerService));
                 future.complete(null);
             }
 
@@ -1071,19 +1087,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         producers.forEach(Producer::checkPermissions);
         subscriptions.forEach((subName, sub) -> sub.getConsumers().forEach(Consumer::checkPermissions));
         checkMessageExpiry();
-        CompletableFuture<Void> result = new CompletableFuture<Void>();
-        checkReplication().thenAccept(res -> {
-            log.info("Policies updated successfully {}", data);
-            result.complete(null);
-        }).exceptionally(th -> {
-            log.error("Policies update failed {} {}, scheduled retry in {} seconds", data, th.getMessage(),
-                    POLICY_UPDATE_FAILURE_RETRY_TIME_SECONDS, th);
-            brokerService.executor().schedule(this::checkReplication, POLICY_UPDATE_FAILURE_RETRY_TIME_SECONDS,
-                    TimeUnit.SECONDS);
-            result.completeExceptionally(th);
-            return null;
-        });
-        return result;
+        return checkReplicationAndRetryOnFailure();
     }
 
     /**

@@ -18,7 +18,6 @@ package com.yahoo.pulsar.broker.service;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.fail;
 
 import java.lang.reflect.Field;
@@ -29,6 +28,8 @@ import java.util.TreeSet;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
@@ -36,6 +37,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -51,9 +53,11 @@ import com.yahoo.pulsar.broker.service.persistent.PersistentReplicator;
 import com.yahoo.pulsar.broker.service.persistent.PersistentTopic;
 import com.yahoo.pulsar.client.admin.PulsarAdminException;
 import com.yahoo.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
+import com.yahoo.pulsar.client.api.ClientConfiguration;
 import com.yahoo.pulsar.client.api.MessageBuilder;
 import com.yahoo.pulsar.client.api.PulsarClient;
 import com.yahoo.pulsar.client.impl.ProducerImpl;
+import com.yahoo.pulsar.client.impl.PulsarClientImpl;
 import com.yahoo.pulsar.common.naming.DestinationName;
 import com.yahoo.pulsar.common.naming.NamespaceBundle;
 import com.yahoo.pulsar.common.naming.NamespaceName;
@@ -630,6 +634,89 @@ public class ReplicatorTest extends ReplicatorTestBase {
         field.setAccessible(true);
         ProducerImpl producer = (ProducerImpl) field.get(replicator);
         assertNull(producer);
+    }
+    
+    @Test
+    public void testConcurrentReplicator() throws Exception {
+
+        log.info("--- Starting ReplicatorTest::testConfigChange ---");
+
+        final DestinationName dest = DestinationName.get(String.format("persistent://pulsar/global/ns1/topic-%d", 0));
+        ClientConfiguration conf = new ClientConfiguration();
+        conf.setStatsInterval(0, TimeUnit.SECONDS);
+        ProducerImpl producer = (ProducerImpl) PulsarClient.create(url1.toString(), conf).createProducer(dest.toString());
+        producer.close();
+
+        PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService().getTopic(dest.toString()).get();
+
+        PulsarClientImpl pulsarClient = spy((PulsarClientImpl) pulsar1.getBrokerService().getReplicationClient("r3"));
+        final Method startRepl = PersistentTopic.class.getDeclaredMethod("startReplicator", String.class);
+        startRepl.setAccessible(true);
+
+        Field replClientField = BrokerService.class.getDeclaredField("replicationClients");
+        replClientField.setAccessible(true);
+        ConcurrentOpenHashMap<String, PulsarClient> replicationClients = (ConcurrentOpenHashMap<String, PulsarClient>) replClientField
+                .get(pulsar1.getBrokerService());
+        replicationClients.put("r3", pulsarClient);
+
+        ExecutorService executor = Executors.newFixedThreadPool(5);
+        for (int i = 0; i < 5; i++) {
+            executor.submit(() -> {
+                try {
+                    startRepl.invoke(topic, "r3");
+                } catch (Exception e) {
+                    fail("setting replicator failed", e);
+                }
+            });
+        }
+        Thread.sleep(3000);
+
+        Mockito.verify(pulsarClient, Mockito.times(1)).createProducerAsync(Mockito.anyString(), Mockito.anyObject(),
+                Mockito.anyString());
+
+    }
+    
+    /**
+     * It verifies that: if it fails while removing replicator-cluster-cursor: it should not restart the replicator and
+     * it should have cleaned up from the list
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testDeleteReplicatorFailure() throws Exception {
+        log.info("--- Starting ReplicatorTest::testDeleteReplicatorFailure ---");
+        final String topicName = "persistent://pulsar/global/ns/repltopicbatch";
+        final DestinationName dest = DestinationName.get(topicName);
+        MessageProducer producer1 = new MessageProducer(url1, dest);
+        PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService().getTopicReference(topicName);
+        final String replicatorClusterName = topic.getReplicators().keys().get(0);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) topic.getManagedLedger();
+        CountDownLatch latch = new CountDownLatch(1);
+        // delete cursor already : so next time if topic.removeReplicator will get exception but then it should
+        // remove-replicator from the list even with failure
+        ledger.asyncDeleteCursor("pulsar.repl." + replicatorClusterName, new DeleteCursorCallback() {
+            @Override
+            public void deleteCursorComplete(Object ctx) {
+                latch.countDown();
+            }
+
+            @Override
+            public void deleteCursorFailed(ManagedLedgerException exception, Object ctx) {
+                latch.countDown();
+            }
+        }, null);
+        latch.await();
+
+        Method removeReplicator = PersistentTopic.class.getDeclaredMethod("removeReplicator", String.class);
+        removeReplicator.setAccessible(true);
+        // invoke removeReplicator : it fails as cursor is not present: but still it should remove the replicator from
+        // list without restarting it
+        CompletableFuture<Void> result = (CompletableFuture<Void>) removeReplicator.invoke(topic,
+                replicatorClusterName);
+        result.thenApply((v) -> {
+            assertNull(topic.getPersistentReplicator(replicatorClusterName));
+            return null;
+        });
     }
 
     private static final Logger log = LoggerFactory.getLogger(ReplicatorTest.class);
