@@ -270,7 +270,8 @@ public class ServerCnx extends PulsarHandler {
                         // creation request either complete or fails.
                         log.warn("[{}][{}][{}] Consumer is already present on the connection", remoteAddress, topicName,
                                 subscriptionName);
-                        ctx.writeAndFlush(Commands.newError(requestId, ServerError.UnknownError,
+                        ServerError error = !existingConsumerFuture.isDone() ? ServerError.ServiceNotReady : getErrorCode(existingConsumerFuture);;
+                        ctx.writeAndFlush(Commands.newError(requestId, error,
                                 "Consumer is already present on the connection"));
                         return null;
                     }
@@ -361,8 +362,9 @@ public class ServerCnx extends PulsarHandler {
                         // until the previous producer creation
                         // request
                         // either complete or fails.
+                        ServerError error = !existingProducerFuture.isDone() ? ServerError.ServiceNotReady : getErrorCode(existingProducerFuture);
                         log.warn("[{}][{}] Producer is already present on the connection", remoteAddress, topicName);
-                        ctx.writeAndFlush(Commands.newError(requestId, ServerError.UnknownError,
+                        ctx.writeAndFlush(Commands.newError(requestId, error,
                                 "Producer is already present on the connection"));
                         return null;
                     }
@@ -451,6 +453,7 @@ public class ServerCnx extends PulsarHandler {
             return null;
         });
     }
+
 
     @Override
     protected void handleSend(CommandSend send, ByteBuf headersAndPayload) {
@@ -715,6 +718,18 @@ public class ServerCnx extends PulsarHandler {
             // Resume reading from socket
             ctx.channel().config().setAutoRead(true);
         }
+    }
+
+    private <T> ServerError getErrorCode(CompletableFuture<T> future) {
+        ServerError error = ServerError.UnknownError;
+        try {
+            future.getNow(null);
+        } catch (Exception e) {
+            if (e.getCause() instanceof BrokerServiceException) {
+                error = BrokerServiceException.getClientErrorCode((BrokerServiceException) e.getCause());
+            }
+        }
+        return error;
     }
 
     private final void disableTcpNoDelayIfNeeded(String topic, String producerName) {

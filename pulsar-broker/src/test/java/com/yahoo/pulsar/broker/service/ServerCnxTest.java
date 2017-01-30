@@ -353,6 +353,28 @@ public class ServerCnxTest {
         channel.finish();
         assertEquals(topicRef.getProducers().size(), 0);
     }
+    
+    @Test(timeOut = 5000)
+    public void testDuplicateConcurrentProducerCommand() throws Exception {
+        resetChannel();
+        setChannelConnected();
+
+        CompletableFuture<Topic> delayFuture = new CompletableFuture<>();
+        doReturn(delayFuture).when(brokerService).getTopic(any(String.class));
+        // Create producer first time
+        ByteBuf clientCommand = Commands.newProducer(successTopicName, 1 /* producer id */, 1 /* request id */,
+                "prod-name");
+        channel.writeInbound(clientCommand);
+
+        // Create producer second time
+        clientCommand = Commands.newProducer(successTopicName, 1 /* producer id */, 1 /* request id */, "prod-name");
+        channel.writeInbound(clientCommand);
+
+        Object response = getResponse();
+        assertTrue(response instanceof CommandError);
+        CommandError error = (CommandError) response;
+        assertEquals(error.getError(), ServerError.ServiceNotReady);
+    }
 
     @Test(timeOut = 30000)
     public void testProducerOnNotOwnedTopic() throws Exception {
@@ -613,6 +635,29 @@ public class ServerCnxTest {
         assertEquals(((CommandSuccess) response).getRequestId(), 2);
 
         channel.finish();
+    }
+    
+    @Test(timeOut = 5000)
+    public void testDuplicateConcurrentSubscribeCommand() throws Exception {
+        resetChannel();
+        setChannelConnected();
+
+        CompletableFuture<Topic> delayFuture = new CompletableFuture<>();
+        doReturn(delayFuture).when(brokerService).getTopic(any(String.class));
+        // Create subscriber first time
+        ByteBuf clientCommand = Commands.newSubscribe(successTopicName, //
+                successSubName, 1 /* consumer id */, 1 /* request id */, SubType.Exclusive, "test" /* consumer name */);
+        channel.writeInbound(clientCommand);
+
+        // Create producer second time
+        clientCommand = Commands.newSubscribe(successTopicName, //
+                successSubName, 1 /* consumer id */, 1 /* request id */, SubType.Exclusive, "test" /* consumer name */);
+        channel.writeInbound(clientCommand);
+
+        Object response = getResponse();
+        assertTrue(response instanceof CommandError);
+        CommandError error = (CommandError) response;
+        assertEquals(error.getError(), ServerError.ServiceNotReady);
     }
 
     @Test(timeOut = 30000)
