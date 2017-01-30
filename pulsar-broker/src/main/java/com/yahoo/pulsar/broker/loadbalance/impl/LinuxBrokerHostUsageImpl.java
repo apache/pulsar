@@ -33,6 +33,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Class that will return the broker host usage.
@@ -120,8 +121,8 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
      * this would include iowait, irq and steal.
      */
     private CpuStat getTotalCpuUsage() {
-        try {
-            String[] words = Files.lines(Paths.get("/proc/stat"))
+        try (Stream<String> stream = Files.lines(Paths.get("/proc/stat"))) {
+            String[] words = stream
                     .findFirst()
                     .get().split("\\s+");
 
@@ -146,8 +147,8 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
     }
 
     private List<String> getNics() {
-        try {
-            return Files.list(Paths.get("/sys/class/net/"))
+        try (Stream<Path> stream = Files.list(Paths.get("/sys/class/net/"))) {
+            return stream
                     .filter(this::isPhysicalNic)
                     .map(path -> path.getFileName().toString())
                     .collect(Collectors.toList());
