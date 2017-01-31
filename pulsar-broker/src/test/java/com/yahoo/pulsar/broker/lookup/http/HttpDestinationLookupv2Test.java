@@ -27,6 +27,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicReference;
 
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.AsyncResponse;
@@ -108,6 +110,7 @@ public class HttpDestinationLookupv2Test {
         BrokerService brokerService = mock(BrokerService.class);
         doReturn(brokerService).when(pulsar).getBrokerService();
         doReturn(auth).when(brokerService).getAuthorizationManager();
+        doReturn(new Semaphore(1000)).when(brokerService).getLookupRequestSemaphore();
     }
 
     @Test
@@ -133,6 +136,35 @@ public class HttpDestinationLookupv2Test {
         assertEquals(arg.getValue().getClass(), WebApplicationException.class);
         WebApplicationException wae = (WebApplicationException) arg.getValue();
         assertEquals(wae.getResponse().getStatus(), Status.TEMPORARY_REDIRECT.getStatusCode());
+    }
+    
+    
+    @Test
+    public void testNotEnoughLookupPermits() throws Exception {
+
+        BrokerService brokerService = pulsar.getBrokerService();
+        doReturn(new Semaphore(0)).when(brokerService).getLookupRequestSemaphore();
+
+        DestinationLookup destLookup = spy(new DestinationLookup());
+        doReturn(false).when(destLookup).isRequestHttps();
+        destLookup.setPulsar(pulsar);
+        doReturn("null").when(destLookup).clientAppId();
+        Field uriField = PulsarWebResource.class.getDeclaredField("uri");
+        uriField.setAccessible(true);
+        UriInfo uriInfo = mock(UriInfo.class);
+        uriField.set(destLookup, uriInfo);
+        URI uri = URI.create("http://localhost:8080/lookup/v2/destination/topic/myprop/usc/ns2/topic1");
+        doReturn(uri).when(uriInfo).getRequestUri();
+        doReturn(true).when(config).isAuthorizationEnabled();
+
+        AsyncResponse asyncResponse1 = mock(AsyncResponse.class);
+        destLookup.lookupDestinationAsync("myprop", "usc", "ns2", "topic1", false, asyncResponse1);
+
+        ArgumentCaptor<Throwable> arg = ArgumentCaptor.forClass(Throwable.class);
+        verify(asyncResponse1).resume(arg.capture());
+        assertEquals(arg.getValue().getClass(), WebApplicationException.class);
+        WebApplicationException wae = (WebApplicationException) arg.getValue();
+        assertEquals(wae.getResponse().getStatus(), Status.SERVICE_UNAVAILABLE.getStatusCode());
     }
 
     @Test

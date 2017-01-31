@@ -67,6 +67,12 @@ public class DestinationLookup extends PulsarWebResource {
             @Suspended AsyncResponse asyncResponse) {
         dest = Codec.decode(dest);
         DestinationName topic = DestinationName.get("persistent", property, cluster, namespace, dest);
+        
+        if (!pulsar().getBrokerService().getLookupRequestSemaphore().tryAcquire()) {
+            log.warn("No broker was found available for topic {}", topic);
+            asyncResponse.resume(new WebApplicationException(Response.Status.SERVICE_UNAVAILABLE));
+            return;
+        }
 
         try {
             validateClusterOwnership(topic.getCluster());
@@ -75,12 +81,12 @@ public class DestinationLookup extends PulsarWebResource {
         } catch (WebApplicationException we) {
             // Validation checks failed
             log.error("Validation check failed: {}", we.getMessage());
-            asyncResponse.resume(we);
+            completeLookupResponseExceptionally(asyncResponse, we);
             return;
         } catch (Throwable t) {
             // Validation checks failed with unknown error
             log.error("Validation check failed: {}", t.getMessage(), t);
-            asyncResponse.resume(new RestException(t));
+            completeLookupResponseExceptionally(asyncResponse, new RestException(t));
             return;
         }
 
@@ -90,7 +96,7 @@ public class DestinationLookup extends PulsarWebResource {
         lookupFuture.thenAccept(result -> {
             if (result == null) {
                 log.warn("No broker was found available for topic {}", topic);
-                asyncResponse.resume(new WebApplicationException(Response.Status.SERVICE_UNAVAILABLE));
+                completeLookupResponseExceptionally(asyncResponse, new WebApplicationException(Response.Status.SERVICE_UNAVAILABLE));
                 return;
             }
 
@@ -105,24 +111,24 @@ public class DestinationLookup extends PulsarWebResource {
                             topic.getLookupName(), newAuthoritative));
                 } catch (URISyntaxException e) {
                     log.error("Error in preparing redirect url for {}: {}", topic, e.getMessage(), e);
-                    asyncResponse.resume(e);
+                    completeLookupResponseExceptionally(asyncResponse, e);
                     return;
                 }
                 if (log.isDebugEnabled()) {
                     log.debug("Redirect lookup for topic {} to {}", topic, redirect);
                 }
-                asyncResponse.resume(new WebApplicationException(Response.temporaryRedirect(redirect).build()));
+                completeLookupResponseExceptionally(asyncResponse, new WebApplicationException(Response.temporaryRedirect(redirect).build()));
 
             } else {
                 // Found broker owning the topic
                 if (log.isDebugEnabled()) {
                     log.debug("Lookup succeeded for topic {} -- broker: {}", topic, result.getLookupData());
                 }
-                asyncResponse.resume(result.getLookupData());
+                completeLookupResponseSuccessfully(asyncResponse, result.getLookupData());
             }
         }).exceptionally(exception -> {
             log.warn("Failed to lookup broker for topic {}: {}", topic, exception.getMessage(), exception);
-            asyncResponse.resume(exception);
+            completeLookupResponseExceptionally(asyncResponse, exception);
             return null;
         });
 
@@ -235,6 +241,16 @@ public class DestinationLookup extends PulsarWebResource {
         });
 
         return lookupfuture;
+    }
+
+    private void completeLookupResponseExceptionally(AsyncResponse asyncResponse, Throwable t) {
+        pulsar().getBrokerService().getLookupRequestSemaphore().release();
+        asyncResponse.resume(t);
+    }
+
+    private void completeLookupResponseSuccessfully(AsyncResponse asyncResponse, LookupData lookupData) {
+        pulsar().getBrokerService().getLookupRequestSemaphore().release();
+        asyncResponse.resume(lookupData);
     }
     
     private static final Logger log = LoggerFactory.getLogger(DestinationLookup.class);
