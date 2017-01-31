@@ -19,6 +19,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import java.net.SocketAddress;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
@@ -59,6 +60,7 @@ public class ClientCnx extends PulsarHandler {
     private final ConcurrentLongHashMap<ConsumerImpl> consumers = new ConcurrentLongHashMap<>(16, 1);
 
     private final CompletableFuture<Void> connectionFuture = new CompletableFuture<Void>();
+    private final Semaphore pendingLookupRequestSemaphore;
 
     enum State {
         None, SentConnectFrame, Ready
@@ -66,6 +68,8 @@ public class ClientCnx extends PulsarHandler {
 
     public ClientCnx(PulsarClientImpl pulsarClient) {
         super(30, TimeUnit.SECONDS);
+        this.pendingLookupRequestSemaphore = new Semaphore(pulsarClient.getConfiguration().getConcurrentLookupRequest(),
+                true);
         authentication = pulsarClient.getConfiguration().getAuthentication();
         state = State.None;
     }
@@ -105,7 +109,7 @@ public class ClientCnx extends PulsarHandler {
 
         // Fail out all the pending ops
         pendingRequests.forEach((key, future) -> future.completeExceptionally(e));
-        pendingLookupRequests.forEach((key, future) -> future.completeExceptionally(e));
+        pendingLookupRequests.forEach((key, future) -> getAndRemovePendingLookupRequest(key).completeExceptionally(e));
 
         // Notify all attached producers/consumers so they have a chance to reconnect
         producers.forEach((id, producer) -> producer.connectionClosed(this));
@@ -202,7 +206,7 @@ public class ClientCnx extends PulsarHandler {
         log.info("Received Broker lookup response: {}", lookupResult.getResponse());
 
         long requestId = lookupResult.getRequestId();
-        CompletableFuture<LookupDataResult> requestFuture = pendingLookupRequests.remove(requestId);
+        CompletableFuture<LookupDataResult> requestFuture = getAndRemovePendingLookupRequest(requestId);
 
         if (requestFuture != null) {
             // Complete future with exception if : Result.response=fail/null
@@ -230,7 +234,7 @@ public class ClientCnx extends PulsarHandler {
         log.info("Received Broker Partition response: {}", lookupResult.getPartitions());
 
         long requestId = lookupResult.getRequestId();
-        CompletableFuture<LookupDataResult> requestFuture = pendingLookupRequests.remove(requestId);
+        CompletableFuture<LookupDataResult> requestFuture = getAndRemovePendingLookupRequest(requestId);
 
         if (requestFuture != null) {
             // Complete future with exception if : Result.response=fail/null
@@ -249,6 +253,22 @@ public class ClientCnx extends PulsarHandler {
         } else {
             log.warn("{} Received unknown request id from server: {}", ctx.channel(), lookupResult.getRequestId());
         }
+    }
+
+    private boolean addPendingLookupRequests(long requestId, CompletableFuture<LookupDataResult> future) {
+        if (pendingLookupRequestSemaphore.tryAcquire()) {
+            pendingLookupRequests.put(requestId, future);
+            return true;
+        }
+        return false;
+    }
+
+    private CompletableFuture<LookupDataResult> getAndRemovePendingLookupRequest(long requestId) {
+        CompletableFuture<LookupDataResult> result = pendingLookupRequests.remove(requestId);
+        if (result != null) {
+            pendingLookupRequestSemaphore.release();
+        }
+        return result;
     }
 
     @Override
@@ -312,13 +332,22 @@ public class ClientCnx extends PulsarHandler {
 
     CompletableFuture<LookupDataResult> newLookup(ByteBuf request, long requestId) {
         CompletableFuture<LookupDataResult> future = new CompletableFuture<>();
-        pendingLookupRequests.put(requestId, future);
-        ctx.writeAndFlush(request).addListener(writeFuture -> {
-            if (!writeFuture.isSuccess()) {
-                log.warn("{} Failed to send request to broker: {}", ctx.channel(), writeFuture.cause().getMessage());
-                future.completeExceptionally(writeFuture.cause());
+
+        if (addPendingLookupRequests(requestId, future)) {
+            ctx.writeAndFlush(request).addListener(writeFuture -> {
+                if (!writeFuture.isSuccess()) {
+                    log.warn("{} Failed to send request {} to broker: {}", ctx.channel(), requestId,
+                            writeFuture.cause().getMessage());
+                    future.completeExceptionally(writeFuture.cause());
+                }
+            });
+        } else {
+            if (log.isDebugEnabled()) {
+                log.debug("{} Failed to add lookup-request into pending queue", requestId);
             }
-        });
+            future.completeExceptionally(new PulsarClientException.TooManyLookupRequestException(
+                    "Failed due to too many pending lookup requests"));
+        }
         return future;
     }
 
