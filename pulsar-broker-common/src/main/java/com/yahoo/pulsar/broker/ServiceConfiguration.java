@@ -207,8 +207,6 @@ public class ServiceConfiguration implements PulsarConfiguration{
     private int loadBalancerBrokerComfortLoadLevelPercentage = 65;
     // enable/disable automatic namespace bundle split
     private boolean loadBalancerAutoBundleSplitEnabled = false;
-    // interval to detect & split hot namespace bundle
-    private int loadBalancerNamespaceBundleSplitIntervalMinutes = 15;
     // maximum topics in a bundle, otherwise bundle split will be triggered
     private int loadBalancerNamespaceBundleMaxTopics = 1000;
     // maximum sessions (producers + consumers) in a bundle, otherwise bundle split will be triggered
@@ -757,14 +755,6 @@ public class ServiceConfiguration implements PulsarConfiguration{
 
     public int getLoadBalancerBrokerOverloadedThresholdPercentage() {
         return loadBalancerBrokerOverloadedThresholdPercentage;
-    }
-
-    public void setLoadBalancerBundleSplitIntervalMinutes(int interval) {
-        this.loadBalancerNamespaceBundleSplitIntervalMinutes = interval;
-    }
-
-    public int getLoadBalancerBundleSplitIntervalMinutes() {
-        return this.loadBalancerNamespaceBundleSplitIntervalMinutes;
     }
 
     public void setLoadBalancerNamespaceBundleMaxTopics(int topics) {

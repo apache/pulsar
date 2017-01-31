@@ -1199,6 +1199,8 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
                 -1);
             this.lastLoadReport = lr;
             this.lastResourceUsageTimestamp = lr.getTimestamp();
+            // split-bundle if requires
+            doNamespaceBundleSplit();
         }
     }
 
