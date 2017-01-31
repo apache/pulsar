@@ -459,10 +459,6 @@ public class SimpleLoadManagerImplTest {
         LoadSheddingTask task2 = new LoadSheddingTask(loadManager);
         task2.run();
         verify(loadManager, times(1)).doLoadShedding();
-
-        NamespaceBundleSplitTask task3 = new NamespaceBundleSplitTask(loadManager);
-        task3.run();
-        verify(loadManager, times(1)).doNamespaceBundleSplit();
     }
 
     @Test

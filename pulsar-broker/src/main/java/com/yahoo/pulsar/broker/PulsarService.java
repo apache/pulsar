@@ -45,7 +45,6 @@ import com.yahoo.pulsar.broker.loadbalance.LoadManager;
 import com.yahoo.pulsar.broker.loadbalance.LoadReportUpdaterTask;
 import com.yahoo.pulsar.broker.loadbalance.LoadResourceQuotaUpdaterTask;
 import com.yahoo.pulsar.broker.loadbalance.LoadSheddingTask;
-import com.yahoo.pulsar.broker.loadbalance.NamespaceBundleSplitTask;
 import com.yahoo.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import com.yahoo.pulsar.broker.namespace.NamespaceService;
 import com.yahoo.pulsar.broker.service.BrokerService;
@@ -92,7 +91,6 @@ public class PulsarService implements AutoCloseable {
     private final OrderedSafeExecutor orderedExecutor = new OrderedSafeExecutor(8, "pulsar-ordered");
     private ScheduledExecutorService loadManagerExecutor = null;
     private ScheduledFuture<?> loadReportTask = null;
-    private ScheduledFuture<?> bundleSplitTask = null;
     private ScheduledFuture<?> loadSheddingTask = null;
     private ScheduledFuture<?> loadResourceQuotaTask = null;
     private LoadManager loadManager = null;
@@ -406,13 +404,6 @@ public class PulsarService implements AutoCloseable {
                 long loadReportMinInterval = SimpleLoadManagerImpl.LOAD_REPORT_UPDATE_MIMIMUM_INTERVAL;
                 this.loadReportTask = this.loadManagerExecutor.scheduleAtFixedRate(
                         new LoadReportUpdaterTask(loadManager), loadReportMinInterval, loadReportMinInterval,
-                        TimeUnit.MILLISECONDS);
-            }
-            if (this.bundleSplitTask == null) {
-                long bundleSplitInterval = TimeUnit.MINUTES
-                        .toMillis(getConfiguration().getLoadBalancerBundleSplitIntervalMinutes());
-                this.bundleSplitTask = this.loadManagerExecutor.scheduleAtFixedRate(
-                        new NamespaceBundleSplitTask(loadManager), bundleSplitInterval, bundleSplitInterval,
                         TimeUnit.MILLISECONDS);
             }
         }
