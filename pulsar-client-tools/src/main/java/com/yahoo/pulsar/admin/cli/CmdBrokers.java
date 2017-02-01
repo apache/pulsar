@@ -48,9 +48,23 @@ public class CmdBrokers extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Update dynamic-serviceConfiguration of broker")
+    private class UpdateConfigurationCmd extends CliCommand {
+        @Parameter(names = "--config", description = "service-configuration name", required = true)
+        private String configName;
+        @Parameter(names = "--value", description = "service-configuration value", required = true)
+        private String configValue;
+
+        @Override
+        void run() throws Exception {
+            admin.brokers().updateConfiguration(configName, configValue);
+        }
+    }
+
     CmdBrokers(PulsarAdmin admin) {
         super("brokers", admin);
         jcommander.addCommand("list", new List());
         jcommander.addCommand("namespaces", new Namespaces());
+        jcommander.addCommand("updateConfig", new UpdateConfigurationCmd());
     }
 }

@@ -67,4 +67,13 @@ public interface Brokers {
      * @throws PulsarAdminException
      */
     Map<String, NamespaceOwnershipStatus> getOwnedNamespaces(String cluster, String brokerUrl) throws PulsarAdminException;
+    
+    /**
+     * Update value of any dynamic {@link ServiceConfiguration} 
+     * 
+     * @param key
+     * @param value
+     * @throws PulsarAdminException
+     */
+    void updateConfiguration(String configName, String configValue) throws PulsarAdminException;
 }
