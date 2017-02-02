@@ -21,6 +21,7 @@ import org.apache.bookkeeper.client.BookKeeperAdmin;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.meta.HierarchicalLedgerManagerFactory;
 import org.apache.bookkeeper.util.ZkUtils;
+import static org.apache.commons.lang3.StringUtils.isBlank;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
@@ -54,6 +55,10 @@ public class PulsarClusterMetadataSetup {
         @Parameter(names = { "-zk",
                 "--zookeeper" }, description = "Local ZooKeeper quorum connection string", required = true)
         private String zookeeper;
+        
+        @Parameter(names = { "-dzk",
+                "--data-zookeeper" }, description = "Data ZooKeeper quorum connection string (Optional if data-zookeeper is not configured", required = false)
+        private String dataZookeeper;
 
         @Parameter(names = { "-gzk",
                 "--global-zookeeper" }, description = "Global ZooKeeper quorum connection string", required = true)
@@ -78,22 +83,26 @@ public class PulsarClusterMetadataSetup {
             return;
         }
 
-        log.info("Setting up cluster {} with zk={} global-zk={}", arguments.cluster, arguments.zookeeper,
-                arguments.globalZookeeper);
+        arguments.dataZookeeper = isBlank(arguments.dataZookeeper) ? arguments.zookeeper : arguments.dataZookeeper;
+        log.info("Setting up cluster {} with zk={} dzk={} global-zk={}", arguments.cluster, arguments.zookeeper,
+                arguments.dataZookeeper, arguments.globalZookeeper);
 
         // Format BookKeeper metadata
         ClientConfiguration bkConf = new ClientConfiguration();
         bkConf.setLedgerManagerFactoryClass(HierarchicalLedgerManagerFactory.class);
-        bkConf.setZkServers(arguments.zookeeper);
+        bkConf.setZkServers(arguments.dataZookeeper);
         if (!BookKeeperAdmin.format(bkConf, false /* interactive */, false /* force */)) {
             throw new IOException("Failed to initialize BookKeeper metadata");
         }
 
         ZooKeeperClientFactory zkfactory = new ZookeeperClientFactoryImpl();
         ZooKeeper localZk = zkfactory.create(arguments.zookeeper, SessionType.ReadWrite, 30000).get();
+        // use localZk for dataZookeeper if dataZk is not provided or it is same as localZk
+        ZooKeeper dataZk = arguments.zookeeper.equals(arguments.dataZookeeper) ? localZk
+                : zkfactory.create(arguments.dataZookeeper, SessionType.ReadWrite, 30000).get();
         ZooKeeper globalZk = zkfactory.create(arguments.globalZookeeper, SessionType.ReadWrite, 30000).get();
 
-        localZk.create("/managed-ledgers", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+        dataZk.create("/managed-ledgers", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
         localZk.create("/namespace", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
 
         ZkUtils.createFullPathOptimistic(globalZk, "/admin/policies", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE,

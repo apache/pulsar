@@ -83,8 +83,11 @@ public class MessagingServiceShutdownHook extends Thread implements ShutdownServ
         try {
             // Try to close ZK session to ensure all ephemeral locks gets released immediately
             if (service != null) {
-                if (service.getZkClient().getState() != States.CLOSED) {
-                    service.getZkClient().close();
+                if (service.getLocalZkClient().getState() != States.CLOSED) {
+                    service.getLocalZkClient().close();
+                }
+                if (service.getDataZkClient().getState() != States.CLOSED) {
+                    service.getDataZkClient().close();
                 }
             }
         } catch (Exception e) {

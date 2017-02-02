@@ -71,6 +71,7 @@ Internally, a single managed ledger uses multiple Bookkeeper ledgers to store th
 Pulsar uses Apache Zookeeper for metadata, cluster configuration and coordination.
 - *Global Zookeeper* stores user provisioning data like properties, namespaces and policies which should be global consistent.
 - Each cluster has a *local zookeeper* ensemble which stores cluster specific configuration and coordination data, like ownership metadata, broker load reports, bookkeeper ledgers' metadata.
+- *local zookeeper* can be highly available by configuring separete *data zookeeper* which stores bookkeeper ledgers' metadata and *local zookeeper* needs to store only cluster management configuration.
 
 
 ## Design

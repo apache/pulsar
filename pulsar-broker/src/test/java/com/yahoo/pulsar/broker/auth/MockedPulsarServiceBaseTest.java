@@ -66,11 +66,12 @@ public abstract class MockedPulsarServiceBaseTest {
     protected final int BROKER_PORT = PortManager.nextFreePort();
     protected final int BROKER_PORT_TLS = PortManager.nextFreePort();
 
-    protected MockZooKeeper mockZookKeeper;
+    protected MockZooKeeper dataMockZookKeeper;
+    protected MockZooKeeper localMockZookKeeper;
     protected NonClosableMockBookKeeper mockBookKeeper;
     protected boolean isTcpLookup = false;
 
-    private SameThreadOrderedSafeExecutor sameThreadOrderedSafeExecutor;
+    protected SameThreadOrderedSafeExecutor sameThreadOrderedSafeExecutor;
 
     public MockedPulsarServiceBaseTest() {
         this.conf = new ServiceConfiguration();
@@ -105,8 +106,9 @@ public abstract class MockedPulsarServiceBaseTest {
     }
 
     protected final void init() throws Exception {
-        mockZookKeeper = createMockZooKeeper();
-        mockBookKeeper = new NonClosableMockBookKeeper(new ClientConfiguration(), mockZookKeeper);
+        localMockZookKeeper = MockZooKeeper.newInstance(MoreExecutors.sameThreadExecutor()); 
+        dataMockZookKeeper = createMockZooKeeper();
+        mockBookKeeper = new NonClosableMockBookKeeper(new ClientConfiguration(), dataMockZookKeeper);
 
         sameThreadOrderedSafeExecutor = new SameThreadOrderedSafeExecutor();
 
@@ -123,7 +125,8 @@ public abstract class MockedPulsarServiceBaseTest {
         pulsarClient.close();
         pulsar.close();
         mockBookKeeper.reallyShutdow();
-        mockZookKeeper.shutdown();
+        dataMockZookKeeper.shutdown();
+        localMockZookKeeper.shutdown();
         sameThreadOrderedSafeExecutor.shutdown();
     }
 
@@ -156,7 +159,9 @@ public abstract class MockedPulsarServiceBaseTest {
 
     protected void setupBrokerMocks(PulsarService pulsar) throws Exception {
         // Override default providers with mocked ones
-        doReturn(mockZooKeeperClientFactory).when(pulsar).getZooKeeperClientFactory();
+        doReturn(false).when(pulsar).equalsDataAndLocalZk();
+        doReturn(localMockZooKeeperClientFactory).when(pulsar).getLocalZooKeeperClientFactory();
+        doReturn(dataMockZooKeeperClientFactory).when(pulsar).getZooKeeperClientFactory();
         doReturn(mockBookKeeperClientFactory).when(pulsar).getBookKeeperClientFactory();
 
         Supplier<NamespaceService> namespaceServiceSupplier = () -> spy(new NamespaceService(pulsar));
@@ -165,7 +170,7 @@ public abstract class MockedPulsarServiceBaseTest {
         doReturn(sameThreadOrderedSafeExecutor).when(pulsar).getOrderedExecutor();
     }
 
-    private MockZooKeeper createMockZooKeeper() throws Exception {
+    protected MockZooKeeper createMockZooKeeper() throws Exception {
         MockZooKeeper zk = MockZooKeeper.newInstance(MoreExecutors.sameThreadExecutor());
         List<ACL> dummyAclList = new ArrayList<ACL>(0);
 
@@ -178,7 +183,7 @@ public abstract class MockedPulsarServiceBaseTest {
     }
 
     // Prevent the MockBookKeeper instance from being closed when the broker is restarted within a test
-    private static class NonClosableMockBookKeeper extends MockBookKeeper {
+    protected static class NonClosableMockBookKeeper extends MockBookKeeper {
 
         public NonClosableMockBookKeeper(ClientConfiguration conf, ZooKeeper zk) throws Exception {
             super(conf, zk);
@@ -199,17 +204,27 @@ public abstract class MockedPulsarServiceBaseTest {
         }
     }
 
-    protected ZooKeeperClientFactory mockZooKeeperClientFactory = new ZooKeeperClientFactory() {
+    protected ZooKeeperClientFactory dataMockZooKeeperClientFactory = new ZooKeeperClientFactory() {
 
         @Override
         public CompletableFuture<ZooKeeper> create(String serverList, SessionType sessionType,
                 int zkSessionTimeoutMillis) {
             // Always return the same instance (so that we don't loose the mock ZK content on broker restart
-            return CompletableFuture.completedFuture(mockZookKeeper);
+            return CompletableFuture.completedFuture(dataMockZookKeeper);
         }
     };
 
-    private BookKeeperClientFactory mockBookKeeperClientFactory = new BookKeeperClientFactory() {
+    protected ZooKeeperClientFactory localMockZooKeeperClientFactory = new ZooKeeperClientFactory() {
+
+        @Override
+        public CompletableFuture<ZooKeeper> create(String serverList, SessionType sessionType,
+                int zkSessionTimeoutMillis) {
+            // Always return the same instance (so that we don't loose the mock ZK content on broker restart
+            return CompletableFuture.completedFuture(localMockZookKeeper);
+        }
+    };
+
+    protected BookKeeperClientFactory mockBookKeeperClientFactory = new BookKeeperClientFactory() {
 
         @Override
         public BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient) throws IOException {

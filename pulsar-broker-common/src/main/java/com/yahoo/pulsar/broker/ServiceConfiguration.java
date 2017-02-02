@@ -36,6 +36,9 @@ public class ServiceConfiguration implements PulsarConfiguration{
     // Zookeeper quorum connection string
     @FieldContext(required = true)
     private String zookeeperServers;
+    // Data Zookeeper quorum connection string
+    @FieldContext(required = false)
+    private String dataZookeeperServers;
     // Global Zookeeper quorum connection string
     @FieldContext(required = false)
     private String globalZookeeperServers;
@@ -60,6 +63,8 @@ public class ServiceConfiguration implements PulsarConfiguration{
     private String clusterName;
     // Zookeeper session timeout in milliseconds
     private long zooKeeperSessionTimeoutMillis = 30000;
+    // Data Zookeeper session timeout in milliseconds
+    private long dataZooKeeperSessionTimeoutMillis = 60000;
     // Time to wait for broker graceful shutdown. After this time elapses, the
     // process will be killed
     private long brokerShutdownTimeoutMs = 3000;
@@ -247,6 +252,19 @@ public class ServiceConfiguration implements PulsarConfiguration{
 
     public void setZookeeperServers(String zookeeperServers) {
         this.zookeeperServers = zookeeperServers;
+    }
+
+    public String getDataZookeeperServers() {
+        if (this.dataZookeeperServers == null || this.dataZookeeperServers.isEmpty()) {
+            // If the configuration is not set, assuming that the dataZK is not enabled and all data is in the same
+            // ZooKeeper cluster
+            return this.getZookeeperServers();
+        }
+        return dataZookeeperServers;
+    }
+
+    public void setDataZookeeperServers(String dataZookeeperServers) {
+        this.dataZookeeperServers = dataZookeeperServers;
     }
 
     public String getGlobalZookeeperServers() {
@@ -904,6 +922,14 @@ public class ServiceConfiguration implements PulsarConfiguration{
 
     public void setZooKeeperSessionTimeoutMillis(long zooKeeperSessionTimeoutMillis) {
         this.zooKeeperSessionTimeoutMillis = zooKeeperSessionTimeoutMillis;
+    }
+
+    public long getDataZooKeeperSessionTimeoutMillis() {
+        return dataZooKeeperSessionTimeoutMillis;
+    }
+
+    public void setDataZooKeeperSessionTimeoutMillis(long dataZooKeeperSessionTimeoutMillis) {
+        this.dataZooKeeperSessionTimeoutMillis = dataZooKeeperSessionTimeoutMillis;
     }
 
     public String getReplicatorPrefix() {

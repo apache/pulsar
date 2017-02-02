@@ -71,7 +71,7 @@ public class LeaderElectionService {
 
     public LeaderElectionService(PulsarService pulsar, LeaderListener leaderListener) {
         this.pulsar = pulsar;
-        this.zkClient = pulsar.getZkClient();
+        this.zkClient = pulsar.getLocalZkClient();
         this.executor = pulsar.getExecutor();
         this.leaderListener = leaderListener;
         this.jsonMapper = new ObjectMapper();
