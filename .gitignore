@@ -27,3 +27,9 @@ pulsar-broker/src/test/resources/log4j.properties
 # Maven
 log/
 target/
+
+# Python
+*.pyc
+
+# Perf tools
+*.hgrm
