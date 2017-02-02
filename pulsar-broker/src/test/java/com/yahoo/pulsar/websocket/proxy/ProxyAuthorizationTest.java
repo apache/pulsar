@@ -61,7 +61,7 @@ public class ProxyAuthorizationTest extends MockedPulsarServiceBaseTest {
         config.setClusterName("c1");
         config.setWebServicePort(TEST_PORT);
         service = spy(new WebSocketService(config));
-        doReturn(mockZooKeeperClientFactory).when(service).getZooKeeperClientFactory();
+        doReturn(dataMockZooKeeperClientFactory).when(service).getZooKeeperClientFactory();
         service.start();
     }
 

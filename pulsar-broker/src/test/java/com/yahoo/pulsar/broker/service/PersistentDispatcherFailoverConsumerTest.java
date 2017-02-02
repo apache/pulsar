@@ -87,7 +87,7 @@ public class PersistentDispatcherFailoverConsumerTest {
         doReturn(mlFactoryMock).when(pulsar).getManagedLedgerFactory();
 
         ZooKeeper mockZk = mock(ZooKeeper.class);
-        doReturn(mockZk).when(pulsar).getZkClient();
+        doReturn(mockZk).when(pulsar).getDataZkClient();
 
         configCacheService = mock(ConfigurationCacheService.class);
         @SuppressWarnings("unchecked")

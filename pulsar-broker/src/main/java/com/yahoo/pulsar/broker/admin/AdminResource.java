@@ -71,7 +71,7 @@ public abstract class AdminResource extends PulsarWebResource {
     }
 
     protected ZooKeeper localZk() {
-        return pulsar().getZkClient();
+        return pulsar().getLocalZkClient();
     }
 
     protected ZooKeeperCache localZkCache() {
@@ -255,7 +255,7 @@ public abstract class AdminResource extends PulsarWebResource {
     }
 
     ZooKeeperChildrenCache managedLedgerListCache() {
-        return pulsar().getLocalZkCacheService().managedLedgerListCache();
+        return pulsar().getDataZkCacheService().managedLedgerListCache();
     }
 
     Set<String> clusters() {

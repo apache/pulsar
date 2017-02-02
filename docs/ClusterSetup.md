@@ -46,6 +46,32 @@ Start ZK service on all the hosts:
 ```shell
 $ bin/pulsar-daemon start zookeeper
 ```
+#### Data ZooKeeper
+
+Start dedicated zookeeper quorum to store bookkeeper ledgers' metadata.
+
+##### Single zookeeper quorum
+This does not require to configure and start _data_ zookeeper quorum, and pulsar instance uses _local_ zk quorum to store both cluster-management configuration and bookkeeper ledgers' metadata.
+
+##### Dedicated data-zookeeper quorum
+In this scenario dedicated _data_ zk stores bookkeeper ledgers' metadata and _local_ zk stores only cluster-management configuration. Using dedicated _data_ zk makes _local_ zk and broker highly available because broker's availability only depends on cluster-management configuration that is stored into _local_ zk.
+
+Add all ZK servers the quorum configuration. Edit `conf/data_zookeeper.conf` and add
+the following lines in all the ZK servers:
+
+```
+server.1=zk4.us-west.example.com:2888:3888
+server.2=zk5.us-west.example.com:2888:3888
+server.3=zk6.us-west.example.com:2888:3888
+...
+```
+
+Start ZK service on all the hosts:
+
+```shell
+$ bin/pulsar-daemon start data-zookeeper
+```
+
 
 #### Global ZooKeeper
 
@@ -135,6 +161,7 @@ as well as the Pulsar metadata.
 ```shell
 $ bin/pulsar initialize-cluster-metadata --cluster us-west \
                                          --zookeeper zk1.us-west.example.com:2181 \
+                                         --data-zookeeper zk1.us-west.example.com:2181 \
                                          --global-zookeeper zk1.us-west.example.com:2184 \
                                          --service-url http://pulsar.us-west.example.com:8080/ \
                                          --service-url-tls https://pulsar.us-west.example.com:8443/

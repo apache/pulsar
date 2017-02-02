@@ -47,7 +47,7 @@ public class LocalZooKeeperConnectionServiceTest {
         localZkConnectionService.start(null);
 
         // Get ZooKeeper client
-        MockZooKeeper zk = (MockZooKeeper) localZkConnectionService.getLocalZooKeeper();
+        MockZooKeeper zk = (MockZooKeeper) localZkConnectionService.getLocalZooKeeper(); //TODO: change to local zk
 
         // Check status
         assertTrue(zk.getState().isConnected());

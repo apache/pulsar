@@ -135,7 +135,7 @@ public class OwnershipCacheTest {
         // succeeded in both cases, the ownerInfoCache will be updated (i.e. invalidated the entry)
         localCache.ownerInfoCache().invalidate(ServiceUnitZkUtils.path(testFullBundle));
         ServiceUnitZkUtils.acquireNameSpace(zkCache.getZooKeeper(), ServiceUnitZkUtils.path(testFullBundle),
-                new NamespaceEphemeralData("pulsar://otherhost:8881", "pulsar://otherhost:8884",
+                new NamespaceEphemeralData("pulsar://otherhost:8881", "pulsar://otherhost:8884", //TODO: change to localZK
                         "http://localhost:8080", "https://localhost:4443", false));
         data1 = cache.tryAcquiringOwnership(testFullBundle).get();
         assertEquals(data1.getNativeUrl(), "pulsar://otherhost:8881");
@@ -152,7 +152,7 @@ public class OwnershipCacheTest {
         assertFalse(cache.getOwnerAsync(testBundle).get().isPresent());
         // case 2: someone owns the namespace
         ServiceUnitZkUtils.acquireNameSpace(zkCache.getZooKeeper(), ServiceUnitZkUtils.path(testBundle),
-                new NamespaceEphemeralData("pulsar://otherhost:8881", "pulsar://otherhost:8884",
+                new NamespaceEphemeralData("pulsar://otherhost:8881", "pulsar://otherhost:8884", //TODO: change to localZK
                         "http://otherhost:8080", "https://otherhost:4443", false));
 
         // try to acquire, which will load the read-only cache
@@ -188,7 +188,7 @@ public class OwnershipCacheTest {
         }
         // case 2: someone else owns the namespace
         ServiceUnitZkUtils.acquireNameSpace(zkCache.getZooKeeper(), ServiceUnitZkUtils.path(testBundle),
-                new NamespaceEphemeralData("pulsar://otherhost:8881", "pulsar://otherhost:8884",
+                new NamespaceEphemeralData("pulsar://otherhost:8881", "pulsar://otherhost:8884", //TODO: change to localZK
                         "http://otherhost:8080", "https://otherhost:4443", false));
         try {
             checkNotNull(cache.getOwnedBundle(testBundle));
@@ -230,7 +230,7 @@ public class OwnershipCacheTest {
 
         // case 2: someone else owns the namespace
         ServiceUnitZkUtils.acquireNameSpace(zkCache.getZooKeeper(), ServiceUnitZkUtils.path(testBundle),
-                new NamespaceEphemeralData("pulsar://otherhost:8881", "pulsar://otherhost:8884",
+                new NamespaceEphemeralData("pulsar://otherhost:8881", "pulsar://otherhost:8884", //TODO: change to localZK
                         "http://otherhost:8080", "https://otherhost:4443", false));
         assertTrue(cache.getOwnedBundles().isEmpty());
         // try to acquire, which will load the read-only cache

@@ -21,6 +21,7 @@ PULSAR_HOME=`cd $BINDIR/..;pwd`
 DEFAULT_BROKER_CONF=$PULSAR_HOME/conf/broker.conf
 DEFAULT_BOOKKEEPER_CONF=$PULSAR_HOME/conf/bookkeeper.conf
 DEFAULT_ZK_CONF=$PULSAR_HOME/conf/zookeeper.conf
+DEFAULT_DATA_ZK_CONF=$PULSAR_HOME/conf/data_zookeeper.conf
 DEFAULT_GLOBAL_ZK_CONF=$PULSAR_HOME/conf/global_zookeeper.conf
 DEFAULT_DISCOVERY_CONF=$PULSAR_HOME/conf/discovery.conf
 DEFAULT_STANDALONE_CONF=$PULSAR_HOME/conf/standalone.conf
@@ -83,6 +84,7 @@ Environment variables:
    PULSAR_BROKER_CONF            Configuration file for broker (default: $DEFAULT_BROKER_CONF)
    PULSAR_BOOKKEEPER_CONF        Configuration file for bookie (default: $DEFAULT_BOOKKEEPER_CONF)
    PULSAR_ZK_CONF                Configuration file for zookeeper (default: $DEFAULT_ZK_CONF)
+   PULSAR_DATA_ZK_CONF           Configuration file for data zookeeper (default: $DEFAULT_DATA_ZK_CONF)
    PULSAR_GLOBAL_ZK_CONF         Configuration file for global zookeeper (default: $DEFAULT_GLOBAL_ZK_CONF)
    PULSAR_DISCOVERY_CONF         Configuration file for discovery service (default: $DEFAULT_DISCOVERY_CONF)
    PULSAR_WEBSOCKET_CONF         Configuration file for websocket proxy (default: $DEFAULT_WEBSOCKET_CONF)
@@ -141,6 +143,10 @@ if [ -z "$PULSAR_ZK_CONF" ]; then
     PULSAR_ZK_CONF=$DEFAULT_ZK_CONF
 fi
 
+if [ -z "$PULSAR_DATA_ZK_CONF" ]; then
+    PULSAR_DATA_ZK_CONF=$DEFAULT_DATA_ZK_CONF
+fi
+
 if [ -z "$PULSAR_GLOBAL_ZK_CONF" ]; then
     PULSAR_GLOBAL_ZK_CONF=$DEFAULT_GLOBAL_ZK_CONF
 fi
@@ -193,6 +199,9 @@ elif [ $COMMAND == "bookie" ]; then
 elif [ $COMMAND == "zookeeper" ]; then
     PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"zookeeper.log"}
     exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.zookeeper.server.quorum.QuorumPeerMain $PULSAR_ZK_CONF $@
+elif [ $COMMAND == "data-zookeeper" ]; then
+    PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"data-zookeeper.log"}
+    exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.zookeeper.server.quorum.QuorumPeerMain $PULSAR_DATA_ZK_CONF $@
 elif [ $COMMAND == "global-zookeeper" ]; then
     PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"global-zookeeper.log"}
     # Allow global ZK to turn into read-only mode when it cannot reach the quorum

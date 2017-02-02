@@ -292,13 +292,14 @@ public class WebServiceTest {
         config.setAdvertisedAddress("localhost"); // TLS certificate expects localhost
         pulsar = spy(new PulsarService(config));
         doReturn(new MockedZooKeeperClientFactoryImpl()).when(pulsar).getZooKeeperClientFactory();
+        doReturn(true).when(pulsar).equalsDataAndLocalZk();
         pulsar.start();
 
         try {
-            pulsar.getZkClient().delete("/minApiVersion", -1);
+            pulsar.getLocalZkClient().delete("/minApiVersion", -1);
         } catch (Exception ex) {
         }
-        pulsar.getZkClient().create("/minApiVersion", minApiVersion.getBytes(), null, CreateMode.PERSISTENT);
+        pulsar.getDataZkClient().create("/minApiVersion", minApiVersion.getBytes(), null, CreateMode.PERSISTENT);
 
         String serviceUrl = BROKER_URL_BASE;
         ClientConfiguration clientConfig = new ClientConfiguration();

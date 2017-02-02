@@ -43,7 +43,7 @@ import com.yahoo.pulsar.zookeeper.ZooKeeperDataCache;
 public class LocalZooKeeperCacheService {
     private static final Logger LOG = LoggerFactory.getLogger(LocalZooKeeperCacheService.class);
 
-    private static final String MANAGED_LEDGER_ROOT = "/managed-ledgers";
+    public static final String MANAGED_LEDGER_ROOT = "/managed-ledgers";
     public static final String OWNER_INFO_ROOT = "/namespace";
     public static final String LOCAL_POLICIES_ROOT = "/admin/local-policies";
 

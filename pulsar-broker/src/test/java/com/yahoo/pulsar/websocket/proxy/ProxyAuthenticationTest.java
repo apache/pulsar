@@ -64,7 +64,7 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
         config.setAuthenticationProviders(
                 Sets.newHashSet("com.yahoo.pulsar.websocket.proxy.MockAuthenticationProvider"));
         service = spy(new WebSocketService(config));
-        doReturn(mockZooKeeperClientFactory).when(service).getZooKeeperClientFactory();
+        doReturn(dataMockZooKeeperClientFactory).when(service).getZooKeeperClientFactory();
         proxyServer = new ProxyServer(config);
         WebSocketServiceStarter.start(proxyServer, service);
         log.info("Proxy Server Started");

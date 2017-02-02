@@ -235,9 +235,9 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
         try {
             // Register the brokers in zk list
             ServiceConfiguration conf = pulsar.getConfiguration();
-            if (pulsar.getZkClient().exists(LOADBALANCE_BROKERS_ROOT, false) == null) {
+            if (pulsar.getLocalZkClient().exists(LOADBALANCE_BROKERS_ROOT, false) == null) {
                 try {
-                    ZkUtils.createFullPathOptimistic(pulsar.getZkClient(), LOADBALANCE_BROKERS_ROOT, new byte[0],
+                    ZkUtils.createFullPathOptimistic(pulsar.getLocalZkClient(), LOADBALANCE_BROKERS_ROOT, new byte[0],
                         Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
                 } catch (KeeperException.NodeExistsException e) {
                     // ignore the exception, node might be present already
@@ -258,7 +258,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
                 loadReportJson = ObjectMapperFactory.getThreadLocal().writeValueAsString(loadReport);
             }
             try {
-                ZkUtils.createFullPathOptimistic(pulsar.getZkClient(), brokerZnodePath,
+                ZkUtils.createFullPathOptimistic(pulsar.getLocalZkClient(), brokerZnodePath,
                     loadReportJson.getBytes(Charsets.UTF_8), Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
             } catch (Exception e) {
                 // Catching excption here to print the right error message
@@ -287,7 +287,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
     @Override
     public void disableBroker() throws Exception {
         if (isNotEmpty(brokerZnodePath)) {
-            pulsar.getZkClient().delete(brokerZnodePath, -1);
+            pulsar.getLocalZkClient().delete(brokerZnodePath, -1);
         }
     }
 
@@ -303,9 +303,9 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
         byte[] settingBytes = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(settings);
         try {
             if (pulsar.getLocalZkCache().exists(zkPath)) {
-                pulsar.getZkClient().setData(zkPath, settingBytes, -1);
+                pulsar.getLocalZkClient().setData(zkPath, settingBytes, -1);
             } else {
-                ZkUtils.createFullPathOptimistic(pulsar.getZkClient(), zkPath, settingBytes, Ids.OPEN_ACL_UNSAFE,
+                ZkUtils.createFullPathOptimistic(pulsar.getLocalZkClient(), zkPath, settingBytes, Ids.OPEN_ACL_UNSAFE,
                     CreateMode.PERSISTENT);
             }
         } catch (Exception e) {
@@ -1195,7 +1195,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
 
         if (needUpdate) {
             LoadReport lr = generateLoadReport();
-            pulsar.getZkClient().setData(brokerZnodePath, ObjectMapperFactory.getThreadLocal().writeValueAsBytes(lr),
+            pulsar.getLocalZkClient().setData(brokerZnodePath, ObjectMapperFactory.getThreadLocal().writeValueAsBytes(lr),
                 -1);
             this.lastLoadReport = lr;
             this.lastResourceUsageTimestamp = lr.getTimestamp();

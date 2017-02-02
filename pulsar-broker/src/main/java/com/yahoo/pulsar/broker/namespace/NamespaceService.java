@@ -703,7 +703,7 @@ public class NamespaceService {
         try {
             String path = String.format("/managed-ledgers/%s/%s/%s/persistent", property, cluster, namespace);
             LOG.debug("Getting children from managed-ledgers now: {}", path);
-            for (String destination : pulsar.getLocalZkCacheService().managedLedgerListCache().get(path)) {
+            for (String destination : pulsar.getDataZkCacheService().managedLedgerListCache().get(path)) {
                 destinations.add(String.format("persistent://%s/%s/%s/%s", property, cluster, namespace,
                         Codec.decode(destination)));
             }
