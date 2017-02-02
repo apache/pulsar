@@ -18,6 +18,7 @@ package com.yahoo.pulsar;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
 import java.io.FileInputStream;
+import java.net.URI;
 import java.net.URL;
 
 import org.slf4j.Logger;
@@ -29,6 +30,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.yahoo.pulsar.broker.PulsarService;
 import com.yahoo.pulsar.broker.ServiceConfiguration;
+import com.yahoo.pulsar.broker.ServiceConfigurationUtils;
 import com.yahoo.pulsar.client.admin.PulsarAdmin;
 import com.yahoo.pulsar.client.admin.PulsarAdminException;
 import com.yahoo.pulsar.common.configuration.PulsarConfigurationLoader;
@@ -70,6 +72,9 @@ public class PulsarStandaloneStarter {
     @Parameter(names = { "--only-broker" }, description = "Only start Pulsar broker service (no ZK, BK)")
     private boolean onlyBroker = false;
 
+    @Parameter(names = { "-a", "--advertised-address" }, description = "Standalone broker advertised address")
+    private String advertisedAddress = null;
+
     @Parameter(names = { "-h", "--help" }, description = "Show this help message")
     private boolean help = false;
 
@@ -102,6 +107,16 @@ public class PulsarStandaloneStarter {
         config.setZookeeperServers("127.0.0.1:" + zkPort);
         config.setGlobalZookeeperServers("127.0.0.1:" + zkPort);
         config.setWebSocketServiceEnabled(true);
+
+        if (advertisedAddress != null) {
+            // Use advertised address from command line
+            config.setAdvertisedAddress(advertisedAddress);
+        } else if (isBlank(config.getAdvertisedAddress())) {
+            // Use advertised address as local hostname
+            config.setAdvertisedAddress(ServiceConfigurationUtils.unsafeLocalhostResolve());
+        } else {
+            // Use advertised address from config file
+        }
 
         Runtime.getRuntime().addShutdownHook(new Thread() {
             public void run() {
@@ -143,15 +158,22 @@ public class PulsarStandaloneStarter {
         broker.start();
 
         // Create a sample namespace
-        URL url = new URL("http://127.0.0.1:" + config.getWebServicePort());
-        admin = new PulsarAdmin(url, config.getBrokerClientAuthenticationPlugin(),
+        URL webServiceUrl = new URL(
+                String.format("http://%s:%d", config.getAdvertisedAddress(), config.getWebServicePort()));
+        String brokerServiceUrl = String.format("pulsar://%s:%d", config.getAdvertisedAddress(),
+                config.getBrokerServicePort());
+        admin = new PulsarAdmin(webServiceUrl, config.getBrokerClientAuthenticationPlugin(),
                 config.getBrokerClientAuthenticationParameters());
         String property = "sample";
         String cluster = config.getClusterName();
         String namespace = property + "/" + cluster + "/ns1";
         try {
+            ClusterData clusterData = new ClusterData(webServiceUrl.toString(), null /* serviceUrlTls */,
+                    brokerServiceUrl, null /* brokerServiceUrlTls */);
             if (!admin.clusters().getClusters().contains(cluster)) {
-                admin.clusters().createCluster(cluster, new ClusterData(url.toString()));
+                admin.clusters().createCluster(cluster, clusterData);
+            } else {
+                admin.clusters().updateCluster(cluster, clusterData);
             }
 
             if (!admin.properties().getProperties().contains(property)) {
