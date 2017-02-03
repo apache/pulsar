@@ -56,6 +56,7 @@ import com.yahoo.pulsar.broker.ServiceConfiguration;
 import com.yahoo.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import com.yahoo.pulsar.broker.namespace.NamespaceEphemeralData;
 import com.yahoo.pulsar.broker.namespace.NamespaceService;
+import com.yahoo.pulsar.broker.service.BrokerService;
 import com.yahoo.pulsar.client.admin.PulsarAdmin;
 import com.yahoo.pulsar.client.admin.PulsarAdminException;
 import com.yahoo.pulsar.client.admin.PulsarAdminException.ConflictException;
@@ -101,6 +102,7 @@ import com.yahoo.pulsar.common.policies.data.PropertyAdmin;
 import com.yahoo.pulsar.common.policies.data.RetentionPolicies;
 import com.yahoo.pulsar.common.util.Codec;
 import com.yahoo.pulsar.common.util.ObjectMapperFactory;
+import com.yahoo.pulsar.zookeeper.ZooKeeperCache.Deserializer;
 
 public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
@@ -377,6 +379,19 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().deleteNamespace("prop-xyz/use/ns1");
         admin.clusters().deleteCluster("use");
         assertEquals(admin.clusters().getClusters(), Lists.newArrayList());
+    }
+
+    @Test
+    public void lookup() throws Exception {
+        admin.lookups().updateLookupPermits(10);
+        int retrievedPermit = Integer.parseInt((String) pulsar.getLocalZkCache()
+                .getData(BrokerService.LOOKUP_THROTTLING_PATH, new Deserializer<Map>() {
+                    @Override
+                    public Map<String, String> deserialize(String key, byte[] content) throws Exception {
+                        return ObjectMapperFactory.getThreadLocal().readValue(content, HashMap.class);
+                    }
+                }).get().get(BrokerService.THROTTLING_LOOKUP_REQUEST_KEY));
+        assertEquals(retrievedPermit, 10);
     }
 
     @Test(enabled = true)

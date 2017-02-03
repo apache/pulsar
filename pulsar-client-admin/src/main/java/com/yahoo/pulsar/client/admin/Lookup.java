@@ -28,4 +28,12 @@ public interface Lookup {
      * @return the broker URL that serves the destination
      */
     public String lookupDestination(String destination) throws PulsarAdminException;
+    
+    /**
+     * Update number of lookup permits allowed simultaneously for throttling 
+     * 
+     * @param permits
+     * @throws PulsarAdminException
+     */
+    public void updateLookupPermits(int permits) throws PulsarAdminException;
 }

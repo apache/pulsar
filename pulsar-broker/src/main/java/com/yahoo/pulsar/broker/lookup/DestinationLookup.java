@@ -15,13 +15,20 @@
  */
 package com.yahoo.pulsar.broker.lookup;
 
+import static com.yahoo.pulsar.broker.service.BrokerService.LOOKUP_THROTTLING_PATH;
+import static com.yahoo.pulsar.broker.service.BrokerService.THROTTLING_LOOKUP_REQUEST_KEY;
+import static com.yahoo.pulsar.common.api.Commands.newLookupResponse;
+import static com.yahoo.pulsar.zookeeper.ZookeeperClientFactoryImpl.ENCODING_SCHEME;
+
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import javax.ws.rs.DefaultValue;
 import javax.ws.rs.Encoded;
 import javax.ws.rs.GET;
+import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
@@ -31,26 +38,30 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import javax.ws.rs.core.Response.Status;
 
+import org.apache.bookkeeper.util.ZkUtils;
+import org.apache.zookeeper.CreateMode;
+import org.apache.zookeeper.ZooDefs;
+import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.beust.jcommander.internal.Maps;
+import com.yahoo.pulsar.broker.PulsarService;
 import com.yahoo.pulsar.broker.web.NoSwaggerDocumentation;
 import com.yahoo.pulsar.broker.web.PulsarWebResource;
-import com.yahoo.pulsar.common.naming.DestinationName;
-import com.yahoo.pulsar.broker.PulsarService;
 import com.yahoo.pulsar.broker.web.RestException;
-import static com.yahoo.pulsar.common.api.Commands.newLookupResponse;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse.LookupType;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.ServerError;
 import com.yahoo.pulsar.common.lookup.data.LookupData;
-import com.yahoo.pulsar.common.policies.data.ClusterData;
+import com.yahoo.pulsar.common.naming.DestinationName;
 import com.yahoo.pulsar.common.util.Codec;
-
-import static com.google.common.base.Preconditions.checkNotNull;
+import com.yahoo.pulsar.common.util.ObjectMapperFactory;
 
 import io.netty.buffer.ByteBuf;
+import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiResponse;
+import io.swagger.annotations.ApiResponses;
 
 @Path("/v2/destination/")
 @NoSwaggerDocumentation
@@ -65,6 +76,12 @@ public class DestinationLookup extends PulsarWebResource {
             @Suspended AsyncResponse asyncResponse) {
         dest = Codec.decode(dest);
         DestinationName topic = DestinationName.get("persistent", property, cluster, namespace, dest);
+        
+        if (!pulsar().getBrokerService().getLookupRequestSemaphore().tryAcquire()) {
+            log.warn("No broker was found available for topic {}", topic);
+            asyncResponse.resume(new WebApplicationException(Response.Status.SERVICE_UNAVAILABLE));
+            return;
+        }
 
         try {
             validateClusterOwnership(topic.getCluster());
@@ -73,7 +90,7 @@ public class DestinationLookup extends PulsarWebResource {
         } catch (Throwable t) {
             // Validation checks failed
             log.error("Validation check failed: {}", t.getMessage());
-            asyncResponse.resume(t);
+            completeLookupResponseExceptionally(asyncResponse, t);
             return;
         }
 
@@ -83,7 +100,7 @@ public class DestinationLookup extends PulsarWebResource {
         lookupFuture.thenAccept(result -> {
             if (result == null) {
                 log.warn("No broker was found available for topic {}", topic);
-                asyncResponse.resume(new WebApplicationException(Response.Status.SERVICE_UNAVAILABLE));
+                completeLookupResponseExceptionally(asyncResponse, new WebApplicationException(Response.Status.SERVICE_UNAVAILABLE));
                 return;
             }
 
@@ -98,29 +115,52 @@ public class DestinationLookup extends PulsarWebResource {
                             topic.getLookupName(), newAuthoritative));
                 } catch (URISyntaxException e) {
                     log.error("Error in preparing redirect url for {}: {}", topic, e.getMessage(), e);
-                    asyncResponse.resume(e);
+                    completeLookupResponseExceptionally(asyncResponse, e);
                     return;
                 }
                 if (log.isDebugEnabled()) {
                     log.debug("Redirect lookup for topic {} to {}", topic, redirect);
                 }
-                asyncResponse.resume(new WebApplicationException(Response.temporaryRedirect(redirect).build()));
+                completeLookupResponseExceptionally(asyncResponse, new WebApplicationException(Response.temporaryRedirect(redirect).build()));
 
             } else {
                 // Found broker owning the topic
                 if (log.isDebugEnabled()) {
                     log.debug("Lookup succeeded for topic {} -- broker: {}", topic, result.getLookupData());
                 }
-                asyncResponse.resume(result.getLookupData());
+                completeLookupResponseSuccessfully(asyncResponse, result.getLookupData());
             }
         }).exceptionally(exception -> {
             log.warn("Failed to lookup broker for topic {}: {}", topic, exception.getMessage(), exception);
-            asyncResponse.resume(exception);
+            completeLookupResponseExceptionally(asyncResponse, exception);
             return null;
         });
 
     }
 
+
+    @PUT
+    @Path("permits/{permits}")
+    @ApiOperation(value = "Update allowed concurrent lookup permits. This operation requires Pulsar super-user privileges.")
+    @ApiResponses(value = { @ApiResponse(code = 204, message = "Lookup permits updated successfully"),
+            @ApiResponse(code = 403, message = "You don't have admin permission to create the cluster") })
+    public void upsertLookupPermits(@PathParam("permits") int permits) {
+        validateSuperUserAccess();
+        try {
+            Map<String, String> throttlingMap = Maps.newHashMap(THROTTLING_LOOKUP_REQUEST_KEY, Integer.toString(permits));
+            byte[] content = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(throttlingMap);
+            if (localZk().exists(LOOKUP_THROTTLING_PATH, false) != null) {
+                localZk().setData(LOOKUP_THROTTLING_PATH, content, -1);
+            } else {
+                ZkUtils.createFullPathOptimistic(localZk(), LOOKUP_THROTTLING_PATH, content,
+                        ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+            }
+            log.info("[{}] Updated concurrent lookup permits {}", clientAppId(), permits);
+        } catch (Exception e) {
+            log.error("[{}] Failed to update concurrent lookup permits {}", clientAppId(), e.getMessage(), e);
+            throw new RestException(e);
+        }
+    }
 
     /**
      * 
@@ -224,6 +264,20 @@ public class DestinationLookup extends PulsarWebResource {
         });
 
         return lookupfuture;
+    }
+
+    protected ZooKeeper localZk() {
+        return pulsar().getZkClient();
+    }
+
+    private void completeLookupResponseExceptionally(AsyncResponse asyncResponse, Throwable t) {
+        pulsar().getBrokerService().getLookupRequestSemaphore().release();
+        asyncResponse.resume(t);
+    }
+
+    private void completeLookupResponseSuccessfully(AsyncResponse asyncResponse, LookupData lookupData) {
+        pulsar().getBrokerService().getLookupRequestSemaphore().release();
+        asyncResponse.resume(lookupData);
     }
     
     private static final Logger log = LoggerFactory.getLogger(DestinationLookup.class);

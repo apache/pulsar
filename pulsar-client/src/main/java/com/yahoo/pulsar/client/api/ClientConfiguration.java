@@ -48,6 +48,7 @@ public class ClientConfiguration implements Serializable {
     private boolean useTls = false;
     private String tlsTrustCertsFilePath = "";
     private boolean tlsAllowInsecureConnection = false;
+    private int concurrentLookupRequest = 5000;
 
     /**
      * @return the authentication provider to be used
@@ -308,5 +309,23 @@ public class ClientConfiguration implements Serializable {
      */
     public void setStatsInterval(long statsInterval, TimeUnit unit) {
         this.statsIntervalSeconds = unit.toSeconds(statsInterval);
+    }
+
+    /**
+     * Get configured total allowed concurrent lookup-request.
+     * 
+     * @return
+     */
+    public int getConcurrentLookupRequest() {
+        return concurrentLookupRequest;
+    }
+
+    /**
+     * Configure total allowed concurrent lookup-request to prevent overload on broker.
+     * 
+     * @param concurrentLookupRequest
+     */
+    public void setConcurrentLookupRequest(int concurrentLookupRequest) {
+        this.concurrentLookupRequest = concurrentLookupRequest;
     }
 }
