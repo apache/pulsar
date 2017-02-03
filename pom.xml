@@ -81,6 +81,8 @@ flexible messaging model and an intuitive client API.</description>
     <module>pulsar-zookeeper-utils</module>
     <module>pulsar-checksum</module>
     <module>pulsar-testclient</module>
+    <module>pulsar-broker-auth-athenz</module>
+    <module>pulsar-client-auth-athenz</module>
     <module>all</module>
   </modules>
 

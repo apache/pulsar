@@ -26,30 +26,22 @@
     <version>1.17-SNAPSHOT</version>
   </parent>
 
-  <artifactId>pulsar-broker-common</artifactId>
-  <description>Common classes used in multiple broker modules</description>
+  <artifactId>pulsar-broker-auth-athenz</artifactId>
+  <packaging>jar</packaging>
+  <description>Athenz authentication plugin for broker</description>
 
   <dependencies>
+
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>pulsar-client</artifactId>
+      <artifactId>pulsar-broker</artifactId>
       <version>${project.version}</version>
     </dependency>
     
     <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>pulsar-zookeeper-utils</artifactId>
-      <version>${project.version}</version>
+      <groupId>com.yahoo.athenz</groupId>
+      <artifactId>zpe_java_client</artifactId>
     </dependency>
 
-    <dependency>
-      <groupId>com.google.guava</groupId>
-      <artifactId>guava</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>javax.servlet</groupId>
-      <artifactId>javax.servlet-api</artifactId>
-    </dependency>
   </dependencies>
 </project>

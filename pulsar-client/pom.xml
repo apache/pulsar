@@ -61,12 +61,6 @@
       <artifactId>sketches-core</artifactId>
       <version>0.6.0 </version>
     </dependency>
-
-    <dependency>
-      <groupId>com.yahoo.athenz</groupId>
-      <artifactId>zts_java_client</artifactId>
-    </dependency>
-
   </dependencies>
 
   <build>

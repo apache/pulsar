@@ -1,4 +1,3 @@
-<?xml version="1.0"?>
 <!--
 
     Copyright 2016 Yahoo Inc.
@@ -16,40 +15,33 @@
     limitations under the License.
 
 -->
-<project
-  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"
-  xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
+
   <parent>
     <groupId>com.yahoo.pulsar</groupId>
     <artifactId>pulsar</artifactId>
     <version>1.17-SNAPSHOT</version>
+    <relativePath>..</relativePath>
   </parent>
 
-  <artifactId>pulsar-broker-common</artifactId>
-  <description>Common classes used in multiple broker modules</description>
+  <artifactId>pulsar-client-auth-athenz</artifactId>
+  <packaging>jar</packaging>
+  <description>Athenz authentication plugin for java client</description>
 
   <dependencies>
+
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-client</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-    
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>pulsar-zookeeper-utils</artifactId>
-      <version>${project.version}</version>
+      <version>${project.parent.version}</version>
     </dependency>
 
     <dependency>
-      <groupId>com.google.guava</groupId>
-      <artifactId>guava</artifactId>
+      <groupId>com.yahoo.athenz</groupId>
+      <artifactId>zts_java_client</artifactId>
     </dependency>
 
-    <dependency>
-      <groupId>javax.servlet</groupId>
-      <artifactId>javax.servlet-api</artifactId>
-    </dependency>
   </dependencies>
 </project>
