@@ -17,8 +17,11 @@ package org.apache.bookkeeper.mledger.impl;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.common.collect.RangeSet;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats.NestedPositionInfo;
 
 import com.google.common.base.Objects;
 import com.google.common.collect.ComparisonChain;
@@ -36,6 +39,12 @@ public class PositionImpl implements Position, Comparable<PositionImpl> {
     public PositionImpl(PositionInfo pi) {
         this.ledgerId = pi.getLedgerId();
         this.entryId = pi.getEntryId();
+        this.recyclerHandle = null;
+    }
+
+    public PositionImpl(NestedPositionInfo npi) {
+        this.ledgerId = npi.getLedgerId();
+        this.entryId = npi.getEntryId();
         this.recyclerHandle = null;
     }
 

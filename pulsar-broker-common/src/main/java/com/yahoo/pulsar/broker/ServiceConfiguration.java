@@ -179,6 +179,11 @@ public class ServiceConfiguration implements PulsarConfiguration{
     private int managedLedgerCursorMaxEntriesPerLedger = 50000;
     // Max time before triggering a rollover on a cursor ledger
     private int managedLedgerCursorRolloverTimeInSeconds = 14400;
+    // Max number of entries to append to a ledger before triggering a rollover
+    // A ledger rollover is triggered on these conditions Either the max
+    // rollover time has been reached or max entries have been written to the
+    // ledged and at least min-time has passed
+    private int managedLedgerMaxUnackedRangesToPersist = 1000;
 
     /*** --- Load balancer --- ****/
     // Enable load balancer
@@ -679,6 +684,14 @@ public class ServiceConfiguration implements PulsarConfiguration{
 
     public void setManagedLedgerCursorRolloverTimeInSeconds(int managedLedgerCursorRolloverTimeInSeconds) {
         this.managedLedgerCursorRolloverTimeInSeconds = managedLedgerCursorRolloverTimeInSeconds;
+    }
+
+    public int getManagedLedgerMaxUnackedRangesToPersist() {
+        return managedLedgerMaxUnackedRangesToPersist;
+    }
+
+    public void setManagedLedgerMaxUnackedRangesToPersist(int managedLedgerMaxUnackedRangesToPersist) {
+        this.managedLedgerMaxUnackedRangesToPersist = managedLedgerMaxUnackedRangesToPersist;
     }
 
     public boolean isLoadBalancerEnabled() {
