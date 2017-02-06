@@ -495,6 +495,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             config.setThrottleMarkDelete(persistencePolicies.getManagedLedgerMaxMarkDeleteRate());
             config.setDigestType(DigestType.CRC32);
 
+            config.setMaxUnackedRangesToPersist(serviceConfig.getManagedLedgerMaxUnackedRangesToPersist());
             config.setMaxEntriesPerLedger(serviceConfig.getManagedLedgerMaxEntriesPerLedger());
             config.setMinimumRolloverTime(serviceConfig.getManagedLedgerMinLedgerRolloverTimeMinutes(),
                     TimeUnit.MINUTES);
