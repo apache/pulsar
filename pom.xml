@@ -466,6 +466,11 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>logs/**</exclude>
             <exclude>**/*.versionsBackup</exclude>
             <exclude>**/circe/**</exclude>
+            <exclude>pulsar-client-cpp/lib/checksum/int_types.h</exclude>
+            <exclude>pulsar-client-cpp/lib/checksum/crc32c*</exclude>
+            <exclude>pulsar-client-cpp/lib/lz4/lz4.*</exclude>
+            <exclude>pulsar-client-cpp/lib/PulsarApi.pb.*</exclude>
+            <exclude>pulsar-client-cpp/CMakeFiles/**</exclude>
           </excludes>
           <mapping>
             <proto>JAVADOC_STYLE</proto>
