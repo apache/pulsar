@@ -21,6 +21,7 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 import java.io.IOException;
+import java.net.URI;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -30,13 +31,13 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 import com.yahoo.pulsar.broker.service.persistent.PersistentTopic;
 import com.yahoo.pulsar.client.admin.BrokerStats;
 import com.yahoo.pulsar.client.api.Authentication;
@@ -702,6 +703,29 @@ public class BrokerServiceTest extends BrokerTestBase {
             fail("should not fail");
         } finally {
             pulsarClient.close();
+        }
+    }
+
+    /**
+     * Verifies: client side throttling.
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testLookupThrottlingForClientByClient() throws Exception {
+        final String topicName = "persistent://prop/usw/my-ns/newTopic";
+
+        com.yahoo.pulsar.client.api.ClientConfiguration clientConf = new com.yahoo.pulsar.client.api.ClientConfiguration();
+        clientConf.setStatsInterval(0, TimeUnit.SECONDS);
+        clientConf.setConcurrentLookupRequest(0);
+        String lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT).toString();
+        PulsarClient pulsarClient = PulsarClient.create(lookupUrl, clientConf);
+
+        try {
+            Consumer consumer = pulsarClient.subscribe(topicName, "mysub", new ConsumerConfiguration());
+            fail("It should fail as throttling should not receive any request");
+        } catch (com.yahoo.pulsar.client.api.PulsarClientException.TooManyLookupRequestException e) {
+            // ok as throttling set to 0
         }
     }
 
