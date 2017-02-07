@@ -34,7 +34,7 @@ public class PulsarAdminTool {
     private boolean help;
 
     PulsarAdminTool(Properties properties) throws Exception {
-        String serviceUrl = properties.getProperty("serviceUrl");
+        String serviceUrl = properties.getProperty("webServiceUrl");
         String authPluginClassName = properties.getProperty("authPlugin");
         String authParams = properties.getProperty("authParams");
         boolean useTls = Boolean.parseBoolean(properties.getProperty("useTls"));

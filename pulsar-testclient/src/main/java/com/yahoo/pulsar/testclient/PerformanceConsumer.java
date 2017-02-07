@@ -130,7 +130,11 @@ public class PerformanceConsumer {
             prop.load(new FileInputStream(arguments.confFile));
 
             if (arguments.serviceURL == null) {
-                arguments.serviceURL = prop.getProperty("serviceUrl", "http://localhost:8080/");
+                arguments.serviceURL = prop.getProperty("brokerServiceUrl");
+            }
+            
+            if (arguments.serviceURL == null) {
+                arguments.serviceURL = prop.getProperty("webServiceUrl", "http://localhost:8080/");
             }
 
             if (arguments.authPluginClassName == null) {

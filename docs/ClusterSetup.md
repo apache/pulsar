@@ -136,8 +136,10 @@ as well as the Pulsar metadata.
 $ bin/pulsar initialize-cluster-metadata --cluster us-west \
                                          --zookeeper zk1.us-west.example.com:2181 \
                                          --global-zookeeper zk1.us-west.example.com:2184 \
-                                         --service-url pulsar://pulsar.us-west.example.com:6650/ \
-                                         --service-url-tls pulsar+ssl://pulsar.us-west.example.com:6651/
+                                         --web-service-url http://pulsar.us-west.example.com:8080/ \
+                                         --web-service-url-tls https://pulsar.us-west.example.com:8443/ \
+                                         --broker-service-url pulsar://pulsar.us-west.example.com:6650/ \
+                                         --broker-service-url-tls pulsar+ssl://pulsar.us-west.example.com:6651/
 ```
 
 #### BookKeeper

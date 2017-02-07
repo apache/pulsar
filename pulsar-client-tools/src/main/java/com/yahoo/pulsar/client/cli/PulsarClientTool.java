@@ -23,6 +23,7 @@ import java.net.MalformedURLException;
 import java.util.Arrays;
 import java.util.Properties;
 
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,7 +60,8 @@ public class PulsarClientTool {
     CmdConsume consumeCommand;
 
     public PulsarClientTool(Properties properties) throws MalformedURLException {
-        this.serviceURL = properties.getProperty("serviceUrl");
+        this.serviceURL = StringUtils.isNotBlank(properties.getProperty("brokerServiceUrl"))
+                ? properties.getProperty("brokerServiceUrl") : properties.getProperty("webServiceUrl");
         this.authPluginClassName = properties.getProperty("authPlugin");
         this.authParams = properties.getProperty("authParams");
         this.useTls = Boolean.parseBoolean(properties.getProperty("useTls"));
