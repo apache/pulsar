@@ -1,0 +1,58 @@
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+*.os
+*.scons*
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+*.so.1
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+
+# Dependency file
+*.d
+
+# Mac swap file
+*.DS_Store
+
+# Linux swap file
+*.swp
+
+# Exclude compiled executables
+/examples/SampleProducer
+/examples/SampleConsumer
+/examples/SampleAsyncProducer
+/examples/SampleConsumerListener
+/tests/main
+/perf/PerfProducer
+/perf/PerfConsumer
+/system-test/SystemTest
+
+# Eclipse generated files
+.cproject
+.project
+.settings/
+.pydevproject
+
+# doxygen files
+apidocs/
+
+# CMAKE
+Makefile
+cmake_install.cmake
+CMakeFiles
+CMakeCache.txt
