@@ -136,17 +136,17 @@ void ClientConnection::handlePulsarConnected(const CommandConnected& cmdConnecte
 }
 
 /// The number of unacknowledged probes to send before considering the connection dead and notifying the application layer
-typedef boost::asio::detail::socket_option::integer<BOOST_ASIO_OS_DEF(IPPROTO_TCP), TCP_KEEPCNT> tcp_keep_alive_count;
+typedef boost::asio::detail::socket_option::integer<IPPROTO_TCP, TCP_KEEPCNT> tcp_keep_alive_count;
 
 /// The interval between subsequential keepalive probes, regardless of what the connection has exchanged in the meantime
-typedef boost::asio::detail::socket_option::integer<BOOST_ASIO_OS_DEF(IPPROTO_TCP), TCP_KEEPINTVL> tcp_keep_alive_interval;
+typedef boost::asio::detail::socket_option::integer<IPPROTO_TCP, TCP_KEEPINTVL> tcp_keep_alive_interval;
 
 /// The interval between the last data packet sent (simple ACKs are not considered data) and the first keepalive
 /// probe; after the connection is marked to need keepalive, this counter is not used any further
 #ifdef __APPLE__
-  typedef boost::asio::detail::socket_option::integer<BOOST_ASIO_OS_DEF(IPPROTO_TCP), TCP_KEEPALIVE> tcp_keep_alive_idle;
+  typedef boost::asio::detail::socket_option::integer<IPPROTO_TCP, TCP_KEEPALIVE> tcp_keep_alive_idle;
 #else
-  typedef boost::asio::detail::socket_option::integer<BOOST_ASIO_OS_DEF(IPPROTO_TCP), TCP_KEEPIDLE> tcp_keep_alive_idle;
+  typedef boost::asio::detail::socket_option::integer<IPPROTO_TCP, TCP_KEEPIDLE> tcp_keep_alive_idle;
 #endif
 
 /*
