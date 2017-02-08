@@ -19,7 +19,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
@@ -68,16 +68,16 @@ public class PersistentReplicator implements ReadEntriesCallback, DeleteCallback
 
     private final int producerQueueThreshold;
 
-    private volatile int pendingMessages = 0;
-    private static final AtomicIntegerFieldUpdater<PersistentReplicator> pendingMessagesUpdater = AtomicIntegerFieldUpdater
+    private static final AtomicIntegerFieldUpdater<PersistentReplicator> PENDING_MESSAGES_UPDATER = AtomicIntegerFieldUpdater
             .newUpdater(PersistentReplicator.class, "pendingMessages");
+    private volatile int pendingMessages = 0;
 
     private static final int FALSE = 0;
     private static final int TRUE = 1;
 
-    private volatile int havePendingRead = FALSE;
-    private static final AtomicIntegerFieldUpdater<PersistentReplicator> havePendingReadUpdater = AtomicIntegerFieldUpdater
+    private static final AtomicIntegerFieldUpdater<PersistentReplicator> HAVE_PENDING_READ_UPDATER = AtomicIntegerFieldUpdater
             .newUpdater(PersistentReplicator.class, "havePendingRead");
+    private volatile int havePendingRead = FALSE;
 
     private final Rate msgOut = new Rate();
     private final Rate msgExpired = new Rate();
@@ -107,6 +107,9 @@ public class PersistentReplicator implements ReadEntriesCallback, DeleteCallback
         this.client = (PulsarClientImpl) brokerService.getReplicationClient(remoteCluster);
         this.producer = null;
         this.expiryMonitor = new PersistentMessageExpiryMonitor(topicName, cursor);
+        HAVE_PENDING_READ_UPDATER.set(this, FALSE);
+        PENDING_MESSAGES_UPDATER.set(this, 0);
+        STATE_UPDATER.set(this, State.Stopped);
 
         producerQueueSize = brokerService.pulsar().getConfiguration().getReplicationProducerQueueSize();
         readBatchSize = Math.min(producerQueueSize, MaxReadBatchSize);
@@ -123,12 +126,14 @@ public class PersistentReplicator implements ReadEntriesCallback, DeleteCallback
         Stopped, Starting, Started, Stopping
     }
 
-    private final AtomicReference<State> state = new AtomicReference<State>(State.Stopped);
+    private static final AtomicReferenceFieldUpdater<PersistentReplicator, State> STATE_UPDATER =
+            AtomicReferenceFieldUpdater.newUpdater(PersistentReplicator.class, State.class, "state");
+    private volatile State state = State.Stopped;
 
     // This method needs to be synchronized with disconnects else if there is a disconnect followed by startProducer
     // the end result can be disconnect.
     public synchronized void startProducer() {
-        if (this.state.get() == State.Stopping) {
+        if (STATE_UPDATER.get(this) == State.Stopping) {
             long waitTimeMs = backOff.next();
             if (log.isDebugEnabled()) {
                 log.debug(
@@ -139,8 +144,8 @@ public class PersistentReplicator implements ReadEntriesCallback, DeleteCallback
             brokerService.executor().schedule(this::startProducer, waitTimeMs, TimeUnit.MILLISECONDS);
             return;
         }
-        State state = this.state.get();
-        if (!this.state.compareAndSet(State.Stopped, State.Starting)) {
+        State state = STATE_UPDATER.get(this);
+        if (!STATE_UPDATER.compareAndSet(this, State.Stopped, State.Starting)) {
             if (state == State.Started) {
                 // Already running
                 if (log.isDebugEnabled()) {
@@ -161,10 +166,10 @@ public class PersistentReplicator implements ReadEntriesCallback, DeleteCallback
                     cursor.rewind();
 
                     cursor.cancelPendingReadRequest();
-                    havePendingRead = FALSE;
+                    HAVE_PENDING_READ_UPDATER.set(this, FALSE);
                     this.producer = (ProducerImpl) producer;
 
-                    if (this.state.compareAndSet(State.Starting, State.Started)) {
+                    if (STATE_UPDATER.compareAndSet(this, State.Starting, State.Started)) {
                         log.info("[{}][{} -> {}] Created replicator producer", topicName, localCluster, remoteCluster);
                         backOff.reset();
                         // activate cursor: so, entries can be cached
@@ -174,13 +179,13 @@ public class PersistentReplicator implements ReadEntriesCallback, DeleteCallback
                     } else {
                         log.info(
                                 "[{}][{} -> {}] Replicator was stopped while creating the producer. Closing it. Replicator state: {}",
-                                topicName, localCluster, remoteCluster, this.state.get());
-                        this.state.set(State.Stopping);
+                                topicName, localCluster, remoteCluster, STATE_UPDATER.get(this));
+                        STATE_UPDATER.set(this, State.Stopping);
                         closeProducerAsync();
                         return;
                     }
                 }).exceptionally(ex -> {
-                    if (this.state.compareAndSet(State.Starting, State.Stopped)) {
+                    if (STATE_UPDATER.compareAndSet(this, State.Starting, State.Stopped)) {
                         long waitTimeMs = backOff.next();
                         log.warn("[{}][{} -> {}] Failed to create remote producer ({}), retrying in {} s", topicName,
                                 localCluster, remoteCluster, ex.getMessage(), waitTimeMs / 1000.0);
@@ -189,7 +194,7 @@ public class PersistentReplicator implements ReadEntriesCallback, DeleteCallback
                         brokerService.executor().schedule(this::startProducer, waitTimeMs, TimeUnit.MILLISECONDS);
                     } else {
                         log.warn("[{}][{} -> {}] Failed to create remote producer. Replicator state: ", topicName,
-                                localCluster, remoteCluster, this.state.get(), ex);
+                                localCluster, remoteCluster, STATE_UPDATER.get(this), ex);
                     }
                     return null;
                 });
@@ -198,12 +203,12 @@ public class PersistentReplicator implements ReadEntriesCallback, DeleteCallback
 
     private synchronized CompletableFuture<Void> closeProducerAsync() {
         if (producer == null) {
-            state.set(State.Stopped);
+            STATE_UPDATER.set(this, State.Stopped);
             return CompletableFuture.completedFuture(null);
         }
         CompletableFuture<Void> future = producer.closeAsync();
         future.thenRun(() -> {
-            state.set(State.Stopped);
+            STATE_UPDATER.set(this, State.Stopped);
             this.producer = null;
             // deactivate cursor after successfully close the producer
             this.cursor.setInactive();
@@ -220,7 +225,7 @@ public class PersistentReplicator implements ReadEntriesCallback, DeleteCallback
     }
 
     private void readMoreEntries() {
-        int availablePermits = producerQueueSize - pendingMessages;
+        int availablePermits = producerQueueSize - PENDING_MESSAGES_UPDATER.get(this);
 
         if (availablePermits > 0) {
             int messagesToRead = Math.min(availablePermits, readBatchSize);
@@ -234,7 +239,7 @@ public class PersistentReplicator implements ReadEntriesCallback, DeleteCallback
             }
 
             // Schedule read
-            if (havePendingReadUpdater.compareAndSet(this, FALSE, TRUE)) {
+            if (HAVE_PENDING_READ_UPDATER.compareAndSet(this, FALSE, TRUE)) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}][{} -> {}] Schedule read of {} messages", topicName, localCluster, remoteCluster,
                             messagesToRead);
@@ -326,7 +331,7 @@ public class PersistentReplicator implements ReadEntriesCallback, DeleteCallback
                     continue;
                 }
 
-                if (state.get() != State.Started || isLocalMessageSkippedOnce) {
+                if (STATE_UPDATER.get(this) != State.Started || isLocalMessageSkippedOnce) {
                     // The producer is not ready yet after having stopped/restarted. Drop the message because it will
                     // recovered when the producer is ready
                     if (log.isDebugEnabled()) {
@@ -340,7 +345,7 @@ public class PersistentReplicator implements ReadEntriesCallback, DeleteCallback
                 }
 
                 // Increment pending messages for messages produced locally
-                pendingMessagesUpdater.incrementAndGet(this);
+                PENDING_MESSAGES_UPDATER.incrementAndGet(this);
 
                 msgOut.recordEvent(headersAndPayload.readableBytes());
 
@@ -356,7 +361,7 @@ public class PersistentReplicator implements ReadEntriesCallback, DeleteCallback
                     e);
         }
 
-        havePendingRead = FALSE;
+        HAVE_PENDING_READ_UPDATER.set(this, FALSE);
 
         if (atLeastOneMessageSentForReplication && !isWritable()) {
             // Don't read any more entries until the current pending entries are persisted
@@ -398,7 +403,7 @@ public class PersistentReplicator implements ReadEntriesCallback, DeleteCallback
             replicator.cursor.asyncDelete(entry.getPosition(), replicator, entry.getPosition());
             entry.release();
 
-            int pending = pendingMessagesUpdater.decrementAndGet(replicator);
+            int pending = PENDING_MESSAGES_UPDATER.decrementAndGet(replicator);
 
             // In general, we schedule a new batch read operation when the occupied queue size gets smaller than half
             // the max size, unless another read operation is already in progress.
@@ -406,7 +411,7 @@ public class PersistentReplicator implements ReadEntriesCallback, DeleteCallback
             // until we have emptied the whole queue, and at that point we will read a batch of 1 single message if the
             // producer is still not "writable".
             if (pending < replicator.producerQueueThreshold //
-                    && replicator.havePendingRead == FALSE //
+                    && HAVE_PENDING_READ_UPDATER.get(replicator) == FALSE //
             ) {
                 if (pending == 0 || replicator.producer.isWritable()) {
                     replicator.readMoreEntries();
@@ -472,9 +477,9 @@ public class PersistentReplicator implements ReadEntriesCallback, DeleteCallback
 
     @Override
     public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
-        if (this.state.get() != State.Started) {
+        if (STATE_UPDATER.get(this) != State.Started) {
             log.info("[{}][{} -> {}] Replicator was stopped while reading entries. Stop reading. Replicator state: {}",
-                    topic, localCluster, remoteCluster, this.state.get());
+                    topic, localCluster, remoteCluster, STATE_UPDATER.get(this));
             return;
         }
 
@@ -494,7 +499,7 @@ public class PersistentReplicator implements ReadEntriesCallback, DeleteCallback
             }
         }
 
-        havePendingRead = FALSE;
+        HAVE_PENDING_READ_UPDATER.set(this, FALSE);
         brokerService.executor().schedule(this::readMoreEntries, waitTimeMillis, TimeUnit.MILLISECONDS);
     }
 
@@ -605,14 +610,14 @@ public class PersistentReplicator implements ReadEntriesCallback, DeleteCallback
             return disconnectFuture;
         }
 
-        if (producer != null && (state.compareAndSet(State.Starting, State.Stopping)
-                || state.compareAndSet(State.Started, State.Stopping))) {
+        if (producer != null && (STATE_UPDATER.compareAndSet(this, State.Starting, State.Stopping)
+                || STATE_UPDATER.compareAndSet(this, State.Started, State.Stopping))) {
             log.info("[{}][{} -> {}] Disconnect replicator at position {} with backlog {}", topicName, localCluster,
                     remoteCluster, cursor.getMarkDeletedPosition(), cursor.getNumberOfEntriesInBacklog());
             return closeProducerAsync();
         } else {
             // If there's already a reconnection happening, signal to close it whenever it's ready
-            state.set(State.Stopped);
+            STATE_UPDATER.set(this, State.Stopped);
         }
         return CompletableFuture.completedFuture(null);
     }

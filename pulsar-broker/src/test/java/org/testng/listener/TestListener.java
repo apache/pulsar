@@ -39,7 +39,7 @@ public class TestListener extends TestListenerAdapter {
     @Override
     public void onTestFailure(ITestResult tr) {
         log.error("------------ Test Failed - {} / {} -- attrs: {}", tr.getTestClass().getName(),
-                tr.getMethod().getMethodName(), tr.getAttributeNames());
+                tr.getMethod().getMethodName(), tr.getAttributeNames(), tr.getThrowable());
     }
 
     @Override

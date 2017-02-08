@@ -77,7 +77,7 @@ public abstract class ConsumerBase extends HandlerBase implements Consumer {
                     "Cannot use receive() when a listener has been set");
         }
 
-        switch (state.get()) {
+        switch (getState()) {
         case Ready:
         case Connecting:
             break; // Ok
@@ -100,7 +100,7 @@ public abstract class ConsumerBase extends HandlerBase implements Consumer {
                     "Cannot use receive() when a listener has been set"));
         }
 
-        switch (state.get()) {
+        switch (getState()) {
         case Ready:
         case Connecting:
             break; // Ok
@@ -130,7 +130,7 @@ public abstract class ConsumerBase extends HandlerBase implements Consumer {
                     "Cannot use receive() when a listener has been set");
         }
 
-        switch (state.get()) {
+        switch (getState()) {
         case Ready:
         case Connecting:
             break; // Ok

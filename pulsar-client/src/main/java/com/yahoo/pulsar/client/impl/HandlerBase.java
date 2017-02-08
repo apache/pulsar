@@ -16,7 +16,7 @@
 package com.yahoo.pulsar.client.impl;
 
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,9 +26,13 @@ import com.yahoo.pulsar.client.api.PulsarClientException;
 abstract class HandlerBase {
     protected final PulsarClientImpl client;
     protected final String topic;
-    protected AtomicReference<State> state = new AtomicReference<>();
+    private static final AtomicReferenceFieldUpdater<HandlerBase, State> STATE_UPDATER =
+            AtomicReferenceFieldUpdater.newUpdater(HandlerBase.class, State.class, "state");
+    private volatile State state = null;
 
-    protected final AtomicReference<ClientCnx> clientCnx;
+    private static final AtomicReferenceFieldUpdater<HandlerBase, ClientCnx> CLIENT_CNX_UPDATER =
+            AtomicReferenceFieldUpdater.newUpdater(HandlerBase.class, ClientCnx.class, "clientCnx");
+    private volatile ClientCnx clientCnx = null;
     protected final Backoff backoff;
 
     enum State {
@@ -43,20 +47,20 @@ abstract class HandlerBase {
     public HandlerBase(PulsarClientImpl client, String topic) {
         this.client = client;
         this.topic = topic;
-        this.clientCnx = new AtomicReference<>();
         this.backoff = new Backoff(100, TimeUnit.MILLISECONDS, 60, TimeUnit.SECONDS);
-        this.state.set(State.Uninitialized);
+        STATE_UPDATER.set(this, State.Uninitialized);
+        CLIENT_CNX_UPDATER.set(this, null);
     }
 
     protected void grabCnx() {
-        if (clientCnx.get() != null) {
+        if (CLIENT_CNX_UPDATER.get(this) != null) {
             log.warn("[{}] [{}] Client cnx already set, ignoring reconnection request", topic, getHandlerName());
             return;
         }
 
         if (!isValidStateForReconnection()) {
             // Ignore connection closed when we are shutting down
-            log.info("[{}] [{}] Ignoring reconnection request (state: {})", topic, getHandlerName(), state);
+            log.info("[{}] [{}] Ignoring reconnection request (state: {})", topic, getHandlerName(), STATE_UPDATER.get(this));
             return;
         }
 
@@ -74,7 +78,7 @@ abstract class HandlerBase {
         log.warn("[{}] [{}] Error connecting to broker: {}", topic, getHandlerName(), exception.getMessage());
         connectionFailed(new PulsarClientException(exception));
 
-        State state = this.state.get();
+        State state = STATE_UPDATER.get(this);
         if (state == State.Uninitialized || state == State.Connecting || state == State.Ready) {
             reconnectLater(exception);
         }
@@ -83,15 +87,15 @@ abstract class HandlerBase {
     }
 
     protected void reconnectLater(Throwable exception) {
-        clientCnx.set(null);
+        CLIENT_CNX_UPDATER.set(this, null);
         if (!isValidStateForReconnection()) {
-            log.info("[{}] [{}] Ignoring reconnection request (state: {})", topic, getHandlerName(), state);
+            log.info("[{}] [{}] Ignoring reconnection request (state: {})", topic, getHandlerName(), STATE_UPDATER.get(this));
             return;
         }
         long delayMs = backoff.next();
         log.warn("[{}] [{}] Could not get connection to broker: {} -- Will try again in {} s", topic, getHandlerName(),
                 exception.getMessage(), delayMs / 1000.0);
-        state.set(State.Connecting);
+        STATE_UPDATER.set(this, State.Connecting);
         client.timer().newTimeout(timeout -> {
             log.info("[{}] [{}] Reconnecting after connection was closed", topic, getHandlerName());
             grabCnx();
@@ -99,13 +103,13 @@ abstract class HandlerBase {
     }
 
     protected void connectionClosed(ClientCnx cnx) {
-        if (clientCnx.compareAndSet(cnx, null)) {
+        if (CLIENT_CNX_UPDATER.compareAndSet(this, cnx, null)) {
             if (!isValidStateForReconnection()) {
-                log.info("[{}] [{}] Ignoring reconnection request (state: {})", topic, getHandlerName(), state);
+                log.info("[{}] [{}] Ignoring reconnection request (state: {})", topic, getHandlerName(), STATE_UPDATER.get(this));
                 return;
             }
             long delayMs = backoff.next();
-            state.set(State.Connecting);
+            STATE_UPDATER.set(this, State.Connecting);
             log.info("[{}] [{}] Closed connection {} -- Will try again in {} s", topic, getHandlerName(), cnx.channel(),
                     delayMs / 1000.0);
             client.timer().newTimeout(timeout -> {
@@ -120,7 +124,7 @@ abstract class HandlerBase {
     }
 
     protected ClientCnx cnx() {
-        return clientCnx.get();
+        return CLIENT_CNX_UPDATER.get(this);
     }
 
     protected boolean isRetriableError(PulsarClientException e) {
@@ -129,12 +133,28 @@ abstract class HandlerBase {
 
     // moves the state to ready if it wasn't closed
     protected boolean changeToReadyState() {
-        return (state.compareAndSet(State.Uninitialized, State.Ready)
-                || state.compareAndSet(State.Connecting, State.Ready));
+        return (STATE_UPDATER.compareAndSet(this, State.Uninitialized, State.Ready)
+                || STATE_UPDATER.compareAndSet(this, State.Connecting, State.Ready));
+    }
+
+    protected State getState() {
+        return STATE_UPDATER.get(this);
+    }
+
+    protected void setState(State s) {
+        STATE_UPDATER.set(this, s);
+    }
+
+    protected ClientCnx getClientCnx() {
+        return CLIENT_CNX_UPDATER.get(this);
+    }
+
+    protected void setClientCnx(ClientCnx clientCnx) {
+        CLIENT_CNX_UPDATER.set(this, clientCnx);
     }
 
     private boolean isValidStateForReconnection() {
-        State state = this.state.get();
+        State state = STATE_UPDATER.get(this);
         switch (state) {
         case Uninitialized:
         case Connecting:

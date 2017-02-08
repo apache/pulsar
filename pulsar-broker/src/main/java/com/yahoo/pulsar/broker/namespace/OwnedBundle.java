@@ -16,7 +16,7 @@
 package com.yahoo.pulsar.broker.namespace;
 
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import org.slf4j.Logger;
@@ -35,7 +35,11 @@ public class OwnedBundle {
      * based on {@link #active} flag
      */
     private final ReentrantReadWriteLock nsLock = new ReentrantReadWriteLock();
-    private final AtomicBoolean isActive = new AtomicBoolean(true);
+    private static final int FALSE = 0;
+    private static final int TRUE = 1;
+    private static final AtomicIntegerFieldUpdater<OwnedBundle> IS_ACTIVE_UPDATER =
+            AtomicIntegerFieldUpdater.newUpdater(OwnedBundle.class, "isActive");
+    private volatile int isActive = TRUE;
 
     /**
      * constructor
@@ -44,6 +48,7 @@ public class OwnedBundle {
      */
     public OwnedBundle(NamespaceBundle suName) {
         this.bundle = suName;
+        IS_ACTIVE_UPDATER.set(this, TRUE);
     };
 
     /**
@@ -55,7 +60,7 @@ public class OwnedBundle {
      */
     public OwnedBundle(NamespaceBundle suName, boolean active) {
         this.bundle = suName;
-        this.isActive.set(active);
+        IS_ACTIVE_UPDATER.set(this, active ? TRUE : FALSE);
     }
 
     /**
@@ -90,11 +95,11 @@ public class OwnedBundle {
 
         try {
             // set the flag locally s.t. no more producer/consumer to this namespace is allowed
-            if (!this.isActive.compareAndSet(true, false)) {
+            if (!IS_ACTIVE_UPDATER.compareAndSet(this, TRUE, FALSE)) {
                 // An exception is thrown when the namespace is not in active state (i.e. another thread is
                 // removing/have removed it)
                 throw new IllegalStateException(
-                        "Namespace is not active. ns:" + this.bundle + "; state:" + this.isActive.get());
+                        "Namespace is not active. ns:" + this.bundle + "; state:" + IS_ACTIVE_UPDATER.get(this));
             }
         } finally {
             // no matter success or not, unlock
@@ -137,10 +142,10 @@ public class OwnedBundle {
      * @return boolean value indicate that the namespace is active or not.
      */
     public boolean isActive() {
-        return this.isActive.get();
+        return IS_ACTIVE_UPDATER.get(this) == TRUE;
     }
 
     public void setActive(boolean active) {
-        isActive.set(active);
+        IS_ACTIVE_UPDATER.set(this, active ? TRUE : FALSE);
     }
 }

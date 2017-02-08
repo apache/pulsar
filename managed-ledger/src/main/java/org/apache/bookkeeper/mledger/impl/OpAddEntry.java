@@ -137,8 +137,8 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
         OpAddEntry firstInQueue = ml.pendingAddEntries.poll();
         checkArgument(this == firstInQueue);
 
-        ml.numberOfEntries.incrementAndGet();
-        ml.totalSize.addAndGet(dataLength);
+        ManagedLedgerImpl.NUMBER_OF_ENTRIES_UPDATER.incrementAndGet(ml);
+        ManagedLedgerImpl.TOTAL_SIZE_UPDATER.addAndGet(ml, dataLength);
         if (ml.hasActiveCursors()) {
             // Avoid caching entries if no cursor has been created
             ml.entryCache.insert(new EntryImpl(ledger.getId(), entryId, data));
@@ -148,7 +148,7 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
         data.release();
 
         PositionImpl lastEntry = PositionImpl.get(ledger.getId(), entryId);
-        ml.entriesAddedCounter.incrementAndGet();
+        ManagedLedgerImpl.ENTRIES_ADDED_COUNTER_UPDATER.incrementAndGet(ml);
         ml.lastConfirmedEntry = lastEntry;
 
         if (closeWhenDone) {

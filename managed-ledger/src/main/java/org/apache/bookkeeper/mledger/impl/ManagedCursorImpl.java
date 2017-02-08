@@ -24,12 +24,9 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.*;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-import java.util.stream.Collectors;
 
 import org.apache.bookkeeper.client.AsyncCallback.AddCallback;
 import org.apache.bookkeeper.client.AsyncCallback.CloseCallback;
@@ -82,9 +79,18 @@ public class ManagedCursorImpl implements ManagedCursor {
     private volatile PositionImpl markDeletePosition;
     private volatile PositionImpl readPosition;
 
-    protected final AtomicReference<OpReadEntry> waitingReadOp = new AtomicReference<OpReadEntry>();
-    protected AtomicBoolean resetCursorInProgress = new AtomicBoolean(false);
-    private final AtomicInteger pendingReadOps = new AtomicInteger(0);
+    protected static final AtomicReferenceFieldUpdater<ManagedCursorImpl, OpReadEntry> WAITING_READ_OP_UPDATER =
+            AtomicReferenceFieldUpdater.newUpdater(ManagedCursorImpl.class, OpReadEntry.class, "waitingReadOp");
+    private volatile OpReadEntry waitingReadOp = null;
+
+    private static final int FALSE = 0;
+    private static final int TRUE = 1;
+    private static final AtomicIntegerFieldUpdater<ManagedCursorImpl> RESET_CURSOR_IN_PROGRESS_UPDATER = AtomicIntegerFieldUpdater
+            .newUpdater(ManagedCursorImpl.class, "resetCursorInProgress");
+    private volatile int resetCursorInProgress = FALSE;
+    private static final AtomicIntegerFieldUpdater<ManagedCursorImpl> PENDING_READ_OPS_UPDATER =
+            AtomicIntegerFieldUpdater.newUpdater(ManagedCursorImpl.class, "pendingReadOps");
+    private volatile int pendingReadOps = 0;
 
     // This counters are used to compute the numberOfEntries and numberOfEntriesInBacklog values, without having to look
     // at the list of ledgers in the ml. They are initialized to (-backlog) at opening, and will be incremented each
@@ -119,7 +125,9 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     private final ArrayDeque<PendingMarkDeleteEntry> pendingMarkDeleteOps = new ArrayDeque<PendingMarkDeleteEntry>();
-    private final AtomicInteger pendingMarkDeletedSubmittedCount = new AtomicInteger();
+    private static final AtomicIntegerFieldUpdater<ManagedCursorImpl> PENDING_MARK_DELETED_SUBMITTED_COUNT_UPDATER =
+            AtomicIntegerFieldUpdater.newUpdater(ManagedCursorImpl.class, "pendingMarkDeletedSubmittedCount");
+    private volatile int pendingMarkDeletedSubmittedCount = 0;
     private long lastLedgerSwitchTimestamp;
 
     enum State {
@@ -130,7 +138,9 @@ public class ManagedCursorImpl implements ManagedCursor {
         Closed // The managed cursor has been closed
     };
 
-    private final AtomicReference<State> state = new AtomicReference<State>();
+    private static final AtomicReferenceFieldUpdater<ManagedCursorImpl, State> STATE_UPDATER =
+            AtomicReferenceFieldUpdater.newUpdater(ManagedCursorImpl.class, State.class, "state");
+    private volatile State state = null;
 
     public interface VoidCallback {
         public void operationComplete();
@@ -143,7 +153,11 @@ public class ManagedCursorImpl implements ManagedCursor {
         this.config = config;
         this.ledger = ledger;
         this.name = cursorName;
-        this.state.set(State.Uninitialized);
+        STATE_UPDATER.set(this, State.Uninitialized);
+        PENDING_MARK_DELETED_SUBMITTED_COUNT_UPDATER.set(this, 0);
+        PENDING_READ_OPS_UPDATER.set(this, 0);
+        RESET_CURSOR_IN_PROGRESS_UPDATER.set(this, FALSE);
+        WAITING_READ_OP_UPDATER.set(this, null);
         this.lastLedgerSwitchTimestamp = System.currentTimeMillis();
 
         if (config.getThrottleMarkDelete() > 0.0) {
@@ -260,7 +274,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
         markDeletePosition = position;
         readPosition = ledger.getNextValidPosition(position);
-        state.set(State.NoLedger);
+        STATE_UPDATER.set(this, State.NoLedger);
     }
 
     void initialize(PositionImpl position, final VoidCallback callback) {
@@ -273,7 +287,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         createNewMetadataLedger(new VoidCallback() {
             @Override
             public void operationComplete() {
-                state.set(State.Open);
+                STATE_UPDATER.set(ManagedCursorImpl.this, State.Open);
                 callback.operationComplete();
             }
 
@@ -323,12 +337,12 @@ public class ManagedCursorImpl implements ManagedCursor {
     public void asyncReadEntries(final int numberOfEntriesToRead, final ReadEntriesCallback callback,
             final Object ctx) {
         checkArgument(numberOfEntriesToRead > 0);
-        if (state.get() == State.Closed) {
+        if (STATE_UPDATER.get(this) == State.Closed) {
             callback.readEntriesFailed(new ManagedLedgerException("Cursor was already closed"), ctx);
             return;
         }
 
-        pendingReadOps.incrementAndGet();
+        PENDING_READ_OPS_UPDATER.incrementAndGet(this);
         OpReadEntry op = OpReadEntry.create(this, PositionImpl.get(readPosition), numberOfEntriesToRead, callback, ctx);
         ledger.asyncReadEntries(op);
     }
@@ -372,7 +386,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     public void asyncGetNthEntry(int N, IndividualDeletedEntries deletedEntries, ReadEntryCallback callback,
             Object ctx) {
         checkArgument(N > 0);
-        if (state.get() == State.Closed) {
+        if (STATE_UPDATER.get(this) == State.Closed) {
             callback.readEntryFailed(new ManagedLedgerException("Cursor was already closed"), ctx);
             return;
         }
@@ -436,7 +450,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     @Override
     public void asyncReadEntriesOrWait(int numberOfEntriesToRead, ReadEntriesCallback callback, Object ctx) {
         checkArgument(numberOfEntriesToRead > 0);
-        if (state.get() == State.Closed) {
+        if (STATE_UPDATER.get(this) == State.Closed) {
             callback.readEntriesFailed(new ManagedLedgerException("Cursor was already closed"), ctx);
             return;
         }
@@ -451,7 +465,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             OpReadEntry op = OpReadEntry.create(this, PositionImpl.get(readPosition), numberOfEntriesToRead, callback,
                     ctx);
 
-            if (!waitingReadOp.compareAndSet(null, op)) {
+            if (!WAITING_READ_OP_UPDATER.compareAndSet(this, null, op)) {
                 callback.readEntriesFailed(new ManagedLedgerException("We can only have a single waiting callback"),
                         ctx);
                 return;
@@ -488,12 +502,12 @@ public class ManagedCursorImpl implements ManagedCursor {
                         log.debug("[{}] [{}] Found more entries", ledger.getName(), name);
                     }
                     // Try to cancel the notification request
-                    if (waitingReadOp.compareAndSet(op, null)) {
+                    if (WAITING_READ_OP_UPDATER.compareAndSet(this, op, null)) {
                         if (log.isDebugEnabled()) {
                             log.debug("[{}] [{}] Cancelled notification and scheduled read at {}", ledger.getName(),
                                     name, op.readPosition);
                         }
-                        pendingReadOps.incrementAndGet();
+                        PENDING_READ_OPS_UPDATER.incrementAndGet(this);
                         ledger.asyncReadEntries(op);
                     } else {
                         if (log.isDebugEnabled()) {
@@ -510,11 +524,11 @@ public class ManagedCursorImpl implements ManagedCursor {
         if (log.isDebugEnabled()) {
             log.debug("[{}] [{}] Cancel pending read request", ledger.getName(), name);
         }
-        return waitingReadOp.getAndSet(null) != null;
+        return WAITING_READ_OP_UPDATER.getAndSet(this, null) != null;
     }
 
     public boolean hasPendingReadRequest() {
-        return waitingReadOp.get() != null;
+        return WAITING_READ_OP_UPDATER.get(this) != null;
     }
 
     @Override
@@ -549,10 +563,10 @@ public class ManagedCursorImpl implements ManagedCursor {
     public long getNumberOfEntriesInBacklog() {
         if (log.isDebugEnabled()) {
             log.debug("[{}] Consumer {} cursor ml-entries: {} -- deleted-counter: {} other counters: mdPos {} rdPos {}",
-                    ledger.getName(), name, ledger.entriesAddedCounter.get(), messagesConsumedCounter,
+                    ledger.getName(), name, ManagedLedgerImpl.ENTRIES_ADDED_COUNTER_UPDATER.get(ledger), messagesConsumedCounter,
                     markDeletePosition, readPosition);
         }
-        long backlog = ledger.entriesAddedCounter.get() - messagesConsumedCounter;
+        long backlog = ManagedLedgerImpl.ENTRIES_ADDED_COUNTER_UPDATER.get(ledger) - messagesConsumedCounter;
         if (backlog < 0) {
             // In some case the counters get incorrect values, fall back to the precise backlog count
             backlog = getNumberOfEntries(Range.closed(markDeletePosition, ledger.getLastPosition()));
@@ -648,7 +662,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         log.info("[{}] Initiate reset position to {} on cursor {}", ledger.getName(), newPosition, name);
 
         synchronized (pendingMarkDeleteOps) {
-            if (!resetCursorInProgress.compareAndSet(false, true)) {
+            if (!RESET_CURSOR_IN_PROGRESS_UPDATER.compareAndSet(this, FALSE, TRUE)) {
                 log.error("[{}] reset requested - position [{}], previous reset in progress - cursor {}",
                         ledger.getName(), newPosition, name);
                 resetCursorCallback.resetFailed(
@@ -692,7 +706,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 }
                 synchronized (pendingMarkDeleteOps) {
                     pendingMarkDeleteOps.clear();
-                    if (!resetCursorInProgress.compareAndSet(true, false)) {
+                    if (!RESET_CURSOR_IN_PROGRESS_UPDATER.compareAndSet(ManagedCursorImpl.this, TRUE, FALSE)) {
                         log.error("[{}] expected reset position [{}], but another reset in progress on cursor {}",
                                 ledger.getName(), newPosition, name);
                     }
@@ -704,7 +718,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             @Override
             public void operationFailed(ManagedLedgerException exception) {
                 synchronized (pendingMarkDeleteOps) {
-                    if (!resetCursorInProgress.compareAndSet(true, false)) {
+                    if (!RESET_CURSOR_IN_PROGRESS_UPDATER.compareAndSet(ManagedCursorImpl.this, TRUE, FALSE)) {
                         log.error("[{}] expected reset position [{}], but another reset in progress on cursor {}",
                                 ledger.getName(), newPosition, name);
                     }
@@ -1169,12 +1183,12 @@ public class ManagedCursorImpl implements ManagedCursor {
         checkNotNull(position);
         checkArgument(position instanceof PositionImpl);
 
-        if (state.get() == State.Closed) {
+        if (STATE_UPDATER.get(this) == State.Closed) {
             callback.markDeleteFailed(new ManagedLedgerException("Cursor was already closed"), ctx);
             return;
         }
 
-        if (resetCursorInProgress.get()) {
+        if (RESET_CURSOR_IN_PROGRESS_UPDATER.get(this) == TRUE) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] cursor reset in progress - ignoring mark delete on position [{}] for cursor [{}]",
                         ledger.getName(), (PositionImpl) position, name);
@@ -1214,7 +1228,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         // We cannot write to the ledger during the switch, need to wait until the new metadata ledger is available
         synchronized (pendingMarkDeleteOps) {
             // The state might have changed while we were waiting on the queue mutex
-            switch (state.get()) {
+            switch (STATE_UPDATER.get(this)) {
             case Closed:
                 callback.markDeleteFailed(new ManagedLedgerException("Cursor was already closed"), ctx);
                 return;
@@ -1228,7 +1242,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 break;
 
             case Open:
-                if (pendingReadOps.get() > 0) {
+                if (PENDING_READ_OPS_UPDATER.get(this) > 0) {
                     // Wait until no read operation are pending
                     pendingMarkDeleteOps.add(mdEntry);
                 } else {
@@ -1249,7 +1263,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         // The counter is used to mark all the pending mark-delete request that were submitted to BK and that are not
         // yet finished. While we have outstanding requests we cannot close the current ledger, so the switch to new
         // ledger is postponed to when the counter goes to 0.
-        pendingMarkDeletedSubmittedCount.incrementAndGet();
+        PENDING_MARK_DELETED_SUBMITTED_COUNT_UPDATER.incrementAndGet(this);
 
         persistPosition(cursorLedger, mdEntry.newPosition, new VoidCallback() {
             @Override
@@ -1361,7 +1375,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     public void asyncDelete(Position pos, final AsyncCallbacks.DeleteCallback callback, Object ctx) {
         checkArgument(pos instanceof PositionImpl);
 
-        if (state.get() == State.Closed) {
+        if (STATE_UPDATER.get(this) == State.Closed) {
             callback.deleteFailed(new ManagedLedgerException("Cursor was already closed"), ctx);
             return;
         }
@@ -1608,7 +1622,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     @Override
     public void asyncClose(final AsyncCallbacks.CloseCallback callback, final Object ctx) {
-        State oldState = state.getAndSet(State.Closed);
+        State oldState = STATE_UPDATER.getAndSet(this, State.Closed);
         if (oldState == State.Closed) {
             log.info("[{}] [{}] State is already closed", ledger.getName(), name);
             callback.closeComplete(ctx);
@@ -1662,14 +1676,14 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     void startCreatingNewMetadataLedger() {
         // Change the state so that new mark-delete ops will be queued and not immediately submitted
-        State oldState = state.getAndSet(State.SwitchingLedger);
+        State oldState = STATE_UPDATER.getAndSet(this, State.SwitchingLedger);
         if (oldState == State.SwitchingLedger) {
             // Ignore double request
             return;
         }
 
         // Check if we can immediately switch to a new metadata ledger
-        if (pendingMarkDeletedSubmittedCount.get() == 0) {
+        if (PENDING_MARK_DELETED_SUBMITTED_COUNT_UPDATER.get(this) == 0) {
             createNewMetadataLedger();
         }
     }
@@ -1683,7 +1697,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     flushPendingMarkDeletes();
 
                     // Resume normal mark-delete operations
-                    state.set(State.Open);
+                    STATE_UPDATER.set(ManagedCursorImpl.this, State.Open);
                 }
             }
 
@@ -1698,7 +1712,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     }
 
                     // At this point we don't have a ledger ready
-                    state.set(State.NoLedger);
+                    STATE_UPDATER.set(ManagedCursorImpl.this, State.NoLedger);
                 }
             }
         });
@@ -1706,7 +1720,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     private void flushPendingMarkDeletes() {
         if (!pendingMarkDeleteOps.isEmpty()) {
-            if (resetCursorInProgress.get()) {
+            if (RESET_CURSOR_IN_PROGRESS_UPDATER.get(this) == TRUE) {
                 failPendingMarkDeletes();
             } else {
                 internalFlushPendingMarkDeletes();
@@ -1807,7 +1821,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                             position, lh.getId(), BKException.getMessage(rc));
                     // If we've had a write error, the ledger will be automatically closed, we need to create a new one,
                     // in the meantime the mark-delete will be queued.
-                    state.compareAndSet(State.Open, State.NoLedger);
+                    STATE_UPDATER.compareAndSet(ManagedCursorImpl.this, State.Open, State.NoLedger);
                     callback.operationFailed(new ManagedLedgerException(BKException.getMessage(rc)));
                 }
             }
@@ -1818,7 +1832,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         long now = System.currentTimeMillis();
         if ((lh.getLastAddConfirmed() >= config.getMetadataMaxEntriesPerLedger()
                 || lastLedgerSwitchTimestamp < (now - config.getLedgerRolloverTimeout() * 1000))
-                && state.get() != State.Closed) {
+                && STATE_UPDATER.get(this) != State.Closed) {
             // It's safe to modify the timestamp since this method will be only called from a callback, implying that
             // calls will be serialized on one single thread
             lastLedgerSwitchTimestamp = now;
@@ -1871,7 +1885,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         if (log.isDebugEnabled()) {
             log.debug("[{}] [{}] Received ml notification", ledger.getName(), name);
         }
-        OpReadEntry opReadEntry = waitingReadOp.getAndSet(null);
+        OpReadEntry opReadEntry = WAITING_READ_OP_UPDATER.getAndSet(this, null);
 
         if (opReadEntry != null) {
             if (log.isDebugEnabled()) {
@@ -1881,7 +1895,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                         ledger.getName(), name, messagesConsumedCounter, markDeletePosition, readPosition);
             }
 
-            pendingReadOps.incrementAndGet();
+            PENDING_READ_OPS_UPDATER.incrementAndGet(this);
             opReadEntry.readPosition = (PositionImpl) getReadPosition();
             ledger.asyncReadEntries(opReadEntry);
         } else {
@@ -1910,8 +1924,8 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     void decrementPendingMarkDeleteCount() {
-        if (pendingMarkDeletedSubmittedCount.decrementAndGet() == 0) {
-            final State state = this.state.get();
+        if (PENDING_MARK_DELETED_SUBMITTED_COUNT_UPDATER.decrementAndGet(this) == 0) {
+            final State state = STATE_UPDATER.get(this);
             if (state == State.SwitchingLedger) {
                 // A metadata ledger switch was pending and now we can do it since we don't have any more
                 // outstanding mark-delete requests
@@ -1921,12 +1935,12 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     void readOperationCompleted() {
-        if (pendingReadOps.decrementAndGet() == 0) {
+        if (PENDING_READ_OPS_UPDATER.decrementAndGet(this) == 0) {
             synchronized (pendingMarkDeleteOps) {
-                if (state.get() == State.Open) {
+                if (STATE_UPDATER.get(this) == State.Open) {
                     // Flush the pending writes only if the state is open.
                     flushPendingMarkDeletes();
-                } else if (pendingMarkDeletedSubmittedCount.get() != 0) {
+                } else if (PENDING_MARK_DELETED_SUBMITTED_COUNT_UPDATER.get(this) != 0) {
                     log.info(
                             "[{}] read operation completed and cursor was closed. need to call any queued cursor close",
                             name);
@@ -1959,7 +1973,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     void asyncDeleteCursorLedger() {
-        state.set(State.Closed);
+        STATE_UPDATER.set(this, State.Closed);
 
         if (cursorLedger == null) {
             // No ledger was created
@@ -2016,7 +2030,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     // / Expose internal values for debugging purpose
     public int getPendingReadOpsCount() {
-        return pendingReadOps.get();
+        return PENDING_READ_OPS_UPDATER.get(this);
     }
 
     public long getMessagesConsumedCounter() {
@@ -2056,7 +2070,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     public String getState() {
-        return state.get().toString();
+        return STATE_UPDATER.get(this).toString();
     }
 
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorImpl.class);
