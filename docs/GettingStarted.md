@@ -88,7 +88,7 @@ $ bin/pulsar standalone
 ```
 
 The Pulsar service is now ready to use and we can point
-clients to use service URL `http://localhost:8080/`
+clients to use service URL as either `http://localhost:8080/` or `pulsar://localhost:6650`
 
 A sample namespace, `sample/standalone/ns1`, is already available.
 
@@ -109,7 +109,7 @@ Latest version is [![Maven Central](https://maven-badges.herokuapp.com/maven-cen
 ### Consumer
 
 ```java
-PulsarClient client = PulsarClient.create("http://localhost:8080");
+PulsarClient client = PulsarClient.create("pulsar://localhost:6650");
 
 Consumer consumer = client.subscribe(
             "persistent://sample/standalone/ns1/my-topic",
@@ -132,7 +132,7 @@ client.close();
 ### Producer
 
 ```java
-PulsarClient client = PulsarClient.create("http://localhost:8080");
+PulsarClient client = PulsarClient.create("pulsar://localhost:6650");
 
 Producer producer = client.createProducer(
             "persistent://sample/standalone/ns1/my-topic");

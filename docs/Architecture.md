@@ -197,7 +197,7 @@ Pulsar enables messages to be produced and consumed in different geo-locations. 
 
 ### Authentication and Authorization
 
-TODO
+Pulsar supports a pluggable [authentication](https://github.com/yahoo/pulsar/blob/master/docs/Authentication.md) mechanism which can be configured at broker and it also supports [authorization](https://github.com/yahoo/pulsar/blob/master/docs/Authorization.md) to identify client and its access rights on topics and properties. 
 
 
 # Client Library
@@ -219,7 +219,7 @@ A PulsarClient (TODO: javadocs) instance is needed before producing/consuming me
 
 ```java
 ClientConfiguration config = new ClientConfiguration();
-PulsarClient pulsarClient = PulsarClient.create("http://broker.example.com:8080", config);
+PulsarClient pulsarClient = PulsarClient.create("pulsar://broker.example.com:6650", config);
 ...
 pulsarClient.close();
 ```

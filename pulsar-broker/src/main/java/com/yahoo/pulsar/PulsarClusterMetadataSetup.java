@@ -44,12 +44,19 @@ public class PulsarClusterMetadataSetup {
         @Parameter(names = { "-c", "--cluster" }, description = "Cluster name", required = true)
         private String cluster;
 
-        @Parameter(names = { "-u", "--service-url" }, description = "Service URL for new cluster", required = true)
-        private String clusterServiceUrl;
+        @Parameter(names = { "-uw", "--web-service-url" }, description = "Web-service URL for new cluster", required = true)
+        private String clusterWebServiceUrl;
 
-        @Parameter(names = { "-t",
-                "--service-url-tls" }, description = "Service URL for new cluster with TLS encryption", required = false)
-        private String clusterServiceUrlTls;
+        @Parameter(names = { "-tw",
+                "--web-service-url-tls" }, description = "Web-service URL for new cluster with TLS encryption", required = false)
+        private String clusterWebServiceUrlTls;
+        
+        @Parameter(names = { "-ub", "--broker-service-url" }, description = "Broker-service URL for new cluster", required = false)
+        private String clusterBrokerServiceUrl;
+
+        @Parameter(names = { "-tb",
+                "--broker-service-url-tls" }, description = "Broker-service URL for new cluster with TLS encryption", required = false)
+        private String clusterBrokerServiceUrlTls;
 
         @Parameter(names = { "-zk",
                 "--zookeeper" }, description = "Local ZooKeeper quorum connection string", required = true)
@@ -101,7 +108,8 @@ public class PulsarClusterMetadataSetup {
         ZkUtils.createFullPathOptimistic(globalZk, "/admin/clusters", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE,
                 CreateMode.PERSISTENT);
 
-        ClusterData clusterData = new ClusterData(arguments.clusterServiceUrl, arguments.clusterServiceUrlTls);
+        ClusterData clusterData = new ClusterData(arguments.clusterWebServiceUrl, arguments.clusterWebServiceUrlTls,
+                arguments.clusterBrokerServiceUrl, arguments.clusterBrokerServiceUrlTls);
         byte[] clusterDataJson = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(clusterData);
 
         globalZk.create("/admin/clusters/" + arguments.cluster, clusterDataJson, ZooDefs.Ids.OPEN_ACL_UNSAFE,
