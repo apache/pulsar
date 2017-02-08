@@ -81,6 +81,8 @@ flexible messaging model and an intuitive client API.</description>
     <module>pulsar-zookeeper-utils</module>
     <module>pulsar-checksum</module>
     <module>pulsar-testclient</module>
+    <module>pulsar-broker-auth-athenz</module>
+    <module>pulsar-client-auth-athenz</module>
     <module>all</module>
   </modules>
 
@@ -388,6 +390,19 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>caffeine</artifactId>
         <version>2.3.3</version>
       </dependency>
+
+      <dependency>
+        <groupId>com.yahoo.athenz</groupId>
+        <artifactId>zts_java_client</artifactId>
+        <version>1.1.3</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.yahoo.athenz</groupId>
+        <artifactId>zpe_java_client</artifactId>
+        <version>1.1.3</version>
+      </dependency>
+
     </dependencies>
   </dependencyManagement>
 
@@ -709,6 +724,14 @@ flexible messaging model and an intuitive client API.</description>
     <repository>
       <id>bookkeeper-yahoo-mvn-repo</id>
       <url>https://raw.githubusercontent.com/yahoo/bookkeeper/mvn-repo</url>
+    </repository>
+    <repository>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+      <id>bintray-yahoo-maven</id>
+      <name>bintray</name>
+      <url>http://yahoo.bintray.com/maven</url>
     </repository>
   </repositories>
 
