@@ -62,6 +62,10 @@ public class PulsarClientTool {
     public PulsarClientTool(Properties properties) throws MalformedURLException {
         this.serviceURL = StringUtils.isNotBlank(properties.getProperty("brokerServiceUrl"))
                 ? properties.getProperty("brokerServiceUrl") : properties.getProperty("webServiceUrl");
+        // fallback to previous-version serviceUrl property to maintain backward-compatibility        
+        if (StringUtils.isBlank(this.serviceURL)) {
+            this.serviceURL = properties.getProperty("serviceUrl");
+        }
         this.authPluginClassName = properties.getProperty("authPlugin");
         this.authParams = properties.getProperty("authParams");
         this.useTls = Boolean.parseBoolean(properties.getProperty("useTls"));

@@ -21,6 +21,8 @@ import java.net.URL;
 import java.util.Arrays;
 import java.util.Properties;
 
+import org.apache.commons.lang3.StringUtils;
+
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.yahoo.pulsar.client.admin.PulsarAdmin;
@@ -34,7 +36,9 @@ public class PulsarAdminTool {
     private boolean help;
 
     PulsarAdminTool(Properties properties) throws Exception {
-        String serviceUrl = properties.getProperty("webServiceUrl");
+        // fallback to previous-version serviceUrl property to maintain backward-compatibility
+        String serviceUrl = StringUtils.isNotBlank(properties.getProperty("webServiceUrl"))
+                ? properties.getProperty("webServiceUrl") : properties.getProperty("serviceUrl");
         String authPluginClassName = properties.getProperty("authPlugin");
         String authParams = properties.getProperty("authParams");
         boolean useTls = Boolean.parseBoolean(properties.getProperty("useTls"));

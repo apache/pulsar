@@ -134,7 +134,12 @@ public class PerformanceConsumer {
             }
             
             if (arguments.serviceURL == null) {
-                arguments.serviceURL = prop.getProperty("webServiceUrl", "http://localhost:8080/");
+                arguments.serviceURL = prop.getProperty("webServiceUrl");
+            }
+            
+            // fallback to previous-version serviceUrl property to maintain backward-compatibility
+            if (arguments.serviceURL == null) {
+                arguments.serviceURL = prop.getProperty("serviceUrl", "http://localhost:8080/");
             }
 
             if (arguments.authPluginClassName == null) {
