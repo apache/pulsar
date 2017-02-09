@@ -36,6 +36,9 @@ struct ClientConfiguration::Impl {
     int operationTimeoutSeconds;
     int messageListenerThreads;
     std::string logConfFilePath;
+    bool useTls;
+    std::string tlsTrustCertsFilePath;
+    bool tlsAllowInsecureConnection;
     Impl() : authData(Auth::Disabled()),
              ioThreads(1),
              operationTimeoutSeconds(30),
@@ -99,6 +102,33 @@ int ClientConfiguration::getMessageListenerThreads() const {
     return impl_->messageListenerThreads;
 }
 
+ClientConfiguration& ClientConfiguration::setUseTls(bool useTls) {
+    impl_->useTls = useTls;
+    return *this;
+}
+
+bool ClientConfiguration::isUseTls() const {
+    return impl_->useTls;
+}
+
+ClientConfiguration& ClientConfiguration::setTlsTrustCertsFilePath(const std::string &filePath) {
+    impl_->tlsTrustCertsFilePath = filePath;
+    return *this;
+}
+
+std::string ClientConfiguration::getTlsTrustCertsFilePath() const {
+    return impl_->tlsTrustCertsFilePath;
+}
+
+ClientConfiguration& ClientConfiguration::setTlsAllowInsecureConnection(bool allowInsecure) {
+    impl_->tlsAllowInsecureConnection = allowInsecure;
+    return *this;
+}
+
+bool ClientConfiguration::isTlsAllowInsecureConnection() const {
+    return impl_->tlsAllowInsecureConnection;
+}
+    
 ClientConfiguration& ClientConfiguration::setLogConfFilePath(const std::string& logConfFilePath) {
     impl_->logConfFilePath = logConfFilePath;
     return *this;

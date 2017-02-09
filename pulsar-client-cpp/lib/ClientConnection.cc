@@ -24,6 +24,7 @@
 #include <algorithm>
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/date_time/gregorian/gregorian.hpp>
+#include <boost/filesystem.hpp>
 #include <climits>
 
 #include "ExecutorService.h"
@@ -91,24 +92,69 @@ static Result getResult(ServerError serverError) {
 
 ClientConnection::ClientConnection(const std::string& endpoint, ExecutorServicePtr executor,
                                    const ClientConfiguration& clientConfiguration, const AuthenticationPtr& authentication)
-        : state_(Pending),
-          operationsTimeout_(seconds(clientConfiguration.getOperationTimeoutSeconds())),
-          authentication_(authentication),
-          serverProtocolVersion_(ProtocolVersion_MIN),
-          executor_(executor),
-          resolver_(executor->createTcpResolver()),
-          socket_(executor->createSocket()),
-          address_(endpoint),
-          cnxString_("[<none> -> " + endpoint + "] "),
-          error_(boost::system::error_code()),
-          incomingBuffer_(SharedBuffer::allocate(DefaultBufferSize)),
-          incomingCmd_(),
-          pendingWriteBuffers_(),
-          pendingWriteOperations_(0),
-          outgoingBuffer_(SharedBuffer::allocate(DefaultBufferSize)),
-          outgoingCmd_(),
-          havePendingPingRequest_(false),
-          keepAliveTimer_() {
+: state_(Pending),
+operationsTimeout_(seconds(clientConfiguration.getOperationTimeoutSeconds())),
+authentication_(authentication),
+serverProtocolVersion_(ProtocolVersion_MIN),
+executor_(executor),
+resolver_(executor->createTcpResolver()),
+socket_(executor->createSocket()),
+address_(endpoint),
+cnxString_("[<none> -> " + endpoint + "] "),
+error_(boost::system::error_code()),
+incomingBuffer_(SharedBuffer::allocate(DefaultBufferSize)),
+incomingCmd_(),
+pendingWriteBuffers_(),
+pendingWriteOperations_(0),
+outgoingBuffer_(SharedBuffer::allocate(DefaultBufferSize)),
+outgoingCmd_(),
+havePendingPingRequest_(false),
+keepAliveTimer_(),
+isTlsAllowInsecureConnection_(false) {
+    if (clientConfiguration.isUseTls()) {
+        using namespace boost::filesystem;
+
+        boost::asio::ssl::context ctx(boost::asio::ssl::context::tlsv12_client);
+
+        if (clientConfiguration.isTlsAllowInsecureConnection()) {
+            ctx.set_verify_mode(boost::asio::ssl::verify_none);
+            isTlsAllowInsecureConnection_ = true;
+        } else {
+            ctx.set_verify_mode(boost::asio::ssl::verify_peer);
+            std::string trustCertFilePath = clientConfiguration.getTlsTrustCertsFilePath();
+            if (exists(path(trustCertFilePath))) {
+                ctx.load_verify_file(trustCertFilePath);
+            } else {
+                LOG_ERROR(trustCertFilePath << ": No such trustCertFile");
+                close();
+                return;
+            }
+        }
+
+        AuthenticationDataPtr authData;
+        if (authentication_->getAuthData(authData) == ResultOk && authData->hasDataForTls()){
+            std::string tlsCertificates = authData->getTlsCertificates();
+            std::string tlsPrivateKey = authData->getTlsPrivateKey();
+
+            if (exists(path(tlsCertificates))) {
+                ctx.use_certificate_file(tlsCertificates, boost::asio::ssl::context::pem);
+            } else {
+                LOG_ERROR(tlsCertificates << ": No such tlsCertificates");
+                close();
+                return;
+            }
+
+            if (exists(path(tlsPrivateKey))) {
+                ctx.use_private_key_file(tlsPrivateKey, boost::asio::ssl::context::pem);
+            } else {
+                LOG_ERROR(tlsPrivateKey << ": No such tlsPrivateKey");
+                close();
+                return;
+            }
+        }
+
+        tlsSocket_ = executor->createTlsSocket(socket_, ctx);
+    }
 }
 
 ClientConnection::~ClientConnection() {
@@ -179,13 +225,21 @@ void ClientConnection::handleTcpConnected(const boost::system::error_code& err,
         // Interval between probes: 6 seconds
         socket_->set_option(tcp_keep_alive_interval(6));
 
-        SharedBuffer buffer = Commands::newConnect(authentication_);
-        // Send CONNECT command to broker
-        boost::asio::async_write(
-                *socket_,
-                buffer.const_asio_buffer(),
-                boost::bind(&ClientConnection::handleSentPulsarConnect, shared_from_this(),
-                            boost::asio::placeholders::error, buffer));
+        if (tlsSocket_) {
+            if (!isTlsAllowInsecureConnection_) {
+            boost::system::error_code err;
+            Url service_url;
+                if (!Url::parse(address_, service_url)) {
+                    LOG_ERROR(cnxString_ << "Invalid Url, unable to parse: " << err << " " << err.message());
+                    close();
+                    return;
+                }
+                tlsSocket_->set_verify_callback(boost::asio::ssl::rfc2818_verification(service_url.host()));
+            }
+            tlsSocket_->async_handshake(boost::asio::ssl::stream<tcp::socket>::client, boost::bind(&ClientConnection::handleHandshake, shared_from_this(), boost::asio::placeholders::error));
+        } else {
+            handleHandshake(boost::system::errc::make_error_code(boost::system::errc::success));
+        }
     } else if (endpointIterator != tcp::resolver::iterator()) {
         // The connection failed. Try the next endpoint in the list.
         socket_->close();
@@ -201,6 +255,15 @@ void ClientConnection::handleTcpConnected(const boost::system::error_code& err,
 
     }
 
+}
+
+void ClientConnection::handleHandshake(const boost::system::error_code& err) {
+        SharedBuffer buffer = Commands::newConnect(authentication_);
+        // Send CONNECT command to broker
+        asyncWrite(
+                buffer.const_asio_buffer(),
+                boost::bind(&ClientConnection::handleSentPulsarConnect, shared_from_this(),
+                            boost::asio::placeholders::error, buffer));
 }
 
 void ClientConnection::handleSentPulsarConnect(const boost::system::error_code& err,
@@ -269,7 +332,7 @@ void ClientConnection::handleResolve(const boost::system::error_code& err,
 
 void ClientConnection::readNextCommand() {
     const static uint32_t minReadSize = sizeof(uint32_t);
-    socket_->async_receive(
+    asyncReceive(
             incomingBuffer_.asio_buffer(),
             customAllocReadHandler(
                     boost::bind(&ClientConnection::handleRead, shared_from_this(), _1, _2,
@@ -287,7 +350,7 @@ void ClientConnection::handleRead(const boost::system::error_code& err, size_t b
         // Read the remaining part, use a slice of buffer to write on the next
         // region
         SharedBuffer buffer = incomingBuffer_.slice(bytesTransferred);
-        socket_->async_receive(
+        asyncReceive(
                 buffer.asio_buffer(),
                 customAllocReadHandler(
                         boost::bind(&ClientConnection::handleRead, shared_from_this(), _1, _2,
@@ -315,7 +378,7 @@ void ClientConnection::processIncomingBuffer() {
 
             if (bytesToReceive <= incomingBuffer_.writableBytes()) {
                 // The rest of the frame still fits in the current buffer
-                socket_->async_receive(
+                asyncReceive(
                         incomingBuffer_.asio_buffer(),
                         customAllocReadHandler(
                                 boost::bind(&ClientConnection::handleRead, shared_from_this(), _1,
@@ -327,7 +390,7 @@ void ClientConnection::processIncomingBuffer() {
                                                             frameSize + sizeof(uint32_t));
                 incomingBuffer_ = SharedBuffer::copyFrom(incomingBuffer_, newBufferSize);
 
-                socket_->async_receive(
+                asyncReceive(
                         incomingBuffer_.asio_buffer(),
                         customAllocReadHandler(
                                 boost::bind(&ClientConnection::handleRead, shared_from_this(), _1,
@@ -383,7 +446,7 @@ void ClientConnection::processIncomingBuffer() {
         // At least we need to read 4 bytes to have the complete frame size
         uint32_t minReadSize = sizeof(uint32_t) - incomingBuffer_.readableBytes();
 
-        socket_->async_receive(
+        asyncReceive(
                 incomingBuffer_.asio_buffer(),
                 customAllocReadHandler(
                         boost::bind(&ClientConnection::handleRead, shared_from_this(), _1, _2,
@@ -619,7 +682,13 @@ void ClientConnection::handleIncomingCommand() {
                                     << " redirect: " << lookupTopicResponse.response());
                             LookupDataResultPtr lookupResultPtr =
                                                             boost::make_shared<LookupDataResult>();
-                            lookupResultPtr->setBrokerUrl(lookupTopicResponse.brokerserviceurl());
+
+                            if (tlsSocket_) {
+                                lookupResultPtr->setBrokerUrl(lookupTopicResponse.brokerserviceurltls());
+                            } else {
+                                lookupResultPtr->setBrokerUrl(lookupTopicResponse.brokerserviceurl());
+                            }
+
                             lookupResultPtr->setBrokerUrlSsl(
                                     lookupTopicResponse.brokerserviceurltls());
                             lookupResultPtr->setAuthoritative(lookupTopicResponse.authoritative());
@@ -781,8 +850,7 @@ void ClientConnection::sendCommand(const SharedBuffer& cmd) {
     if (pendingWriteOperations_++ == 0) {
 
         // Write immediately to socket
-        boost::asio::async_write(
-                *socket_,
+        asyncWrite(
                 cmd.const_asio_buffer(),
                 customAllocWriteHandler(
                         boost::bind(&ClientConnection::handleSend, shared_from_this(), _1, cmd)));
@@ -802,8 +870,7 @@ void ClientConnection::sendMessage(const OpSendMsg& opSend) {
                                                     getChecksumType(), opSend.msg_);
 
         // Write immediately to socket
-        boost::asio::async_write(
-                *socket_,
+        asyncWrite(
                 buffer,
                 customAllocWriteHandler(
                         boost::bind(&ClientConnection::handleSendPair, shared_from_this(), _1)));
@@ -841,8 +908,7 @@ void ClientConnection::sendPendingCommands() {
 
         if (any.type() == typeid(SharedBuffer)) {
             SharedBuffer buffer = boost::any_cast<SharedBuffer>(any);
-            boost::asio::async_write(
-                    *socket_,
+            asyncWrite(
                     buffer.const_asio_buffer(),
                     customAllocWriteHandler(
                             boost::bind(&ClientConnection::handleSend, shared_from_this(), _1,
@@ -855,8 +921,7 @@ void ClientConnection::sendPendingCommands() {
                                                         op.producerId_, op.sequenceId_,
                                                         getChecksumType(), op.msg_);
 
-            boost::asio::async_write(
-                    *socket_,
+            asyncWrite(
                     buffer,
                     customAllocWriteHandler(
                             boost::bind(&ClientConnection::handleSendPair, shared_from_this(),
@@ -950,6 +1015,10 @@ void ClientConnection::close() {
     // Fail all pending lookup-requests on the connection
     for (PendingLookupRequestsMap::iterator it = pendingLookupRequests_.begin(); it != pendingLookupRequests_.end(); ++it) {
         it->second->setFailed(ResultConnectError);
+    }
+    
+    if (tlsSocket_) {
+        tlsSocket_->lowest_layer().close();
     }
 }
 

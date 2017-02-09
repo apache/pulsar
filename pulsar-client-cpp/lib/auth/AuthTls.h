@@ -19,31 +19,35 @@
 
 #include <pulsar/Auth.h>
 #include <lib/LogUtils.h>
+#include <iostream>
 #include <string>
 
 namespace pulsar {
-
-class AuthTls : public Authentication {
-public:
-    AuthTls(const std::string& params) {
-    }
-
-    ~AuthTls() {
-    }
-
-    static AuthenticationPtr create(const std::string& params) {
-        return boost::shared_ptr<Authentication>(new AuthTls(params));
-    }
-
-    const std::string getAuthMethodName() const {
-        return "tls";
-    }
-
-    Result getAuthData(std::string& authDataContent) const {
-        authDataContent = "THIS_SHOULD_BE_REPLACED";
-        return ResultOk;
-    }
-};
-
+    
+    class AuthDataTls : public AuthenticationDataProvider {
+        
+    public:
+        AuthDataTls(ParamMap& params);
+        ~AuthDataTls();
+        bool hasDataForTls();
+        std::string getTlsCertificates();
+        std::string getTlsPrivateKey();
+    private:
+        std::string tlsCertificates_;
+        std::string tlsPrivateKey_;
+    };
+    
+    class AuthTls : public Authentication {
+        
+    public:
+        AuthTls(AuthenticationDataPtr&);
+        ~AuthTls();
+        static AuthenticationPtr create(ParamMap& params);
+        const std::string getAuthMethodName() const;
+        Result getAuthData(AuthenticationDataPtr& authDataTls) const;
+    private:
+        AuthenticationDataPtr authDataTls_;
+    };
+    
 }
 #endif /* PULSAR_AUTH_TLS_H_ */

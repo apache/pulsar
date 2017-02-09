@@ -111,6 +111,15 @@ class ClientConfiguration {
      */
     const std::string& getLogConfFilePath() const;
 
+    ClientConfiguration& setUseTls(bool useTls);
+    bool isUseTls() const;
+
+    ClientConfiguration& setTlsTrustCertsFilePath(const std::string &tlsTrustCertsFilePath);
+    std::string getTlsTrustCertsFilePath() const;
+
+    ClientConfiguration& setTlsAllowInsecureConnection(bool allowInsecure);
+    bool isTlsAllowInsecureConnection() const;
+
  private:
     const AuthenticationPtr& getAuthenticationPtr() const;
 
