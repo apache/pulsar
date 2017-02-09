@@ -38,6 +38,7 @@ using namespace boost::accumulators;
 #include <lib/Latch.h>
 
 #include <pulsar/Client.h>
+#include <pulsar/Auth.h>
 using namespace pulsar;
 
 static int64_t currentTimeMillis() {
@@ -51,6 +52,11 @@ static int64_t currentTimeMillis() {
 }
 
 struct Arguments {
+    std::string authParams;
+    std::string authPlugin;
+    bool isUseTls;
+    bool isTlsAllowInsecureConnection;
+    std::string tlsTrustCertsFilePath;
     std::string topic;
     int numTopics;
     int numConsumers;
@@ -122,8 +128,19 @@ void handleSubscribe(Result result, Consumer consumer, Latch latch) {
 
 void startPerfConsumer(const Arguments& args) {
     ClientConfiguration conf;
+
+    conf.setUseTls(args.isUseTls);
+    conf.setTlsAllowInsecureConnection(args.isTlsAllowInsecureConnection);
+    if (!args.tlsTrustCertsFilePath.empty()) {
+        std::string tlsTrustCertsFilePath(args.tlsTrustCertsFilePath);
+        conf.setTlsTrustCertsFilePath(tlsTrustCertsFilePath);
+    }
     conf.setIOThreads(args.ioThreads);
     conf.setMessageListenerThreads(args.listenerThreads);
+    if(!args.authPlugin.empty()) {
+        AuthenticationPtr auth = Auth::create(args.authPlugin, args.authParams);
+        conf.setAuthentication(auth);
+    }
 
     Client client(pulsar::PulsarFriend::getClient(args.serviceURL, conf, false));
 
@@ -208,7 +225,18 @@ int main(int argc, char** argv) {
 
     po::options_description desc("Allowed options");
     desc.add_options()  //
+
     ("help,h", "Print this help message")  //
+
+    ("auth-params,v", po::value<std::string>(&args.authParams)->default_value(""), "Authentication parameters, e.g., \"key1:val1,key2:val2\"") //
+
+    ("auth-plugin,a", po::value<std::string>(&args.authPlugin)->default_value(""), "Authentication plugin class library path") //
+
+    ("use-tls,b", po::value<bool>(&args.isUseTls)->default_value(false), "Whether tls connection is used")  //
+
+    ("allow-insecure,d", po::value<bool>(&args.isTlsAllowInsecureConnection)->default_value(true), "Whether insecure tls connection is allowed")  //
+
+    ("trust-cert-file,c", po::value<std::string>(&args.tlsTrustCertsFilePath)->default_value(""), "TLS trust certification file path")  //
 
     ("num-topics,t", po::value<int>(&args.numTopics)->default_value(1), "Number of topics")  //
 
