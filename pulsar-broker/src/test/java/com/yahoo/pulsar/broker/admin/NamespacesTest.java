@@ -59,7 +59,7 @@ import com.google.common.collect.Sets;
 import com.yahoo.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import com.yahoo.pulsar.broker.namespace.NamespaceEphemeralData;
 import com.yahoo.pulsar.broker.namespace.NamespaceService;
-import com.yahoo.pulsar.broker.namespace.OwnershipCache;
+import com.yahoo.pulsar.broker.namespace.NamespaceOwnershipCache;
 import com.yahoo.pulsar.broker.web.PulsarWebResource;
 import com.yahoo.pulsar.broker.web.RestException;
 import com.yahoo.pulsar.client.admin.PulsarAdminException;
@@ -837,7 +837,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         createBundledTestNamespaces(this.testProperty, this.testLocalCluster, bundledNsLocal, bundleData);
         final NamespaceName testNs = new NamespaceName(this.testProperty, this.testLocalCluster, bundledNsLocal);
 
-        OwnershipCache MockOwnershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
+        NamespaceOwnershipCache MockOwnershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
         doNothing().when(MockOwnershipCache).disableOwnership(any(NamespaceBundle.class));
         Field ownership = NamespaceService.class.getDeclaredField("ownershipCache");
         ownership.setAccessible(true);
@@ -982,7 +982,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             final NamespaceName testNs = new NamespaceName(this.testProperty, this.testLocalCluster, bundledNsLocal);
             mockWebUrl(localWebServiceUrl, testNs);
 
-            OwnershipCache MockOwnershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
+            NamespaceOwnershipCache MockOwnershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
             doNothing().when(MockOwnershipCache).disableOwnership(any(NamespaceBundle.class));
             Field ownership = NamespaceService.class.getDeclaredField("ownershipCache");
             ownership.setAccessible(true);
@@ -1004,7 +1004,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             final NamespaceName testNs = new NamespaceName(this.testProperty, this.testLocalCluster, bundledNsLocal);
             mockWebUrl(localWebServiceUrl, testNs);
 
-            OwnershipCache MockOwnershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
+            NamespaceOwnershipCache MockOwnershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
             doNothing().when(MockOwnershipCache).disableOwnership(any(NamespaceBundle.class));
             Field ownership = NamespaceService.class.getDeclaredField("ownershipCache");
             ownership.setAccessible(true);
@@ -1027,7 +1027,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             BundlesData bundleData = new BundlesData(Lists.newArrayList("0x00000000", "0xffffffff"));
             createBundledTestNamespaces(this.testProperty, this.testLocalCluster, bundledNsLocal, bundleData);
             final NamespaceName testNs = new NamespaceName(this.testProperty, this.testLocalCluster, bundledNsLocal);
-            OwnershipCache MockOwnershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
+            NamespaceOwnershipCache MockOwnershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
             doNothing().when(MockOwnershipCache).disableOwnership(any(NamespaceBundle.class));
             Field ownership = NamespaceService.class.getDeclaredField("ownershipCache");
             ownership.setAccessible(true);

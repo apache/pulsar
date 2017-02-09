@@ -30,6 +30,7 @@ import java.util.function.Supplier;
 
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.util.OrderedSafeExecutor;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import org.apache.zookeeper.ZooKeeper;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.slf4j.Logger;
@@ -43,6 +44,7 @@ import com.yahoo.pulsar.broker.cache.LocalZooKeeperCacheService;
 import com.yahoo.pulsar.broker.loadbalance.LeaderElectionService;
 import com.yahoo.pulsar.broker.loadbalance.LeaderElectionService.LeaderListener;
 import com.yahoo.pulsar.broker.loadbalance.LoadManager;
+import com.yahoo.pulsar.broker.loadbalance.LoadManagerFactory;
 import com.yahoo.pulsar.broker.loadbalance.LoadReportUpdaterTask;
 import com.yahoo.pulsar.broker.loadbalance.LoadResourceQuotaUpdaterTask;
 import com.yahoo.pulsar.broker.loadbalance.LoadSheddingTask;
@@ -252,7 +254,13 @@ public class PulsarService implements AutoCloseable {
             this.brokerService = new BrokerService(this);
 
             // Start load management service (even if load balancing is disabled)
-            this.loadManager = new SimpleLoadManagerImpl(this);
+            
+            if (isNotBlank(getConfiguration().getLoadBalancerFactoryProvider())) {
+                this.loadManager = ((LoadManagerFactory) Class.forName(getConfiguration().getLoadBalancerFactoryProvider())
+                        .newInstance()).create(this);
+            } else {
+                this.loadManager = new SimpleLoadManagerImpl(this);
+            }
 
             this.startLoadManagementService();
 

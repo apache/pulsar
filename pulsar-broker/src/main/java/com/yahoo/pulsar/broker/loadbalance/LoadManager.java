@@ -16,6 +16,8 @@
 package com.yahoo.pulsar.broker.loadbalance;
 
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 
 import com.yahoo.pulsar.broker.PulsarServerException;
 import com.yahoo.pulsar.broker.stats.Metrics;
@@ -47,6 +49,24 @@ public interface LoadManager {
      * Generate the load report
      */
     LoadReport generateLoadReport() throws Exception;
+    
+    /**
+     * Get {@link LoadReport} of a broker
+     * 
+     * @param brokerPath
+     * @return CompletableFuture<LoadReport> completes with exception:
+     *         org.apache.zookeeper.KeeperException.NoNodeException if {@link LoadReport} not found
+     * 
+     */
+    public CompletableFuture<LoadReport> getLoadReportAsync(String broker);
+    
+    /**
+     * Returns list of active brokers which are registered in load-balancer 
+     * 
+     * @return
+     * @throws Exception
+     */
+    Set<String> getActiveBrokers() throws Exception;
 
     /**
      * Set flag to force load report update

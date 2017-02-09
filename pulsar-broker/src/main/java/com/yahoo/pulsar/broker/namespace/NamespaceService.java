@@ -17,6 +17,7 @@ package com.yahoo.pulsar.broker.namespace;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.yahoo.pulsar.broker.admin.AdminResource.jsonMapper;
 import static com.yahoo.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
 import static com.yahoo.pulsar.broker.web.PulsarWebResource.joinPath;
 import static com.yahoo.pulsar.common.naming.NamespaceBundleFactory.getBundlesData;
@@ -49,8 +50,6 @@ import com.yahoo.pulsar.broker.PulsarService;
 import com.yahoo.pulsar.broker.ServiceConfiguration;
 import com.yahoo.pulsar.broker.admin.AdminResource;
 import com.yahoo.pulsar.broker.loadbalance.LoadManager;
-import com.yahoo.pulsar.common.policies.data.loadbalancer.LoadReport;
-import com.yahoo.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import com.yahoo.pulsar.broker.lookup.LookupResult;
 import com.yahoo.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import com.yahoo.pulsar.client.admin.PulsarAdmin;
@@ -66,11 +65,11 @@ import com.yahoo.pulsar.common.policies.data.BrokerAssignment;
 import com.yahoo.pulsar.common.policies.data.BundlesData;
 import com.yahoo.pulsar.common.policies.data.LocalPolicies;
 import com.yahoo.pulsar.common.policies.data.NamespaceOwnershipStatus;
+import com.yahoo.pulsar.common.policies.data.loadbalancer.LoadReport;
 import com.yahoo.pulsar.common.policies.impl.NamespaceIsolationPolicies;
 import com.yahoo.pulsar.common.util.Codec;
 import com.yahoo.pulsar.common.util.ObjectMapperFactory;
 import com.yahoo.pulsar.zookeeper.ZooKeeperCache.Deserializer;
-import static com.yahoo.pulsar.broker.admin.AdminResource.jsonMapper;
 
 /**
  * The <code>NamespaceService</code> provides resource ownership lookup as well as resource ownership claiming services
@@ -97,7 +96,7 @@ public class NamespaceService {
 
     private final PulsarService pulsar;
 
-    private final OwnershipCache ownershipCache;
+    private final NamespaceOwnershipCache ownershipCache;
 
     private final NamespaceBundleFactory bundleFactory;
 
@@ -123,7 +122,18 @@ public class NamespaceService {
         this.loadManager = pulsar.getLoadManager();
         ServiceUnitZkUtils.initZK(pulsar.getLocalZkCache().getZooKeeper(), pulsar.getBrokerServiceUrl());
         this.bundleFactory = new NamespaceBundleFactory(pulsar, Hashing.crc32());
-        this.ownershipCache = new OwnershipCache(pulsar, bundleFactory);
+        if (StringUtils.isNotBlank(pulsar.getConfiguration().getNamespaceOwnershipCacheFactoryProvider())) {
+            try {
+                this.ownershipCache = ((OwnershipCacheFactory) Class
+                        .forName(pulsar.getConfiguration().getNamespaceOwnershipCacheFactoryProvider())
+                        .newInstance()).create(pulsar, bundleFactory);
+            } catch (Exception e) {
+                throw new IllegalArgumentException("Failed to initialize OwnershipCacheFactory "
+                        + pulsar.getConfiguration().getNamespaceOwnershipCacheFactoryProvider());
+            }
+        } else {
+            this.ownershipCache = new OwnershipCacheImpl(pulsar, pulsar.getLocalZkCache(), bundleFactory);
+        }
     }
 
     public CompletableFuture<LookupResult> getBrokerServiceUrlAsync(DestinationName topic, boolean authoritative) {
@@ -406,29 +416,23 @@ public class NamespaceService {
         try {
             checkArgument(StringUtils.isNotBlank(candidateBroker), "Lookup broker can't be null " + candidateBroker);
             URI uri = new URI(candidateBroker);
-            String path = String.format("%s/%s:%s", SimpleLoadManagerImpl.LOADBALANCE_BROKERS_ROOT, uri.getHost(),
-                    uri.getPort());
-            pulsar.getLocalZkCache().getDataAsync(path, loadReportDeserializer).thenAccept(reportData -> {
-                if (reportData.isPresent()) {
-                    LoadReport report = reportData.get();
-                    lookupFuture.complete(new LookupResult(report.getWebServiceUrl(), report.getWebServiceUrlTls(),
-                            report.getPulsarServiceUrl(), report.getPulsarServieUrlTls()));
-                } else {
-                    lookupFuture.completeExceptionally(new KeeperException.NoNodeException(path));
-                }
+            String path = String.format("%s:%s", uri.getHost(), uri.getPort());
+            pulsar.getLoadManager().getLoadReportAsync(path).thenAccept(report -> {
+                lookupFuture.complete(new LookupResult(report.getWebServiceUrl(), report.getWebServiceUrlTls(),
+                        report.getPulsarServiceUrl(), report.getPulsarServieUrlTls()));
             }).exceptionally(ex -> {
                 lookupFuture.completeExceptionally(ex);
                 return null;
             });
+
         } catch (Exception e) {
             lookupFuture.completeExceptionally(e);
         }
         return lookupFuture;
     }
 
-    private boolean isBrokerActive(String candidateBroker) throws KeeperException, InterruptedException {
-        Set<String> activeNativeBrokers = pulsar.getLocalZkCache()
-                .getChildren(SimpleLoadManagerImpl.LOADBALANCE_BROKERS_ROOT);
+    private boolean isBrokerActive(String candidateBroker) throws Exception {
+        Set<String> activeNativeBrokers = pulsar.getLoadManager().getActiveBrokers();
 
         for (String brokerHostPort : activeNativeBrokers) {
             if (candidateBroker.equals("http://" + brokerHostPort)) {
@@ -626,7 +630,7 @@ public class NamespaceService {
                 ObjectMapperFactory.getThreadLocal().writeValueAsBytes(policies.get()), -1, callback, null);
     }
 
-    public OwnershipCache getOwnershipCache() {
+    public NamespaceOwnershipCache getOwnershipCache() {
         return ownershipCache;
     }
 

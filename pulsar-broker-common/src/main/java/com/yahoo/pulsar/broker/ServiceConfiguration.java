@@ -208,7 +208,7 @@ public class ServiceConfiguration implements PulsarConfiguration{
     private int loadBalancerBrokerOverloadedThresholdPercentage = 85;
     // interval to flush dynamic resource quota to ZooKeeper
     private int loadBalancerResourceQuotaUpdateIntervalMinutes = 15;
-    // Usage threshold to defermine a broker is having just right level of load
+    // Usage threshold to determine a broker is having just right level of load
     private int loadBalancerBrokerComfortLoadLevelPercentage = 65;
     // enable/disable automatic namespace bundle split
     private boolean loadBalancerAutoBundleSplitEnabled = false;
@@ -222,6 +222,13 @@ public class ServiceConfiguration implements PulsarConfiguration{
     private int loadBalancerNamespaceBundleMaxBandwidthMbytes = 100;
     // maximum number of bundles in a namespace
     private int loadBalancerNamespaceMaximumBundles = 128;
+
+    @FieldContext(required = false)
+    // OwnershipCacheFactory-provider class name if requires to inject non-default namespace-bundle ownership implementation
+    private String namespaceOwnershipCacheFactoryProvider;
+    @FieldContext(required = false)
+    // LoadBalancerFactory-provider class name if requires to inject non-default LoadBalancer implementation
+    private String loadBalancerFactoryProvider;
 
     /**** --- Replication --- ****/
     // Enable replication metrics
@@ -836,6 +843,21 @@ public class ServiceConfiguration implements PulsarConfiguration{
         return this.loadBalancerNamespaceMaximumBundles;
     }
 
+    public String getNamespaceOwnershipCacheFactoryProvider() {
+        return namespaceOwnershipCacheFactoryProvider;
+    }
+
+    public void setNamespaceOwnershipCacheFactoryProvider(String namespaceOwnershipCacheFactoryProvider) {
+        this.namespaceOwnershipCacheFactoryProvider = namespaceOwnershipCacheFactoryProvider;
+    }
+    public String getLoadBalancerFactoryProvider() {
+        return loadBalancerFactoryProvider;
+    }
+
+    public void setLoadBalancerFactoryProvider(String loadBalancerFactoryProvider) {
+        this.loadBalancerFactoryProvider = loadBalancerFactoryProvider;
+    }
+    
     public boolean isReplicationMetricsEnabled() {
         return replicationMetricsEnabled;
     }

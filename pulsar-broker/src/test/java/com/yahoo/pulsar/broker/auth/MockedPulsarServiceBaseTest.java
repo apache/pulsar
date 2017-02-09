@@ -55,9 +55,9 @@ import com.yahoo.pulsar.zookeeper.ZookeeperClientFactoryImpl;
 public abstract class MockedPulsarServiceBaseTest {
 
     protected final ServiceConfiguration conf;
-    protected PulsarService pulsar;
-    protected PulsarAdmin admin;
-    protected PulsarClient pulsarClient;
+    public PulsarService pulsar;
+    public PulsarAdmin admin;
+    public PulsarClient pulsarClient;
     protected URL brokerUrl;
     protected URL brokerUrlTls;
 
@@ -66,9 +66,9 @@ public abstract class MockedPulsarServiceBaseTest {
     protected final int BROKER_PORT = PortManager.nextFreePort();
     protected final int BROKER_PORT_TLS = PortManager.nextFreePort();
 
-    protected MockZooKeeper dataMockZookKeeper;
-    protected MockZooKeeper localMockZookKeeper;
-    protected NonClosableMockBookKeeper mockBookKeeper;
+    public MockZooKeeper dataMockZookKeeper;
+    public MockZooKeeper localMockZookKeeper;
+    public NonClosableMockBookKeeper mockBookKeeper;
     protected boolean isTcpLookup = false;
 
     protected SameThreadOrderedSafeExecutor sameThreadOrderedSafeExecutor;

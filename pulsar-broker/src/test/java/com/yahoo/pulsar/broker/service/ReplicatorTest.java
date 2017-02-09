@@ -48,7 +48,7 @@ import org.testng.collections.Lists;
 
 import com.yahoo.pulsar.broker.namespace.NamespaceService;
 import com.yahoo.pulsar.broker.namespace.OwnedBundle;
-import com.yahoo.pulsar.broker.namespace.OwnershipCache;
+import com.yahoo.pulsar.broker.namespace.NamespaceOwnershipCache;
 import com.yahoo.pulsar.broker.service.persistent.PersistentReplicator;
 import com.yahoo.pulsar.broker.service.persistent.PersistentTopic;
 import com.yahoo.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
@@ -214,7 +214,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         // Set up field access to internal namespace state in NamespaceService
         Field ownershipCacheField = NamespaceService.class.getDeclaredField("ownershipCache");
         ownershipCacheField.setAccessible(true);
-        OwnershipCache ownerCache = (OwnershipCache) ownershipCacheField.get(pulsar1.getNamespaceService());
+        NamespaceOwnershipCache ownerCache = (NamespaceOwnershipCache) ownershipCacheField.get(pulsar1.getNamespaceService());
         Assert.assertNotNull(pulsar1, "pulsar1 is null");
         Assert.assertNotNull(pulsar1.getNamespaceService(), "pulsar1.getNamespaceService() is null");
         NamespaceBundle globalNsBundle = pulsar1.getNamespaceService().getNamespaceBundleFactory()

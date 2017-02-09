@@ -81,7 +81,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
     @Test
     public void testSplitAndOwnBundles() throws Exception {
 
-        OwnershipCache MockOwnershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
+        NamespaceOwnershipCache MockOwnershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
         doNothing().when(MockOwnershipCache).disableOwnership(any(NamespaceBundle.class));
         Field ownership = NamespaceService.class.getDeclaredField("ownershipCache");
         ownership.setAccessible(true);
@@ -146,7 +146,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
     @Test
     public void testSplitMapWithRefreshedStatMap() throws Exception {
 
-        OwnershipCache MockOwnershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
+        NamespaceOwnershipCache MockOwnershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
 
         ManagedLedger ledger = mock(ManagedLedger.class);
         when(ledger.getCursors()).thenReturn(Lists.newArrayList());
@@ -199,7 +199,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
     @Test
     public void testIsServiceUnitDisabled() throws Exception {
 
-        OwnershipCache MockOwnershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
+        NamespaceOwnershipCache MockOwnershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
 
         ManagedLedger ledger = mock(ManagedLedger.class);
         when(ledger.getCursors()).thenReturn(Lists.newArrayList());
@@ -222,7 +222,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
     @Test
     public void testremoveOwnershipNamespaceBundle() throws Exception {
 
-        OwnershipCache ownershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
+        NamespaceOwnershipCache ownershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
 
         ManagedLedger ledger = mock(ManagedLedger.class);
         when(ledger.getCursors()).thenReturn(Lists.newArrayList());

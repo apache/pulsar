@@ -30,7 +30,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import com.yahoo.pulsar.broker.namespace.OwnershipCache;
+import com.yahoo.pulsar.broker.namespace.NamespaceOwnershipCache;
 import com.yahoo.pulsar.client.api.ConsumerConfiguration;
 import com.yahoo.pulsar.client.api.ProducerConfiguration;
 import com.yahoo.pulsar.client.api.ProducerConsumerBase;
@@ -180,7 +180,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         pulsar.getBrokerService().close();
 
         // [1] OwnershipCache should not contain any more namespaces
-        OwnershipCache ownershipCache = pulsar.getNamespaceService().getOwnershipCache();
+        NamespaceOwnershipCache ownershipCache = pulsar.getNamespaceService().getOwnershipCache();
         assertTrue(ownershipCache.getOwnedBundles().keySet().isEmpty());
         
         // [2] All clients must be disconnected and in connecting state

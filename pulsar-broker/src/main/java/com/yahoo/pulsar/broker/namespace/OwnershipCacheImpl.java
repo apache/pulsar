@@ -15,8 +15,6 @@
  */
 package com.yahoo.pulsar.broker.namespace;
 
-import static com.google.common.base.Preconditions.checkState;
-
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -36,8 +34,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.benmanes.caffeine.cache.AsyncCacheLoader;
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
-import com.github.benmanes.caffeine.cache.RemovalCause;
-import com.github.benmanes.caffeine.cache.RemovalListener;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.yahoo.pulsar.broker.PulsarService;
@@ -56,9 +52,9 @@ import com.yahoo.pulsar.zookeeper.ZooKeeperDataCache;
  *
  *
  */
-public class OwnershipCache {
+public class OwnershipCacheImpl implements NamespaceOwnershipCache{
 
-    private static final Logger LOG = LoggerFactory.getLogger(OwnershipCache.class);
+    private static final Logger LOG = LoggerFactory.getLogger(OwnershipCacheImpl.class);
 
     /**
      * The local broker URL that this <code>OwnershipCache</code> will set as owner
@@ -73,7 +69,7 @@ public class OwnershipCache {
     /**
      * The NamespaceEphemeralData objects that can be associated with the current owner
      */
-    private final NamespaceEphemeralData selfOwnerInfo;
+    protected final NamespaceEphemeralData selfOwnerInfo;
 
     /**
      * The NamespaceEphemeralData objects that can be associated with the current owner, when the broker is disabled.
@@ -84,12 +80,12 @@ public class OwnershipCache {
      * Service unit ownership cache of <code>ZooKeeper</code> data of ephemeral nodes showing all known ownership of
      * service unit to active brokers
      */
-    private final ZooKeeperDataCache<NamespaceEphemeralData> ownershipReadOnlyCache;
+    protected final ZooKeeperDataCache<NamespaceEphemeralData> ownershipReadOnlyCache;
 
     /**
      * The loading cache of locally owned <code>NamespaceBundle</code> objects
      */
-    private final AsyncLoadingCache<String, OwnedBundle> ownedBundlesCache;
+    protected final AsyncLoadingCache<String, OwnedBundle> ownedBundlesCache;
 
     /**
      * The <code>ObjectMapper</code> to deserialize/serialize JSON objects
@@ -149,7 +145,7 @@ public class OwnershipCache {
      * @param ownerUrl
      *            the local broker URL that will be set as owner for the <code>ServiceUnit</code>
      */
-    public OwnershipCache(PulsarService pulsar, NamespaceBundleFactory bundleFactory) {
+    public OwnershipCacheImpl(PulsarService pulsar, ZooKeeperCache localZkCache, NamespaceBundleFactory bundleFactory) {
         this.ownerBrokerUrl = pulsar.getBrokerServiceUrl();
         this.ownerBrokerUrlTls = pulsar.getBrokerServiceUrlTls();
         this.selfOwnerInfo = new NamespaceEphemeralData(ownerBrokerUrl, ownerBrokerUrlTls,
@@ -157,7 +153,7 @@ public class OwnershipCache {
         this.selfOwnerInfoDisabled = new NamespaceEphemeralData(ownerBrokerUrl, ownerBrokerUrlTls,
                 pulsar.getWebServiceAddress(), pulsar.getWebServiceAddressTls(), true);
         this.bundleFactory = bundleFactory;
-        this.localZkCache = pulsar.getLocalZkCache();
+        this.localZkCache = localZkCache;
         this.ownershipReadOnlyCache = pulsar.getLocalZkCacheService().ownerInfoCache();
         // ownedBundlesCache contains all namespaces that are owned by the local broker
         this.ownedBundlesCache = Caffeine.newBuilder().executor(MoreExecutors.sameThreadExecutor())

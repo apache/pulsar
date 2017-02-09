@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -83,7 +84,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
 
     private static final Logger log = LoggerFactory.getLogger(SimpleLoadManagerImpl.class);
     private final SimpleResourceAllocationPolicies policies;
-    private PulsarService pulsar;
+    protected PulsarService pulsar;
 
     // average JVM heap usage for
     private long avgJvmHeapUsageMBytes = 0;
@@ -153,8 +154,8 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
     public static final String LOADBALANCER_STRATEGY_LLS = "leastLoadedServer";
     public static final String LOADBALANCER_STRATEGY_RAND = "weightedRandomSelection";
 
-    private String brokerZnodePath;
-    private final ScheduledExecutorService scheduler;
+    protected String brokerZnodePath;
+    protected final ScheduledExecutorService scheduler;
     private final ZooKeeperChildrenCache availableActiveBrokers;
 
     private static final long MBytes = 1024 * 1024;
@@ -235,14 +236,6 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
         try {
             // Register the brokers in zk list
             ServiceConfiguration conf = pulsar.getConfiguration();
-            if (pulsar.getLocalZkClient().exists(LOADBALANCE_BROKERS_ROOT, false) == null) {
-                try {
-                    ZkUtils.createFullPathOptimistic(pulsar.getLocalZkClient(), LOADBALANCE_BROKERS_ROOT, new byte[0],
-                        Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
-                } catch (KeeperException.NodeExistsException e) {
-                    // ignore the exception, node might be present already
-                }
-            }
 
             String lookupServiceAddress = pulsar.getAdvertisedAddress() + ":" + conf.getWebServicePort();
             brokerZnodePath = LOADBALANCE_BROKERS_ROOT + "/" + lookupServiceAddress;
@@ -257,14 +250,8 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
             if (loadReport != null) {
                 loadReportJson = ObjectMapperFactory.getThreadLocal().writeValueAsString(loadReport);
             }
-            try {
-                ZkUtils.createFullPathOptimistic(pulsar.getLocalZkClient(), brokerZnodePath,
-                    loadReportJson.getBytes(Charsets.UTF_8), Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
-            } catch (Exception e) {
-                // Catching excption here to print the right error message
-                log.error("Unable to create znode - [{}] for load balance on zookeeper ", brokerZnodePath, e);
-                throw e;
-            }
+            registerBroker(loadReportJson, brokerZnodePath);
+           
             // first time, populate the broker ranking
             updateRanking();
             log.info("Created broker ephemeral node on {}", brokerZnodePath);
@@ -284,6 +271,25 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
         }
     }
 
+    protected void registerBroker(String loadReportJson, String brokerZnodePath) throws KeeperException, InterruptedException {
+        if (pulsar.getLocalZkClient().exists(LOADBALANCE_BROKERS_ROOT, false) == null) {
+            try {
+                ZkUtils.createFullPathOptimistic(pulsar.getLocalZkClient(), LOADBALANCE_BROKERS_ROOT, new byte[0],
+                        Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+            } catch (KeeperException.NodeExistsException e) {
+                // ignore the exception, node might be present already
+            }
+        }
+        try {
+            ZkUtils.createFullPathOptimistic(pulsar.getLocalZkClient(), brokerZnodePath,
+                loadReportJson.getBytes(Charsets.UTF_8), Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
+        } catch (Exception e) {
+            // Catching excption here to print the right error message
+            log.error("Unable to create znode - [{}] for load balance on zookeeper ", brokerZnodePath, e);
+            throw e;
+        }
+    }
+
     @Override
     public void disableBroker() throws Exception {
         if (isNotEmpty(brokerZnodePath)) {
@@ -291,14 +297,10 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
         }
     }
 
-    public ZooKeeperChildrenCache getActiveBrokersCache() {
-        return this.availableActiveBrokers;
+    public Set<String> getActiveBrokers() throws Exception {
+        return this.availableActiveBrokers.get();
     }
-
-    public ZooKeeperDataCache<LoadReport> getLoadReportCache() {
-        return this.loadReportCacheZk;
-    }
-
+    
     private void setDynamicConfigurationToZK(String zkPath, Map<String, String> settings) throws IOException {
         byte[] settingBytes = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(settings);
         try {
@@ -943,7 +945,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
 
         if (availableBrokers.isEmpty()) {
             // Create a map with all available brokers with no load information
-            Set<String> activeBrokers = availableActiveBrokers.get(LOADBALANCE_BROKERS_ROOT);
+            Set<String> activeBrokers = getActiveBrokers();
             List<String> brokersToShuffle = new ArrayList<>(activeBrokers);
             Collections.shuffle(brokersToShuffle);
             activeBrokers = new HashSet<>(brokersToShuffle);
@@ -966,7 +968,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
         // Remove candidates that point to inactive brokers
         Set<String> activeBrokers = Collections.emptySet();
         try {
-            activeBrokers = availableActiveBrokers.get();
+            activeBrokers = getActiveBrokers();
             // Need to use an explicit Iterator object to prevent concurrent modification exceptions
             Iterator<Map.Entry<Long, ResourceUnit>> candidateIterator = finalCandidates.entries().iterator();
             while (candidateIterator.hasNext()) {
@@ -1008,16 +1010,14 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
         scheduler.submit(this::updateRanking);
     }
 
-    private void updateRanking() {
+    protected void updateRanking() {
         try {
             synchronized (currentLoadReports) {
                 currentLoadReports.clear();
-                Set<String> activeBrokers = availableActiveBrokers.get();
+                Set<String> activeBrokers = getActiveBrokers();
                 for (String broker : activeBrokers) {
                     try {
-                        String key = String.format("%s/%s", LOADBALANCE_BROKERS_ROOT, broker);
-                        LoadReport lr = loadReportCacheZk.get(key)
-                            .orElseThrow(() -> new KeeperException.NoNodeException());
+                        LoadReport lr = getLoadReport(broker);
                         ResourceUnit ru = new SimpleResourceUnit(String.format("http://%s", lr.getName()),
                             fromLoadReport(lr));
                         this.currentLoadReports.put(ru, lr);
@@ -1108,6 +1108,27 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
         }
     }
 
+    private LoadReport getLoadReport(String broker) throws Exception {
+        return getLoadReportAsync(broker).get();
+    }
+    
+    @Override
+    public CompletableFuture<LoadReport> getLoadReportAsync(String broker) {
+        String key = String.format("%s/%s", LOADBALANCE_BROKERS_ROOT, broker);
+        CompletableFuture<LoadReport> loadReportFuture = new CompletableFuture<>();
+        loadReportCacheZk.getAsync(key).thenAccept(loadReport -> {
+            if (loadReport.isPresent()) {
+                loadReportFuture.complete(loadReport.get());
+            } else {
+                loadReportFuture.completeExceptionally(new KeeperException.NoNodeException(key));
+            }
+        }).exceptionally(ex -> {
+            loadReportFuture.completeExceptionally(ex);
+            return null;
+        });
+        return loadReportFuture;
+    }
+    
     @Override
     public void setLoadReportForceUpdateFlag() {
         this.forceLoadReportUpdate = true;
@@ -1195,13 +1216,17 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
 
         if (needUpdate) {
             LoadReport lr = generateLoadReport();
-            pulsar.getLocalZkClient().setData(brokerZnodePath, ObjectMapperFactory.getThreadLocal().writeValueAsBytes(lr),
-                -1);
+            writeLoadReportOnZk(lr);
             this.lastLoadReport = lr;
             this.lastResourceUsageTimestamp = lr.getTimestamp();
             // split-bundle if requires
             doNamespaceBundleSplit();
         }
+    }
+
+    protected void writeLoadReportOnZk(LoadReport lr) throws Exception {
+        pulsar.getLocalZkClient().setData(brokerZnodePath, ObjectMapperFactory.getThreadLocal().writeValueAsBytes(lr),
+                -1);
     }
 
     private String getNamespaceNameFromBundleName(String bundleName) {
@@ -1410,4 +1435,5 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
     public void stop() throws PulsarServerException {
         // do nothing
     }
+    
 }
