@@ -16,10 +16,7 @@
 package com.yahoo.pulsar.client.impl;
 
 import static org.mockito.Matchers.anyObject;
-import static org.mockito.Mockito.atLeastOnce;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.*;
 import static org.testng.Assert.assertTrue;
 
 import java.lang.reflect.Field;
@@ -80,12 +77,35 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
 
         final String dn1 = "persistent://" + ns1 + "/my-topic";
         final String dn2 = "persistent://" + ns2 + "/my-topic";
-        ConsumerImpl consumer1 = spy(
-                (ConsumerImpl) pulsarClient.subscribe(dn1, "my-subscriber-name", new ConsumerConfiguration()));
-        ProducerImpl producer1 = spy((ProducerImpl) pulsarClient.createProducer(dn1, new ProducerConfiguration()));
-        ProducerImpl producer2 = spy((ProducerImpl) pulsarClient.createProducer(dn2, new ProducerConfiguration()));
+        ConsumerImpl cons1 = (ConsumerImpl) pulsarClient.subscribe(dn1, "my-subscriber-name", new ConsumerConfiguration());
+        ProducerImpl prod1 = (ProducerImpl) pulsarClient.createProducer(dn1, new ProducerConfiguration());
+        ProducerImpl prod2 = (ProducerImpl) pulsarClient.createProducer(dn2, new ProducerConfiguration());
+        ConsumerImpl consumer1 = spy(cons1);
+        doAnswer(invocationOnMock -> cons1.getState()).when(consumer1).getState();
+        doAnswer(invocationOnMock -> cons1.getClientCnx()).when(consumer1).getClientCnx();
+        doAnswer(invocationOnMock -> cons1.cnx()).when(consumer1).cnx();
+        doAnswer(invocationOnMock -> {
+            cons1.connectionClosed((ClientCnx) invocationOnMock.getArguments()[0]);
+            return null;
+        }).when(consumer1).connectionClosed(anyObject());
+        ProducerImpl producer1 = spy(prod1);
+        doAnswer(invocationOnMock -> prod1.getState()).when(producer1).getState();
+        doAnswer(invocationOnMock -> prod1.getClientCnx()).when(producer1).getClientCnx();
+        doAnswer(invocationOnMock -> prod1.cnx()).when(producer1).cnx();
+        doAnswer(invocationOnMock -> {
+            prod1.connectionClosed((ClientCnx) invocationOnMock.getArguments()[0]);
+            return null;
+        }).when(producer1).connectionClosed(anyObject());
+        ProducerImpl producer2 = spy(prod2);
+        doAnswer(invocationOnMock -> prod2.getState()).when(producer2).getState();
+        doAnswer(invocationOnMock -> prod2.getClientCnx()).when(producer2).getClientCnx();
+        doAnswer(invocationOnMock -> prod2.cnx()).when(producer2).cnx();
+        doAnswer(invocationOnMock -> {
+            prod2.connectionClosed((ClientCnx) invocationOnMock.getArguments()[0]);
+            return null;
+        }).when(producer2).connectionClosed(anyObject());
 
-        ClientCnx clientCnx = producer1.clientCnx.get();
+        ClientCnx clientCnx = producer1.getClientCnx();
 
         Field pfield = ClientCnx.class.getDeclaredField("producers");
         pfield.setAccessible(true);
@@ -94,6 +114,10 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
 
         ConcurrentLongHashMap<ProducerImpl> producers = (ConcurrentLongHashMap<ProducerImpl>) pfield.get(clientCnx);
         ConcurrentLongHashMap<ConsumerImpl> consumers = (ConcurrentLongHashMap<ConsumerImpl>) cfield.get(clientCnx);
+
+        producers.put(2, producers.get(0));
+        producers.put(3, producers.get(1));
+        consumers.put(1, consumers.get(0));
 
         producers.put(0, producer1);
         producers.put(1, producer2);
@@ -121,14 +145,14 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         Thread.sleep(200);
 
         // producer1 must not be able to connect again
-        assertTrue(producer1.clientCnx.get() == null);
-        assertTrue(producer1.state.get().equals(State.Connecting));
+        assertTrue(prod1.getClientCnx() == null);
+        assertTrue(prod1.getState().equals(State.Connecting));
         // consumer1 must not be able to connect again
-        assertTrue(consumer1.clientCnx.get() == null);
-        assertTrue(consumer1.state.get().equals(State.Connecting));
+        assertTrue(cons1.getClientCnx() == null);
+        assertTrue(cons1.getState().equals(State.Connecting));
         // producer2 must have live connection
-        assertTrue(producer2.clientCnx.get() != null);
-        assertTrue(producer2.state.get().equals(State.Ready));
+        assertTrue(prod2.getClientCnx() != null);
+        assertTrue(prod2.getState().equals(State.Ready));
 
         
         // unload ns-bundle2 as well
@@ -138,18 +162,21 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         Thread.sleep(200);
 
         // producer1 must not be able to connect again
-        assertTrue(producer1.clientCnx.get() == null);
-        assertTrue(producer1.state.get().equals(State.Connecting));
+        assertTrue(prod1.getClientCnx() == null);
+        assertTrue(prod1.getState().equals(State.Connecting));
         // consumer1 must not be able to connect again
-        assertTrue(consumer1.clientCnx.get() == null);
-        assertTrue(consumer1.state.get().equals(State.Connecting));
+        assertTrue(cons1.getClientCnx() == null);
+        assertTrue(cons1.getState().equals(State.Connecting));
         // producer2 must not be able to connect again
-        assertTrue(producer2.clientCnx.get() == null);
-        assertTrue(producer2.state.get().equals(State.Connecting));
+        assertTrue(prod2.getClientCnx() == null);
+        assertTrue(prod2.getState().equals(State.Connecting));
 
         producer1.close();
         producer2.close();
         consumer1.close();
+        prod1.close();
+        prod2.close();
+        cons1.close();
 
     }
 
@@ -171,10 +198,9 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         final String dn1 = "persistent://" + ns1 + "/my-topic";
         final String dn2 = "persistent://" + ns2 + "/my-topic";
         
-        ConsumerImpl consumer1 = spy(
-                (ConsumerImpl) pulsarClient.subscribe(dn1, "my-subscriber-name", new ConsumerConfiguration()));
-        ProducerImpl producer1 = spy((ProducerImpl) pulsarClient.createProducer(dn1, new ProducerConfiguration()));
-        ProducerImpl producer2 = spy((ProducerImpl) pulsarClient.createProducer(dn2, new ProducerConfiguration()));
+        ConsumerImpl consumer1 = (ConsumerImpl) pulsarClient.subscribe(dn1, "my-subscriber-name", new ConsumerConfiguration());
+        ProducerImpl producer1 = (ProducerImpl) pulsarClient.createProducer(dn1, new ProducerConfiguration());
+        ProducerImpl producer2 = (ProducerImpl) pulsarClient.createProducer(dn2, new ProducerConfiguration());
 
         //unload all other namespace
         pulsar.getBrokerService().close();
@@ -185,14 +211,14 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         
         // [2] All clients must be disconnected and in connecting state
         // producer1 must not be able to connect again
-        assertTrue(producer1.clientCnx.get() == null);
-        assertTrue(producer1.state.get().equals(State.Connecting));
+        assertTrue(producer1.getClientCnx() == null);
+        assertTrue(producer1.getState().equals(State.Connecting));
         // consumer1 must not be able to connect again
-        assertTrue(consumer1.clientCnx.get() == null);
-        assertTrue(consumer1.state.get().equals(State.Connecting));
+        assertTrue(consumer1.getClientCnx() == null);
+        assertTrue(consumer1.getState().equals(State.Connecting));
         // producer2 must not be able to connect again
-        assertTrue(producer2.clientCnx.get() == null);
-        assertTrue(producer2.state.get().equals(State.Connecting));
+        assertTrue(producer2.getClientCnx() == null);
+        assertTrue(producer2.getState().equals(State.Connecting));
         
         producer1.close();
         producer2.close();

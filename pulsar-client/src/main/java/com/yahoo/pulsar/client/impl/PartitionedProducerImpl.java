@@ -62,7 +62,7 @@ public class PartitionedProducerImpl extends ProducerBase {
             producers.add(producer);
             producer.producerCreatedFuture().handle((prod, createException) -> {
                 if (createException != null) {
-                    state.set(State.Failed);
+                    setState(State.Failed);
                     createFail.compareAndSet(null, createException);
                 }
                 // we mark success if all the partitions are created
@@ -72,7 +72,7 @@ public class PartitionedProducerImpl extends ProducerBase {
                 // created partitions
                 if (completed.incrementAndGet() == numPartitions) {
                     if (createFail.get() == null) {
-                        state.set(State.Ready);
+                        setState(State.Ready);
                         producerCreatedFuture().complete(PartitionedProducerImpl.this);
                         log.info("[{}] Created partitioned producer", topic);
                     } else {
@@ -94,7 +94,7 @@ public class PartitionedProducerImpl extends ProducerBase {
     @Override
     public CompletableFuture<MessageId> sendAsync(Message message) {
 
-        switch (state.get()) {
+        switch (getState()) {
         case Ready:
         case Connecting:
             break; // Ok
@@ -126,10 +126,10 @@ public class PartitionedProducerImpl extends ProducerBase {
 
     @Override
     public CompletableFuture<Void> closeAsync() {
-        if (state.get() == State.Closing || state.get() == State.Closed) {
+        if (getState() == State.Closing || getState() == State.Closed) {
             return CompletableFuture.completedFuture(null);
         }
-        state.set(State.Closing);
+        setState(State.Closing);
 
         AtomicReference<Throwable> closeFail = new AtomicReference<Throwable>();
         AtomicInteger completed = new AtomicInteger(numPartitions);
@@ -142,12 +142,12 @@ public class PartitionedProducerImpl extends ProducerBase {
                     }
                     if (completed.decrementAndGet() == 0) {
                         if (closeFail.get() == null) {
-                            state.set(State.Closed);
+                            setState(State.Closed);
                             closeFuture.complete(null);
                             log.info("[{}] Closed Partitioned Producer", topic);
                             client.cleanupProducer(this);
                         } else {
-                            state.set(State.Failed);
+                            setState(State.Failed);
                             closeFuture.completeExceptionally(closeFail.get());
                             log.error("[{}] Could not close Partitioned Producer", topic, closeFail.get().getCause());
                         }

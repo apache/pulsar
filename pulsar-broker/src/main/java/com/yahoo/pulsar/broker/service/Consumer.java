@@ -22,7 +22,7 @@ import static com.yahoo.pulsar.common.api.Commands.readChecksum;
 import java.time.Instant;
 import java.util.Iterator;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -67,18 +67,24 @@ public class Consumer {
     // Represents how many messages we can safely send to the consumer without
     // overflowing its receiving queue. The consumer will use Flow commands to
     // increase its availability
-    private final AtomicInteger messagePermits = new AtomicInteger(0);
+    private static final AtomicIntegerFieldUpdater<Consumer> MESSAGE_PERMITS_UPDATER =
+            AtomicIntegerFieldUpdater.newUpdater(Consumer.class, "messagePermits");
+    private volatile int messagePermits = 0;
     // It starts keep tracking of messagePermits once consumer gets blocked, as consumer needs two separate counts:
     // messagePermits (1) before and (2) after being blocked: to dispatch only blockedPermit number of messages at the
     // time of redelivery
-    private final AtomicInteger permitsReceivedWhileConsumerBlocked = new AtomicInteger(0);
+    private static final AtomicIntegerFieldUpdater<Consumer> PERMITS_RECEIVED_WHILE_CONSUMER_BLOCKED_UPDATER =
+            AtomicIntegerFieldUpdater.newUpdater(Consumer.class, "permitsReceivedWhileConsumerBlocked");
+    private volatile int permitsReceivedWhileConsumerBlocked = 0;
 
     private final ConcurrentOpenHashMap<PositionImpl, Integer> pendingAcks;
 
     private final ConsumerStats stats;
     
     private final int maxUnackedMessages;
-    private AtomicInteger unackedMessages = new AtomicInteger(0);
+    private static final AtomicIntegerFieldUpdater<Consumer> UNACKED_MESSAGES_UPDATER =
+            AtomicIntegerFieldUpdater.newUpdater(Consumer.class, "unackedMessages");
+    private volatile int unackedMessages = 0;
     private volatile boolean blockedConsumerOnUnackedMsgs = false;
 
     public Consumer(Subscription subscription, SubType subType, long consumerId, String consumerName,
@@ -93,6 +99,9 @@ public class Consumer {
         this.msgOut = new Rate();
         this.msgRedeliver = new Rate();
         this.appId = appId;
+        PERMITS_RECEIVED_WHILE_CONSUMER_BLOCKED_UPDATER.set(this, 0);
+        MESSAGE_PERMITS_UPDATER.set(this, 0);
+        UNACKED_MESSAGES_UPDATER.set(this, 0);
 
         stats = new ConsumerStats();
         stats.address = cnx.clientAddress().toString();
@@ -181,7 +190,7 @@ public class Consumer {
     }
 
     private void incrementUnackedMessages(int ackedMessages) {
-        if (unackedMessages.addAndGet(ackedMessages) >= maxUnackedMessages && shouldBlockConsumerOnUnackMsgs()) {
+        if (UNACKED_MESSAGES_UPDATER.addAndGet(this, ackedMessages) >= maxUnackedMessages && shouldBlockConsumerOnUnackMsgs()) {
             blockedConsumerOnUnackedMsgs = true;
         }
     }
@@ -226,7 +235,7 @@ public class Consumer {
             permitsToReduce += batchSize;
         }
         // reduce permit and increment unackedMsg count with total number of messages in batch-msgs
-        int permits = messagePermits.addAndGet(-permitsToReduce);
+        int permits = MESSAGE_PERMITS_UPDATER.addAndGet(this, -permitsToReduce);
         incrementUnackedMessages(permitsToReduce);
         if (permits < 0) {
             if (log.isDebugEnabled()) {
@@ -305,15 +314,15 @@ public class Consumer {
         checkArgument(additionalNumberOfMessages > 0);
 
         // block shared consumer when unacked-messages reaches limit
-        if (shouldBlockConsumerOnUnackMsgs() && unackedMessages.get() >= maxUnackedMessages) {
+        if (shouldBlockConsumerOnUnackMsgs() && UNACKED_MESSAGES_UPDATER.get(this) >= maxUnackedMessages) {
             blockedConsumerOnUnackedMsgs = true;
         }
         int oldPermits;
         if (!blockedConsumerOnUnackedMsgs) {
-            oldPermits = messagePermits.getAndAdd(additionalNumberOfMessages);
+            oldPermits = MESSAGE_PERMITS_UPDATER.getAndAdd(this, additionalNumberOfMessages);
             subscription.consumerFlow(this, additionalNumberOfMessages);
         } else {
-            oldPermits = permitsReceivedWhileConsumerBlocked.getAndAdd(additionalNumberOfMessages);
+            oldPermits = PERMITS_RECEIVED_WHILE_CONSUMER_BLOCKED_UPDATER.getAndAdd(this, additionalNumberOfMessages);
         }
 
         if (log.isDebugEnabled()) {
@@ -331,15 +340,15 @@ public class Consumer {
      *            Consumer whose blockedPermits needs to be dispatched
      */
     void flowConsumerBlockedPermits(Consumer consumer) {
-        int additionalNumberOfPermits = consumer.permitsReceivedWhileConsumerBlocked.getAndSet(0);
+        int additionalNumberOfPermits = PERMITS_RECEIVED_WHILE_CONSUMER_BLOCKED_UPDATER.getAndSet(consumer, 0);
         // add newly flow permits to actual consumer.messagePermits
-        consumer.messagePermits.getAndAdd(additionalNumberOfPermits);
+        MESSAGE_PERMITS_UPDATER.getAndAdd(consumer, additionalNumberOfPermits);
         // dispatch pending permits to flow more messages: it will add more permits to dispatcher and consumer
         subscription.consumerFlow(consumer, additionalNumberOfPermits);
     }
 
     public int getAvailablePermits() {
-        return messagePermits.get();
+        return MESSAGE_PERMITS_UPDATER.get(this);
     }
 
     public boolean isBlocked() {
@@ -367,7 +376,7 @@ public class Consumer {
 
     public ConsumerStats getStats() {
         stats.availablePermits = getAvailablePermits();
-        stats.unackedMessages = unackedMessages.get();
+        stats.unackedMessages = UNACKED_MESSAGES_UPDATER.get(this);
         stats.blockedConsumerOnUnackedMsgs = blockedConsumerOnUnackedMsgs;
         return stats;
     }
@@ -433,7 +442,7 @@ public class Consumer {
             int totalAckedMsgs = ackOwnedConsumer.getPendingAcks().remove(position);
             // unblock consumer-throttling when receives half of maxUnackedMessages => consumer can start again
             // consuming messages
-            if (((ackOwnedConsumer.unackedMessages.addAndGet(-totalAckedMsgs) <= (maxUnackedMessages / 2))
+            if (((UNACKED_MESSAGES_UPDATER.addAndGet(ackOwnedConsumer, -totalAckedMsgs) <= (maxUnackedMessages / 2))
                     && ackOwnedConsumer.blockedConsumerOnUnackedMsgs)
                     && ackOwnedConsumer.shouldBlockConsumerOnUnackMsgs()) {
                 ackOwnedConsumer.blockedConsumerOnUnackedMsgs = false;
@@ -450,7 +459,7 @@ public class Consumer {
 
     public void redeliverUnacknowledgedMessages() {
         // cleanup unackedMessage bucket and redeliver those unack-msgs again
-        unackedMessages.set(0);
+        UNACKED_MESSAGES_UPDATER.set(this, 0);
         blockedConsumerOnUnackedMsgs = false;
         // redeliver unacked-msgs
         subscription.redeliverUnacknowledgedMessages(this);
@@ -479,21 +488,20 @@ public class Consumer {
             }
         }
 
-        unackedMessages.addAndGet(-totalRedeliveryMessages);
+        UNACKED_MESSAGES_UPDATER.addAndGet(this, -totalRedeliveryMessages);
         blockedConsumerOnUnackedMsgs = false;
 
         subscription.redeliverUnacknowledgedMessages(this, pendingPositions);
         msgRedeliver.recordMultipleEvents(totalRedeliveryMessages, totalRedeliveryMessages);
 
         int numberOfBlockedPermits = Math.min(totalRedeliveryMessages,
-                permitsReceivedWhileConsumerBlocked.get());
+                PERMITS_RECEIVED_WHILE_CONSUMER_BLOCKED_UPDATER.get(this));
 
         // if permitsReceivedWhileConsumerBlocked has been accumulated then pass it to Dispatcher to flow messages
         if (numberOfBlockedPermits > 0) {
-            permitsReceivedWhileConsumerBlocked.getAndAdd(-numberOfBlockedPermits);
-            messagePermits.getAndAdd(numberOfBlockedPermits);
+            PERMITS_RECEIVED_WHILE_CONSUMER_BLOCKED_UPDATER.getAndAdd(this, -numberOfBlockedPermits);
+            MESSAGE_PERMITS_UPDATER.getAndAdd(this, numberOfBlockedPermits);
             subscription.consumerFlow(this, numberOfBlockedPermits);
-
         }
     }
 }

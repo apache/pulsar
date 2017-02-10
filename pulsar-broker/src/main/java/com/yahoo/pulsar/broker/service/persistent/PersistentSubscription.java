@@ -17,7 +17,7 @@ package com.yahoo.pulsar.broker.service.persistent;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
@@ -61,7 +61,11 @@ public class PersistentSubscription implements Subscription {
     private final String topicName;
     private final String subName;
 
-    private final AtomicBoolean isFenced = new AtomicBoolean(false);
+    private static final int FALSE = 0;
+    private static final int TRUE = 1;
+    private static final AtomicIntegerFieldUpdater<PersistentSubscription> IS_FENCED_UPDATER =
+            AtomicIntegerFieldUpdater.newUpdater(PersistentSubscription.class, "isFenced");
+    private volatile int isFenced = FALSE;
     private PersistentMessageExpiryMonitor expiryMonitor;
 
     // for connected subscriptions, message expiry will be checked if the backlog is greater than this threshold
@@ -73,11 +77,12 @@ public class PersistentSubscription implements Subscription {
         this.topicName = topic.getName();
         this.subName = Codec.decode(cursor.getName());
         this.expiryMonitor = new PersistentMessageExpiryMonitor(topicName, cursor);
+        IS_FENCED_UPDATER.set(this, FALSE);
     }
 
     @Override
     public synchronized void addConsumer(Consumer consumer) throws BrokerServiceException {
-        if (isFenced.get()) {
+        if (IS_FENCED_UPDATER.get(this) == TRUE) {
             log.warn("Attempting to add consumer {} on a fenced subscription", consumer);
             throw new SubscriptionFencedException("Subscription is fenced");
         }
@@ -130,10 +135,10 @@ public class PersistentSubscription implements Subscription {
 
         // invalid consumer remove will throw an exception
         // decrement usage is triggered only for valid consumer close
-        topic.usageCount.decrementAndGet();
+        PersistentTopic.USAGE_COUNT_UPDATER.decrementAndGet(topic);
         if (log.isDebugEnabled()) {
             log.debug("[{}] [{}] [{}] Removed consumer -- count: {}", topic.getName(), subName, consumer.consumerName(),
-                    topic.usageCount.get());
+                    PersistentTopic.USAGE_COUNT_UPDATER.get(topic));
         }
     }
 
@@ -322,7 +327,7 @@ public class PersistentSubscription implements Subscription {
                     finalPosition = position;
                 }
 
-                if (!isFenced.compareAndSet(false, true)) {
+                if (!IS_FENCED_UPDATER.compareAndSet(PersistentSubscription.this, FALSE, TRUE)) {
                     future.completeExceptionally(new SubscriptionBusyException("Failed to fence subscription"));
                     return;
                 }
@@ -332,7 +337,7 @@ public class PersistentSubscription implements Subscription {
                         if (log.isDebugEnabled()) {
                             log.debug("[{}][{}] Failed to disconnect consumer from subscription", topicName, subName, throwable);
                         }
-                        isFenced.set(false);
+                        IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
                         future.completeExceptionally(new SubscriptionBusyException("Failed to disconnect consumers from subscription"));
                         return;
                     }
@@ -344,7 +349,7 @@ public class PersistentSubscription implements Subscription {
                                 log.debug("[{}][{}] Successfully reset subscription to timestamp {}", topicName, subName,
                                         timestamp);
                             }
-                            isFenced.set(false);
+                            IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
                             future.complete(null);
                         }
 
@@ -352,7 +357,7 @@ public class PersistentSubscription implements Subscription {
                         public void resetFailed(ManagedLedgerException exception, Object ctx) {
                             log.error("[{}][{}] Failed to reset subscription to timestamp {}", topicName, subName, timestamp,
                                     exception);
-                            isFenced.set(false);
+                            IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
                             // todo - retry on InvalidCursorPositionException
                             // or should we just ask user to retry one more time?
                             if (exception instanceof InvalidCursorPositionException) {
@@ -429,7 +434,7 @@ public class PersistentSubscription implements Subscription {
                 closeFuture.completeExceptionally(new SubscriptionBusyException("Subscription has active consumers"));
                 return closeFuture;
             }
-            isFenced.set(true);
+            IS_FENCED_UPDATER.set(this, TRUE);
             log.info("[{}][{}] Successfully fenced cursor ledger [{}]", topicName, subName, cursor);
         }
 
@@ -444,7 +449,7 @@ public class PersistentSubscription implements Subscription {
 
             @Override
             public void closeFailed(ManagedLedgerException exception, Object ctx) {
-                isFenced.set(false);
+                IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
 
                 log.error("[{}][{}] Error closing cursor for subscription", topicName, subName, exception);
                 closeFuture.completeExceptionally(new PersistenceException(exception));
@@ -464,14 +469,14 @@ public class PersistentSubscription implements Subscription {
         CompletableFuture<Void> disconnectFuture = new CompletableFuture<>();
 
         // block any further consumers on this subscription
-        isFenced.set(true);
+        IS_FENCED_UPDATER.set(this, TRUE);
 
         (dispatcher != null ? dispatcher.disconnect() : CompletableFuture.completedFuture(null))
                 .thenCompose(v -> close()).thenRun(() -> {
                     log.info("[{}][{}] Successfully disconnected and closed subscription", topicName, subName);
                     disconnectFuture.complete(null);
                 }).exceptionally(exception -> {
-                    isFenced.set(false);
+                    IS_FENCED_UPDATER.set(this, FALSE);
 
                     log.error("[{}][{}] Error disconnecting consumers from subscription", topicName, subName,
                             exception);
@@ -497,7 +502,7 @@ public class PersistentSubscription implements Subscription {
         // cursor close handles pending delete (ack) operations
         this.close().thenCompose(v -> topic.unsubscribe(subName)).thenAccept(v -> deleteFuture.complete(null))
                 .exceptionally(exception -> {
-                    isFenced.set(false);
+                    IS_FENCED_UPDATER.set(this, FALSE);
                     log.error("[{}][{}] Error deleting subscription", topicName, subName, exception);
                     deleteFuture.completeExceptionally(exception);
                     return null;
