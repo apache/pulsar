@@ -17,14 +17,12 @@ package com.yahoo.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -86,7 +84,7 @@ public class PartitionedConsumerImpl extends ConsumerBase {
             consumers.add(consumer);
             consumer.subscribeFuture().handle((cons, subscribeException) -> {
                 if (subscribeException != null) {
-                    state.set(State.Failed);
+                    setState(State.Failed);
                     subscribeFail.compareAndSet(null, subscribeException);
                     client.cleanupConsumer(this);
                 }
@@ -95,7 +93,7 @@ public class PartitionedConsumerImpl extends ConsumerBase {
                         try {
                             // We have successfully created N consumers, so we can start receiving messages now
                             starReceivingMessages();
-                            state.set(State.Ready);
+                            setState(State.Ready);
                             subscribeFuture().complete(PartitionedConsumerImpl.this);
                             log.info("[{}] [{}] Created partitioned consumer", topic, subscription);
                             return null;
@@ -210,7 +208,7 @@ public class PartitionedConsumerImpl extends ConsumerBase {
     protected CompletableFuture<Void> doAcknowledge(MessageId messageId, AckType ackType) {
         checkArgument(messageId instanceof MessageIdImpl);
 
-        if (state.get() != State.Ready) {
+        if (getState() != State.Ready) {
             return FutureUtil.failedFuture(new PulsarClientException("Consumer already closed"));
         }
 
@@ -227,11 +225,11 @@ public class PartitionedConsumerImpl extends ConsumerBase {
 
     @Override
     public CompletableFuture<Void> unsubscribeAsync() {
-        if (state.get() == State.Closing || state.get() == State.Closed) {
+        if (getState() == State.Closing || getState() == State.Closed) {
             return FutureUtil.failedFuture(
                     new PulsarClientException.AlreadyClosedException("Partitioned Consumer was already closed"));
         }
-        state.set(State.Closing);
+        setState(State.Closing);
 
         AtomicReference<Throwable> unsubscribeFail = new AtomicReference<Throwable>();
         AtomicInteger completed = new AtomicInteger(numPartitions);
@@ -244,11 +242,11 @@ public class PartitionedConsumerImpl extends ConsumerBase {
                     }
                     if (completed.decrementAndGet() == 0) {
                         if (unsubscribeFail.get() == null) {
-                            state.set(State.Closed);
+                            setState(State.Closed);
                             unsubscribeFuture.complete(null);
                             log.info("[{}] [{}] Unsubscribed Partitioned Consumer", topic, subscription);
                         } else {
-                            state.set(State.Failed);
+                            setState(State.Failed);
                             unsubscribeFuture.completeExceptionally(unsubscribeFail.get());
                             log.error("[{}] [{}] Could not unsubscribe Partitioned Consumer", topic, subscription,
                                     unsubscribeFail.get().getCause());
@@ -267,10 +265,10 @@ public class PartitionedConsumerImpl extends ConsumerBase {
     @Override
     public CompletableFuture<Void> closeAsync() {
 
-        if (state.get() == State.Closing || state.get() == State.Closed) {
+        if (getState() == State.Closing || getState() == State.Closed) {
             return CompletableFuture.completedFuture(null);
         }
-        state.set(State.Closing);
+        setState(State.Closing);
 
         AtomicReference<Throwable> closeFail = new AtomicReference<Throwable>();
         AtomicInteger completed = new AtomicInteger(numPartitions);
@@ -283,12 +281,12 @@ public class PartitionedConsumerImpl extends ConsumerBase {
                     }
                     if (completed.decrementAndGet() == 0) {
                         if (closeFail.get() == null) {
-                            state.set(State.Closed);
+                            setState(State.Closed);
                             closeFuture.complete(null);
                             log.info("[{}] [{}] Closed Partitioned Consumer", topic, subscription);
                             client.cleanupConsumer(this);
                         } else {
-                            state.set(State.Failed);
+                            setState(State.Failed);
                             closeFuture.completeExceptionally(closeFail.get());
                             log.error("[{}] [{}] Could not close Partitioned Consumer", topic, subscription,
                                     closeFail.get().getCause());

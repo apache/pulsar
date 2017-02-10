@@ -28,7 +28,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
@@ -71,7 +71,9 @@ public class ConsumerImpl extends ConsumerBase {
 
     // Number of messages that have delivered to the application. Every once in a while, this number will be sent to the
     // broker to notify that we are ready to get (and store in the incoming messages queue) more messages
-    private final AtomicInteger availablePermits;
+    private static final AtomicIntegerFieldUpdater<ConsumerImpl> AVAILABLE_PERMITS_UPDATER =
+            AtomicIntegerFieldUpdater.newUpdater(ConsumerImpl.class, "availablePermits");
+    private volatile int availablePermits = 0;
 
     private long subscribeTimeout;
     private final int partitionIndex;
@@ -99,7 +101,7 @@ public class ConsumerImpl extends ConsumerBase {
                  ExecutorService listenerExecutor, int partitionIndex, CompletableFuture<Consumer> subscribeFuture) {
         super(client, topic, subscription, conf, conf.getReceiverQueueSize(), listenerExecutor, subscribeFuture);
         this.consumerId = client.newConsumerId();
-        this.availablePermits = new AtomicInteger(0);
+        AVAILABLE_PERMITS_UPDATER.set(this, 0);
         this.subscribeTimeout = System.currentTimeMillis() + client.getConfiguration().getOperationTimeoutMs();
         this.partitionIndex = partitionIndex;
         this.receiverQueueRefillThreshold = conf.getReceiverQueueSize() / 2;
@@ -132,13 +134,13 @@ public class ConsumerImpl extends ConsumerBase {
 
     @Override
     public CompletableFuture<Void> unsubscribeAsync() {
-        if (state.get() == State.Closing || state.get() == State.Closed) {
+        if (getState() == State.Closing || getState() == State.Closed) {
             return FutureUtil
                 .failedFuture(new PulsarClientException.AlreadyClosedException("Consumer was already closed"));
         }
         final CompletableFuture<Void> unsubscribeFuture = new CompletableFuture<>();
         if (isConnected()) {
-            state.set(State.Closing);
+            setState(State.Closing);
             long requestId = client.newRequestId();
             ByteBuf unsubscribe = Commands.newUnsubscribe(consumerId, requestId);
             ClientCnx cnx = cnx();
@@ -148,11 +150,11 @@ public class ConsumerImpl extends ConsumerBase {
                 batchMessageAckTracker.clear();
                 unAckedMessageTracker.close();
                 unsubscribeFuture.complete(null);
-                state.set(State.Closed);
+                setState(State.Closed);
             }).exceptionally(e -> {
                 log.error("[{}][{}] Failed to unsubscribe: {}", topic, subscription, e.getCause().getMessage());
                 unsubscribeFuture.completeExceptionally(e.getCause());
-                state.set(State.Ready);
+                setState(State.Ready);
                 return null;
             });
         } else {
@@ -381,9 +383,9 @@ public class ConsumerImpl extends ConsumerBase {
     @Override
     protected CompletableFuture<Void> doAcknowledge(MessageId messageId, AckType ackType) {
         checkArgument(messageId instanceof MessageIdImpl);
-        if (state.get() != State.Ready && state.get() != State.Connecting) {
+        if (getState() != State.Ready && getState() != State.Connecting) {
             stats.incrementNumAcksFailed();
-            return FutureUtil.failedFuture(new PulsarClientException("Consumer not ready. State: " + state.get()));
+            return FutureUtil.failedFuture(new PulsarClientException("Consumer not ready. State: " + getState()));
         }
 
         if (messageId instanceof BatchMessageIdImpl) {
@@ -441,7 +443,7 @@ public class ConsumerImpl extends ConsumerBase {
         } else {
             stats.incrementNumAcksFailed();
             ackFuture
-                .completeExceptionally(new PulsarClientException("Not connected to broker. State: " + state.get()));
+                .completeExceptionally(new PulsarClientException("Not connected to broker. State: " + getState()));
         }
 
         return ackFuture;
@@ -449,7 +451,7 @@ public class ConsumerImpl extends ConsumerBase {
 
     @Override
     void connectionOpened(final ClientCnx cnx) {
-        clientCnx.set(cnx);
+        setClientCnx(cnx);
         cnx.registerConsumer(consumerId, this);
 
         log.info("[{}][{}] Subscribing to topic on cnx {}", topic, subscription, cnx.ctx().channel());
@@ -467,7 +469,7 @@ public class ConsumerImpl extends ConsumerBase {
                     log.info("[{}][{}] Subscribed to topic on {} -- consumer: {}", topic, subscription,
                         cnx.channel().remoteAddress(), consumerId);
 
-                    availablePermits.set(0);
+                    AVAILABLE_PERMITS_UPDATER.set(this, 0);
                     // For zerosize queue : If the connection is reset and someone is waiting for the messages
                     // or queue was not empty: send a flow command
                     if (waitingOnReceiveForZeroQueueSize
@@ -477,7 +479,7 @@ public class ConsumerImpl extends ConsumerBase {
                 } else {
                     // Consumer was closed while reconnecting, close the connection to make sure the broker
                     // drops the consumer on its side
-                    state.set(State.Closed);
+                    setState(State.Closed);
                     cnx.removeConsumer(consumerId);
                     cnx.channel().close();
                     return;
@@ -494,7 +496,7 @@ public class ConsumerImpl extends ConsumerBase {
             }
         }).exceptionally((e) -> {
             cnx.removeConsumer(consumerId);
-            if (state.get() == State.Closing || state.get() == State.Closed) {
+            if (getState() == State.Closing || getState() == State.Closed) {
                 // Consumer was closed while reconnecting, close the connection to make sure the broker
                 // drops the consumer on its side
                 cnx.channel().close();
@@ -511,7 +513,7 @@ public class ConsumerImpl extends ConsumerBase {
 
             if (!subscribeFuture.isDone()) {
                 // unable to create new consumer, fail operation
-                state.set(State.Failed);
+                setState(State.Failed);
                 subscribeFuture.completeExceptionally(e);
                 client.cleanupConsumer(this);
             } else {
@@ -538,14 +540,14 @@ public class ConsumerImpl extends ConsumerBase {
     @Override
     void connectionFailed(PulsarClientException exception) {
         if (System.currentTimeMillis() > subscribeTimeout && subscribeFuture.completeExceptionally(exception)) {
-            state.set(State.Failed);
+            setState(State.Failed);
             client.cleanupConsumer(this);
         }
     }
 
     @Override
     public CompletableFuture<Void> closeAsync() {
-        if (state.get() == State.Closing || state.get() == State.Closed) {
+        if (getState() == State.Closing || getState() == State.Closed) {
             batchMessageAckTracker.clear();
             unAckedMessageTracker.close();
             return CompletableFuture.completedFuture(null);
@@ -553,7 +555,7 @@ public class ConsumerImpl extends ConsumerBase {
 
         if (!isConnected()) {
             log.info("[{}] [{}] Closed Consumer (not connected)", topic, subscription);
-            state.set(State.Closed);
+            setState(State.Closed);
             batchMessageAckTracker.clear();
             unAckedMessageTracker.close();
             client.cleanupConsumer(this);
@@ -565,7 +567,7 @@ public class ConsumerImpl extends ConsumerBase {
             timeout.cancel();
         }
 
-        state.set(State.Closing);
+        setState(State.Closing);
 
         long requestId = client.newRequestId();
         ByteBuf cmd = Commands.newCloseConsumer(consumerId, requestId);
@@ -576,7 +578,7 @@ public class ConsumerImpl extends ConsumerBase {
             cnx.removeConsumer(consumerId);
             if (exception == null || !cnx.ctx().channel().isActive()) {
                 log.info("[{}] [{}] Closed consumer", topic, subscription);
-                state.set(State.Closed);
+                setState(State.Closed);
                 batchMessageAckTracker.clear();
                 unAckedMessageTracker.close();
                 closeFuture.complete(null);
@@ -806,14 +808,14 @@ public class ConsumerImpl extends ConsumerBase {
 
 
     private void increaseAvailablePermits(ClientCnx currentCnx, int delta) {
-        int available = availablePermits.addAndGet(delta);
+        int available = AVAILABLE_PERMITS_UPDATER.addAndGet(this, delta);
 
         while (available >= receiverQueueRefillThreshold) {
-            if (availablePermits.compareAndSet(available, 0)) {
+            if (AVAILABLE_PERMITS_UPDATER.compareAndSet(this, available, 0)) {
                 sendFlowPermitsToBroker(currentCnx, available);
                 break;
             } else {
-                available = availablePermits.get();
+                available = AVAILABLE_PERMITS_UPDATER.get(this);
             }
         }
     }
@@ -877,7 +879,7 @@ public class ConsumerImpl extends ConsumerBase {
 
     @Override
     public boolean isConnected() {
-        return clientCnx.get() != null && (state.get() == State.Ready);
+        return getClientCnx() != null && (getState() == State.Ready);
     }
 
     int getPartitionIndex() {
@@ -886,7 +888,7 @@ public class ConsumerImpl extends ConsumerBase {
 
     @Override
     public int getAvailablePermits() {
-        return availablePermits.get();
+        return AVAILABLE_PERMITS_UPDATER.get(this);
     }
 
     @Override
@@ -915,7 +917,7 @@ public class ConsumerImpl extends ConsumerBase {
             }
             return;
         }
-        if (cnx == null || (state.get() == State.Connecting)) {
+        if (cnx == null || (getState() == State.Connecting)) {
             log.warn("[{}] Client Connection needs to be establised for redelivery of unacknowledged messages", this);
         } else {
             log.warn("[{}] Reconnecting the client to redeliver the messages.", this);
@@ -959,7 +961,7 @@ public class ConsumerImpl extends ConsumerBase {
             }
             return;
         }
-        if (cnx == null || (state.get() == State.Connecting)) {
+        if (cnx == null || (getState() == State.Connecting)) {
             log.warn("[{}] Client Connection needs to be establised for redelivery of unacknowledged messages", this);
         } else {
             log.warn("[{}] Reconnecting the client to redeliver the messages.", this);

@@ -15,18 +15,21 @@
  */
 package com.yahoo.pulsar.client.impl;
 
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
 import com.yahoo.pulsar.client.api.Message;
 import com.yahoo.pulsar.client.api.MessageRouter;
 
 public class RoundRobinPartitionMessageRouterImpl implements MessageRouter {
 
-    private AtomicInteger partitionIndex = new AtomicInteger();
+    private static final AtomicIntegerFieldUpdater<RoundRobinPartitionMessageRouterImpl> PARTITION_INDEX_UPDATER =
+            AtomicIntegerFieldUpdater.newUpdater(RoundRobinPartitionMessageRouterImpl.class, "partitionIndex");
+    private volatile int partitionIndex = 0;
     private final int numPartitions;
 
     public RoundRobinPartitionMessageRouterImpl(int numPartitions) {
         this.numPartitions = numPartitions;
+        PARTITION_INDEX_UPDATER.set(this, 0);
     }
 
     @Override
@@ -35,7 +38,7 @@ public class RoundRobinPartitionMessageRouterImpl implements MessageRouter {
         if (msg.hasKey()) {
             return ((msg.getKey().hashCode() & Integer.MAX_VALUE) % numPartitions);
         }
-        return ((partitionIndex.getAndIncrement() & Integer.MAX_VALUE) % numPartitions);
+        return ((PARTITION_INDEX_UPDATER.getAndIncrement(this) & Integer.MAX_VALUE) % numPartitions);
     }
 
 }

@@ -342,7 +342,7 @@ public class PulsarClientImpl implements PulsarClient {
 
     protected CompletableFuture<ClientCnx> getConnection(final String topic) {
         DestinationName destinationName = DestinationName.get(topic);
-        return lookup.getBroker(destinationName).thenCompose((brokerAddress) -> cnxPool.getConnection(brokerAddress));
+        return lookup.getBroker(destinationName).thenCompose(cnxPool::getConnection);
     }
 
     protected Timer timer() {

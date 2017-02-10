@@ -26,7 +26,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -111,7 +111,9 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
     private volatile boolean isFenced;
 
-    protected AtomicLong usageCount = new AtomicLong(0);
+    protected static final AtomicLongFieldUpdater<PersistentTopic> USAGE_COUNT_UPDATER =
+            AtomicLongFieldUpdater.newUpdater(PersistentTopic.class, "usageCount");
+    private volatile long usageCount = 0;
 
     private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
 
@@ -166,6 +168,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         this.replicators = new ConcurrentOpenHashMap<>();
         this.isFenced = false;
         this.replicatorPrefix = brokerService.pulsar().getConfiguration().getReplicatorPrefix();
+        USAGE_COUNT_UPDATER.set(this, 0);
 
         for (ManagedCursor cursor : ledger.getCursors()) {
             if (cursor.getName().startsWith(replicatorPrefix)) {
@@ -230,9 +233,9 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                         "Producer with name '" + producer.getProducerName() + "' is already connected to topic");
             }
 
-            usageCount.incrementAndGet();
+            USAGE_COUNT_UPDATER.incrementAndGet(this);
             if (log.isDebugEnabled()) {
-                log.debug("[{}] [{}] Added producer -- count: {}", topic, producer.getProducerName(), usageCount.get());
+                log.debug("[{}] [{}] Added producer -- count: {}", topic, producer.getProducerName(), USAGE_COUNT_UPDATER.get(this));
             }
 
             // Start replication producers if not already
@@ -285,10 +288,10 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         checkArgument(producer.getTopic() == this);
         if (producers.remove(producer)) {
             // decrement usage only if this was a valid producer close
-            usageCount.decrementAndGet();
+            USAGE_COUNT_UPDATER.decrementAndGet(this);
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] Removed producer -- count: {}", topic, producer.getProducerName(),
-                        usageCount.get());
+                        USAGE_COUNT_UPDATER.get(this));
             }
             lastActive = System.nanoTime();
         }
@@ -313,10 +316,10 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                 future.completeExceptionally(new TopicFencedException("Topic is temporarily unavailable"));
                 return future;
             }
-            usageCount.incrementAndGet();
+            USAGE_COUNT_UPDATER.incrementAndGet(this);
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] [{}] Added consumer -- count: {}", topic, subscriptionName, consumerName,
-                        usageCount.get());
+                        USAGE_COUNT_UPDATER.get(this));
             }
         } finally {
             lock.readLock().unlock();
@@ -341,7 +344,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                         consumer.close();
                         if (log.isDebugEnabled()) {
                             log.debug("[{}] [{}] [{}] Subscribe failed -- count: {}", topic, subscriptionName,
-                                    consumer.consumerName(), usageCount.get());
+                                    consumer.consumerName(), USAGE_COUNT_UPDATER.get(PersistentTopic.this));
                         }
                         future.completeExceptionally(
                                 new BrokerServiceException("Connection was closed while the opening the cursor "));
@@ -357,7 +360,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                         log.warn("[{}][{}] {}", topic, subscriptionName, e.getMessage());
                     }
 
-                    usageCount.decrementAndGet();
+                    USAGE_COUNT_UPDATER.decrementAndGet(PersistentTopic.this);
                     future.completeExceptionally(e);
                 }
             }
@@ -365,7 +368,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             @Override
             public void openCursorFailed(ManagedLedgerException exception, Object ctx) {
                 log.warn("[{}] Failed to create subscription for {}", topic, subscriptionName);
-                usageCount.decrementAndGet();
+                USAGE_COUNT_UPDATER.decrementAndGet(PersistentTopic.this);
                 future.completeExceptionally(new PersistenceException(exception));
             }
         }, null);
@@ -440,7 +443,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                 deleteFuture.completeExceptionally(new TopicFencedException("Topic is already fenced"));
                 return deleteFuture;
             }
-            if (usageCount.get() == 0) {
+            if (USAGE_COUNT_UPDATER.get(this) == 0) {
                 isFenced = true;
 
                 List<CompletableFuture<Void>> futures = Lists.newArrayList();
@@ -480,7 +483,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                 });
             } else {
                 deleteFuture.completeExceptionally(
-                        new TopicBusyException("Topic has " + usageCount.get() + " connected producers/consumers"));
+                        new TopicBusyException("Topic has " + USAGE_COUNT_UPDATER.get(this) + " connected producers/consumers"));
             }
         } finally {
             lock.writeLock().unlock();
@@ -1033,7 +1036,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             // No local consumers and no local producers
             return !subscriptions.isEmpty() || hasLocalProducers();
         }
-        return usageCount.get() != 0 || !subscriptions.isEmpty();
+        return USAGE_COUNT_UPDATER.get(this) != 0 || !subscriptions.isEmpty();
     }
 
     @Override
