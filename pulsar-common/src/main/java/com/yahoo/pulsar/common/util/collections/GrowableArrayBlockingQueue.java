@@ -22,6 +22,7 @@ import java.util.NoSuchElementException;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -42,7 +43,9 @@ public class GrowableArrayBlockingQueue<T> extends AbstractQueue<T> implements B
     private final Condition isNotEmpty = headLock.newCondition();
 
     private T[] data;
-    private final AtomicInteger size = new AtomicInteger(0);
+    private static final AtomicIntegerFieldUpdater<GrowableArrayBlockingQueue> SIZE_UPDATER =
+            AtomicIntegerFieldUpdater.newUpdater(GrowableArrayBlockingQueue.class, "size");
+    private volatile int size = 0;
 
     public GrowableArrayBlockingQueue() {
         this(64);
@@ -71,10 +74,10 @@ public class GrowableArrayBlockingQueue<T> extends AbstractQueue<T> implements B
     public T poll() {
         headLock.lock();
         try {
-            if (size.get() > 0) {
+            if (SIZE_UPDATER.get(this) > 0) {
                 T item = data[headIndex.value];
                 headIndex.value = (headIndex.value + 1) & (data.length - 1);
-                size.decrementAndGet();
+                SIZE_UPDATER.decrementAndGet(this);
                 return item;
             } else {
                 return null;
@@ -98,7 +101,7 @@ public class GrowableArrayBlockingQueue<T> extends AbstractQueue<T> implements B
     public T peek() {
         headLock.lock();
         try {
-            if (size.get() > 0) {
+            if (SIZE_UPDATER.get(this) > 0) {
                 return data[headIndex.value];
             } else {
                 return null;
@@ -122,13 +125,13 @@ public class GrowableArrayBlockingQueue<T> extends AbstractQueue<T> implements B
         boolean wasEmpty = false;
 
         try {
-            if (size.get() == data.length) {
+            if (SIZE_UPDATER.get(this) == data.length) {
                 expandArray();
             }
 
             data[tailIndex.value] = e;
             tailIndex.value = (tailIndex.value + 1) & (data.length - 1);
-            if (size.getAndIncrement() == 0) {
+            if (SIZE_UPDATER.getAndIncrement(this) == 0) {
                 wasEmpty = true;
             }
         } finally {
@@ -163,14 +166,14 @@ public class GrowableArrayBlockingQueue<T> extends AbstractQueue<T> implements B
         headLock.lockInterruptibly();
 
         try {
-            while (size.get() == 0) {
+            while (SIZE_UPDATER.get(this) == 0) {
                 isNotEmpty.await();
             }
 
             T item = data[headIndex.value];
             data[headIndex.value] = null;
             headIndex.value = (headIndex.value + 1) & (data.length - 1);
-            if (size.decrementAndGet() > 0) {
+            if (SIZE_UPDATER.decrementAndGet(this) > 0) {
                 // There are still entries to consume
                 isNotEmpty.signal();
             }
@@ -186,7 +189,7 @@ public class GrowableArrayBlockingQueue<T> extends AbstractQueue<T> implements B
 
         try {
             long timeoutNanos = unit.toNanos(timeout);
-            while (size.get() == 0) {
+            while (SIZE_UPDATER.get(this) == 0) {
                 if (timeoutNanos <= 0) {
                     return null;
                 }
@@ -197,7 +200,7 @@ public class GrowableArrayBlockingQueue<T> extends AbstractQueue<T> implements B
             T item = data[headIndex.value];
             data[headIndex.value] = null;
             headIndex.value = (headIndex.value + 1) & (data.length - 1);
-            if (size.decrementAndGet() > 0) {
+            if (SIZE_UPDATER.decrementAndGet(this) > 0) {
                 // There are still entries to consume
                 isNotEmpty.signal();
             }
@@ -223,7 +226,7 @@ public class GrowableArrayBlockingQueue<T> extends AbstractQueue<T> implements B
 
         try {
             int drainedItems = 0;
-            int size = this.size.get();
+            int size = SIZE_UPDATER.get(this);
 
             while (size > 0 && drainedItems < maxElements) {
                 T item = data[headIndex.value];
@@ -235,7 +238,7 @@ public class GrowableArrayBlockingQueue<T> extends AbstractQueue<T> implements B
                 ++drainedItems;
             }
 
-            if (this.size.addAndGet(-drainedItems) > 0) {
+            if (SIZE_UPDATER.addAndGet(this, -drainedItems) > 0) {
                 // There are still entries to consume
                 isNotEmpty.signal();
             }
@@ -251,14 +254,14 @@ public class GrowableArrayBlockingQueue<T> extends AbstractQueue<T> implements B
         headLock.lock();
 
         try {
-            int size = this.size.get();
+            int size = SIZE_UPDATER.get(this);
 
             for (int i = 0; i < size; i++) {
                 data[headIndex.value] = null;
                 headIndex.value = (headIndex.value + 1) & (data.length - 1);
             }
 
-            if (this.size.addAndGet(-size) > 0) {
+            if (SIZE_UPDATER.addAndGet(this, -size) > 0) {
                 // There are still entries to consume
                 isNotEmpty.signal();
             }
@@ -269,7 +272,7 @@ public class GrowableArrayBlockingQueue<T> extends AbstractQueue<T> implements B
 
     @Override
     public int size() {
-        return size.get();
+        return SIZE_UPDATER.get(this);
     }
 
     @Override
@@ -286,7 +289,7 @@ public class GrowableArrayBlockingQueue<T> extends AbstractQueue<T> implements B
 
         try {
             int headIndex = this.headIndex.value;
-            int size = this.size.get();
+            int size = SIZE_UPDATER.get(this);
 
             sb.append('[');
 
@@ -315,7 +318,7 @@ public class GrowableArrayBlockingQueue<T> extends AbstractQueue<T> implements B
         headLock.lock();
 
         try {
-            int size = this.size.get();
+            int size = SIZE_UPDATER.get(this);
             int newCapacity = data.length * 2;
             T[] newData = (T[]) new Object[newCapacity];
 

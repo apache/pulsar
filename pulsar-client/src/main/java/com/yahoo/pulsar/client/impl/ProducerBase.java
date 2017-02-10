@@ -17,7 +17,6 @@ package com.yahoo.pulsar.client.impl;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.atomic.AtomicReference;
 
 import com.yahoo.pulsar.client.api.Message;
 import com.yahoo.pulsar.client.api.MessageBuilder;

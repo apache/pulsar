@@ -17,17 +17,14 @@ package com.yahoo.pulsar.client.impl;
 
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyLong;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.*;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -36,6 +33,11 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
+import org.mockito.cglib.proxy.Enhancer;
+import org.mockito.cglib.proxy.MethodInterceptor;
+import org.mockito.cglib.proxy.MethodProxy;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -273,10 +275,13 @@ public class MessageIdTest extends BrokerTestBase {
         final String topicName = "persistent://prop/use/ns-abc/topic1";
         
         // 1. producer connect
-        Producer prod = pulsarClient.createProducer(topicName);
-        ProducerImpl producer = spy((ProducerImpl) prod);
+        ProducerImpl prod = (ProducerImpl) pulsarClient.createProducer(topicName);
+        ProducerImpl producer = spy(prod);
         // return higher version compare to broker : so, it forces client-producer to remove checksum from payload
         doReturn(producer.brokerChecksumSupportedVersion() + 1).when(producer).brokerChecksumSupportedVersion();
+        doAnswer(invocationOnMock -> prod.getState()).when(producer).getState();
+        doAnswer(invocationOnMock -> prod.getClientCnx()).when(producer).getClientCnx();
+        doAnswer(invocationOnMock -> prod.cnx()).when(producer).cnx();
 
         Consumer consumer = pulsarClient.subscribe(topicName, "my-sub");
 
@@ -289,6 +294,10 @@ public class MessageIdTest extends BrokerTestBase {
         // mock-value from brokerChecksumSupportedVersion
         ((PulsarClientImpl) pulsarClient).timer().stop();
 
+        ClientCnx mockClientCnx = spy(new ClientCnx((PulsarClientImpl) pulsarClient));
+        doReturn(producer.brokerChecksumSupportedVersion() - 1).when(mockClientCnx).getRemoteEndpointProtocolVersion();
+        prod.setClientCnx(mockClientCnx);
+
         Message msg1 = MessageBuilder.create().setContent("message-1".getBytes()).build();
         CompletableFuture<MessageId> future1 = producer.sendAsync(msg1);
 
@@ -298,11 +307,13 @@ public class MessageIdTest extends BrokerTestBase {
         // corrupt the message
         msg2.getData()[msg2.getData().length - 1] = '3'; // new content would be 'message-3'
 
+        prod.setClientCnx(null);
+
         // Restart the broker to have the messages published
         startBroker();
 
         // grab broker connection with mocked producer which has higher version compare to broker
-        producer.grabCnx();
+        prod.grabCnx();
 
         try {
             // it should not fail: as due to unsupported version of broker: client removes checksum and broker should
@@ -310,6 +321,7 @@ public class MessageIdTest extends BrokerTestBase {
             future1.get();
             future2.get();
         } catch (Exception e) {
+            e.printStackTrace();
             fail("Broker shouldn't verify checksum for corrupted message and it shouldn't fail");
         }
 
@@ -327,11 +339,14 @@ public class MessageIdTest extends BrokerTestBase {
         final String topicName = "persistent://prop/use/ns-abc/topic1";
 
         // 1. producer connect
-        Producer prod = pulsarClient.createProducer(topicName);
-        ProducerImpl producer = spy((ProducerImpl) prod);
+        ProducerImpl prod = (ProducerImpl) pulsarClient.createProducer(topicName);
+        ProducerImpl producer = spy(prod);
         // mock: broker-doesn't support checksum (remote_version < brokerChecksumSupportedVersion) so, it forces
         // client-producer to perform checksum-strip from msg at reconnection
         doReturn(producer.brokerChecksumSupportedVersion() + 1).when(producer).brokerChecksumSupportedVersion();
+        doAnswer(invocationOnMock -> prod.getState()).when(producer).getState();
+        doAnswer(invocationOnMock -> prod.getClientCnx()).when(producer).getClientCnx();
+        doAnswer(invocationOnMock -> prod.cnx()).when(producer).cnx();
 
         Consumer consumer = pulsarClient.subscribe(topicName, "my-sub");
 
@@ -345,7 +360,7 @@ public class MessageIdTest extends BrokerTestBase {
         // set clientCnx mock to get non-checksum supported version
         ClientCnx mockClientCnx = spy(new ClientCnx((PulsarClientImpl) pulsarClient));
         doReturn(producer.brokerChecksumSupportedVersion() - 1).when(mockClientCnx).getRemoteEndpointProtocolVersion();
-        producer.clientCnx.set(mockClientCnx);
+        prod.setClientCnx(mockClientCnx);
 
         Message msg1 = MessageBuilder.create().setContent("message-1".getBytes()).build();
         CompletableFuture<MessageId> future1 = producer.sendAsync(msg1);
@@ -357,22 +372,23 @@ public class MessageIdTest extends BrokerTestBase {
         msg2.getData()[msg2.getData().length - 1] = '3'; // new content would be
                                                          // 'message-3'
         // unset mock
-        producer.clientCnx.set(null);
+        prod.setClientCnx(null);
 
         // Restart the broker to have the messages published
         startBroker();
 
         // grab broker connection with mocked producer which has higher version
         // compare to broker
-        producer.grabCnx();
+        prod.grabCnx();
 
         try {
             // it should not fail: as due to unsupported version of broker:
             // client removes checksum and broker should
             // ignore the checksum validation
-            future1.get(1, TimeUnit.SECONDS);
-            future2.get(1, TimeUnit.SECONDS);
+            future1.get(10, TimeUnit.SECONDS);
+            future2.get(10, TimeUnit.SECONDS);
         } catch (Exception e) {
+            e.printStackTrace();
             fail("Broker shouldn't verify checksum for corrupted message and it shouldn't fail");
         }
 

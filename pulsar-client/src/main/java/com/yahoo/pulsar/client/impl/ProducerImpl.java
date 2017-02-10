@@ -273,8 +273,8 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
     private ByteBuf sendMessage(long producerId, long sequenceId, int numMessages, MessageMetadata msgMetadata,
             ByteBuf compressedPayload) throws IOException {
         ChecksumType checksumType;
-        if (clientCnx.get() == null
-                || clientCnx.get().getRemoteEndpointProtocolVersion() >= brokerChecksumSupportedVersion()) {
+        if (getClientCnx() == null
+                || getClientCnx().getRemoteEndpointProtocolVersion() >= brokerChecksumSupportedVersion()) {
             checksumType = ChecksumType.Crc32c;
         } else {
             checksumType = ChecksumType.None;
@@ -293,7 +293,7 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
     }
 
     private boolean isValidProducerState(SendCallback callback) {
-        switch (state.get()) {
+        switch (getState()) {
         case Ready:
             // OK
         case Connecting:
@@ -381,14 +381,14 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
 
     @Override
     public CompletableFuture<Void> closeAsync() {
-        if (state.get() == State.Closing || state.get() == State.Closed) {
+        if (getState() == State.Closing || getState() == State.Closed) {
             return CompletableFuture.completedFuture(null);
         }
 
         if (!isConnected()) {
             log.info("[{}] [{}] Closed Producer (not connected)", topic, producerName);
             synchronized (this) {
-                state.set(State.Closed);
+                setState(State.Closed);
                 client.cleanupProducer(this);
                 pendingMessages.forEach(msg -> {
                     msg.cmd.release();
@@ -400,7 +400,7 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
             return CompletableFuture.completedFuture(null);
         }
 
-        state.set(State.Closing);
+        setState(State.Closing);
 
         Timeout timeout = sendTimeout;
         if (timeout != null) {
@@ -423,7 +423,7 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
                 // connection did break in the meantime. In any case, the producer is gone.
                 synchronized (ProducerImpl.this) {
                     log.info("[{}] [{}] Closed Producer", topic, producerName);
-                    state.set(State.Closed);
+                    setState(State.Closed);
                     pendingMessages.forEach(msg -> {
                         msg.cmd.release();
                         msg.recycle();
@@ -445,11 +445,11 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
 
     @Override
     public boolean isConnected() {
-        return clientCnx.get() != null && (state.get() == State.Ready);
+        return getClientCnx() != null && (getState() == State.Ready);
     }
 
     public boolean isWritable() {
-        ClientCnx cnx = clientCnx.get();
+        ClientCnx cnx = getClientCnx();
         return cnx != null && cnx.channel().isWritable();
     }
 
@@ -677,7 +677,7 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
     void connectionOpened(final ClientCnx cnx) {
         // we set the cnx reference before registering the producer on the cnx, so if the cnx breaks before creating the
         // producer, it will try to grab a new cnx
-        clientCnx.set(cnx);
+        setClientCnx(cnx);
         cnx.registerProducer(producerId, this);
 
         log.info("[{}] [{}] Creating producer on cnx {}", topic, producerName, cnx.ctx().channel());
@@ -689,7 +689,7 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
                     // We are now reconnected to broker and clear to send messages. Re-send all pending messages and
                     // set the cnx pointer so that new messages will be sent immediately
                     synchronized (ProducerImpl.this) {
-                        if (state.get() == State.Closing || state.get() == State.Closed) {
+                        if (getState() == State.Closing || getState() == State.Closed) {
                             // Producer was closed while reconnecting, close the connection to make sure the broker
                             // drops the producer on its side
                             cnx.removeProducer(producerId);
@@ -715,7 +715,7 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
                     }
                 }).exceptionally((e) -> {
                     cnx.removeProducer(producerId);
-                    if (state.get() == State.Closing || state.get() == State.Closed) {
+                    if (getState() == State.Closing || getState() == State.Closed) {
                         // Producer was closed while reconnecting, close the connection to make sure the broker
                         // drops the producer on its side
                         cnx.channel().close();
@@ -751,7 +751,7 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
                         // still within the initial timeout budget and we are dealing with a retriable error
                         reconnectLater(e.getCause());
                     } else {
-                        state.set(State.Failed);
+                        setState(State.Failed);
                         producerCreatedFuture.completeExceptionally(e.getCause());
                         client.cleanupProducer(this);
                     }
@@ -765,14 +765,14 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
         if (System.currentTimeMillis() > createProducerTimeout
                 && producerCreatedFuture.completeExceptionally(exception)) {
             log.info("[{}] Producer creation failed for producer {}", topic, producerId);
-            state.set(State.Failed);
+            setState(State.Failed);
         }
     }
 
     private void resendMessages(ClientCnx cnx) {
         cnx.ctx().channel().eventLoop().execute(() -> {
             synchronized (this) {
-                if (state.get() == State.Closing || state.get() == State.Closed) {
+                if (getState() == State.Closing || getState() == State.Closed) {
                     // Producer was closed while reconnecting, close the connection to make sure the broker
                     // drops the producer on its side
                     cnx.channel().close();

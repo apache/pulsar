@@ -22,7 +22,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
@@ -46,7 +46,9 @@ public final class PersistentDispatcherSingleActiveConsumer implements Dispatche
 
     private final PersistentTopic topic;
     private final ManagedCursor cursor;
-    private final AtomicReference<Consumer> activeConsumer = new AtomicReference<Consumer>();
+    private static final AtomicReferenceFieldUpdater<PersistentDispatcherSingleActiveConsumer, Consumer> ACTIVE_CONSUMER_UPDATER =
+            AtomicReferenceFieldUpdater.newUpdater(PersistentDispatcherSingleActiveConsumer.class, Consumer.class, "activeConsumer");
+    private volatile Consumer activeConsumer = null;
     private final CopyOnWriteArrayList<Consumer> consumers;
     private boolean havePendingRead = false;
     private CompletableFuture<Void> closeFuture = null;
@@ -67,6 +69,7 @@ public final class PersistentDispatcherSingleActiveConsumer implements Dispatche
         this.partitionIndex = partitionIndex;
         this.subscriptionType = subscriptionType;
         this.readBatchSize = MaxReadBatchSize;
+        ACTIVE_CONSUMER_UPDATER.set(this, null);
     }
 
     private void pickAndScheduleActiveConsumer() {
@@ -75,9 +78,9 @@ public final class PersistentDispatcherSingleActiveConsumer implements Dispatche
         consumers.sort((c1, c2) -> c1.consumerName().compareTo(c2.consumerName()));
 
         int index = partitionIndex % consumers.size();
-        Consumer prevConsumer = activeConsumer.getAndSet(consumers.get(index));
+        Consumer prevConsumer = ACTIVE_CONSUMER_UPDATER.getAndSet(this, consumers.get(index));
 
-        if (prevConsumer == activeConsumer.get()) {
+        if (prevConsumer == ACTIVE_CONSUMER_UPDATER.get(this)) {
             // Active consumer did not change. Do nothing at this point
             return;
         }
@@ -90,7 +93,7 @@ public final class PersistentDispatcherSingleActiveConsumer implements Dispatche
         // let it finish and then rewind
         if (!havePendingRead) {
             cursor.rewind();
-            readMoreEntries(activeConsumer.get());
+            readMoreEntries(ACTIVE_CONSUMER_UPDATER.get(this));
         }
     }
 
@@ -115,7 +118,7 @@ public final class PersistentDispatcherSingleActiveConsumer implements Dispatche
         }
 
         if (consumers.isEmpty()) {
-            activeConsumer.set(null);
+            ACTIVE_CONSUMER_UPDATER.set(this, null);
         }
 
         if (closeFuture == null && !consumers.isEmpty()) {
@@ -143,7 +146,7 @@ public final class PersistentDispatcherSingleActiveConsumer implements Dispatche
      */
     @Override
     public synchronized boolean canUnsubscribe(Consumer consumer) {
-        return (consumers.size() == 1) && Objects.equals(consumer, activeConsumer.get());
+        return (consumers.size() == 1) && Objects.equals(consumer, ACTIVE_CONSUMER_UPDATER.get(this));
     }
 
     /**
@@ -189,7 +192,7 @@ public final class PersistentDispatcherSingleActiveConsumer implements Dispatche
 
         readFailureBackoff.reduceToHalf();
 
-        Consumer currentConsumer = activeConsumer.get();
+        Consumer currentConsumer = ACTIVE_CONSUMER_UPDATER.get(this);
         if (currentConsumer == null || readConsumer != currentConsumer) {
             // Active consumer has changed since the read request has been issued. We need to rewind the cursor and
             // re-issue the read request for the new consumer
@@ -203,7 +206,7 @@ public final class PersistentDispatcherSingleActiveConsumer implements Dispatche
                 if (future.isSuccess()) {
                     // Schedule a new read batch operation only after the previous batch has been written to the socket
                     synchronized (PersistentDispatcherSingleActiveConsumer.this) {
-                        Consumer newConsumer = activeConsumer.get();
+                        Consumer newConsumer = ACTIVE_CONSUMER_UPDATER.get(this);
                         if (newConsumer != null && !havePendingRead) {
                             readMoreEntries(newConsumer);
                         } else {
@@ -222,7 +225,7 @@ public final class PersistentDispatcherSingleActiveConsumer implements Dispatche
     @Override
     public synchronized void consumerFlow(Consumer consumer, int additionalNumberOfMessages) {
         if (!havePendingRead) {
-            if (activeConsumer.get() == consumer) {
+            if (ACTIVE_CONSUMER_UPDATER.get(this) == consumer) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Trigger new read after receiving flow control message", consumer);
                 }
@@ -242,7 +245,7 @@ public final class PersistentDispatcherSingleActiveConsumer implements Dispatche
 
     @Override
     public synchronized void redeliverUnacknowledgedMessages(Consumer consumer) {
-        if (consumer != activeConsumer.get()) {
+        if (consumer != ACTIVE_CONSUMER_UPDATER.get(this)) {
             log.info("[{}] Ignoring reDeliverUnAcknowledgedMessages: Only the active consumer can call resend",
                     consumer);
             return;
@@ -320,7 +323,7 @@ public final class PersistentDispatcherSingleActiveConsumer implements Dispatche
 
         topic.getBrokerService().executor().schedule(() -> {
             synchronized (PersistentDispatcherSingleActiveConsumer.this) {
-                Consumer currentConsumer = activeConsumer.get();
+                Consumer currentConsumer = ACTIVE_CONSUMER_UPDATER.get(this);
                 // we should retry the read if we have an active consumer and there is no pending read
                 if (currentConsumer != null && !havePendingRead) {
                     if (log.isDebugEnabled()) {
@@ -340,7 +343,7 @@ public final class PersistentDispatcherSingleActiveConsumer implements Dispatche
 
     @Override
     public boolean isConsumerConnected() {
-        return activeConsumer.get() != null;
+        return ACTIVE_CONSUMER_UPDATER.get(this) != null;
     }
 
     @Override
@@ -354,7 +357,7 @@ public final class PersistentDispatcherSingleActiveConsumer implements Dispatche
     }
 
     public Consumer getActiveConsumer() {
-        return activeConsumer.get();
+        return ACTIVE_CONSUMER_UPDATER.get(this);
     }
 
 }
