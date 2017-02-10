@@ -28,15 +28,8 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
 
-import com.yahoo.pulsar.utils.PulsarBrokerVersionStringUtils;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.util.OrderedSafeExecutor;
-import org.apache.bookkeeper.util.ZkUtils;
-import org.apache.zookeeper.CreateMode;
-import org.apache.zookeeper.KeeperException;
-import org.apache.zookeeper.WatchedEvent;
-import org.apache.zookeeper.Watcher;
-import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.slf4j.Logger;
@@ -57,6 +50,7 @@ import com.yahoo.pulsar.broker.namespace.NamespaceService;
 import com.yahoo.pulsar.broker.service.BrokerService;
 import com.yahoo.pulsar.broker.service.Topic;
 import com.yahoo.pulsar.broker.stats.MetricsGenerator;
+import com.yahoo.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
 import com.yahoo.pulsar.broker.web.WebService;
 import com.yahoo.pulsar.client.admin.PulsarAdmin;
 import com.yahoo.pulsar.client.util.FutureUtil;
@@ -64,6 +58,7 @@ import com.yahoo.pulsar.common.naming.DestinationName;
 import com.yahoo.pulsar.common.naming.NamespaceBundle;
 import com.yahoo.pulsar.common.naming.NamespaceName;
 import com.yahoo.pulsar.common.policies.data.ClusterData;
+import com.yahoo.pulsar.utils.PulsarBrokerVersionStringUtils;
 import com.yahoo.pulsar.websocket.WebSocketConsumerServlet;
 import com.yahoo.pulsar.websocket.WebSocketProducerServlet;
 import com.yahoo.pulsar.websocket.WebSocketService;
@@ -173,7 +168,7 @@ public class PulsarService implements AutoCloseable {
                 this.bkClientFactory.close();
                 this.bkClientFactory = null;
             }
-            
+
             if (this.leaderElectionService != null) {
                 this.leaderElectionService.stop();
                 this.leaderElectionService = null;
@@ -266,6 +261,8 @@ public class PulsarService implements AutoCloseable {
             this.webService.addRestResources("/", "com.yahoo.pulsar.broker.web", false);
             this.webService.addRestResources("/admin", "com.yahoo.pulsar.broker.admin", true);
             this.webService.addRestResources("/lookup", "com.yahoo.pulsar.broker.lookup", true);
+
+            this.webService.addServlet("/metrics", new ServletHolder(new PrometheusMetricsServlet(this)), false);
 
             if (config.isWebSocketServiceEnabled()) {
                 // Use local broker address to avoid different IP address when using a VIP for service discovery
