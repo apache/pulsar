@@ -56,7 +56,7 @@ public class ZookeeperCacheLoaderTest extends BaseZKStarterTest {
 
         DiscoveryZooKeeperClientFactoryImpl.zk = mockZookKeeper;
 
-        ZookeeperCacheLoader zkLoader = new ZookeeperCacheLoader(new DiscoveryZooKeeperClientFactoryImpl(), "");
+        ZookeeperCacheLoader zkLoader = new ZookeeperCacheLoader(new DiscoveryZooKeeperClientFactoryImpl(), "", 30_000);
 
         List<String> brokers = Lists.newArrayList("broker-1:15000", "broker-2:15000", "broker-3:15000");
         // 1. create znode for each broker

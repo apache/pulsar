@@ -17,13 +17,14 @@ package com.yahoo.pulsar.discovery.service;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import java.io.Closeable;
+import java.io.IOException;
 import java.net.InetAddress;
 
 import org.apache.commons.lang.SystemUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.yahoo.pulsar.broker.PulsarServerException;
 import com.yahoo.pulsar.broker.ServiceConfiguration;
 import com.yahoo.pulsar.broker.authentication.AuthenticationService;
 import com.yahoo.pulsar.broker.authorization.AuthorizationManager;
@@ -50,7 +51,7 @@ import io.netty.util.concurrent.DefaultThreadFactory;
  * redirects to one of the active broker
  *
  */
-public class DiscoveryService {
+public class DiscoveryService implements Closeable {
 
     private final ServiceConfig config;
     private final String serviceUrl;
@@ -95,7 +96,7 @@ public class DiscoveryService {
     public void start() throws Exception {
         discoveryProvider = new BrokerDiscoveryProvider(this.config, getZooKeeperClientFactory());
         this.configurationCacheService = new ConfigurationCacheService(
-                discoveryProvider.globalZkCache.getLocalZkCache());
+                discoveryProvider.globalZkCache);
         ServiceConfiguration serviceConfiguration = createServiceConfiguration(config);
         authenticationService = new AuthenticationService(serviceConfiguration);
         authorizationManager = new AuthorizationManager(serviceConfiguration, configurationCacheService);
@@ -148,7 +149,7 @@ public class DiscoveryService {
         return discoveryProvider;
     }
 
-    public void close() {
+    public void close() throws IOException {
         discoveryProvider.close();
         acceptorGroup.shutdownGracefully();
         workerGroup.shutdownGracefully();

@@ -51,17 +51,16 @@ public class ZookeeperCacheLoader implements Closeable {
 
     public static final String LOADBALANCE_BROKERS_ROOT = "/loadbalance/brokers";
 
-    private static final int zooKeeperSessionTimeoutMillis = 30_000;
-
     /**
      * Initialize ZooKeeper session and creates broker cache list
      *
      * @param zookeeperServers
      * @throws Exception
      */
-    public ZookeeperCacheLoader(ZooKeeperClientFactory zkClientFactory, String zookeeperServers) throws Exception {
+    public ZookeeperCacheLoader(ZooKeeperClientFactory zkClientFactory, String zookeeperServers,
+            int zookeeperSessionTimeoutMs) throws Exception {
         localZkConnectionSvc = new LocalZooKeeperConnectionService(zkClientFactory, zookeeperServers,
-                zooKeeperSessionTimeoutMillis);
+                zookeeperSessionTimeoutMs);
         localZkConnectionSvc.start(exitCode -> {
             log.error("Shutting down ZK sessions: {}", exitCode);
         });

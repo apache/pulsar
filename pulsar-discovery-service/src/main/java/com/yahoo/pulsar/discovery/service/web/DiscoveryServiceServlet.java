@@ -58,6 +58,11 @@ public class DiscoveryServiceServlet extends HttpServlet {
         log.info("Initializing DiscoveryServiceServlet resource");
 
         String zookeeperServers = config.getInitParameter("zookeeperServers");
+        String zookeeperSessionTimeoutMsStr = config.getInitParameter("zookeeperSessionTimeoutMs");
+        int zookeeperSessionTimeoutMs = zookeeperSessionTimeoutMsStr != null
+                ? Integer.valueOf(zookeeperSessionTimeoutMsStr)
+                : 30_000;
+
         String zookeeperClientFactoryClassName = config.getInitParameter("zookeeperClientFactoryClass");
         if (zookeeperClientFactoryClassName == null) {
             zookeeperClientFactoryClassName = ZookeeperClientFactoryImpl.class.getName();
@@ -70,7 +75,7 @@ public class DiscoveryServiceServlet extends HttpServlet {
             ZooKeeperClientFactory zkClientFactory = (ZooKeeperClientFactory) Class
                     .forName(zookeeperClientFactoryClassName).newInstance();
 
-            zkCache = new ZookeeperCacheLoader(zkClientFactory, zookeeperServers);
+            zkCache = new ZookeeperCacheLoader(zkClientFactory, zookeeperServers, zookeeperSessionTimeoutMs);
         } catch (Throwable t) {
             throw new ServletException(t);
         }
