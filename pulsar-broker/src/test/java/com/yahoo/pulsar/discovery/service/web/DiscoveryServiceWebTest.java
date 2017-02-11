@@ -96,10 +96,12 @@ public class DiscoveryServiceWebTest extends ProducerConsumerBase {
          * verify : every time when vip receives a request: it redirects to above brokers sequentially and broker
          * returns appropriate response which must not be null.
          **/
-        assertEquals("Cannot get the replication clusters for a non-global namespace", hitBrokerService(HttpMethod.POST, postRequestUrl, Lists.newArrayList("use")));
-        assertEquals("Property does not exist", hitBrokerService(HttpMethod.PUT, putRequestUrl, new BundlesData(1)));
-        assertEquals("Property does not exist", hitBrokerService(HttpMethod.GET, getRequestUrl, null));
-        
+
+        assertEquals(hitBrokerService(HttpMethod.POST, postRequestUrl, Lists.newArrayList("use")),
+                "Cannot set replication on a non-global namespace");
+        assertEquals(hitBrokerService(HttpMethod.PUT, putRequestUrl, new BundlesData(1)), "Property does not exist");
+        assertEquals(hitBrokerService(HttpMethod.GET, getRequestUrl, null), "Property does not exist");
+
         server.stop();
 
     }
@@ -128,15 +130,15 @@ public class DiscoveryServiceWebTest extends ProducerConsumerBase {
         String serviceResponse = jsonObject.get("reason").getAsString();
         return serviceResponse;
     }
-    
+
     static class DiscoveryZooKeeperClientFactoryImpl implements ZooKeeperClientFactory {
-    	static ZooKeeper zk;
-    	
-		@Override
-		public CompletableFuture<ZooKeeper> create(String serverList, SessionType sessionType,
-				int zkSessionTimeoutMillis) {
-    		return CompletableFuture.completedFuture(zk);
-		}
+        static ZooKeeper zk;
+
+        @Override
+        public CompletableFuture<ZooKeeper> create(String serverList, SessionType sessionType,
+                int zkSessionTimeoutMillis) {
+            return CompletableFuture.completedFuture(zk);
+        }
     }
 
 }
