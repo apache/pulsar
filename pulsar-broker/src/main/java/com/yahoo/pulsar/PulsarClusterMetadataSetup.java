@@ -22,6 +22,7 @@ import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.meta.HierarchicalLedgerManagerFactory;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.zookeeper.CreateMode;
+import org.apache.zookeeper.KeeperException.NodeExistsException;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
@@ -44,14 +45,16 @@ public class PulsarClusterMetadataSetup {
         @Parameter(names = { "-c", "--cluster" }, description = "Cluster name", required = true)
         private String cluster;
 
-        @Parameter(names = { "-uw", "--web-service-url" }, description = "Web-service URL for new cluster", required = true)
+        @Parameter(names = { "-uw",
+                "--web-service-url" }, description = "Web-service URL for new cluster", required = true)
         private String clusterWebServiceUrl;
 
         @Parameter(names = { "-tw",
                 "--web-service-url-tls" }, description = "Web-service URL for new cluster with TLS encryption", required = false)
         private String clusterWebServiceUrlTls;
-        
-        @Parameter(names = { "-ub", "--broker-service-url" }, description = "Broker-service URL for new cluster", required = false)
+
+        @Parameter(names = { "-ub",
+                "--broker-service-url" }, description = "Broker-service URL for new cluster", required = false)
         private String clusterBrokerServiceUrl;
 
         @Parameter(names = { "-tb",
@@ -103,10 +106,19 @@ public class PulsarClusterMetadataSetup {
         localZk.create("/managed-ledgers", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
         localZk.create("/namespace", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
 
-        ZkUtils.createFullPathOptimistic(globalZk, "/admin/policies", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE,
-                CreateMode.PERSISTENT);
-        ZkUtils.createFullPathOptimistic(globalZk, "/admin/clusters", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE,
-                CreateMode.PERSISTENT);
+        try {
+            ZkUtils.createFullPathOptimistic(globalZk, "/admin/policies", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE,
+                    CreateMode.PERSISTENT);
+        } catch (NodeExistsException e) {
+            // Ignore
+        }
+
+        try {
+            ZkUtils.createFullPathOptimistic(globalZk, "/admin/clusters", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE,
+                    CreateMode.PERSISTENT);
+        } catch (NodeExistsException e) {
+            // Ignore
+        }
 
         ClusterData clusterData = new ClusterData(arguments.clusterWebServiceUrl, arguments.clusterWebServiceUrlTls,
                 arguments.clusterBrokerServiceUrl, arguments.clusterBrokerServiceUrlTls);
@@ -119,8 +131,12 @@ public class PulsarClusterMetadataSetup {
         ClusterData globalClusterData = new ClusterData(null, null);
         byte[] globalClusterDataJson = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(globalClusterData);
 
-        globalZk.create("/admin/clusters/global", globalClusterDataJson, ZooDefs.Ids.OPEN_ACL_UNSAFE,
-                CreateMode.PERSISTENT);
+        try {
+            globalZk.create("/admin/clusters/global", globalClusterDataJson, ZooDefs.Ids.OPEN_ACL_UNSAFE,
+                    CreateMode.PERSISTENT);
+        } catch (NodeExistsException e) {
+            // Ignore
+        }
 
         log.info("Cluster metadata for '{}' setup correctly", arguments.cluster);
     }
