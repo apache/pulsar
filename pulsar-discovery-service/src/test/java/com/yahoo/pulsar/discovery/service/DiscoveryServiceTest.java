@@ -20,6 +20,7 @@ import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
+import java.lang.reflect.Field;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -39,6 +40,8 @@ import com.yahoo.pulsar.common.api.Commands;
 import com.yahoo.pulsar.common.policies.data.loadbalancer.LoadReport;
 import com.yahoo.pulsar.common.util.ObjectMapperFactory;
 import com.yahoo.pulsar.common.util.SecurityUtility;
+import com.yahoo.pulsar.discovery.service.web.ZookeeperCacheLoader;
+import com.yahoo.pulsar.zookeeper.ZooKeeperChildrenCache;
 import com.yahoo.pulsar.zookeeper.ZookeeperClientFactoryImpl;
 
 import io.netty.bootstrap.Bootstrap;
@@ -202,7 +205,12 @@ public class DiscoveryServiceTest extends BaseDiscoveryTestSetup {
                     CreateMode.PERSISTENT);
         }
 
-        Thread.sleep(100); // wait to get cache updated
+        // sometimes test-environment takes longer time to trigger async mockZK-watch: so reload cache explicitly
+        Field field = ZookeeperCacheLoader.class.getDeclaredField("availableBrokersCache");
+        field.setAccessible(true);
+        ZooKeeperChildrenCache availableBrokersCache = (ZooKeeperChildrenCache) field
+                .get(service.getDiscoveryProvider().localZkCache);
+        availableBrokersCache.reloadCache(LOADBALANCE_BROKERS_ROOT);
     }
 
 }
