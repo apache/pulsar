@@ -168,7 +168,7 @@ OPTS="$OPTS -Dlog4j.configuration=`basename $PULSAR_LOG_CONF`"
 # Ensure we can read bigger content from ZK. (It might be
 # rarely needed when trying to list many z-nodes under a
 # directory)
-OPTS="$OPTS -Djute.maxbuffer=10485760"
+OPTS="$OPTS -Djute.maxbuffer=10485760 -Djava.net.preferIPv4Stack=true"
 
 OPTS="-cp $PULSAR_CLASSPATH $OPTS"
 
