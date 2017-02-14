@@ -39,7 +39,7 @@ public class SimpleConsumerSocket {
     private static final String X_PULSAR_MESSAGE_ID = "messageId";
     private final CountDownLatch closeLatch;
     private Session session;
-    private ArrayList<String> consumerBuffer = new ArrayList<String>();
+    private final ArrayList<String> consumerBuffer;
 
     public SimpleConsumerSocket() {
         this.closeLatch = new CountDownLatch(1);
@@ -65,7 +65,7 @@ public class SimpleConsumerSocket {
     }
 
     @OnWebSocketMessage
-    public void onMessage(String msg) throws JsonParseException, IOException {
+    public synchronized void onMessage(String msg) throws JsonParseException, IOException {
         JsonObject message = new Gson().fromJson(msg, JsonObject.class);
         JsonObject ack = new JsonObject();
         String messageId = message.get(X_PULSAR_MESSAGE_ID).getAsString();
@@ -83,7 +83,7 @@ public class SimpleConsumerSocket {
         return this.session;
     }
 
-    public ArrayList<String> getBuffer() {
+    public synchronized ArrayList<String> getBuffer() {
         return consumerBuffer;
     }
 

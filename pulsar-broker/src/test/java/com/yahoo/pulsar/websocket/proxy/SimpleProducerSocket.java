@@ -42,7 +42,7 @@ public class SimpleProducerSocket {
 
     private final CountDownLatch closeLatch;
     private Session session;
-    private ArrayList<String> producerBuffer;
+    private final ArrayList<String> producerBuffer;
 
     public SimpleProducerSocket() {
         this.closeLatch = new CountDownLatch(1);
@@ -78,7 +78,7 @@ public class SimpleProducerSocket {
     }
 
     @OnWebSocketMessage
-    public void onMessage(String msg) throws JsonParseException {
+    public synchronized void onMessage(String msg) throws JsonParseException {
         JsonObject ack = new Gson().fromJson(msg, JsonObject.class);
         producerBuffer.add(ack.get("messageId").getAsString());
     }
@@ -91,7 +91,7 @@ public class SimpleProducerSocket {
         return this.session;
     }
 
-    public ArrayList<String> getBuffer() {
+    public synchronized ArrayList<String> getBuffer() {
         return producerBuffer;
     }
 
