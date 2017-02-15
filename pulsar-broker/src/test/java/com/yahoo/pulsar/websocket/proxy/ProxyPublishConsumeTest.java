@@ -20,7 +20,6 @@ import static org.mockito.Mockito.spy;
 
 import java.net.URI;
 import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
@@ -70,7 +69,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         log.info("Finished Cleaning Up Test setup");
     }
 
-    @Test
+    @Test(timeOut=30000)
     public void socketTest() throws Exception {
         URI consumeUri = URI.create(CONSUME_URI);
         URI produceUri = URI.create(PRODUCE_URI);
@@ -90,12 +89,13 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             produceClient.start();
             Future<Session> producerFuture = produceClient.connect(produceSocket, produceUri, produceRequest);
             // let it connect
-            Thread.sleep(1000);
             Assert.assertTrue(consumerFuture.get().isOpen());
             Assert.assertTrue(producerFuture.get().isOpen());
-            
-            consumeSocket.awaitClose(1, TimeUnit.SECONDS);
-            produceSocket.awaitClose(1, TimeUnit.SECONDS);
+
+            while (consumeSocket.getReceivedMessagesCount() < 10) {
+                Thread.sleep(10);
+            }
+
             Assert.assertTrue(produceSocket.getBuffer().size() > 0);
             Assert.assertEquals(produceSocket.getBuffer(), consumeSocket.getBuffer());
         } finally {
