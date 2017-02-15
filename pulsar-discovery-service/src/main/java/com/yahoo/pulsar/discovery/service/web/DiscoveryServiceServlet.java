@@ -134,7 +134,9 @@ public class DiscoveryServiceServlet extends HttpServlet {
             if (log.isDebugEnabled()) {
                 log.info("Redirecting to {}", location);
             }
-            response.sendRedirect(location.toString());
+
+            response.setStatus(HttpServletResponse.SC_TEMPORARY_REDIRECT);
+            response.setHeader("Location", location.toString());
         } catch (URISyntaxException e) {
             log.warn("No broker found in zookeeper {}", e.getMessage(), e);
             throw new RestException(Status.SERVICE_UNAVAILABLE, "Broker is not available");
