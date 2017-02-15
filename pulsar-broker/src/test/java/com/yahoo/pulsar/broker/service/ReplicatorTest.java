@@ -169,7 +169,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
     @Test
     public void testConcurrentReplicator() throws Exception {
 
-        log.info("--- Starting ReplicatorTest::testConfigChange ---");
+        log.info("--- Starting ReplicatorTest::testConcurrentReplicator ---");
 
         final DestinationName dest = DestinationName.get(String.format("persistent://pulsar/global/ns1/topic-%d", 0));
         ClientConfiguration conf = new ClientConfiguration();
@@ -344,7 +344,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
     @Test(enabled = false)
     public void testReplicationOverrides() throws Exception {
 
-        log.info("--- Starting ReplicatorTest::testReplication ---");
+        log.info("--- Starting ReplicatorTest::testReplicationOverrides ---");
 
         // This test is to verify that the config change on global namespace is successfully applied in broker during
         // runtime.
