@@ -19,36 +19,57 @@
 
 #include <vector>
 #include <string>
+#include <unordered_map>
 #include <boost/shared_ptr.hpp>
 #include <pulsar/Result.h>
 
 #pragma GCC visibility push(default)
 
 namespace pulsar {
-
-class Authentication {
+    
+    typedef std::unordered_map<std::string, std::string> ParamMap;
+    
+    class AuthenticationDataProvider {
+    public:
+        virtual ~AuthenticationDataProvider();
+        virtual bool hasDataForTls();
+        virtual std::string getTlsCertificates();
+        virtual std::string getTlsPrivateKey();
+        virtual bool hasDataForHttp();
+        virtual std::string getHttpAuthType();
+        virtual std::string getHttpHeaders();
+        virtual bool hasDataFromCommand();
+        virtual std::string getCommandData();
+    protected:
+        AuthenticationDataProvider();
+    };
+    
+    typedef boost::shared_ptr<AuthenticationDataProvider> AuthenticationDataPtr;
+    
+    class Authentication {
     public:
         virtual ~Authentication();
         virtual const std::string getAuthMethodName() const = 0;
-        virtual Result getAuthData(std::string& authDataContent) const = 0;
-
+        virtual Result getAuthData(AuthenticationDataPtr& authDataContent) const = 0;
+        
     protected:
         Authentication();
-};
-
-typedef boost::shared_ptr<Authentication> AuthenticationPtr;
-
-class Auth {
+    };
+    
+    typedef boost::shared_ptr<Authentication> AuthenticationPtr;
+    
+    class Auth {
     public:
         static AuthenticationPtr Disabled();
         static AuthenticationPtr create(const std::string& dynamicLibPath);
-        static AuthenticationPtr create(const std::string& dynamicLibPath, const std::string& params);
+        static AuthenticationPtr create(const std::string& dynamicLibPath, const std::string& authParamsString);
+        static AuthenticationPtr create(const std::string& dynamicLibPath, ParamMap& params);
     protected:
         static bool isShutdownHookRegistered_;
         static std::vector<void *> loadedLibrariesHandles_;
         static void release_handles();
-};
-
+    };
+    
 }
 // namespace pulsar
 
