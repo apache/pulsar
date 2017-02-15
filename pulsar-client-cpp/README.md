@@ -58,7 +58,7 @@ Tests:
 
 ```
  1. Start the standalone pulsar
-    export PULSAR_STANDALONE_CONF=tests/standalone.conf
+    export PULSAR_STANDALONE_CONF=$(pwd)/tests/standalone.conf
     ../bin/pulsar standalone
 
  2. Run tests
