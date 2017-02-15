@@ -19,6 +19,7 @@
 
 #include <boost/scoped_ptr.hpp>
 #include <boost/asio.hpp>
+#include <boost/asio/ssl.hpp>
 #include <boost/function.hpp>
 #include <boost/noncopyable.hpp>
 #include <boost/thread/mutex.hpp>
@@ -27,6 +28,7 @@
 
 namespace pulsar {
 typedef boost::shared_ptr<boost::asio::ip::tcp::socket> SocketPtr;
+typedef boost::shared_ptr<boost::asio::ssl::stream<boost::asio::ip::tcp::socket&> > TlsSocketPtr;
 typedef boost::shared_ptr<boost::asio::ip::tcp::resolver> TcpResolverPtr;
 typedef boost::shared_ptr<boost::asio::deadline_timer> DeadlineTimerPtr;
 class ExecutorService : private boost::noncopyable {
@@ -36,6 +38,7 @@ class ExecutorService : private boost::noncopyable {
     ~ExecutorService();
 
     SocketPtr createSocket();
+    TlsSocketPtr createTlsSocket(SocketPtr &socket, boost::asio::ssl::context &ctx);
     TcpResolverPtr createTcpResolver();
     DeadlineTimerPtr createDeadlineTimer();
     void postWork(boost::function<void(void)> task);

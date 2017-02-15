@@ -20,6 +20,7 @@
 #include <pulsar/Result.h>
 
 #include <boost/asio.hpp>
+#include <boost/asio/ssl.hpp>
 #include <boost/any.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/thread/mutex.hpp>
@@ -73,6 +74,7 @@ class ClientConnection : public boost::enable_shared_from_this<ClientConnection>
 
  public:
     typedef boost::shared_ptr<boost::asio::ip::tcp::socket> SocketPtr;
+    typedef boost::shared_ptr<boost::asio::ssl::stream<boost::asio::ip::tcp::socket&> > TlsSocketPtr;
     typedef boost::shared_ptr<ClientConnection> ConnectionPtr;
     typedef boost::function<void(const boost::system::error_code&, ConnectionPtr)> ConnectionListener;
     typedef std::vector<ConnectionListener>::iterator ListenerIterator;
@@ -145,6 +147,8 @@ class ClientConnection : public boost::enable_shared_from_this<ClientConnection>
     void handleTcpConnected(const boost::system::error_code& err,
                             boost::asio::ip::tcp::resolver::iterator endpointIterator);
 
+    void handleHandshake(const boost::system::error_code& err);
+
     void handleSentPulsarConnect(const boost::system::error_code& err, const SharedBuffer& buffer);
 
     void readNextCommand();
@@ -184,6 +188,24 @@ class ClientConnection : public boost::enable_shared_from_this<ClientConnection>
         return AllocHandler<Handler>(writeHandlerAllocator_, h);
     }
 
+    template<typename ConstBufferSequence, typename WriteHandler>
+    inline void asyncWrite(const ConstBufferSequence &buffers, WriteHandler handler) {
+        if (tlsSocket_) {
+            boost::asio::async_write(*tlsSocket_, buffers, handler);
+        } else {
+            boost::asio::async_write(*socket_, buffers, handler);
+        }
+    }
+
+    template<typename MutableBufferSequence, typename ReadHandler>
+    inline void asyncReceive(const MutableBufferSequence &buffers, ReadHandler handler) {
+        if (tlsSocket_) {
+            tlsSocket_->async_read_some(buffers, handler);
+        } else {
+            socket_->async_receive(buffers, handler);
+        }
+    }
+
     State state_;
     TimeDuration operationsTimeout_;
     AuthenticationPtr authentication_;
@@ -197,6 +219,7 @@ class ClientConnection : public boost::enable_shared_from_this<ClientConnection>
      *  tcp connection socket to the pulsar broker
      */
     SocketPtr socket_;
+    TlsSocketPtr tlsSocket_;
     /*
      *  stores address of the service, for ex. pulsar://pulsar.corp.yahoo.com:8880
      */
@@ -245,6 +268,8 @@ class ClientConnection : public boost::enable_shared_from_this<ClientConnection>
     DeadlineTimerPtr keepAliveTimer_;
 
     friend class PulsarFriend;
+
+    bool isTlsAllowInsecureConnection_;
 };
 
 }

@@ -134,9 +134,9 @@ SharedBuffer Commands::newConnect(const AuthenticationPtr& authentication) {
     connect->set_client_version(_PULSAR_VERSION_);
     connect->set_auth_method_name(authentication->getAuthMethodName());
     connect->set_protocol_version(ProtocolVersion_MAX);
-    std::string authDataContent;
-    if (authentication->getAuthData(authDataContent) == ResultOk) {
-        connect->set_auth_data(authDataContent);
+    AuthenticationDataPtr authDataContent;
+    if (authentication->getAuthData(authDataContent) == ResultOk && authDataContent->hasDataFromCommand()) {
+        connect->set_auth_data(authDataContent->getCommandData());
     }
     return writeMessageWithSize(cmd);
 }

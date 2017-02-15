@@ -18,23 +18,24 @@
 #include <gtest/gtest.h>
 
 TEST(AuthPluginTest, testCreate) {
-    std::string data;
+    pulsar::AuthenticationDataPtr data;
 
     pulsar::AuthenticationPtr auth = pulsar::Auth::create("../lib/auth/libauthtls.so");
     ASSERT_TRUE(auth != NULL);
     ASSERT_EQ(auth->getAuthMethodName(), "tls");
     ASSERT_EQ(auth->getAuthData(data), pulsar::ResultOk);
-    ASSERT_EQ(data, "THIS_SHOULD_BE_REPLACED");
+    ASSERT_EQ(data->getCommandData(), "none");
+    ASSERT_EQ(data->hasDataForTls(), true);
     ASSERT_EQ(auth.use_count(), 1);
 }
 
 TEST(AuthPluginTest, testDisable) {
-    std::string data;
+    pulsar::AuthenticationDataPtr data;
 
     pulsar::AuthenticationPtr auth = pulsar::Auth::Disabled();
     ASSERT_TRUE(auth != NULL);
     ASSERT_EQ(auth->getAuthMethodName(), "none");
     ASSERT_EQ(auth->getAuthData(data), pulsar::ResultOk);
-    ASSERT_EQ(data, "");
+    ASSERT_EQ(data->getCommandData(), "none");
 	ASSERT_EQ(auth.use_count(), 1);
 }

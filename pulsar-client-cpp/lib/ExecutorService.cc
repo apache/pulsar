@@ -42,6 +42,10 @@ SocketPtr ExecutorService::createSocket() {
     return boost::make_shared<boost::asio::ip::tcp::socket>(boost::ref(io_service_));
 }
 
+TlsSocketPtr ExecutorService::createTlsSocket(SocketPtr &socket, boost::asio::ssl::context &ctx) {
+    return boost::shared_ptr<boost::asio::ssl::stream<boost::asio::ip::tcp::socket&> >(new boost::asio::ssl::stream<boost::asio::ip::tcp::socket&> (*socket, ctx));
+}
+
 /*
  *  factory method of Resolver object associated with io_service_ instance
  *  @returns shraed_ptr to resolver object
