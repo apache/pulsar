@@ -118,7 +118,7 @@ public class DiscoveryServiceWebTest extends BaseZKStarterTest{
         Field zkCacheField = DiscoveryServiceServlet.class.getDeclaredField("zkCache");
         zkCacheField.setAccessible(true);
         ZookeeperCacheLoader zkCache = new ZookeeperCacheLoader(new DiscoveryZooKeeperClientFactoryImpl(),
-                "zk-test-servers");
+                "zk-test-servers", 30_000);
         zkCacheField.set(discovery, zkCache);
 
         // 3. verify nextBroker functionality : round-robin in broker list

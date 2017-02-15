@@ -18,10 +18,15 @@ package com.yahoo.pulsar.discovery.service;
 import static com.yahoo.pulsar.common.util.ObjectMapperFactory.getThreadLocal;
 import static org.apache.bookkeeper.util.MathUtils.signSafeMod;
 
+import java.io.Closeable;
+import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.apache.bookkeeper.util.OrderedSafeExecutor;
 import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,6 +38,7 @@ import com.yahoo.pulsar.common.policies.data.PropertyAdmin;
 import com.yahoo.pulsar.common.policies.data.loadbalancer.LoadReport;
 import com.yahoo.pulsar.discovery.service.server.ServiceConfig;
 import com.yahoo.pulsar.discovery.service.web.ZookeeperCacheLoader;
+import com.yahoo.pulsar.zookeeper.GlobalZooKeeperCache;
 import com.yahoo.pulsar.zookeeper.ZooKeeperCache.Deserializer;
 import com.yahoo.pulsar.zookeeper.ZooKeeperClientFactory;
 
@@ -40,19 +46,25 @@ import com.yahoo.pulsar.zookeeper.ZooKeeperClientFactory;
  * Maintains available active broker list and returns next active broker in round-robin for discovery service.
  *
  */
-public class BrokerDiscoveryProvider {
+public class BrokerDiscoveryProvider implements Closeable {
 
-    protected ZookeeperCacheLoader localZkCache;
-    protected ZookeeperCacheLoader globalZkCache;
+    final ZookeeperCacheLoader localZkCache;
+    final GlobalZooKeeperCache globalZkCache;
     private final AtomicInteger counter = new AtomicInteger();
-    
+
+    private final OrderedSafeExecutor orderedExecutor = new OrderedSafeExecutor(4, "pulsar-discovery-ordered");
+    private final ScheduledExecutorService scheduledExecutorScheduler = Executors.newScheduledThreadPool(1);
+
     private static final String PARTITIONED_TOPIC_PATH_ZNODE = "partitioned-topics";
 
     public BrokerDiscoveryProvider(ServiceConfig config, ZooKeeperClientFactory zkClientFactory)
             throws PulsarServerException {
         try {
-            localZkCache = new ZookeeperCacheLoader(zkClientFactory, config.getZookeeperServers());
-            globalZkCache = new ZookeeperCacheLoader(zkClientFactory, config.getGlobalZookeeperServers());
+            localZkCache = new ZookeeperCacheLoader(zkClientFactory, config.getZookeeperServers(),
+                    config.getZookeeperSessionTimeoutMs());
+            globalZkCache = new GlobalZooKeeperCache(zkClientFactory, config.getZookeeperSessionTimeoutMs(),
+                    config.getGlobalZookeeperServers(), orderedExecutor, scheduledExecutorScheduler);
+            globalZkCache.start();
         } catch (Exception e) {
             LOG.error("Failed to start Zookkeeper {}", e.getMessage(), e);
             throw new PulsarServerException("Failed to start zookeeper :" + e.getMessage(), e);
@@ -77,7 +89,6 @@ public class BrokerDiscoveryProvider {
         }
     }
 
-    
     CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(DiscoveryService service,
             DestinationName destination, String role) {
 
@@ -87,7 +98,7 @@ public class BrokerDiscoveryProvider {
             final String path = path(PARTITIONED_TOPIC_PATH_ZNODE, destination.getProperty(), destination.getCluster(),
                     destination.getNamespacePortion(), "persistent", destination.getEncodedLocalName());
             // gets the number of partitions from the zk cache
-            globalZkCache.getLocalZkCache().getDataAsync(path, new Deserializer<PartitionedTopicMetadata>() {
+            globalZkCache.getDataAsync(path, new Deserializer<PartitionedTopicMetadata>() {
                 @Override
                 public PartitionedTopicMetadata deserialize(String key, byte[] content) throws Exception {
                     return getThreadLocal().readValue(content, PartitionedTopicMetadata.class);
@@ -150,11 +161,14 @@ public class BrokerDiscoveryProvider {
         return sb.toString();
     }
 
-    public void close() {
-    	localZkCache.close();
-    	globalZkCache.close();
+    @Override
+    public void close() throws IOException {
+        localZkCache.close();
+        globalZkCache.close();
+        orderedExecutor.shutdown();
+        scheduledExecutorScheduler.shutdownNow();
     }
 
     private static final Logger LOG = LoggerFactory.getLogger(BrokerDiscoveryProvider.class);
-    
+
 }
