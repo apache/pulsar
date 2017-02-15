@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.jetty.websocket.api.RemoteEndpoint;
 import org.eclipse.jetty.websocket.api.Session;
@@ -40,6 +41,7 @@ public class SimpleConsumerSocket {
     private final CountDownLatch closeLatch;
     private Session session;
     private final ArrayList<String> consumerBuffer;
+    private final AtomicInteger receivedMessages = new AtomicInteger();
 
     public SimpleConsumerSocket() {
         this.closeLatch = new CountDownLatch(1);
@@ -73,6 +75,7 @@ public class SimpleConsumerSocket {
         ack.add("messageId", new JsonPrimitive(messageId));
         // Acking the proxy
         this.getRemote().sendString(ack.toString());
+        receivedMessages.incrementAndGet();
     }
 
     public RemoteEndpoint getRemote() {
@@ -85,6 +88,10 @@ public class SimpleConsumerSocket {
 
     public synchronized ArrayList<String> getBuffer() {
         return consumerBuffer;
+    }
+    
+    public int getReceivedMessagesCount() {
+        return receivedMessages.get();
     }
 
     private static final Logger log = LoggerFactory.getLogger(SimpleConsumerSocket.class);
