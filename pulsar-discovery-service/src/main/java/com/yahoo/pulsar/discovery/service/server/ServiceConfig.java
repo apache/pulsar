@@ -26,12 +26,16 @@ import com.yahoo.pulsar.discovery.service.web.DiscoveryServiceServlet;
  * Service Configuration to start :{@link DiscoveryServiceServlet}
  *
  */
-public class ServiceConfig implements PulsarConfiguration{
+public class ServiceConfig implements PulsarConfiguration {
 
     // Local-Zookeeper quorum connection string
     private String zookeeperServers;
     // Global-Zookeeper quorum connection string
     private String globalZookeeperServers;
+
+    // ZooKeeper session timeout
+    private int zookeeperSessionTimeoutMs = 30_000;
+
     // Port to use to server binary-proto request
     private int servicePort = 5000;
     // Port to use to server binary-proto-tls request
@@ -43,18 +47,18 @@ public class ServiceConfig implements PulsarConfiguration{
     // Control whether to bind directly on localhost rather than on normal
     // hostname
     private boolean bindOnLocalhost = false;
-    
+
     // Role names that are treated as "super-user", meaning they will be able to
     // do all admin operations and publish/consume from all topics
     private Set<String> superUserRoles = Sets.newTreeSet();
-    
+
     // Enable authentication
     private boolean authenticationEnabled = false;
     // Authentication provider name list, which is a list of class names
     private Set<String> authenticationProviders = Sets.newTreeSet();
     // Enforce authorization
     private boolean authorizationEnabled = false;
-    
+
     /***** --- TLS --- ****/
     // Enable TLS
     private boolean tlsEnabled = false;
@@ -62,7 +66,7 @@ public class ServiceConfig implements PulsarConfiguration{
     private String tlsCertificateFilePath;
     // Path for the TLS private key file
     private String tlsKeyFilePath;
-    
+
     private Properties properties = new Properties();
 
     public String getZookeeperServers() {
@@ -81,6 +85,14 @@ public class ServiceConfig implements PulsarConfiguration{
         this.globalZookeeperServers = globalZookeeperServers;
     }
 
+    public int getZookeeperSessionTimeoutMs() {
+        return zookeeperSessionTimeoutMs;
+    }
+
+    public void setZookeeperSessionTimeoutMs(int zookeeperSessionTimeoutMs) {
+        this.zookeeperSessionTimeoutMs = zookeeperSessionTimeoutMs;
+    }
+
     public int getServicePort() {
         return servicePort;
     }
@@ -96,7 +108,7 @@ public class ServiceConfig implements PulsarConfiguration{
     public void setServicePortTls(int servicePortTls) {
         this.servicePortTls = servicePortTls;
     }
-    
+
     public int getWebServicePort() {
         return webServicePort;
     }
