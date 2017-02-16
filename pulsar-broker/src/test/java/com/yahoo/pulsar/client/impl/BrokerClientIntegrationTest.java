@@ -41,6 +41,7 @@ import com.yahoo.pulsar.client.api.Message;
 import com.yahoo.pulsar.client.api.Producer;
 import com.yahoo.pulsar.client.api.ProducerConfiguration;
 import com.yahoo.pulsar.client.api.ProducerConsumerBase;
+import com.yahoo.pulsar.client.api.PulsarClient;
 import com.yahoo.pulsar.client.api.SubscriptionType;
 import com.yahoo.pulsar.client.impl.HandlerBase.State;
 import com.yahoo.pulsar.common.api.PulsarHandler;
@@ -259,7 +260,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
 
         final int batchMessageDelayMs = 1000;
         final String topicName = "persistent://my-property/use/my-ns/my-topic1";
-        final String subscriptionName = "my-subscriber-name";
+        final String subscriptionName = "my-subscriber-name" + subType;
 
         ConsumerConfiguration conf = new ConsumerConfiguration();
         conf.setSubscriptionType(subType);
@@ -302,9 +303,6 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
             consumer1.acknowledge(msg);
         }
 
-        // Also set clientCnx of the consumer to null so, it avoid reconnection so, other consumer can consume for
-        // verification
-        consumer1.setClientCnx(null);
         // (2) send batch-message which should not be able to consume: as broker will disconnect the consumer
         for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;
@@ -318,6 +316,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         assertNull(msg);
 
         // subscrie consumer2 with supporting batch version
+        pulsarClient = PulsarClient.create(brokerUrl.toString());
         Consumer consumer2 = pulsarClient.subscribe(topicName, subscriptionName, conf);
 
         messageSet.clear();
@@ -331,7 +330,6 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         }
 
         consumer2.close();
-        consumer1.close();
         producer.close();
         batchProducer.close();
         log.info("-- Exiting {} test --", methodName);

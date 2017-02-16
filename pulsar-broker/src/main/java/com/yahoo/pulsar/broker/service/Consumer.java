@@ -150,17 +150,21 @@ public class Consumer {
         }
 
         try {
-            sentMessages.setRight(updatePermitsAndPendingAcks(entries));    
-        } catch(PulsarServerException pe)  {
-            log.warn("[{}] [{}] consumer doesn't support batch-message {}",subscription, consumerId,cnx.getRemoteEndpointProtocolVersion());
+            sentMessages.setRight(updatePermitsAndPendingAcks(entries));
+        } catch (PulsarServerException pe) {
+            log.warn("[{}] [{}] consumer doesn't support batch-message {}", subscription, consumerId,
+                    cnx.getRemoteEndpointProtocolVersion());
             sentMessages.setRight(0);
-            // disconnect the consumer: it will update dispatcher's availablePermits and resends pendingAck-messages of
-            // this consumer to other consumer
-            disconnect();
+            // remove consumer from subscription and cnx: it will update dispatcher's availablePermits and resends
+            // pendingAck-messages of this consumer to other consumer
+            try {
+                close();
+            } catch (BrokerServiceException e) {
+                log.warn("Consumer {} was already closed: {}", this, e.getMessage(), e);
+            }
             return sentMessages;
         }
         
-
         ctx.channel().eventLoop().execute(() -> {
             for (int i = 0; i < entries.size(); i++) {
                 Entry entry = entries.get(i);
@@ -224,9 +228,10 @@ public class Consumer {
         return -1;
     }
 
-    int updatePermitsAndPendingAcks(final List<Entry> entries) throws PulsarServerException{
+    int updatePermitsAndPendingAcks(final List<Entry> entries) throws PulsarServerException {
         int permitsToReduce = 0;
         Iterator<Entry> iter = entries.iterator();
+        boolean unsupportedVersion = false;
         while (iter.hasNext()) {
             Entry entry = iter.next();
             ByteBuf metadataAndPayload = entry.getDataBuffer();
@@ -244,14 +249,17 @@ public class Consumer {
                 pendingAcks.put(pos, batchSize);
             }
             // check if consumer supports batch message
-            if(batchSize > 1 && cnx.getRemoteEndpointProtocolVersion() < ProtocolVersion.v4.getNumber()) {
-                throw new PulsarServerException("Consumer does not support batch-message");
+            if (batchSize > 1 && cnx.getRemoteEndpointProtocolVersion() < ProtocolVersion.v4.getNumber()) {
+                unsupportedVersion = true;
             }
             permitsToReduce += batchSize;
         }
         // reduce permit and increment unackedMsg count with total number of messages in batch-msgs
         int permits = MESSAGE_PERMITS_UPDATER.addAndGet(this, -permitsToReduce);
         incrementUnackedMessages(permitsToReduce);
+        if (unsupportedVersion) {
+            throw new PulsarServerException("Consumer does not support batch-message");
+        }
         if (permits < 0) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] message permits dropped below 0 - {}", subscription, consumerId, permits);
