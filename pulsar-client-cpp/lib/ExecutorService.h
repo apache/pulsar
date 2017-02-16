@@ -32,7 +32,7 @@ typedef boost::shared_ptr<boost::asio::ssl::stream<boost::asio::ip::tcp::socket&
 typedef boost::shared_ptr<boost::asio::ip::tcp::resolver> TcpResolverPtr;
 typedef boost::shared_ptr<boost::asio::deadline_timer> DeadlineTimerPtr;
 class ExecutorService : private boost::noncopyable {
-
+ friend class ClientConnection;
  public:
     ExecutorService();
     ~ExecutorService();
@@ -43,7 +43,6 @@ class ExecutorService : private boost::noncopyable {
     DeadlineTimerPtr createDeadlineTimer();
     void postWork(boost::function<void(void)> task);
     void close();
-
  private:
 
     /*
