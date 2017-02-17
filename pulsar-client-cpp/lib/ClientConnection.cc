@@ -114,8 +114,11 @@ isTlsAllowInsecureConnection_(false) {
     if (clientConfiguration.isUseTls()) {
         using namespace boost::filesystem;
 
+#if BOOST_VERSION >= 105400
+        boost::asio::ssl::context ctx(executor_->io_service_, boost::asio::ssl::context::tlsv12_client);
+#else
         boost::asio::ssl::context ctx(executor_->io_service_, boost::asio::ssl::context::tlsv1_client);
-
+#endif
         if (clientConfiguration.isTlsAllowInsecureConnection()) {
             ctx.set_verify_mode(boost::asio::ssl::context::verify_none);
             isTlsAllowInsecureConnection_ = true;
