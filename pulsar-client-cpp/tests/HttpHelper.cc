@@ -19,20 +19,27 @@
  #include <curl/curl.h>
 
 
- int makePutRequest(const std::string& url, const std::string& body) {
-     CURL* curl = curl_easy_init();
-     curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-     curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "PUT");
-     curl_easy_setopt(curl, CURLOPT_POSTFIELDS, body.c_str());
+int makePutRequest(const std::string& url, const std::string& body) {
+    CURL* curl = curl_easy_init();
 
-     int res = curl_easy_perform(curl);
-     if (res != CURLE_OK) {
-         return -1;
-     }
+    struct curl_slist *list = NULL;
 
-     int httpResult = 0;
-     curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &httpResult);
+    list = curl_slist_append(list, "Content-Type: application/json");
 
-     curl_easy_cleanup(curl);
-     return httpResult;
- }
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, list);
+    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+    curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "PUT");
+    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, body.c_str());
+    curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
+    int res = curl_easy_perform(curl);
+    curl_slist_free_all(list); /* free the list again */ 
+    
+    if (res != CURLE_OK) {
+        return -1;
+    }
+
+    int httpResult = 0;
+    curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &httpResult);
+    curl_easy_cleanup(curl);
+    return httpResult;
+}

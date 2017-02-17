@@ -763,14 +763,12 @@ TEST(BatchMessageTest, testPartitionedTopics) {
     std::string topicName = "persistent://property/cluster/namespace/test-partitioned-batch-messages-" + boost::lexical_cast<std::string>(epochTime) ;
 
     // call admin api to make it partitioned
-    std::string url = lookupUrl + "/admin/persistent/prop/unit/ns/test-partitioned-batch-messages-"
+    std::string url = adminUrl + "admin/persistent/property/cluster/namespace/test-partitioned-batch-messages-"
       + boost::lexical_cast<std::string>(epochTime) + "/partitions";
-    int res = makePutRequest(lookupUrl, "7");
+    int res = makePutRequest(url, "7");
 
-    if (res != 204 && res != 409) {
-        LOG_DEBUG("Unable to create partitioned topic.");
-        return;
-    }
+    LOG_INFO("res = "<<res);
+    ASSERT_FALSE(res != 204 && res != 409);
 
     usleep(2 * 1000 * 1000);
 

@@ -354,13 +354,12 @@ TEST(BasicEndToEndTest, testPartitionedProducerConsumer)
     std::string topicName = "persistent://prop/unit/ns/partition-test";
 
     // call admin api to make it partitioned
-    std::string url = lookupUrl + "/admin/persistent/prop/unit/ns/partition-test/partitions";
-    int res = makePutRequest(lookupUrl, "3");
+    std::string url = adminUrl + "admin/persistent/prop/unit/ns/partition-test/partitions";
+    int res = makePutRequest(url, "3");
 
-    if (res != 204 && res != 409) {
-        LOG_DEBUG("Unable to create partitioned topic.");
-        return;
-    }
+    LOG_INFO("res = "<<res);
+    ASSERT_FALSE(res != 204 && res != 409);
+    
     Producer producer;
     Result result = client.createProducer(topicName, producer);
     ASSERT_EQ(ResultOk, result);
@@ -386,7 +385,7 @@ TEST(BasicEndToEndTest, testPartitionedProducerConsumer)
     client.shutdown();
 }
 
-    TEST(BasicEndToEndTest, testMessageTooBig)
+TEST(BasicEndToEndTest, testMessageTooBig)
 {
     ClientConfiguration config;
     Client client(lookupUrl);
@@ -512,13 +511,11 @@ TEST(BasicEndToEndTest, testSinglePartitionRoutingPolicy)
     std::string topicName = "persistent://prop/unit/ns/partition-testSinglePartitionRoutingPolicy";
 
     // call admin api to make it partitioned
-    std::string url = lookupUrl + "/admin/persistent/prop/unit/ns/partition-testSinglePartitionRoutingPolicy/partitions";
-    int res = makePutRequest(lookupUrl, "5");
+    std::string url = adminUrl + "admin/persistent/prop/unit/ns/partition-testSinglePartitionRoutingPolicy/partitions";
+    int res = makePutRequest(url, "5");
 
-    if (res != 204 && res != 409) {
-      LOG_DEBUG("Unable to create partitioned topic.");
-      return;
-    }
+    LOG_INFO("res = "<<res);
+    ASSERT_FALSE(res != 204 && res != 409);
 
     Producer producer;
     ProducerConfiguration producerConfiguration;
@@ -573,13 +570,11 @@ TEST(BasicEndToEndTest, testSinglePartitionRoutingPolicy)
     std::string topicName = "persistent://prop/unit/ns/partition-testDuplicateConsumerCreationOnPartitionedTopic";
 
     // call admin api to make it partitioned
-    std::string url = lookupUrl + "/admin/persistent/prop/unit/ns/testDuplicateConsumerCreationOnPartitionedTopic/partitions";
-    int res = makePutRequest(lookupUrl, "5");
+    std::string url = adminUrl + "admin/persistent/prop/unit/ns/testDuplicateConsumerCreationOnPartitionedTopic/partitions";
+    int res = makePutRequest(url, "5");
 
-    if (res != 204 && res != 409) {
-        LOG_DEBUG("Unable to create partitioned topic.");
-        return;
-    }
+    LOG_INFO("res = "<<res);
+    ASSERT_FALSE(res != 204 && res != 409);
 
     usleep(2 * 1000 * 1000);
 
@@ -626,13 +621,11 @@ TEST(BasicEndToEndTest, testRoundRobinRoutingPolicy)
     Client client(lookupUrl);
     std::string topicName = "persistent://prop/unit/ns/partition-testRoundRobinRoutingPolicy";
     // call admin api to make it partitioned
-    std::string url = lookupUrl + "/admin/persistent/prop/unit/ns/partition-testRoundRobinRoutingPolicy/partitions";
-    int res = makePutRequest(lookupUrl, "5");
+    std::string url = adminUrl + "admin/persistent/prop/unit/ns/partition-testRoundRobinRoutingPolicy/partitions";
+    int res = makePutRequest(url, "5");
 
-    if (res != 204 && res != 409) {
-        LOG_DEBUG("Unable to create partitioned topic.");
-        return;
-    }
+    LOG_INFO("res = "<<res);
+    ASSERT_FALSE(res != 204 && res != 409);
 
     Producer producer;
     ProducerConfiguration tempProducerConfiguration;
@@ -693,13 +686,11 @@ TEST(BasicEndToEndTest, testMessageListener)
     Client client(lookupUrl);
     std::string topicName = "persistent://prop/unit/ns/partition-testMessageListener";
     // call admin api to make it partitioned
-    std::string url = lookupUrl + "/admin/persistent/prop/unit/ns/partition-testMessageListener/partitions";
-    int res = makePutRequest(lookupUrl, "5");
+    std::string url = adminUrl + "admin/persistent/prop/unit/ns/partition-testMessageListener/partitions";
+    int res = makePutRequest(url, "5");
 
-    if (res != 204 && res != 409) {
-        LOG_DEBUG("Unable to create partitioned topic.");
-        return;
-    }
+    LOG_INFO("res = "<<res);
+    ASSERT_FALSE(res != 204 && res != 409);
 
     Producer producer;
     ProducerConfiguration producerConfiguration;
@@ -738,13 +729,13 @@ TEST(BasicEndToEndTest, testMessageListenerPause)
     std::string topicName = "persistent://property/cluster/namespace/partition-testMessageListener-pauses";
 
     // call admin api to make it partitioned
-    std::string url = lookupUrl + "/admin/persistent/prop/unit/ns/partition-testMessageListener-pauses/partitions";
-    int res = makePutRequest(lookupUrl, "5");
+    std::string url = adminUrl + "admin/persistent/property/cluster/namespace/partition-testMessageListener-pauses/partitions";
+    int res = makePutRequest(url, "5");
 
-    if (res != 204 && res != 409) {
-        LOG_DEBUG("Unable to create partitioned topic.");
-        return;
-    }
+    LOG_INFO("res = "<<res);
+    ASSERT_FALSE(res != 204 && res != 409);
+
+
     Producer producer;
     ProducerConfiguration producerConfiguration;
     producerConfiguration.setPartitionsRoutingMode(ProducerConfiguration::UseSinglePartition);
