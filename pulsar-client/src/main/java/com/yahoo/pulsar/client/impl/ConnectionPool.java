@@ -36,6 +36,7 @@ import com.yahoo.pulsar.common.api.PulsarLengthFieldFrameDecoder;
 
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.PooledByteBufAllocator;
+import io.netty.channel.ChannelException;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
@@ -140,12 +141,23 @@ public class ConnectionPool implements Closeable {
 
             future.channel().closeFuture().addListener(v -> {
                 // Remove connection from pool when it gets closed
+                if (log.isDebugEnabled()) {
+                    log.debug("Removing closed connection from pool: {}", v);
+                }
                 cleanupConnection(address, connectionKey, cnxFuture);
             });
 
             // We are connected to broker, but need to wait until the connect/connected handshake is
             // complete
             final ClientCnx cnx = (ClientCnx) future.channel().pipeline().get("handler");
+            if (!future.channel().isActive() || cnx == null) {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Connection was already closed by the time we got notified", future.channel());
+                }
+                cnxFuture.completeExceptionally(new ChannelException("Connection already closed"));
+                return;
+            }
+
             cnx.connectionFuture().thenRun(() -> {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Connection handshake completed", cnx.channel());
@@ -158,7 +170,6 @@ public class ConnectionPool implements Closeable {
                 cnx.ctx().close();
                 return null;
             });
-
         });
 
         return cnxFuture;
@@ -176,7 +187,7 @@ public class ConnectionPool implements Closeable {
             map.remove(connectionKey, connectionFuture);
         }
     }
-    
+
     public static int signSafeMod(long dividend, int divisor) {
         int mod = (int) (dividend % (long) divisor);
         if (mod < 0) {
