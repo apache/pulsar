@@ -54,6 +54,7 @@ enum Result {
 
     ResultConsumerNotInitialized,  /// Consumer is not initialized
     ResultProducerNotInitialized,  /// Producer is not initialized
+    ResultTooManyLookupRequestException, /// Too Many concurrent LookupRequest
 
     ResultInvalidTopicName,         /// Invalid topic name
     ResultInvalidUrl,  /// Client Initialized with Invalid Broker Url (VIP Url passed to Client Constructor)

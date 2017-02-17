@@ -267,6 +267,9 @@ class ClientConnection : public boost::enable_shared_from_this<ClientConnection>
     bool havePendingPingRequest_;
     DeadlineTimerPtr keepAliveTimer_;
 
+    uint32_t maxPendingLookupRequest_;
+    uint32_t numOfPendingLookupRequest_;
+
     friend class PulsarFriend;
 
     bool isTlsAllowInsecureConnection_;
