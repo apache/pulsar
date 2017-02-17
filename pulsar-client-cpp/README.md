@@ -106,7 +106,6 @@ ${PULSAR_PATH}/pulsar-client-cpp/perf/perfConsumer
 ```
 
 ## Tests
-### Tests are placed in 
 ```
 # Source code
 ${PULSAR_PATH}/pulsar-client-cpp/tests/
