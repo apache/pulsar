@@ -652,7 +652,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         });
     }
 
-    @Test
+    @Test(priority = 5)
     public void testReplicatorProducerClosing() throws Exception {
         log.info("--- Starting ReplicatorTest::testDeleteReplicatorFailure ---");
         final String topicName = "persistent://pulsar/global/ns/repltopicbatch";
