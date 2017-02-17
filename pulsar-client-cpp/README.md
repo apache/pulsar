@@ -65,26 +65,27 @@ perf/perfConsumer
 
 #### Install all dependencies:
 ```shell
-## For openSSL
+# For openSSL
 brew install openssl
 
-## For Protobuf
+# For Protobuf
 brew tap homebrew/versions
 brew install protobuf260
 
-## For gtest
+# For gtest
 cd $HOME
 git clone https://github.com/google/googletest.git
 cd googletest
 cmake .
 make 
-# Refer gtest documentation in case you get stuck somewhere
+## Refer gtest documentation in case you get stuck somewhere
 export PATH=$HOME/googletest/build/googlemock/gtest/:$HOME/googletest/googletest/include/:$PATH
 ```
 
 #### Compile Pulsar client library:
 ```shell
-cd pulsar/pulsar-client-cpp/
+export $PULSAR_PATH=<Path where you cloned pulsar repo>
+cd ${PULSAR_PATH}/pulsar-client-cpp/
 cmake .
 make
 ```
@@ -92,25 +93,30 @@ make
 #### Check
 Client library will be placed in
 ```
-pulsar/pulsar-client-cpp/lib/libpulsar.dylib
-pulsar/pulsar-client-cpp/lib/libpulsar.a
+${PULSAR_PATH}/pulsar-client-cpp/lib/libpulsar.dylib
+${PULSAR_PATH}/pulsar-client-cpp/lib/libpulsar.a
 ```
 
-Tools will be placed in:
+#### Tools will be placed in:
 
 ```
-pulsar/pulsar-client-cpp/perf/perfProducer
-pulsar/pulsar-client-cpp/perf/perfConsumer
+${PULSAR_PATH}/pulsar-client-cpp/perf/perfProducer
+${PULSAR_PATH}/pulsar-client-cpp/perf/perfConsumer
 ```
 
 ## Tests
-Tests are placed in 
+### Tests are placed in 
 ```
 # Source code
-pulsar/pulsar-client-cpp/tests/
+${PULSAR_PATH}/pulsar-client-cpp/tests/
 
-# Executable
-pulsar/pulsar-client-cpp/tests/main
+# Execution
+## Start standalone broker
+export PULSAR_STANDALONE_CONF=${PULSAR_PATH}/pulsar-client-cpp/tests/standalone.conf
+${PULSAR_PATH}/bin/pulsar standalone
+
+## Run the tests
+${PULSAR_PATH}/pulsar-client-cpp/tests/main
 ```
 
 ## Requirements for Contributors
