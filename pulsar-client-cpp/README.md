@@ -48,13 +48,14 @@ cmake .
 make
 ```
 
-#### Client library will be placed in
+#### Checks
+##### Client library will be placed in
 ```
 lib/libpulsar.so
 lib/libpulsar.a
 ```
 
-#### Tools will be placed in
+##### Tools will be placed in
 
 ```
 perf/perfProducer
@@ -90,14 +91,14 @@ cmake .
 make
 ```
 
-#### Check
-Client library will be placed in
+#### Checks
+##### Client library will be placed in
 ```
 ${PULSAR_PATH}/pulsar-client-cpp/lib/libpulsar.dylib
 ${PULSAR_PATH}/pulsar-client-cpp/lib/libpulsar.a
 ```
 
-#### Tools will be placed in:
+##### Tools will be placed in:
 
 ```
 ${PULSAR_PATH}/pulsar-client-cpp/perf/perfProducer
