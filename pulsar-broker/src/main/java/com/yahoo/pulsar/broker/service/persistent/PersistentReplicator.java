@@ -392,15 +392,15 @@ public class PersistentReplicator implements ReadEntriesCallback, DeleteCallback
             if (exception != null) {
                 log.error("[{}][{} -> {}] Error producing on remote broker", replicator.topicName,
                         replicator.localCluster, replicator.remoteCluster, exception);
-                return;
+                // cursor shoud be rewinded since it was incremented when readMoreEntries
+                replicator.cursor.rewind();
+            } else {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}][{} -> {}] Message persisted on remote broker", replicator.topicName,
+                            replicator.localCluster, replicator.remoteCluster);
+                }
+                replicator.cursor.asyncDelete(entry.getPosition(), replicator, entry.getPosition());
             }
-
-            if (log.isDebugEnabled()) {
-                log.debug("[{}][{} -> {}] Message persisted on remote broker", replicator.topicName,
-                        replicator.localCluster, replicator.remoteCluster);
-            }
-
-            replicator.cursor.asyncDelete(entry.getPosition(), replicator, entry.getPosition());
             entry.release();
 
             int pending = PENDING_MESSAGES_UPDATER.decrementAndGet(replicator);
