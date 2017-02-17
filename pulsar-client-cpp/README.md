@@ -17,8 +17,8 @@ https://github.com/yahoo/pulsar/tree/master/pulsar-client-cpp/examples
 
 Pulsar C++ Client Library has been tested on:
 
-Linux
-Mac OS X
+* Linux
+* Mac OS X
 
 ## Compilation
 ### Compile on Ubuntu Server 16.04
