@@ -31,6 +31,8 @@ endif()
 find_library(LOG4CXX_LIBRARY_PATH log4cxx)
 find_library(CURL_LIBRARY_PATH curl)
 find_path(LOG4CXX_INCLUDE_PATH log4cxx/logger.h)
+find_path(GTEST_INCLUDE_PATH gtest/gtest.h)
+
 
 include_directories(
   ${CMAKE_SOURCE_DIR}
@@ -40,6 +42,7 @@ include_directories(
   ${ZLIB_INCLUDE_DIR}
   ${PROTOBUF_INCLUDE_DIR}
   ${LOG4CXX_INCLUDE_PATH}
+  ${GTEST_INCLUDE_PATH}
 )
 
 set(COMMON_LIBS
