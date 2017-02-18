@@ -68,19 +68,21 @@ perf/perfConsumer
 ```shell
 # For openSSL
 brew install openssl
+export PATH=$PATH:/usr/local/opt/openssl/include/
 
 # For Protobuf
 brew tap homebrew/versions
 brew install protobuf260
+brew install boost
+brew install log4cxx
 
 # For gtest
 cd $HOME
 git clone https://github.com/google/googletest.git
 cd googletest
 cmake .
-make 
+make install
 ## Refer gtest documentation in case you get stuck somewhere
-export PATH=$HOME/googletest/build/googlemock/gtest/:$HOME/googletest/googletest/include/:$PATH
 ```
 
 #### Compile Pulsar client library:
