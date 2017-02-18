@@ -68,7 +68,6 @@ public class BookieClientsStatsGeneratorTest extends BrokerTestBase {
         );
         int allocateMemory = 17777216;
         long directMemory1 = JvmMetrics.getJvmDirectMemoryUsed();
-        assertEquals(directMemory1, 0);
         ByteBuf buf2 = allocator.directBuffer(allocateMemory, allocateMemory);
         long directMemory2 = JvmMetrics.getJvmDirectMemoryUsed();
         assertEquals(directMemory2, directMemory1 + allocateMemory);
