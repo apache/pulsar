@@ -68,7 +68,8 @@ perf/perfConsumer
 ```shell
 # For openSSL
 brew install openssl
-export PATH=$PATH:/usr/local/opt/openssl/include/
+export OPENSSL_INCLUDE_DIR=/usr/local/opt/openssl/include/
+export OPENSSL_ROOT_DIR=/usr/local/opt/openssl/
 
 # For Protobuf
 brew tap homebrew/versions
