@@ -16,6 +16,7 @@
 package com.yahoo.pulsar.broker.stats.metrics;
 
 import java.lang.management.ManagementFactory;
+import java.lang.reflect.Field;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -34,6 +35,8 @@ import io.netty.buffer.PoolArenaMetric;
 import io.netty.buffer.PoolChunkListMetric;
 import io.netty.buffer.PoolChunkMetric;
 import io.netty.buffer.PooledByteBufAllocator;
+import io.netty.util.internal.PlatformDependent;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class JvmMetrics extends AbstractMetrics {
 
@@ -46,6 +49,17 @@ public class JvmMetrics extends AbstractMetrics {
     private volatile long currentOldGcCount = 0;
     private volatile long accumulatedOldGcTime = 0;
     private volatile long currentOldGcTime = 0;
+    
+    private static final Logger log = LoggerFactory.getLogger(JvmMetrics.class);
+    private static Field directMemoryUsage = null;
+    static {
+        try {
+            directMemoryUsage = PlatformDependent.class.getDeclaredField("DIRECT_MEMORY_COUNTER");
+            directMemoryUsage.setAccessible(true);
+        } catch (Exception e) {
+            log.warn("Failed to access netty DIRECT_MEMORY_COUNTER field {}", e.getMessage());
+        }
+    }
 
     public JvmMetrics(PulsarService pulsar) {
         super(pulsar);
@@ -64,8 +78,7 @@ public class JvmMetrics extends AbstractMetrics {
         m.put("jvm_max_memory", r.maxMemory());
         m.put("jvm_total_memory", r.totalMemory());
 
-        m.put("jvm_direct_memory_used",
-                sun.misc.SharedSecrets.getJavaNioAccess().getDirectBufferPool().getMemoryUsed());
+        m.put("jvm_direct_memory_used", getJvmDirectMemoryUsed());
         m.put("jvm_max_direct_memory", sun.misc.VM.maxDirectMemory());
         m.put("jvm_thread_cnt", getThreadCount());
 
@@ -93,6 +106,20 @@ public class JvmMetrics extends AbstractMetrics {
         m.put("brk_default_pool_used", totalUsed);
 
         return Lists.newArrayList(m);
+    }
+
+    @SuppressWarnings("restriction")
+    public static long getJvmDirectMemoryUsed() {
+        if (directMemoryUsage != null) {
+            try {
+                return ((AtomicLong) directMemoryUsage.get(null)).get();
+            } catch (Exception e) {
+                if (log.isDebugEnabled()) {
+                    log.debug("Failed to get netty-direct-memory used count {}", e.getMessage());
+                }
+            }
+        }
+        return sun.misc.SharedSecrets.getJavaNioAccess().getDirectBufferPool().getMemoryUsed();
     }
 
     private static ObjectName youngGenName = null;
@@ -144,5 +171,4 @@ public class JvmMetrics extends AbstractMetrics {
         return parentThreadGroup.activeCount();
     }
 
-    private static final Logger log = LoggerFactory.getLogger(JvmMetrics.class);
 }
