@@ -21,6 +21,7 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -587,7 +588,8 @@ public class ClientErrorsTest {
         client.close();
     }
 
-    @Test
+    // Run this test multiple times to reproduce race conditions on reconnection logic
+    @Test(invocationCount = 100)
     public void testProducerReconnect() throws Exception {
         AtomicInteger numOfConnections = new AtomicInteger();
         AtomicReference<ChannelHandlerContext> channelCtx = new AtomicReference<>();
@@ -614,13 +616,12 @@ public class ClientErrorsTest {
         Producer producer = client.createProducer("persistent://prop/use/ns/t1");
 
         // close the cnx after creating the producer
-        channelCtx.get().channel().close();
-        Thread.sleep(300);
+        channelCtx.get().channel().close().get();
 
         producer.send(new byte[0]);
 
         assertEquals(msgSent.get(), true);
-        assertEquals(numOfConnections.get(), 3);
+        assertTrue(numOfConnections.get() >= 3);
 
         mockBrokerService.resetHandleConnect();
         mockBrokerService.resetHandleProducer();

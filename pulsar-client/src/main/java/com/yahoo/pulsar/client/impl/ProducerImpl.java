@@ -245,12 +245,15 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
                     op.setBatchSizeByte(payload.readableBytes());
                     pendingMessages.put(op);
 
+                    // Read the connection before validating if it's still connected, so that we avoid reading a null
+                    // value
+                    ClientCnx cnx = cnx();
                     if (isConnected()) {
                         // If we do have a connection, the message is sent immediately, otherwise we'll try again once a
                         // new
                         // connection is established
                         cmd.retain();
-                        cnx().ctx().channel().eventLoop().execute(WriteInEventLoopCallback.create(this, cnx(), op));
+                        cnx.ctx().channel().eventLoop().execute(WriteInEventLoopCallback.create(this, cnx, op));
                         stats.updateNumMsgsSent(op.numMessagesInBatch, op.batchSizeByte);
                     } else {
                         if (log.isDebugEnabled()) {
@@ -510,9 +513,10 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
      * Checks message checksum to retry if message was corrupted while sending to broker. Recomputes checksum of the
      * message header-payload again.
      * <ul>
-     * <li><b>if matches with existing checksum</b>: it means message was corrupt while sending to broker. So, resend message</li>
-     * <li><b>if doesn't match with existing checksum</b>: it means message is already corrupt and can't retry again. So, fail
-     * send-message by failing callback</li>
+     * <li><b>if matches with existing checksum</b>: it means message was corrupt while sending to broker. So, resend
+     * message</li>
+     * <li><b>if doesn't match with existing checksum</b>: it means message is already corrupt and can't retry again.
+     * So, fail send-message by failing callback</li>
      * </ul>
      * 
      * @param cnx
@@ -536,8 +540,8 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
                         op.callback.sendComplete(
                                 new PulsarClientException.ChecksumException("Checksum failded on corrupt message"));
                     } catch (Throwable t) {
-                        log.warn("[{}] [{}] Got exception while completing the callback for msg {}:", topic, producerName,
-                                sequenceId, t);
+                        log.warn("[{}] [{}] Got exception while completing the callback for msg {}:", topic,
+                                producerName, sequenceId, t);
                     }
                     ReferenceCountUtil.safeRelease(op.cmd);
                     op.recycle();
@@ -548,7 +552,7 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
                                 producerName, sequenceId);
                     }
                 }
-                
+
             } else {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] [{}] Corrupt message is already timed out {}", topic, producerName, sequenceId);
@@ -558,7 +562,7 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
         // as msg is not corrupted : let producer resend pending-messages again including checksum failed message
         resendMessages(cnx);
     }
-    
+
     /**
      * Computes checksum again and verifies it against existing checksum. If checksum doesn't match it means that
      * message is corrupt.
@@ -799,7 +803,7 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
 
                 final boolean stripChecksum = cnx.getRemoteEndpointProtocolVersion() < brokerChecksumSupportedVersion();
                 for (OpSendMsg op : pendingMessages) {
-                    
+
                     if (stripChecksum) {
                         stripChecksum(op);
                     }
@@ -824,7 +828,7 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
     }
 
     /**
-     * Strips checksum from {@link OpSendMsg} command if present else ignore it.   
+     * Strips checksum from {@link OpSendMsg} command if present else ignore it.
      * 
      * @param op
      */
@@ -875,7 +879,7 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
     public int brokerChecksumSupportedVersion() {
         return ProtocolVersion.v6.getNumber();
     }
-    
+
     @Override
     String getHandlerName() {
         return producerName;
@@ -1058,8 +1062,9 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
     /**
      * Casts input cmd to {@link DoubleByteBuf}
      * 
-     * Incase if leak-detection level is enabled: pulsar instruments {@link DoubleByteBuf} into LeakAwareByteBuf (type of {@link io.netty.buffer.WrappedByteBuf})
-     * So, this method casts input cmd to {@link DoubleByteBuf} else retrieves it from LeakAwareByteBuf.
+     * Incase if leak-detection level is enabled: pulsar instruments {@link DoubleByteBuf} into LeakAwareByteBuf (type
+     * of {@link io.netty.buffer.WrappedByteBuf}) So, this method casts input cmd to {@link DoubleByteBuf} else
+     * retrieves it from LeakAwareByteBuf.
      * 
      * @param cmd
      * @return DoubleByteBuf or null in case failed to cast input {@link ByteBuf}
@@ -1067,18 +1072,17 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
     private DoubleByteBuf getDoubleByteBuf(ByteBuf cmd) {
         DoubleByteBuf msg = null;
         if (cmd instanceof DoubleByteBuf) {
-            msg =  (DoubleByteBuf) cmd;
+            msg = (DoubleByteBuf) cmd;
         } else {
             try {
-                msg = (DoubleByteBuf) cmd.unwrap();    
+                msg = (DoubleByteBuf) cmd.unwrap();
             } catch (Exception e) {
-                log.error("[{}] Failed while casting {} into DoubleByteBuf", producerName, cmd.getClass().getName(),
-                        e);
+                log.error("[{}] Failed while casting {} into DoubleByteBuf", producerName, cmd.getClass().getName(), e);
             }
         }
         return msg;
     }
-    
+
     public long getDelayInMillis() {
         OpSendMsg firstMsg = pendingMessages.peek();
         if (firstMsg != null) {
@@ -1099,7 +1103,8 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
         return pendingMessages.size();
     }
 
-    private static DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS").withZone(ZoneId.systemDefault());
+    private static DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS")
+            .withZone(ZoneId.systemDefault());
 
     private PulsarApi.CompressionType convertCompressionType(CompressionType compressionType) {
         switch (compressionType) {

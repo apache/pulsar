@@ -77,6 +77,8 @@ public class ReplicatorTestBase {
 
     ExecutorService executor = new ThreadPoolExecutor(5, 20, 30, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
 
+    static final int TIME_TO_CHECK_BACKLOG_QUOTA = 5;
+
     // Default frequency
     public int getBrokerServicePurgeInactiveFrequency() {
         return 60;
@@ -111,6 +113,7 @@ public class ReplicatorTestBase {
         config1.setBrokerServicePurgeInactiveFrequencyInSeconds(
                 inSec(getBrokerServicePurgeInactiveFrequency(), TimeUnit.SECONDS));
         config1.setBrokerServicePort(PortManager.nextFreePort());
+        config1.setBacklogQuotaCheckIntervalInSeconds(TIME_TO_CHECK_BACKLOG_QUOTA);
         pulsar1 = new PulsarService(config1);
         pulsar1.start();
         ns1 = pulsar1.getBrokerService();
@@ -135,6 +138,7 @@ public class ReplicatorTestBase {
         config2.setBrokerServicePurgeInactiveFrequencyInSeconds(
                 inSec(getBrokerServicePurgeInactiveFrequency(), TimeUnit.SECONDS));
         config2.setBrokerServicePort(PortManager.nextFreePort());
+        config2.setBacklogQuotaCheckIntervalInSeconds(TIME_TO_CHECK_BACKLOG_QUOTA);
         pulsar2 = new PulsarService(config2);
         pulsar2.start();
         ns2 = pulsar2.getBrokerService();

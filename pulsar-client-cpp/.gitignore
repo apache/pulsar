@@ -42,11 +42,12 @@
 /perf/PerfConsumer
 /system-test/SystemTest
 
-# Eclipse generated files
+# IDE generated files
 .cproject
 .project
 .settings/
 .pydevproject
+.idea/
 
 # doxygen files
 apidocs/
