@@ -35,6 +35,7 @@ struct ClientConfiguration::Impl {
     int ioThreads;
     int operationTimeoutSeconds;
     int messageListenerThreads;
+    int concurrentLookupRequest;
     std::string logConfFilePath;
     bool useTls;
     std::string tlsTrustCertsFilePath;
@@ -43,6 +44,7 @@ struct ClientConfiguration::Impl {
              ioThreads(1),
              operationTimeoutSeconds(30),
              messageListenerThreads(1),
+             concurrentLookupRequest(5000),
              logConfFilePath() {}
 };
 
@@ -129,6 +131,15 @@ bool ClientConfiguration::isTlsAllowInsecureConnection() const {
     return impl_->tlsAllowInsecureConnection;
 }
     
+ClientConfiguration& ClientConfiguration::setConcurrentLookupRequest(int concurrentLookupRequest) {
+    impl_->concurrentLookupRequest = concurrentLookupRequest;
+    return *this;
+}
+
+int ClientConfiguration::getConcurrentLookupRequest() const {
+    return impl_->concurrentLookupRequest;
+}
+
 ClientConfiguration& ClientConfiguration::setLogConfFilePath(const std::string& logConfFilePath) {
     impl_->logConfFilePath = logConfFilePath;
     return *this;

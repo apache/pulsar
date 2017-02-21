@@ -125,15 +125,15 @@ namespace pulsar {
             LookupDataResultPromisePtr promise) {
         if (data) {
             if(data->isRedirect()) {
-                LOG_DEBUG("Lookup request is for " << destinationName << " redirected to " << data->getBrokerUrl());
+                LOG_DEBUG("PartitionMetadataLookup request is for " << destinationName << " redirected to " << data->getBrokerUrl());
                 Future<Result, ClientConnectionWeakPtr> future = cnxPool_.getConnectionAsync(data->getBrokerUrl());
                 future.addListener(boost::bind(&BinaryProtoLookupService::sendPartitionMetadataLookupRequest, this, destinationName, _1, _2, promise));
             } else {
-                LOG_DEBUG("Lookup response for " << destinationName << ", lookup-broker-url " << data->getBrokerUrl());
+                LOG_DEBUG("PartitionMetadataLookup response for " << destinationName << ", lookup-broker-url " << data->getBrokerUrl());
                 promise->setValue(data);
             }
         } else {
-            LOG_DEBUG("Lookup failed for " << destinationName << ", result " << result);
+            LOG_DEBUG("PartitionMetadataLookup failed for " << destinationName << ", result " << result);
             promise->setFailed(result);
         }
     }

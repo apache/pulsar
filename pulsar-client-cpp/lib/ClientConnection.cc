@@ -110,6 +110,8 @@ outgoingBuffer_(SharedBuffer::allocate(DefaultBufferSize)),
 outgoingCmd_(),
 havePendingPingRequest_(false),
 keepAliveTimer_(),
+maxPendingLookupRequest_(clientConfiguration.getConcurrentLookupRequest()),
+numOfPendingLookupRequest_(0),
 isTlsAllowInsecureConnection_(false) {
     if (clientConfiguration.isUseTls()) {
         using namespace boost::filesystem;
@@ -623,6 +625,7 @@ void ClientConnection::handleIncomingCommand() {
                     if (it != pendingLookupRequests_.end()) {
                         LookupDataResultPromisePtr lookupDataPromise = it->second;
                         pendingLookupRequests_.erase(it);
+                        numOfPendingLookupRequest_--;
                         lock.unlock();
 
                         if (!partitionMetadataResponse.has_response()
@@ -661,6 +664,7 @@ void ClientConnection::handleIncomingCommand() {
                     if (it != pendingLookupRequests_.end()) {
                         LookupDataResultPromisePtr lookupDataPromise = it->second;
                         pendingLookupRequests_.erase(it);
+                        numOfPendingLookupRequest_--;
                         lock.unlock();
 
                         if (!lookupTopicResponse.has_response()
@@ -838,8 +842,14 @@ void ClientConnection::newLookup(const SharedBuffer& cmd, const uint64_t request
     if (isClosed()) {
         lock.unlock();
         promise->setFailed(ResultNotConnected);
+        return;
+    } else if (numOfPendingLookupRequest_ >= maxPendingLookupRequest_) {
+        lock.unlock();
+        promise->setFailed(ResultTooManyLookupRequestException);
+        return;
     }
     pendingLookupRequests_.insert(std::make_pair(requestId, promise));
+    numOfPendingLookupRequest_++;
     lock.unlock();
     sendCommand(cmd);
 }
@@ -1013,10 +1023,12 @@ void ClientConnection::close() {
     }
 
     // Fail all pending lookup-requests on the connection
+    lock.lock();
     for (PendingLookupRequestsMap::iterator it = pendingLookupRequests_.begin(); it != pendingLookupRequests_.end(); ++it) {
         it->second->setFailed(ResultConnectError);
+        numOfPendingLookupRequest_--;
     }
-    
+    lock.unlock();
     if (tlsSocket_) {
         tlsSocket_->lowest_layer().close();
     }
