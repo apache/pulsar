@@ -414,7 +414,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         try {
             admin.brokers().updateConfiguration("test", Long.toString(shutdownTime));
         } catch (Exception e) {
-            assertTrue(e instanceof NotFoundException);
+            assertTrue(e instanceof PreconditionFailedException);
         }
 
     }

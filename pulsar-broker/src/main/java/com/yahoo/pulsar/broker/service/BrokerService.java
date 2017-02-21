@@ -123,6 +123,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     // offline topic backlog cache
     private final ConcurrentOpenHashMap<DestinationName, PersistentOfflineTopicStats> offlineTopicStatCache;
     private static final ConcurrentOpenHashMap<String, Field> dynamicConfigurationMap = prepareDynamicConfigurationMap();
+    private final ConcurrentOpenHashMap<String, Consumer> configRegisteredListeners;
 
     private AuthorizationManager authorizationManager = null;
     private final ScheduledExecutorService statsUpdater;
@@ -152,6 +153,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         this.topics = new ConcurrentOpenHashMap<>();
         this.replicationClients = new ConcurrentOpenHashMap<>();
         this.keepAliveIntervalSeconds = pulsar.getConfiguration().getKeepAliveIntervalSeconds();
+        this.configRegisteredListeners = new ConcurrentOpenHashMap<>();
 
         this.multiLayerTopicsMap = new ConcurrentOpenHashMap<>();
         this.pulsarStats = new PulsarStats(pulsar);
@@ -855,9 +857,6 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     private void updateConfigurationAndRegisterListeners() {
         // update ServiceConfiguration value by reading zk-configuration-map
         updateDynamicServiceConfiguration();
-        // update brokerShutdownTimeoutMs value on listener notification
-        registerConfigurationListener("brokerShutdownTimeoutMs",
-                (shutdownTime) -> pulsar.getConfiguration().setBrokerShutdownTimeoutMs((long) shutdownTime));
         //add more listeners here
     }
 
@@ -876,6 +875,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
      *            : listener which takes appropriate action on config-value change
      */
     public <T> void registerConfigurationListener(String configKey, Consumer<T> listener) {
+        configRegisteredListeners.put(configKey, listener);
         dynamicConfigurationCache.registerListener(new ZooKeeperCacheListener<Map<String, String>>() {
             @SuppressWarnings("unchecked")
             @Override
@@ -906,6 +906,36 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                     }                    
                 });
             }
+            // register a listener: it updates field value and triggers appropriate registered field-listener only if
+            // field's value has been changed so, registered doesn't have to update field value in ServiceConfiguration
+            dynamicConfigurationCache.registerListener(new ZooKeeperCacheListener<Map<String, String>>() {
+                @SuppressWarnings("unchecked")
+                @Override
+                public void onUpdate(String path, Map<String, String> data, Stat stat) {
+                    if (BROKER_SERVICE_CONFIGURATION_PATH.equalsIgnoreCase(path) && data != null) {
+                        data.forEach((configKey, value) -> {
+                            Field configField = dynamicConfigurationMap.get(configKey);
+                            Object newValue = FieldParser.value(data.get(configKey), configField);
+                            if (configField != null) {
+                                Consumer listener = configRegisteredListeners.get(configKey);
+                                try {
+                                    Object existingValue = configField.get(pulsar.getConfiguration());
+                                    configField.set(pulsar.getConfiguration(), newValue);
+                                    log.info("Successfully updated configuration {}/{}", configKey,
+                                            data.get(configKey));
+                                    if (listener != null && !existingValue.equals(newValue)) {
+                                        listener.accept(newValue);
+                                    }
+                                } catch (Exception e) {
+                                    log.error("Failed to update config {}/{}", configKey, newValue);
+                                }
+                            } else {
+                                log.error("Found non-dynamic field in dynamicConfigMap {}/{}", configKey, newValue);
+                            }
+                        });
+                    }
+                }
+            });
         } catch (Exception e) {
             log.warn("Failed to read zookeeper path [{}]:", BROKER_SERVICE_CONFIGURATION_PATH, e);
         }
