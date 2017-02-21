@@ -83,6 +83,7 @@ import com.yahoo.pulsar.common.policies.data.loadbalancer.NamespaceBundleStats;
 import com.yahoo.pulsar.common.util.FieldParser;
 import com.yahoo.pulsar.common.util.ObjectMapperFactory;
 import com.yahoo.pulsar.common.util.collections.ConcurrentOpenHashMap;
+import com.yahoo.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import com.yahoo.pulsar.zookeeper.ZooKeeperCacheListener;
 import com.yahoo.pulsar.zookeeper.ZooKeeperDataCache;
 
@@ -121,6 +122,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     private final EventLoopGroup workerGroup;
     // offline topic backlog cache
     private final ConcurrentOpenHashMap<DestinationName, PersistentOfflineTopicStats> offlineTopicStatCache;
+    private static final ConcurrentOpenHashMap<String, Field> dynamicConfigurationMap = prepareDynamicConfigurationMap();
 
     private AuthorizationManager authorizationManager = null;
     private final ScheduledExecutorService statsUpdater;
@@ -847,19 +849,15 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     }
 
     /**
-     * Update dynamic-ServiceConfiguration with value present into zk-configuraiton-map and register listeners on
-     * dynamic-ServiceConfiguration field to take appropriate action on change of zk-configuraiton-map.
+     * Update dynamic-ServiceConfiguration with value present into zk-configuration-map and register listeners on
+     * dynamic-ServiceConfiguration field to take appropriate action on change of zk-configuration-map.
      */
     private void updateConfigurationAndRegisterListeners() {
         // update ServiceConfiguration value by reading zk-configuration-map
         updateDynamicServiceConfiguration();
         // update brokerShutdownTimeoutMs value on listener notification
-        registerConfigurationListener("brokerShutdownTimeoutMs", new Consumer<String>() {
-            @Override
-            public void accept(String shutdownTime) {
-                pulsar.getConfiguration().setBrokerShutdownTimeoutMs(Integer.parseInt(shutdownTime));
-            }
-        });
+        registerConfigurationListener("brokerShutdownTimeoutMs",
+                (shutdownTime) -> pulsar.getConfiguration().setBrokerShutdownTimeoutMs((long) shutdownTime));
         //add more listeners here
     }
 
@@ -870,20 +868,22 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
      * On notification, listener should first check if config value has been changed and after taking appropriate
      * action, listener should update config value with new value if it has been changed (so, next time listener can
      * compare values on configMap change).
+     * @param <T>
      * 
      * @param configKey
      *            : configuration field name
      * @param listener
      *            : listener which takes appropriate action on config-value change
      */
-    public void registerConfigurationListener(String configKey, Consumer<String> listener) {
+    public <T> void registerConfigurationListener(String configKey, Consumer<T> listener) {
         dynamicConfigurationCache.registerListener(new ZooKeeperCacheListener<Map<String, String>>() {
+            @SuppressWarnings("unchecked")
             @Override
             public void onUpdate(String path, Map<String, String> data, Stat stat) {
                 if (BROKER_SERVICE_CONFIGURATION_PATH.equalsIgnoreCase(path) && data != null
                         && data.containsKey(configKey)) {
                     log.info("Updating configuration {}/{}", configKey, data.get(configKey));
-                    listener.accept(data.get(configKey));
+                    listener.accept((T) FieldParser.value(data.get(configKey), dynamicConfigurationMap.get(configKey)));
                 }
             }
         });
@@ -899,9 +899,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                         if (field != null && field.isAnnotationPresent(FieldContext.class)) {
                             field.setAccessible(true);
                             field.set(pulsar().getConfiguration(), FieldParser.value(value,field));
-                            if (log.isDebugEnabled()) {
-                                log.debug("Successfully updated {}/{}", key, value);
-                            }
+                            log.info("Successfully updated {}/{}", key, value);
                         }
                     } catch (Exception e) {
                         log.warn("Failed to update service configuration {}/{}, {}",key,value,e.getMessage());
@@ -911,6 +909,23 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         } catch (Exception e) {
             log.warn("Failed to read zookeeper path [{}]:", BROKER_SERVICE_CONFIGURATION_PATH, e);
         }
+    }
+    
+    public static ConcurrentOpenHashMap<String, Field> getDynamicConfigurationMap() {
+        return dynamicConfigurationMap;
+    }
+
+    private static ConcurrentOpenHashMap<String, Field> prepareDynamicConfigurationMap() {
+        ConcurrentOpenHashMap<String, Field> dynamicConfigurationMap = new ConcurrentOpenHashMap<>();
+        for (Field field : ServiceConfiguration.class.getDeclaredFields()) {
+            if (field != null && field.isAnnotationPresent(FieldContext.class)) {
+                field.setAccessible(true);
+                if (((FieldContext) field.getAnnotation(FieldContext.class)).dynamic()) {
+                    dynamicConfigurationMap.put(field.getName(), field);
+                }
+            }
+        }
+        return dynamicConfigurationMap;
     }
 
 }

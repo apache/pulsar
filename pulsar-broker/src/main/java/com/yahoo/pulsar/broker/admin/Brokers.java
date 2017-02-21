@@ -17,7 +17,6 @@ package com.yahoo.pulsar.broker.admin;
 
 import static com.yahoo.pulsar.broker.service.BrokerService.BROKER_SERVICE_CONFIGURATION_PATH;
 
-import java.lang.reflect.Field;
 import java.util.Map;
 import java.util.Set;
 
@@ -38,8 +37,8 @@ import org.slf4j.LoggerFactory;
 import com.google.common.collect.Maps;
 import com.yahoo.pulsar.broker.ServiceConfiguration;
 import com.yahoo.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
+import com.yahoo.pulsar.broker.service.BrokerService;
 import com.yahoo.pulsar.broker.web.RestException;
-import com.yahoo.pulsar.common.configuration.FieldContext;
 import com.yahoo.pulsar.common.policies.data.NamespaceOwnershipStatus;
 import com.yahoo.pulsar.common.util.ObjectMapperFactory;
 import com.yahoo.pulsar.zookeeper.ZooKeeperDataCache;
@@ -105,7 +104,7 @@ public class Brokers extends AdminResource {
             @ApiResponse(code = 412, message = "Configuration can't be updated dynamically") })
     public void updateConfiguration(@PathParam("configName") String configName, @PathParam("configValue") String configValue) throws Exception{
         validateSuperUserAccess();
-        updateServiecConfiguration(configName, configValue);
+        updateServiceConfiguration(configName, configValue);
     }
 
     /**
@@ -117,30 +116,17 @@ public class Brokers extends AdminResource {
      * @param configValue
      *            : configuration value
      */
-    private void updateServiecConfiguration(String configName, String configValue) {
+    private void updateServiceConfiguration(String configName, String configValue) {
         try {
-            Field field = ServiceConfiguration.class.getDeclaredField(configName);
-            if (field != null && field.isAnnotationPresent(FieldContext.class)) {
-                field.setAccessible(true);
-                boolean dynamic = ((FieldContext) field.getAnnotation(FieldContext.class)).dynamic();
-                if (dynamic) {
-                    updateConfigurationOnZk(configName, configValue);
-                } else {
-                    if (LOG.isDebugEnabled()) {
-                        LOG.debug("[{}] Can't update non-dynamic configuration {}/{}", clientAppId(), configName,
-                                configValue);
-                    }
-                    throw new RestException(Status.PRECONDITION_FAILED, " Can't update non-dynamic configuration");
-                }
+            if (BrokerService.getDynamicConfigurationMap().containsKey(configName)) {
+                updateConfigurationOnZk(configName, configValue);
             } else {
                 if (LOG.isDebugEnabled()) {
-                    LOG.debug("[{}] Configuration {}/{} is not dynamic", clientAppId(), configName, configValue);
+                    LOG.debug("[{}] Can't update non-dynamic configuration {}/{}", clientAppId(), configName,
+                            configValue);
                 }
-                throw new RestException(Status.NOT_FOUND, "Configuration not found");
+                throw new RestException(Status.PRECONDITION_FAILED, " Can't update non-dynamic configuration");
             }
-        } catch (NoSuchFieldException nse) {
-            LOG.error("[{}] Configuration {}/{} not found", clientAppId(), configName, configValue);
-            throw new RestException(Status.NOT_FOUND, "Configuration not found");
         } catch (RestException re) {
             throw re;
         } catch (Exception ie) {
@@ -170,4 +156,5 @@ public class Brokers extends AdminResource {
         }
         LOG.info("[{}] Updated Service configuration {}/{}", clientAppId(), key, value);
     }
+
 }

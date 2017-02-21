@@ -65,6 +65,6 @@ public class CmdBrokers extends CmdBase {
         super("brokers", admin);
         jcommander.addCommand("list", new List());
         jcommander.addCommand("namespaces", new Namespaces());
-        jcommander.addCommand("updateConfig", new UpdateConfigurationCmd());
+        jcommander.addCommand("update-config", new UpdateConfigurationCmd());
     }
 }
