@@ -33,6 +33,23 @@
 
 {% block content %}
 
+{% if topic.is_global %}
+<div class="module filtered" id="changelist">
+<div id="changelist-filter">
+    <h2>Cluster</h2>
+<ul>
+   {% for cluster in clusters %}
+      <li {% if selectedCluster == cluster.name %}class="selected"{% endif %}
+          ><a href="{% url 'topic' topic.url_name %}?cluster={{cluster}}">{{cluster}}</a></li>
+   {% endfor %}
+
+   <li>
+</ul>
+</div>
+</div>
+{% endif %}
+
+
 <h2>Stats</h2>
 
 <table>
@@ -51,7 +68,12 @@
 
     <tr class="row2"><th>Storage size</th><td>{{topic.storageSize | file_size_value}}</td>
         <td>{{topic.storageSize | file_size_unit}}</td></tr>
-    <tr class="row1"><th>Broker</th><td colspan="2">{{topic.broker | escape }}</td></tr>
+    <tr class="row1">
+        <th>Broker</th>
+        <td colspan="2">
+            <a href="{% url 'broker' topic.broker.url %}">{{topic.broker | escape }}</a>
+        </td>
+    </tr>
 </table>
 
 <h2>Subscriptions</h2>
@@ -111,7 +133,7 @@
                     <td>{{consumerStats.msgRateOut | intcomma}}</td>
                     <td>{{consumerStats.msgThroughputOut | intcomma}}</td>
                     <td>{{consumerStats.msgRateRedeliver | intcomma}}</td>
-                    <td title="{{consumerStats.connectedSince}}">{{consumerStats.connectedSince | naturaltime}}</td>
+                    <td title="{{consumerStats.connectedSince}} UTC">{{consumerStats.connectedSince | naturaltime}}</td>
                     <td>{{consumerStats.availablePermits | intcomma}}</td>
                     <td>{{consumerStats.unackedMessages | intcomma}}</td>
                     <td>{{consumerStats.blockedConsumerOnUnackedMsgs | yesno }}</td>
@@ -128,6 +150,38 @@
 {% endfor %}
 </tbody>
 </table>
+
+{%if topic.is_global%}
+
+<h2>Replication from {{topic.cluster}}</h2>
+
+<table>
+<thead>
+    <tr>
+        <th>Remote Cluster</th>
+        <th title="Msg/s">Rate in</th>
+        <th title="Msg/s">Rate out</th>
+        <th>Mbps in</th>
+        <th>Mbps out</th>
+        <th title="Messages">Replication backlog</th>
+    </tr>
+</thead>
+<tbody>
+{% for peer in peers %}
+    <tr>
+        <td>{{peer.remote_cluster__name}}</td>
+        <td title="{{peer.remote_cluster__name}} ⟶ {{selectedCluster}}">{{peer.msgRateIn__sum | intcomma}}</td>
+        <td title="{{selectedCluster}} ⟶ {{peer.remote_cluster__name}}">{{peer.msgRateOut__sum | intcomma}}</td>
+        <td title="{{peer.remote_cluster__name}} ⟶ {{selectedCluster}}">{{peer.msgThroughputIn__sum | mbps | floatformat | intcomma}}</td>
+        <td title="{{selectedCluster}} ⟶ {{peer.remote_cluster__name}}">{{peer.msgThroughputOut__sum | mbps | floatformat | intcomma}}</td>
+        <td title="{{selectedCluster}} ⟶ {{peer.remote_cluster__name}}">{{peer.replicationBacklog__sum | intcomma}}</td>
+    </tr>
+{% empty %}
+    <tr><td>No replication</tr></td>
+{% endfor %}
+</tbody>
+</table>
+{% endif %}
 
 <script>
 $("a[data-toggle]").on("click", function(e) {

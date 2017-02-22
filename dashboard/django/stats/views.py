@@ -18,6 +18,7 @@ from django.shortcuts import render, get_object_or_404
 from django.template import loader
 from django.urls import reverse
 from django.views import generic
+from django.db.models import Q
 
 from django.http import HttpResponseRedirect, HttpResponse
 from .models import *
@@ -35,7 +36,26 @@ class HomeView(generic.ListView):
     template_name = 'stats/home.html'
 
 def home(request):
-    properties = Property.objects.all().order_by('name')
+    ts = get_timestamp()
+    properties = Property.objects.filter(
+            namespace__topic__timestamp = ts,
+        ).annotate(
+            numNamespaces = Count('namespace__name', distinct=True),
+            numTopics    = Count('namespace__topic__name', distinct=True),
+            numProducers = Sum('namespace__topic__producerCount'),
+            numSubscriptions = Sum('namespace__topic__subscriptionCount'),
+            numConsumers  = Sum('namespace__topic__consumerCount'),
+            backlog       = Sum('namespace__topic__backlog'),
+            storage       = Sum('namespace__topic__storageSize'),
+            rateIn        = Sum('namespace__topic__msgRateIn'),
+            rateOut       = Sum('namespace__topic__msgRateOut'),
+            throughputIn  = Sum('namespace__topic__msgThroughputIn'),
+            throughputOut = Sum('namespace__topic__msgThroughputOut'),
+        )
+
+    print properties.query
+
+    properties = Table(request, properties, default_sort='name')
 
     return render(request, 'stats/home.html', {
         'properties': properties,
@@ -100,9 +120,11 @@ def topic(request, topic_name):
     timestamp = get_timestamp()
     topic_name = 'persistent://' + topic_name.split('persistent/', 1)[1]
     cluster_name = request.GET.get('cluster')
+    clusters = []
 
     if cluster_name:
         topic = get_object_or_404(Topic, name=topic_name, cluster__name=cluster_name, timestamp=timestamp)
+        clusters = [x.cluster for x in Topic.objects.filter(name=topic_name, timestamp=timestamp).order_by('cluster__name')]
     else:
         topic = get_object_or_404(Topic, name=topic_name, timestamp=timestamp)
     subscriptions = Subscription.objects.filter(topic=topic).order_by('name')
@@ -113,10 +135,28 @@ def topic(request, topic_name):
         consumers = Consumer.objects.filter(subscription=sub).order_by('address')
         subs.append((sub, consumers))
 
+    if topic.is_global():
+        peers_clusters = Replication.objects.filter(
+                        timestamp = timestamp,
+                        local_cluster__name = cluster_name
+                    ).values('remote_cluster__name'
+                    ).annotate(
+                            Sum('msgRateIn'),
+                            Sum('msgThroughputIn'),
+                            Sum('msgRateOut'),
+                            Sum('msgThroughputOut'),
+                            Sum('replicationBacklog')
+                    )
+    else:
+        peers_clusters = []
+
     return render(request, 'stats/topic.html', {
         'topic' : topic,
         'subscriptions' : subs,
         'title' : topic.name,
+        'selectedCluster' : cluster_name,
+        'clusters' : clusters,
+        'peers' : peers_clusters,
     })
 
 def topics(request):
@@ -151,12 +191,15 @@ def brokers_cluster(request, cluster_name):
     brokers = Broker.objects
     if cluster_name:
         brokers = brokers.filter(
-                    topic__timestamp = ts,
-                    cluster__name    = cluster_name
+                    Q(topic__timestamp=ts) | Q(topic__timestamp__isnull=True),
+                    activebroker__timestamp = ts,
+                    cluster__name    = cluster_name,
+
                 )
     else:
         brokers = brokers.filter(
-                    topic__timestamp = ts
+                    Q(topic__timestamp=ts) | Q(topic__timestamp__isnull=True),
+                    activebroker__timestamp = ts
                 )
 
     brokers = brokers.annotate(
@@ -182,7 +225,18 @@ def brokers_cluster(request, cluster_name):
     })
 
 def broker(request, broker_url):
-    return 'Hello'
+    broker = Broker.objects.get(url = broker_url)
+    topics = Topic.objects.filter(
+                timestamp = get_timestamp(),
+                broker__url = broker_url
+            )
+
+    topics = Table(request, topics, default_sort='namespace__name')
+    return render(request, 'stats/broker.html', {
+        'topics' : topics,
+        'title' : 'Broker - %s - %s' % (broker.cluster, broker_url),
+        'broker_url' : broker_url
+    })
 
 
 def clusters(request):
@@ -204,6 +258,22 @@ def clusters(request):
     )
 
     clusters = Table(request, clusters, default_sort='name')
+
+    for cluster in clusters.results:
+        # Fetch per-remote peer stats
+        peers = Replication.objects.filter(
+                        timestamp = ts,
+                        local_cluster = cluster,
+                    ).values('remote_cluster__name')
+
+        peers = peers.annotate(
+            Sum('msgRateIn'),
+            Sum('msgThroughputIn'),
+            Sum('msgRateOut'),
+            Sum('msgThroughputOut'),
+            Sum('replicationBacklog')
+        )
+        cluster.peers = peers
 
     return render(request, 'stats/clusters.html', {
         'clusters' : clusters,

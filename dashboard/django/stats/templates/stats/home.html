@@ -17,17 +17,55 @@
 -->
 {% extends "stats/base.html" %}
 
+{% load table %}
+{% load humanize %}
+
 {% block title %}Home{% endblock %}
 
 {% block content %}
 
 <table>
-{% for property in properties %}
-    <tr><td><a href="{% url 'property' property.name %}">{{property.name}}</a></td></tr>
+<thead>
+    <tr>
+        {% column_header properties 'name' 'Property' %}
+        {% column_header properties 'numNamespaces' 'Namespaces' %}
+        {% column_header properties 'numTopics' 'Topics' %}
+        {% column_header properties 'numProducers' 'Producers' %}
+        {% column_header properties 'numSubscriptions' 'Subscriptions' %}
+        {% column_header properties 'numConsumers' 'Consumers' %}
+        {% column_header properties 'rateIn' 'Rate In' %}
+        {% column_header properties 'rateOut' 'Rate Out' %}
+        {% column_header properties 'throughputIn' 'Throughput In' %}
+        {% column_header properties 'throughputOut' 'Throughput Out' %}
+        {% column_header properties 'backlog' 'Backlog' %}
+        {% column_header properties 'storage' 'Storage' %}
+    </tr>
+</thead>
+<tbody>
+
+{% for property in properties.results %}
+    <tr class="{% cycle 'row1' 'row2' %}">
+        <th>
+            <a href="{% url 'property' property.name %}">{{property.name}}</a>
+        </th>
+        <td>{{property.numNamespaces | intcomma}}</td>
+        <td>{{property.numTopics | intcomma}}</td>
+        <td>{{property.numProducers | intcomma}}</td>
+        <td>{{property.numSubscriptions | intcomma}}</td>
+        <td>{{property.numConsumers | intcomma}}</td>
+        <td>{{property.rateIn | intcomma}}</td>
+        <td>{{property.rateOut | intcomma}}</td>
+        <td>{{property.throughputIn | intcomma}}</td>
+        <td>{{property.throughputOut | intcomma}}</td>
+        <td>{{property.backlog | intcomma}}</td>
+        <td>{{property.storage | filesizeformat}}</td>
+    </tr>
 {% empty %}
     <tr><td>No properties</td></tr>
 {% endfor %}
+</tbody>
 </table>
+
 
 
 {% endblock %}

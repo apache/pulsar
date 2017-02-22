@@ -46,9 +46,7 @@
 
 {% for cluster in clusters.results %}
     <tr class="{% cycle 'row1' 'row2' %}">
-        <th>
-            <a href="#">{{cluster.name}}</a>
-        </th>
+        <th>{{cluster.name}}</th>
 
         <td>{{cluster.numTopics | intcomma}}</td>
         <td>{{cluster.localRateIn | intcomma}}</td>
@@ -67,32 +65,26 @@
             <table>
             <thead>
                 <tr>
-                    <th>Remote</th>
-                    <th>Address</th>
+                    <th>Remote Cluster</th>
+                    <th title="Msg/s">Rate in</th>
                     <th title="Msg/s">Rate out</th>
-                    <th title="bytes/s">Throughput out</th>
-                    <th title="Msg/s">Redelivery rate</th>
-                    <th>Connected since</th>
-                    <th>Available permits</th>
-                    <th title="Messages">Unacked</th>
-                    <th title="Blocked for max unacked messages">Blocked</th>
+                    <th>Mbps in</th>
+                    <th>Mbps out</th>
+                    <th title="Messages">Replication backlog</th>
                 </tr>
             </thead>
             <tbody>
-            {% for consumerStats in consumers %}
+            {% for peer in cluster.peers %}
                 <tr>
-                    <td>{{consumerStats.consumerName}}</td>
-                    <td>{{consumerStats.address}}</td>
-                    <td>{{consumerStats.msgRateOut | intcomma}}</td>
-                    <td>{{consumerStats.msgThroughputOut | intcomma}}</td>
-                    <td>{{consumerStats.msgRateRedeliver | intcomma}}</td>
-                    <td title="{{consumerStats.connectedSince}}">{{consumerStats.connectedSince | naturaltime}}</td>
-                    <td>{{consumerStats.availablePermits | intcomma}}</td>
-                    <td>{{consumerStats.unackedMessages | intcomma}}</td>
-                    <td>{{consumerStats.blockedConsumerOnUnackedMsgs | yesno }}</td>
+                    <td>{{peer.remote_cluster__name}}</td>
+                    <td title="{{peer.remote_cluster__name}} ⟶ {{cluster.name}}">{{peer.msgRateIn__sum | intcomma}}</td>
+                    <td title="{{cluster.name}} ⟶ {{peer.remote_cluster__name}}">{{peer.msgRateOut__sum | intcomma}}</td>
+                    <td title="{{peer.remote_cluster__name}} ⟶ {{cluster.name}}">{{peer.msgThroughputIn__sum | mbps | floatformat | intcomma}}</td>
+                    <td title="{{cluster.name}} ⟶ {{peer.remote_cluster__name}}">{{peer.msgThroughputOut__sum | mbps | floatformat | intcomma}}</td>
+                    <td title="{{cluster.name}} ⟶ {{peer.remote_cluster__name}}">{{peer.replicationBacklog__sum | intcomma}}</td>
                 </tr>
             {% empty %}
-                <tr><td>No consumers</tr></td>
+                <tr><td>No replication</tr></td>
             {% endfor %}
             </tbody>
             </table>

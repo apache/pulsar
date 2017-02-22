@@ -39,7 +39,14 @@ def get(base_url, path):
         ).json()
 
 def parse_date(d):
-    if d: return pytz.timezone('UTC').localize(parse_datetime(d))
+    if d:
+        dt = parse_datetime(d)
+        if dt.tzinfo:
+            # There is already the timezone set
+            return dt
+        else:
+            # Assume UTC if no timezone
+            return pytz.timezone('UTC').localize(parse_datetime(d))
     else: return None
 
 # Fetch the stats for a given broker
@@ -59,6 +66,8 @@ def _fetch_broker_stats(cluster, broker_host_port, timestamp):
                         url     = broker_host_port,
                         cluster = cluster
                 )
+    active_broker = ActiveBroker(broker=broker, timestamp=timestamp)
+    active_broker.save()
 
     # Get topics stats
     topics_stats = get(broker_url, '/admin/broker-stats/destinations')
@@ -93,6 +102,7 @@ def _fetch_broker_stats(cluster, broker_host_port, timestamp):
             for topic_name, stats in topics_stats['persistent'].items():
                 topic = Topic(
                     broker                 = broker,
+                    active_broker          = active_broker,
                     name                   = topic_name,
                     namespace              = namespace,
                     bundle                 = bundle,

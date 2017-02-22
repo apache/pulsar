@@ -51,6 +51,7 @@
 <thead>
     <tr>
         {% column_header topics 'cluster__name' 'Cluster' %}
+        {% column_header topics 'namespace__name' 'Namespace' %}
         {% column_header topics 'name' 'Topic' %}
         {% column_header topics 'msgRateIn' 'Msg/s in' %}
         {% column_header topics 'msgRateOut' 'Msg/s out' %}
@@ -65,13 +66,15 @@
 {% for topic in topics.results %}
     <tr class="{% cycle 'row1' 'row2' %}">
         <th>{{topic.cluster}}</td>
+        <th><a href="{% url 'namespace' topic.namespace.name %}">{{topic.namespace}}</a></th>
         <th><a href="{{topic.get_absolute_url}}">{{topic.short_name}}</a></th>
         <td>{{topic.msgRateIn | intcomma}}</td>
         <td>{{topic.msgRateOut | intcomma}}</td>
         <td>{{topic.msgThroughputIn | intcomma}}</td>
         <td>{{topic.msgThroughputOut | intcomma}}</td>
         <td>{{topic.backlog | intcomma}}</td>
-        <td><span title="{{topic.broker | escape}}">{{topic.broker | escape | truncatechars:20 }}</span></td>
+        <td title="{{topic.broker | escape}}"><a href="{% url 'broker' topic.broker %}">
+            {{topic.broker | escape | truncatechars:20 }}</a></td>
     </tr>
 {% empty %}
     <tr><td>No topics</td></tr>

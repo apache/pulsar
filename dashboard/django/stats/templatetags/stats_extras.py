@@ -17,6 +17,7 @@
 
 from django import template
 from django.utils import formats
+from django.contrib.humanize.templatetags.humanize import intcomma
 
 register = template.Library()
 
@@ -51,4 +52,10 @@ def file_size_unit(bytes_):
 
 @register.filter(name='mbps')
 def mbps(bytes_per_seconds):
-    return float(bytes_per_seconds) * 8 / 1024 / 1024
+    if not bytes_per_seconds: return 0.0
+    else: return float(bytes_per_seconds) * 8 / 1024 / 1024
+
+@register.filter(name='safe_intcomma')
+def safe_intcomma(n):
+    if not n: return 0
+    else: return intcomma(n)

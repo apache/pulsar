@@ -41,6 +41,13 @@ class Broker(Model):
     def __str__(self):
         return self.url
 
+@python_2_unicode_compatible
+class ActiveBroker(Model):
+    broker    = ForeignKey(Broker, on_delete=SET_NULL, db_index=True, null=True)
+    timestamp = BigIntegerField(db_index=True)
+
+    def __str__(self):
+        return self.url
 
 @python_2_unicode_compatible
 class Property(Model):
@@ -78,6 +85,7 @@ class Bundle(Model):
 @python_2_unicode_compatible
 class Topic(Model):
     name      = CharField(max_length=1024, db_index=True)
+    active_broker = ForeignKey(ActiveBroker, on_delete=SET_NULL, db_index=True, null=True)
     broker = ForeignKey(Broker, on_delete=SET_NULL, db_index=True, null=True)
     namespace = ForeignKey(Namespace, on_delete=SET_NULL, db_index=True, null=True)
     cluster = ForeignKey(Cluster, on_delete=SET_NULL, db_index=True, null=True)
@@ -109,6 +117,9 @@ class Topic(Model):
 
     def short_name(self):
         return self.name.split('/', 5)[-1]
+
+    def is_global(self):
+        return self.namespace.is_global()
 
     def url_name(self):
         return '/'.join(self.name.split('://', 1))

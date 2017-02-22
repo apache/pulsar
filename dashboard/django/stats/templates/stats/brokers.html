@@ -65,16 +65,16 @@
         <th>
             <a href="{% url 'broker' broker.url %}">{{broker.url}}</a>
         </th>
-        <td>{{broker.numBundles | intcomma}}</td>
-        <td>{{broker.numTopics | intcomma}}</td>
-        <td>{{broker.numProducers | intcomma}}</td>
-        <td>{{broker.numSubscriptions | intcomma}}</td>
-        <td>{{broker.numConsumers | intcomma}}</td>
-        <td>{{broker.rateIn | intcomma}}</td>
-        <td>{{broker.rateOut | intcomma}}</td>
+        <td>{{broker.numBundles | safe_intcomma}}</td>
+        <td>{{broker.numTopics | safe_intcomma}}</td>
+        <td>{{broker.numProducers | safe_intcomma}}</td>
+        <td>{{broker.numSubscriptions | safe_intcomma}}</td>
+        <td>{{broker.numConsumers | safe_intcomma}}</td>
+        <td>{{broker.rateIn | safe_intcomma}}</td>
+        <td>{{broker.rateOut | safe_intcomma}}</td>
         <td>{{broker.throughputIn | mbps | floatformat | intcomma}}</td>
         <td>{{broker.throughputOut | mbps | floatformat | intcomma}}</td>
-        <td>{{broker.backlog | intcomma}}</td>
+        <td>{{broker.backlog | safe_intcomma}}</td>
     </tr>
 {% empty %}
     <tr><td>No Brokers</td></tr>
