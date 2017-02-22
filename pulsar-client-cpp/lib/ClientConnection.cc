@@ -116,13 +116,16 @@ isTlsAllowInsecureConnection_(false) {
     if (clientConfiguration.isUseTls()) {
         using namespace boost::filesystem;
 
-        boost::asio::ssl::context ctx(boost::asio::ssl::context::tlsv12_client);
-
+#if BOOST_VERSION >= 105400
+        boost::asio::ssl::context ctx(executor_->io_service_, boost::asio::ssl::context::tlsv12_client);
+#else
+        boost::asio::ssl::context ctx(executor_->io_service_, boost::asio::ssl::context::tlsv1_client);
+#endif
         if (clientConfiguration.isTlsAllowInsecureConnection()) {
-            ctx.set_verify_mode(boost::asio::ssl::verify_none);
+            ctx.set_verify_mode(boost::asio::ssl::context::verify_none);
             isTlsAllowInsecureConnection_ = true;
         } else {
-            ctx.set_verify_mode(boost::asio::ssl::verify_peer);
+            ctx.set_verify_mode(boost::asio::ssl::context::verify_peer);
             std::string trustCertFilePath = clientConfiguration.getTlsTrustCertsFilePath();
             if (exists(path(trustCertFilePath))) {
                 ctx.load_verify_file(trustCertFilePath);
@@ -229,14 +232,13 @@ void ClientConnection::handleTcpConnected(const boost::system::error_code& err,
 
         if (tlsSocket_) {
             if (!isTlsAllowInsecureConnection_) {
-            boost::system::error_code err;
-            Url service_url;
+                boost::system::error_code err;
+                Url service_url;
                 if (!Url::parse(address_, service_url)) {
                     LOG_ERROR(cnxString_ << "Invalid Url, unable to parse: " << err << " " << err.message());
                     close();
                     return;
                 }
-                tlsSocket_->set_verify_callback(boost::asio::ssl::rfc2818_verification(service_url.host()));
             }
             tlsSocket_->async_handshake(boost::asio::ssl::stream<tcp::socket>::client, boost::bind(&ClientConnection::handleHandshake, shared_from_this(), boost::asio::placeholders::error));
         } else {
