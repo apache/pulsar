@@ -237,9 +237,6 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] Added producer -- count: {}", topic, producer.getProducerName(), USAGE_COUNT_UPDATER.get(this));
             }
-
-            // Start replication producers if not already
-            startReplProducers();
         } finally {
             lock.readLock().unlock();
         }

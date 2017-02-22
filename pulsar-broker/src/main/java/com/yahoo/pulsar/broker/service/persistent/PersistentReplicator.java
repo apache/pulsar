@@ -193,7 +193,7 @@ public class PersistentReplicator implements ReadEntriesCallback, DeleteCallback
                         // BackOff before retrying
                         brokerService.executor().schedule(this::startProducer, waitTimeMs, TimeUnit.MILLISECONDS);
                     } else {
-                        log.warn("[{}][{} -> {}] Failed to create remote producer. Replicator state: ", topicName,
+                        log.warn("[{}][{} -> {}] Failed to create remote producer. Replicator state: {}", topicName,
                                 localCluster, remoteCluster, STATE_UPDATER.get(this), ex);
                     }
                     return null;
