@@ -105,7 +105,7 @@ import io.swagger.annotations.ApiResponses;
 public class PersistentTopics extends AdminResource {
     private static final Logger log = LoggerFactory.getLogger(PersistentTopics.class);
 
-    private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS").withZone(ZoneId.systemDefault());
+    private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSZ").withZone(ZoneId.systemDefault());
 
     private static final String PARTITIONED_TOPIC_PATH_ZNODE = "partitioned-topics";
     private static final int PARTITIONED_TOPIC_WAIT_SYNC_TIME_MS = 1000;
