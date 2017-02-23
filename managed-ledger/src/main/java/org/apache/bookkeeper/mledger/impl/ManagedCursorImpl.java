@@ -20,12 +20,12 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 
 import java.util.ArrayDeque;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.*;
+import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -685,14 +685,12 @@ public class ManagedCursorImpl implements ManagedCursor {
             AsyncCallbacks.ResetCursorCallback resetCursorCallback) {
         log.info("[{}] Initiate reset position to {} on cursor {}", ledger.getName(), newPosition, name);
 
-        synchronized (pendingMarkDeleteOps) {
-            if (!RESET_CURSOR_IN_PROGRESS_UPDATER.compareAndSet(this, FALSE, TRUE)) {
-                log.error("[{}] reset requested - position [{}], previous reset in progress - cursor {}",
-                        ledger.getName(), newPosition, name);
-                resetCursorCallback.resetFailed(
-                        new ManagedLedgerException.ConcurrentFindCursorPositionException("reset already in progress"),
-                        newPosition);
-            }
+        if (!RESET_CURSOR_IN_PROGRESS_UPDATER.compareAndSet(this, FALSE, TRUE)) {
+            log.error("[{}] reset requested - position [{}], previous reset in progress - cursor {}",
+                    ledger.getName(), newPosition, name);
+            resetCursorCallback.resetFailed(
+                    new ManagedLedgerException.ConcurrentFindCursorPositionException("reset already in progress"),
+                    newPosition);
         }
 
         final AsyncCallbacks.ResetCursorCallback callback = resetCursorCallback;
@@ -730,10 +728,10 @@ public class ManagedCursorImpl implements ManagedCursor {
                 }
                 synchronized (pendingMarkDeleteOps) {
                     pendingMarkDeleteOps.clear();
-                    if (!RESET_CURSOR_IN_PROGRESS_UPDATER.compareAndSet(ManagedCursorImpl.this, TRUE, FALSE)) {
-                        log.error("[{}] expected reset position [{}], but another reset in progress on cursor {}",
-                                ledger.getName(), newPosition, name);
-                    }
+                }
+                if (!RESET_CURSOR_IN_PROGRESS_UPDATER.compareAndSet(ManagedCursorImpl.this, TRUE, FALSE)) {
+                    log.error("[{}] expected reset position [{}], but another reset in progress on cursor {}",
+                            ledger.getName(), newPosition, name);
                 }
                 callback.resetComplete(newPosition);
 
@@ -741,11 +739,9 @@ public class ManagedCursorImpl implements ManagedCursor {
 
             @Override
             public void operationFailed(ManagedLedgerException exception) {
-                synchronized (pendingMarkDeleteOps) {
-                    if (!RESET_CURSOR_IN_PROGRESS_UPDATER.compareAndSet(ManagedCursorImpl.this, TRUE, FALSE)) {
-                        log.error("[{}] expected reset position [{}], but another reset in progress on cursor {}",
-                                ledger.getName(), newPosition, name);
-                    }
+                if (!RESET_CURSOR_IN_PROGRESS_UPDATER.compareAndSet(ManagedCursorImpl.this, TRUE, FALSE)) {
+                    log.error("[{}] expected reset position [{}], but another reset in progress on cursor {}",
+                            ledger.getName(), newPosition, name);
                 }
                 callback.resetFailed(new ManagedLedgerException.InvalidCursorPositionException(
                         "unable to persist position for cursor reset " + newPosition.toString()), newPosition);
@@ -1248,36 +1244,37 @@ public class ManagedCursorImpl implements ManagedCursor {
         PendingMarkDeleteEntry mdEntry = new PendingMarkDeleteEntry(newPosition, callback, ctx);
 
         // We cannot write to the ledger during the switch, need to wait until the new metadata ledger is available
-        synchronized (pendingMarkDeleteOps) {
-            // The state might have changed while we were waiting on the queue mutex
-            switch (STATE_UPDATER.get(this)) {
-            case Closed:
-                callback.markDeleteFailed(new ManagedLedgerException("Cursor was already closed"), ctx);
-                return;
+        switch (STATE_UPDATER.get(this)) {
+        case Closed:
+            callback.markDeleteFailed(new ManagedLedgerException("Cursor was already closed"), ctx);
+            return;
 
-            case NoLedger:
-                // We need to create a new ledger to write into
-                startCreatingNewMetadataLedger();
-                // fall through
-            case SwitchingLedger:
+        case NoLedger:
+            // We need to create a new ledger to write into
+            startCreatingNewMetadataLedger();
+            // fall through
+        case SwitchingLedger:
+            synchronized (pendingMarkDeleteOps) {
                 pendingMarkDeleteOps.add(mdEntry);
-                break;
-
-            case Open:
-                if (PENDING_READ_OPS_UPDATER.get(this) > 0) {
-                    // Wait until no read operation are pending
-                    pendingMarkDeleteOps.add(mdEntry);
-                } else {
-                    // Execute the mark delete immediately
-                    internalMarkDelete(mdEntry);
-                }
-                break;
-
-            default:
-                log.error("[{}][{}] Invalid cursor state: {}", ledger.getName(), name, state);
-                callback.markDeleteFailed(new ManagedLedgerException("Cursor was in invalid state: " + state), ctx);
-                break;
             }
+            break;
+
+        case Open:
+            if (PENDING_READ_OPS_UPDATER.get(this) > 0) {
+                // Wait until no read operation are pending
+                synchronized (pendingMarkDeleteOps) {
+                    pendingMarkDeleteOps.add(mdEntry);
+                }
+            } else {
+                // Execute the mark delete immediately
+                internalMarkDelete(mdEntry);
+            }
+            break;
+
+        default:
+            log.error("[{}][{}] Invalid cursor state: {}", ledger.getName(), name, state);
+            callback.markDeleteFailed(new ManagedLedgerException("Cursor was in invalid state: " + state), ctx);
+            break;
         }
     }
 
@@ -1408,6 +1405,8 @@ public class ManagedCursorImpl implements ManagedCursor {
 
         lock.writeLock().lock();
 
+        boolean canMarkDelete = false;
+        PositionImpl newMarkDeletePosition = null;
         try {
             if (log.isDebugEnabled()) {
                 log.debug(
@@ -1422,9 +1421,6 @@ public class ManagedCursorImpl implements ManagedCursor {
                 callback.deleteComplete(ctx);
                 return;
             }
-
-            boolean canMarkDelete = false;
-            PositionImpl newMarkDeletePosition = null;
 
             if (previousPosition.compareTo(markDeletePosition) == 0 && individualDeletedMessages.isEmpty()) {
                 if (log.isDebugEnabled()) {
@@ -1462,7 +1458,19 @@ public class ManagedCursorImpl implements ManagedCursor {
                     newMarkDeletePosition = range.upperEndpoint();
                 }
             }
+        } catch (Exception e) {
+            log.warn("[{}] [{}] Error doing asyncDelete [{}]", ledger.getName(), name, e.getMessage(), e);
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Consumer {} cursor asyncDelete error, counters: consumed {} mdPos {} rdPos {}",
+                        ledger.getName(), name, messagesConsumedCounter, markDeletePosition, readPosition);
+            }
+            callback.deleteFailed(new ManagedLedgerException(e), ctx);
+            return;
+        } finally {
+            lock.writeLock().unlock();
+        }
 
+        try {
             if (canMarkDelete) {
                 newMarkDeletePosition = setAcknowledgedPosition(newMarkDeletePosition);
 
@@ -1501,8 +1509,6 @@ public class ManagedCursorImpl implements ManagedCursor {
                         ledger.getName(), name, messagesConsumedCounter, markDeletePosition, readPosition);
             }
             callback.deleteFailed(new ManagedLedgerException(e), ctx);
-        } finally {
-            lock.writeLock().unlock();
         }
     }
 
@@ -1720,12 +1726,9 @@ public class ManagedCursorImpl implements ManagedCursor {
             @Override
             public void operationComplete() {
                 // We now have a new ledger where we can write
-                synchronized (pendingMarkDeleteOps) {
-                    flushPendingMarkDeletes();
-
-                    // Resume normal mark-delete operations
-                    STATE_UPDATER.set(ManagedCursorImpl.this, State.Open);
-                }
+                flushPendingMarkDeletes();
+                // Resume normal mark-delete operations
+                STATE_UPDATER.set(ManagedCursorImpl.this, State.Open);
             }
 
             @Override
@@ -1746,28 +1749,24 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     private void flushPendingMarkDeletes() {
-        if (!pendingMarkDeleteOps.isEmpty()) {
-            if (RESET_CURSOR_IN_PROGRESS_UPDATER.get(this) == TRUE) {
-                failPendingMarkDeletes();
-            } else {
-                internalFlushPendingMarkDeletes();
+        PendingMarkDeleteEntry lastEntry = null;
+        synchronized (pendingMarkDeleteOps) {
+            if (!pendingMarkDeleteOps.isEmpty()) {
+                if (RESET_CURSOR_IN_PROGRESS_UPDATER.get(this) == TRUE) {
+                    for (PendingMarkDeleteEntry e : pendingMarkDeleteOps) {
+                        e.callback.markDeleteFailed(new ManagedLedgerException("reset cursor in progress"), e.ctx);
+                    }
+                    pendingMarkDeleteOps.clear();
+                } else {
+                    lastEntry = pendingMarkDeleteOps.getLast();
+                    lastEntry.callbackGroup = Lists.newArrayList(pendingMarkDeleteOps);
+                    pendingMarkDeleteOps.clear();
+                }
             }
         }
-    }
-
-    private void failPendingMarkDeletes() {
-        for (PendingMarkDeleteEntry e : pendingMarkDeleteOps) {
-            e.callback.markDeleteFailed(new ManagedLedgerException("reset cursor in progress"), e.ctx);
+        if (lastEntry != null) {
+            internalMarkDelete(lastEntry);
         }
-        pendingMarkDeleteOps.clear();
-    }
-
-    void internalFlushPendingMarkDeletes() {
-        PendingMarkDeleteEntry lastEntry = pendingMarkDeleteOps.getLast();
-        lastEntry.callbackGroup = Lists.newArrayList(pendingMarkDeleteOps);
-        pendingMarkDeleteOps.clear();
-
-        internalMarkDelete(lastEntry);
     }
 
     void createNewMetadataLedger(final VoidCallback callback) {
@@ -1995,15 +1994,13 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     void readOperationCompleted() {
         if (PENDING_READ_OPS_UPDATER.decrementAndGet(this) == 0) {
-            synchronized (pendingMarkDeleteOps) {
-                if (STATE_UPDATER.get(this) == State.Open) {
-                    // Flush the pending writes only if the state is open.
-                    flushPendingMarkDeletes();
-                } else if (PENDING_MARK_DELETED_SUBMITTED_COUNT_UPDATER.get(this) != 0) {
-                    log.info(
-                            "[{}] read operation completed and cursor was closed. need to call any queued cursor close",
-                            name);
-                }
+            if (STATE_UPDATER.get(this) == State.Open) {
+                // Flush the pending writes only if the state is open.
+                flushPendingMarkDeletes();
+            } else if (PENDING_MARK_DELETED_SUBMITTED_COUNT_UPDATER.get(this) != 0) {
+                log.info(
+                        "[{}] read operation completed and cursor was closed. need to call any queued cursor close",
+                        name);
             }
         }
     }
