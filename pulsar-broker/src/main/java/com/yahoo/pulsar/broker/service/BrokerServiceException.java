@@ -101,6 +101,12 @@ public class BrokerServiceException extends Exception {
             super(msg);
         }
     }
+    
+    public static class UnsupportedVersionException extends BrokerServiceException {
+        public UnsupportedVersionException(String msg) {
+            super(msg);
+        }
+    }
 
     public static PulsarApi.ServerError getClientErrorCode(Throwable t) {
         if (t instanceof ServerMetadataException) {
@@ -109,6 +115,8 @@ public class BrokerServiceException extends Exception {
             return PulsarApi.ServerError.PersistenceError;
         } else if (t instanceof ConsumerBusyException) {
             return PulsarApi.ServerError.ConsumerBusy;
+        } else if (t instanceof UnsupportedVersionException) {
+            return PulsarApi.ServerError.UnsupportedVersionError;
         } else if (t instanceof ServiceUnitNotReadyException || t instanceof TopicFencedException
                 || t instanceof SubscriptionFencedException) {
             return PulsarApi.ServerError.ServiceNotReady;

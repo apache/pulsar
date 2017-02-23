@@ -303,6 +303,9 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
             consumer1.acknowledge(msg);
         }
 
+        // Also set clientCnx of the consumer to null so, it avoid reconnection so, other consumer can consume for
+        // verification
+        consumer1.setClientCnx(null);
         // (2) send batch-message which should not be able to consume: as broker will disconnect the consumer
         for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;

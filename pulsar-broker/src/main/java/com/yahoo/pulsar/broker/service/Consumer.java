@@ -154,14 +154,12 @@ public class Consumer {
         } catch (PulsarServerException pe) {
             log.warn("[{}] [{}] consumer doesn't support batch-message {}", subscription, consumerId,
                     cnx.getRemoteEndpointProtocolVersion());
+            
+            subscription.markTopicWithBatchMessagePublished();
             sentMessages.setRight(0);
-            // remove consumer from subscription and cnx: it will update dispatcher's availablePermits and resends
-            // pendingAck-messages of this consumer to other consumer
-            try {
-                close();
-            } catch (BrokerServiceException e) {
-                log.warn("Consumer {} was already closed: {}", this, e.getMessage(), e);
-            }
+            // disconnect consumer: it will update dispatcher's availablePermits and resend pendingAck-messages of this
+            // consumer to other consumer
+            disconnect();
             return sentMessages;
         }
         
@@ -232,6 +230,7 @@ public class Consumer {
         int permitsToReduce = 0;
         Iterator<Entry> iter = entries.iterator();
         boolean unsupportedVersion = false;
+        boolean clientSupportBatchMessages = cnx.isBatchMessageCompatibleVersion();
         while (iter.hasNext()) {
             Entry entry = iter.next();
             ByteBuf metadataAndPayload = entry.getDataBuffer();
@@ -249,7 +248,7 @@ public class Consumer {
                 pendingAcks.put(pos, batchSize);
             }
             // check if consumer supports batch message
-            if (batchSize > 1 && cnx.getRemoteEndpointProtocolVersion() < ProtocolVersion.v4.getNumber()) {
+            if (batchSize > 1 && !clientSupportBatchMessages) {
                 unsupportedVersion = true;
             }
             permitsToReduce += batchSize;

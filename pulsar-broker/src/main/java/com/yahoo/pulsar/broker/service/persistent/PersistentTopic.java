@@ -58,6 +58,7 @@ import com.yahoo.pulsar.broker.service.BrokerService;
 import com.yahoo.pulsar.broker.service.BrokerServiceException;
 import com.yahoo.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import com.yahoo.pulsar.broker.service.BrokerServiceException.NamingException;
+import com.yahoo.pulsar.broker.service.BrokerServiceException.UnsupportedVersionException;
 import com.yahoo.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import com.yahoo.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import com.yahoo.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
@@ -128,6 +129,10 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
     // Timestamp of when this topic was last seen active
     private volatile long lastActive;
+    
+    // Flag to signal that producer of this topic has published batch-message so, broker should not allow consumer which
+    // doesn't support batch-message
+    private volatile boolean hasBatchMessagePublished = false;
 
     private static final FastThreadLocal<TopicStats> threadLocalTopicStats = new FastThreadLocal<TopicStats>() {
         @Override
@@ -303,6 +308,14 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
         final CompletableFuture<Consumer> future = new CompletableFuture<>();
 
+        if(hasBatchMessagePublished && !cnx.isBatchMessageCompatibleVersion()) {
+            if(log.isDebugEnabled()) {
+                log.debug("[{}] Consumer doesn't support batch-message {}", topic, subscriptionName);
+            }
+            future.completeExceptionally(new UnsupportedVersionException("Consumer doesn't support batch-message"));
+            return future;
+        }
+        
         if (subscriptionName.startsWith(replicatorPrefix)) {
             log.warn("[{}] Failed to create subscription for {}", topic, subscriptionName);
             future.completeExceptionally(new NamingException("Subscription with reserved subscription name attempted"));
@@ -1206,5 +1219,9 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         return FutureUtil.failedFuture(new BrokerServiceException("Cursor not found"));
     }
 
+    public void markBatchMessagePublished() {
+        this.hasBatchMessagePublished = true;
+    }
+    
     private static final Logger log = LoggerFactory.getLogger(PersistentTopic.class);
 }
