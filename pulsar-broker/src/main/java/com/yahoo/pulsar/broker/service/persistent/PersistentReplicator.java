@@ -30,21 +30,22 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedCursor.IndividualDeletedEntries;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.CursorAlreadyClosedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
 import org.apache.bookkeeper.mledger.util.Rate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.yahoo.pulsar.common.policies.data.ReplicatorStats;
 import com.yahoo.pulsar.broker.service.BrokerService;
 import com.yahoo.pulsar.broker.service.BrokerServiceException.TopicBusyException;
 import com.yahoo.pulsar.client.api.MessageId;
 import com.yahoo.pulsar.client.api.ProducerConfiguration;
 import com.yahoo.pulsar.client.impl.Backoff;
-import com.yahoo.pulsar.client.impl.PulsarClientImpl;
 import com.yahoo.pulsar.client.impl.MessageImpl;
 import com.yahoo.pulsar.client.impl.ProducerImpl;
+import com.yahoo.pulsar.client.impl.PulsarClientImpl;
 import com.yahoo.pulsar.client.impl.SendCallback;
+import com.yahoo.pulsar.common.policies.data.ReplicatorStats;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.util.Recycler;
@@ -488,7 +489,13 @@ public class PersistentReplicator implements ReadEntriesCallback, DeleteCallback
 
         long waitTimeMillis = readFailureBackoff.next();
 
-        if (!(exception instanceof TooManyRequestsException)) {
+        if(exception instanceof CursorAlreadyClosedException) {
+            log.error("[{}][{} -> {}] Error reading entries because replicator is already deleted and cursor is already closed {}, ({})", topic, localCluster,
+                    remoteCluster, ctx, exception.getMessage(), exception);
+            // replicator is already deleted and cursor is already closed so, producer should also be stopped
+            closeProducerAsync();
+            return;
+        }else if (!(exception instanceof TooManyRequestsException)) {
             log.error("[{}][{} -> {}] Error reading entries at {}. Retrying to read in {}s. ({})", topic, localCluster,
                     remoteCluster, ctx, waitTimeMillis / 1000.0, exception.getMessage(), exception);
         } else {

@@ -35,8 +35,11 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.CursorAlreadyClosedException;
 import org.mockito.Mockito;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.slf4j.Logger;
@@ -739,6 +742,67 @@ public class ReplicatorTest extends ReplicatorTestBase {
             consumer1.close();
             consumer2.close();
         }
+    }
+
+    /**
+     * It verifies that PersistentReplicator considers CursorAlreadyClosedException as non-retriable-read exception and
+     * it should closed the producer as cursor is already closed because replicator is already deleted.
+     * 
+     * @throws Exception
+     */
+    @Test(timeOut = 5000)
+    public void testCloseReplicatorStartProducer() throws Exception {
+
+        DestinationName dest = DestinationName.get("persistent://pulsar/global/ns1/closeCursor");
+        // Producer on r1
+        MessageProducer producer1 = new MessageProducer(url1, dest);
+        // Consumer on r1
+        MessageConsumer consumer1 = new MessageConsumer(url1, dest);
+        // Consumer on r2
+        MessageConsumer consumer2 = new MessageConsumer(url2, dest);
+
+        // Replicator for r1 -> r2
+        PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService().getTopicReference(dest.toString());
+        PersistentReplicator replicator = topic.getPersistentReplicator("r2");
+
+        // close the cursor
+        Field cursorField = PersistentReplicator.class.getDeclaredField("cursor");
+        cursorField.setAccessible(true);
+        ManagedCursor cursor = (ManagedCursor) cursorField.get(replicator);
+        cursor.close();
+        // try to read entries
+        CountDownLatch latch = new CountDownLatch(1);
+        producer1.produce(10);
+        cursor.asyncReadEntriesOrWait(10, new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                latch.countDown();
+                fail("it should have been failed");
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                latch.countDown();
+                assertTrue(exception instanceof CursorAlreadyClosedException);
+            }
+        }, null);
+
+        // replicator-readException: cursorAlreadyClosed
+        replicator.readEntriesFailed(new CursorAlreadyClosedException("Cursor already closed exception"), null);
+
+        // wait replicator producer to be closed
+        Thread.sleep(1000);
+
+        // Replicator producer must be closed
+        Field producerField = PersistentReplicator.class.getDeclaredField("producer");
+        producerField.setAccessible(true);
+        ProducerImpl replicatorProducer = (ProducerImpl) producerField.get(replicator);
+        assertEquals(replicatorProducer, null);
+
+        producer1.close();
+        consumer1.close();
+        consumer2.close();
+
     }
 
     private static final Logger log = LoggerFactory.getLogger(ReplicatorTest.class);
