@@ -72,6 +72,7 @@ import com.yahoo.pulsar.broker.service.ServerCnx.State;
 import com.yahoo.pulsar.broker.service.persistent.PersistentTopic;
 import com.yahoo.pulsar.broker.service.utils.ClientChannelHelper;
 import com.yahoo.pulsar.common.api.Commands;
+import com.yahoo.pulsar.common.api.PulsarHandler;
 import com.yahoo.pulsar.common.api.Commands.ChecksumType;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.AuthMethod;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
@@ -1064,6 +1065,38 @@ public class ServerCnxTest {
 
         channel.finish();
     }
+    
+    @Test(timeOut = 30000)
+    public void testUnsupportedBatchMsgSubscribeCommand() throws Exception {
+        final String failSubName = "failSub";
+
+        resetChannel();
+        setChannelConnected();
+        setConnectionVersion(ProtocolVersion.v3.getNumber());
+        doReturn(false).when(brokerService).isAuthenticationEnabled();
+        doReturn(false).when(brokerService).isAuthorizationEnabled();
+        // test SUBSCRIBE on topic and cursor creation success
+        ByteBuf clientCommand = Commands.newSubscribe(successTopicName, //
+                successSubName, 1 /* consumer id */, 1 /* request id */, SubType.Exclusive, "test" /* consumer name */);
+        channel.writeInbound(clientCommand);
+        assertTrue(getResponse() instanceof CommandSuccess);
+
+        PersistentTopic topicRef = (PersistentTopic) brokerService.getTopicReference(successTopicName);
+        topicRef.markBatchMessagePublished();
+
+        // test SUBSCRIBE on topic and cursor creation success
+        clientCommand = Commands.newSubscribe(successTopicName, failSubName, 2, 2, SubType.Exclusive,
+                "test" /* consumer name */);
+        channel.writeInbound(clientCommand);
+        Object response = getResponse();
+        assertTrue(response instanceof CommandError);
+        assertTrue(((CommandError) response).getError().equals(ServerError.UnsupportedVersionError));
+
+        // Server will not close the connection
+        assertTrue(channel.isOpen());
+
+        channel.finish();
+    }
 
     @Test(timeOut = 30000)
     public void testSubscribeCommandWithAuthorizationPositive() throws Exception {
@@ -1163,6 +1196,13 @@ public class ServerCnxTest {
         channelState.set(serverCnx, State.Connected);
     }
 
+    private void setConnectionVersion(int version) throws Exception {
+        PulsarHandler cnx = (PulsarHandler) serverCnx;
+        Field versionField = PulsarHandler.class.getDeclaredField("remoteEndpointProtocolVersion");
+        versionField.setAccessible(true);
+        versionField.set(cnx, version);
+    }
+    
     private Object getResponse() throws Exception {
         // Wait at most for 10s to get a response
         final long sleepTimeMs = 10;
