@@ -31,6 +31,7 @@ import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
@@ -309,10 +310,10 @@ public class PersistentDispatcherFailoverConsumerTest {
 
     private Consumer getNextConsumer(PersistentDispatcherMultipleConsumers dispatcher) throws Exception {
         Consumer consumer = dispatcher.getNextConsumer();
-        Field field = Consumer.class.getDeclaredField("messagePermits");
+        Field field = Consumer.class.getDeclaredField("MESSAGE_PERMITS_UPDATER");
         field.setAccessible(true);
-        AtomicInteger messagePermits = (AtomicInteger) field.get(consumer);
-        messagePermits.decrementAndGet();
+        AtomicIntegerFieldUpdater<Consumer> messagePermits = (AtomicIntegerFieldUpdater) field.get(consumer);
+        messagePermits.decrementAndGet(consumer);
         return consumer;
     }
 
