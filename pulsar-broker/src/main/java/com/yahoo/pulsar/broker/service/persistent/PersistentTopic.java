@@ -267,8 +267,26 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         return foundRemote.get();
     }
 
-    private void startReplProducers() {
-        replicators.forEach((region, replicator) -> replicator.startProducer());
+    public void startReplProducers() {
+        // read repl-cluster from policies to avoid restart of replicator which are in process of disconnect and close
+        try {
+            Policies policies = brokerService.pulsar().getConfigurationCache().policiesCache()
+                    .get(AdminResource.path("policies", DestinationName.get(topic).getNamespace()))
+                    .orElseThrow(() -> new KeeperException.NoNodeException());
+            if (policies.replication_clusters != null) {
+                Set<String> configuredClusters = Sets.newTreeSet(policies.replication_clusters);
+                replicators.forEach((region, replicator) -> {
+                    if (configuredClusters.contains(region)) {
+                        replicator.startProducer();
+                    }
+                });
+            }
+        } catch (Exception e) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Error getting policies while starting repl-producers {}", topic, e.getMessage());
+            }
+            replicators.forEach((region, replicator) -> replicator.startProducer());
+        }
     }
 
     public CompletableFuture<Void> stopReplProducers() {
