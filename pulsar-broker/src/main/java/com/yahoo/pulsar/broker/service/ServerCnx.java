@@ -50,6 +50,7 @@ import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSubscribe;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandUnsubscribe;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.MessageMetadata;
+import com.yahoo.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.ServerError;
 import com.yahoo.pulsar.common.naming.DestinationName;
 import com.yahoo.pulsar.common.policies.data.BacklogQuota;
@@ -767,5 +768,9 @@ public class ServerCnx extends PulsarHandler {
 
     boolean hasConsumer(long consumerId) {
         return consumers.containsKey(consumerId);
+    }
+    
+    public boolean isBatchMessageCompatibleVersion() {
+        return remoteEndpointProtocolVersion >= ProtocolVersion.v4.getNumber();
     }
 }

@@ -592,5 +592,10 @@ public class PersistentSubscription implements Subscription {
         dispatcher.redeliverUnacknowledgedMessages(consumer, positions);
     }
 
+    @Override
+    public void markTopicWithBatchMessagePublished() {
+        topic.markBatchMessagePublished();
+    }
+    
     private static final Logger log = LoggerFactory.getLogger(PersistentSubscription.class);
 }
