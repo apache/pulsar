@@ -17,21 +17,34 @@ package com.yahoo.pulsar.client.impl;
 
 import static org.mockito.Matchers.anyObject;
 import static org.mockito.Mockito.*;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+import com.google.common.collect.Sets;
 import com.yahoo.pulsar.broker.namespace.OwnershipCache;
+import com.yahoo.pulsar.broker.service.Topic;
+import com.yahoo.pulsar.client.api.Consumer;
 import com.yahoo.pulsar.client.api.ConsumerConfiguration;
+import com.yahoo.pulsar.client.api.Message;
+import com.yahoo.pulsar.client.api.Producer;
 import com.yahoo.pulsar.client.api.ProducerConfiguration;
 import com.yahoo.pulsar.client.api.ProducerConsumerBase;
+import com.yahoo.pulsar.client.api.PulsarClient;
+import com.yahoo.pulsar.client.api.SubscriptionType;
 import com.yahoo.pulsar.client.impl.HandlerBase.State;
+import com.yahoo.pulsar.common.api.PulsarHandler;
 import com.yahoo.pulsar.common.naming.DestinationName;
 import com.yahoo.pulsar.common.naming.NamespaceBundle;
 import com.yahoo.pulsar.common.naming.NamespaceBundle;
@@ -51,6 +64,11 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
+    }
+    
+    @DataProvider
+    public Object[][] subType() {
+        return new Object[][] {{SubscriptionType.Shared}, {SubscriptionType.Failover}};
     }
 
     
@@ -226,5 +244,98 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         
     }
 
+    /**
+     * It verifies that consumer which doesn't support batch-message:
+     * <p>
+     * 1. broker disconnects that consumer
+     * <p>
+     * 2. redeliver all those messages to other supported consumer under the same subscription
+     * 
+     * @param subType
+     * @throws Exception
+     */
+    @Test(timeOut = 7000, dataProvider = "subType")
+    public void testUnsupportedBatchMessageConsumer(SubscriptionType subType) throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        final int batchMessageDelayMs = 1000;
+        final String topicName = "persistent://my-property/use/my-ns/my-topic1";
+        final String subscriptionName = "my-subscriber-name" + subType;
+
+        ConsumerConfiguration conf = new ConsumerConfiguration();
+        conf.setSubscriptionType(subType);
+        ConsumerImpl consumer1 = (ConsumerImpl) pulsarClient.subscribe(topicName, subscriptionName, conf);
+
+        ProducerConfiguration producerConf = new ProducerConfiguration();
+
+        if (batchMessageDelayMs != 0) {
+            producerConf.setBatchingEnabled(true);
+            producerConf.setBatchingMaxPublishDelay(batchMessageDelayMs, TimeUnit.MILLISECONDS);
+            producerConf.setBatchingMaxMessages(20);
+        }
+
+        Producer producer = pulsarClient.createProducer(topicName, new ProducerConfiguration());
+        Producer batchProducer = pulsarClient.createProducer(topicName, producerConf);
+
+        // update consumer's version to incompatible batch-message version = Version.V3
+        Topic topic = pulsar.getBrokerService().getTopic(topicName).get();
+        com.yahoo.pulsar.broker.service.Consumer brokerConsumer = topic.getSubscriptions().get(subscriptionName)
+                .getConsumers().get(0);
+        Field cnxField = com.yahoo.pulsar.broker.service.Consumer.class.getDeclaredField("cnx");
+        cnxField.setAccessible(true);
+        PulsarHandler cnx = (PulsarHandler) cnxField.get(brokerConsumer);
+        Field versionField = PulsarHandler.class.getDeclaredField("remoteEndpointProtocolVersion");
+        versionField.setAccessible(true);
+        versionField.set(cnx, 3);
+
+        // (1) send non-batch message: consumer should be able to consume
+        for (int i = 0; i < 10; i++) {
+            String message = "my-message-" + i;
+            producer.send(message.getBytes());
+        }
+        Set<String> messageSet = Sets.newHashSet();
+        Message msg = null;
+        for (int i = 0; i < 10; i++) {
+            msg = consumer1.receive(1, TimeUnit.SECONDS);
+            String receivedMessage = new String(msg.getData());
+            String expectedMessage = "my-message-" + i;
+            testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
+            consumer1.acknowledge(msg);
+        }
+
+        // Also set clientCnx of the consumer to null so, it avoid reconnection so, other consumer can consume for
+        // verification
+        consumer1.setClientCnx(null);
+        // (2) send batch-message which should not be able to consume: as broker will disconnect the consumer
+        for (int i = 0; i < 10; i++) {
+            String message = "my-message-" + i;
+            batchProducer.sendAsync(message.getBytes());
+        }
+
+        Thread.sleep(batchMessageDelayMs);
+
+        // consumer should have not received any message as it should have been disconnected
+        msg = consumer1.receive(2, TimeUnit.SECONDS);
+        assertNull(msg);
+
+        // subscrie consumer2 with supporting batch version
+        pulsarClient = PulsarClient.create(brokerUrl.toString());
+        Consumer consumer2 = pulsarClient.subscribe(topicName, subscriptionName, conf);
+
+        messageSet.clear();
+        for (int i = 0; i < 10; i++) {
+            msg = consumer2.receive(1, TimeUnit.SECONDS);
+            String receivedMessage = new String(msg.getData());
+            log.debug("Received message: [{}]", receivedMessage);
+            String expectedMessage = "my-message-" + i;
+            testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
+            consumer2.acknowledge(msg);
+        }
+
+        consumer2.close();
+        producer.close();
+        batchProducer.close();
+        log.info("-- Exiting {} test --", methodName);
+    }
     
 }
