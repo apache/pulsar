@@ -54,7 +54,8 @@ exec_cmd() {
 
 if [ "$3" = "all" -o "$3" = "dep" ]; then
   # Install dependant packages
-  exec_cmd "apt-get install -y cmake libssl-dev libcurl4-openssl-dev liblog4cxx10-dev libprotobuf-dev libboost1.55-all-dev libgtest-dev";
+  exec_cmd "apt-get update && apt-get install -y cmake gcc-4.4 cpp-4.4 gcc-4.4-base libssl-dev libcurl4-openssl-dev liblog4cxx10-dev libprotobuf-dev libboost1.55-all-dev libgtest-dev libxml2-utils";
+  exec_cmd "unlink `which gcc` && ln -s `which gcc-4.4` `which gcc`"
   exec_cmd "pushd $1/ && wget https://github.com/google/protobuf/releases/download/v2.6.1/protobuf-2.6.1.tar.gz && popd";
   exec_cmd "pushd /usr/src/gtest && cmake . && make && cp *.a /usr/lib && popd";
   exec_cmd "pushd $1/ && tar xvfz $1/protobuf-2.6.1.tar.gz && pushd $1/protobuf-2.6.1 && ./configure && make && make install && popd && popd";
