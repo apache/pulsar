@@ -21,6 +21,7 @@ import static org.mockito.Mockito.spy;
 import java.net.URI;
 import java.util.concurrent.Future;
 
+import org.apache.bookkeeper.test.PortManager;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
 import org.eclipse.jetty.websocket.client.WebSocketClient;
@@ -39,9 +40,9 @@ import com.yahoo.pulsar.websocket.service.WebSocketServiceStarter;
 
 public class ProxyPublishConsumeWithoutZKTest extends ProducerConsumerBase {
     protected String methodName;
-    private static final String CONSUME_URI = "ws://localhost:6080/ws/consumer/persistent/my-property/use/my-ns/my-topic/my-sub";
-    private static final String PRODUCE_URI = "ws://localhost:6080/ws/producer/persistent/my-property/use/my-ns/my-topic/";
-    private static final int TEST_PORT = 6080;
+    private static final int TEST_PORT = PortManager.nextFreePort();
+    private static final String CONSUME_URI = "ws://localhost:" + TEST_PORT + "/ws/consumer/persistent/my-property/use/my-ns/my-topic/my-sub";
+    private static final String PRODUCE_URI = "ws://localhost:" + TEST_PORT + "/ws/producer/persistent/my-property/use/my-ns/my-topic/";
     private ProxyServer proxyServer;
     private WebSocketService service;
 
