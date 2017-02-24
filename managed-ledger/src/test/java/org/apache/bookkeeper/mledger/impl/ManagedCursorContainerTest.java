@@ -15,30 +15,17 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
+import org.apache.bookkeeper.mledger.*;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.*;
+import org.testng.annotations.Test;
 
 import java.util.List;
 import java.util.Set;
+import java.util.function.Predicate;
 
-import org.apache.bookkeeper.mledger.AsyncCallbacks;
-import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
-import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
-import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
-import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
-import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
-import org.apache.bookkeeper.mledger.AsyncCallbacks.SkipEntriesCallback;
-import org.apache.bookkeeper.mledger.Entry;
-import org.apache.bookkeeper.mledger.ManagedCursor;
-import org.apache.bookkeeper.mledger.ManagedLedgerException;
-import org.apache.bookkeeper.mledger.Position;
-import org.testng.annotations.Test;
-
-import com.google.common.base.Predicate;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
+import static org.testng.Assert.*;
 
 @Test
 public class ManagedCursorContainerTest {
@@ -123,7 +110,7 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
-        public void asyncClose(AsyncCallbacks.CloseCallback callback, Object ctx) {
+        public void asyncClose(CloseCallback callback, Object ctx) {
         }
 
         @Override
@@ -160,11 +147,11 @@ public class ManagedCursorContainerTest {
 
         @Override
         public void asyncFindNewestMatching(FindPositionConstraint constraint, Predicate<Entry> condition,
-                AsyncCallbacks.FindEntryCallback callback, Object ctx) {
+                                            FindEntryCallback callback, Object ctx) {
         }
 
         @Override
-        public void asyncResetCursor(final Position position, AsyncCallbacks.ResetCursorCallback callback) {
+        public void asyncResetCursor(final Position position, ResetCursorCallback callback) {
 
         }
 
