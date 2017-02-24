@@ -63,6 +63,12 @@ public class ManagedLedgerException extends Exception {
         }
     }
 
+    public static class CursorAlreadyClosedException extends ManagedLedgerException {
+        public CursorAlreadyClosedException(String msg) {
+            super(msg);
+        }
+    }
+    
     public static class TooManyRequestsException extends ManagedLedgerException {
         public TooManyRequestsException(String msg) {
             super(msg);
