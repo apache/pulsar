@@ -50,7 +50,8 @@ ConsumerImpl::ConsumerImpl(const ClientImplPtr client, const std::string& topic,
           partitionIndex_(-1),
           consumerCreatedPromise_(),
           messageListenerRunning_(true),
-          batchAcknowledgementTracker_(topic_, subscription, (long)consumerId_) {
+          batchAcknowledgementTracker_(topic_, subscription, (long)consumerId_),
+          brokerConsumerStats_() {
     std::stringstream consumerStrStream;
     consumerStrStream << "[" << topic_ << ", " << subscription_ << ", " << consumerId_ << "] ";
     consumerStr_ = consumerStrStream.str();
@@ -113,7 +114,7 @@ void ConsumerImpl::connectionOpened(const ClientConnectionPtr& cnx) {
     lock.unlock();
 
     ClientImplPtr client = client_.lock();
-    int requestId = client->newRequestId();
+    uint64_t requestId = client->newRequestId();
     SharedBuffer cmd = Commands::newSubscribe(topic_, subscription_, consumerId_, requestId,
                                               getSubType(), consumerName_);
     cnx->sendRequestWithId(cmd, requestId).addListener(
@@ -483,13 +484,13 @@ inline proto::CommandSubscribe_SubType ConsumerImpl::getSubType() {
     ConsumerType type = config_.getConsumerType();
     switch (type) {
         case ConsumerExclusive:
-            return proto::CommandSubscribe_SubType_Exclusive;
+            return proto::CommandSubscribe::Exclusive;
 
         case ConsumerShared:
-            return proto::CommandSubscribe_SubType_Shared;
+            return proto::CommandSubscribe::Shared;
 
         case ConsumerFailover:
-            return proto::CommandSubscribe_SubType_Failover;
+            return proto::CommandSubscribe::Failover;
     }
 }
 
@@ -684,6 +685,46 @@ void ConsumerImpl::redeliverUnacknowledgedMessages() {
 
 int ConsumerImpl::getNumOfPrefetchedMessages() const {
     return incomingMessages_.size();
+}
+
+Result ConsumerImpl::getConsumerStats(BrokerConsumerStats& brokerConsumerStats, int partitionIndex) {
+    if (partitionIndex != -1) {
+        LOG_WARN(getName() << "Ignoring the partitionIndex since the topic is not partitioned")
+    }
+
+    if (!isOpen()) {
+        LOG_ERROR(getName() << "Client connection is not open, please try again later.")
+        return ResultConsumerNotInitialized;
+    }
+
+    if (brokerConsumerStats_.isValid()) {
+        LOG_DEBUG(getName() << "Serving data from cache");
+        brokerConsumerStats = brokerConsumerStats_;
+        return ResultOk;
+    }
+
+
+    ClientConnectionPtr cnx = getCnx().lock();
+    if (cnx) {
+        if (cnx->getServerProtocolVersion() >= proto::v7) {
+            ClientImplPtr client = client_.lock();
+            uint64_t requestId = client->newRequestId();
+            LOG_DEBUG(getName() <<
+                    " Sending ConsumerStats Command for Consumer - " << getConsumerId() << ", requestId - "<<requestId);
+
+            BrokerConsumerStats consumerStats;
+            Result res = cnx->newConsumerStats(topic_, subscription_, consumerId_, requestId).get(consumerStats);
+            if (res == ResultOk) {
+                brokerConsumerStats = brokerConsumerStats_ = consumerStats;
+            }
+            return res;
+        } else {
+            LOG_ERROR(getName() << " Operation not supported since server protobuf version " << cnx->getServerProtocolVersion() << " is older than proto::v7");
+            return ResultOperationNotSupported;
+        }
+    }
+    LOG_ERROR(getName() << " Client Connection not ready for Consumer");
+    return ResultNotConnected;
 }
 
 } /* namespace pulsar */

@@ -21,7 +21,8 @@
 #include <boost/shared_ptr.hpp>
 #include <pulsar/Message.h>
 #include <pulsar/Result.h>
-
+#include <boost/date_time/posix_time/ptime.hpp>
+#include <iostream>
 #pragma GCC visibility push(default)
 
 class PulsarFriend;
@@ -53,6 +54,61 @@ enum ConsumerType {
      */
 
     ConsumerFailover
+};
+
+class BrokerConsumerStats {
+ private:
+    /*
+     * validTillInMs_ - Stats will be valid till this time.
+     */
+    boost::posix_time::ptime validTill_;
+ public:
+    BrokerConsumerStats();
+    BrokerConsumerStats(boost::posix_time::ptime& validTill, double msgRateOut, double msgThroughputOut,
+                            double msgRateRedeliver, std::string consumerName, int availablePermits,
+                            int unackedMessages, bool blockedConsumerOnUnackedMsgs, std::string address,
+                            std::string connectedSince, std::string type, double msgRateExpired, long msgBacklog);
+
+    /** Returns true if the Message is Expired **/
+    bool isValid() const;
+
+    /** Total rate of messages delivered to the consumer. msg/s */
+    double msgRateOut_;
+
+    /** Total throughput delivered to the consumer. bytes/s */
+    double msgThroughputOut_;
+
+    /** Total rate of messages redelivered by this consumer. msg/s */
+    double msgRateRedeliver_;
+
+    /** Name of the consumer */
+    std::string consumerName_;
+
+    /** Number of available message permits for the consumer */
+    int availablePermits_;
+
+    /** Number of unacknowledged messages for the consumer */
+    int unackedMessages_;
+
+    /** Flag to verify if consumer is blocked due to reaching threshold of unacked messages */
+    bool blockedConsumerOnUnackedMsgs_;
+
+    /** Address of this consumer */
+    std::string address_;
+
+    /** Timestamp of connection */
+    std::string connectedSince_;
+
+    /// Whether this subscription is Exclusive or Shared or Failover
+    std::string type_;
+
+    /// Total rate of messages expired on this subscription. msg/s
+    double msgRateExpired_;
+
+    /// Number of messages in the subscription backlog
+    long msgBacklog_;
+
+    friend std::ostream& operator<<(std::ostream& os, const BrokerConsumerStats& obj);
 };
 
 /**
@@ -284,7 +340,20 @@ class Consumer {
      */
     void redeliverUnacknowledgedMessages();
 
- private:
+    /**
+     * Gets Consumer Stats from broker.
+     * The stats are cached for 30 seconds, if a call is made before the stats returned by the previous call expires
+     * then cached data will be returned. BrokerConsumerStats::isValid() function can be used to check if the stats are
+     * still valid.
+     *
+     * @param brokerConsumerStats - if the function returns ResultOk, this object will contain consumer stats
+     * @param partitionIndex - optional parameter which is to be populated only if the topic is partitioned.
+     *
+     * @note This is a blocking call with timeout of thirty seconds.
+     */
+    Result getConsumerStats(BrokerConsumerStats& brokerConsumerStats, int partitionIndex = -1);
+
+private:
     typedef boost::shared_ptr<ConsumerImplBase> ConsumerImplBasePtr;
     friend class PulsarFriend;
     ConsumerImplBasePtr impl_;

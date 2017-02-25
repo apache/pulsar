@@ -77,7 +77,10 @@ enum ServerError {
     ProducerBlockedQuotaExceededError = 7; // Unable to create producer because backlog quota exceeded
     ProducerBlockedQuotaExceededException = 8; // Exception while creating producer because quota exceeded
     ChecksumError = 9; // Error while verifying message checksum
-    UnsupportedVersionError = 10; // Error when an older client/version doesn't support a required feature 
+    UnsupportedVersionError = 10; // Error when an older client/version doesn't support a required feature
+    TopicNotFound = 11; // Topic not found
+    SubscriptionNotFound = 12; // Subscription not found
+    ConsumerNotFound = 13; // Consumer not found
 }
 
 enum AuthMethod {
@@ -96,6 +99,7 @@ enum ProtocolVersion {
 	v4 = 4;  // Added batch message support
 	v5 = 5;  // Added disconnect client w/o closing connection
 	v6 = 6;  // Added checksum computation for metadata + payload
+	v7 = 7;  // Added Lookup and GetStats Command
 }
 
 message CommandConnect {
@@ -117,7 +121,6 @@ message CommandSubscribe {
 		Shared    = 1;
 		Failover  = 2;
 	}
-
 	required string topic        = 1;
 	required string subscription = 2;
 	required SubType subType     = 3;
@@ -278,6 +281,55 @@ message CommandPing {
 message CommandPong {
 }
 
+message CommandConsumerStats {
+        required uint64 request_id         = 1;
+        required string topic_name         = 2;
+        required string subscription_name  = 3;
+        required uint64 consumer_id        = 4;
+}
+
+message CommandConsumerStatsResponse {
+        required uint64 request_id              = 1;        
+        optional ServerError error_code         = 2;
+        optional string error_message           = 3;
+
+        /// Total rate of messages delivered to the consumer. msg/s 
+        optional double msgRateOut                  = 4;
+        
+        /// Total throughput delivered to the consumer. bytes/s 
+        optional double msgThroughputOut            = 5;
+        
+        /// Total rate of messages redelivered by this consumer. msg/s 
+        optional double msgRateRedeliver            = 6;
+        	
+        /// Name of the consumer 
+        optional string consumerName                = 7;
+        	
+        /// Number of available message permits for the consumer 
+        optional uint64 availablePermits            = 8;
+        
+        /// Number of unacknowledged messages for the consumer 
+        optional uint64 unackedMessages             = 9;
+        
+        /// Flag to verify if consumer is blocked due to reaching threshold of unacked messages 
+        optional bool blockedConsumerOnUnackedMsgs  = 10;
+        	
+        /// Address of this consumer 
+        optional string address                     = 11;
+        	
+        /// Timestamp of connection 
+        optional string connectedSince              = 12;
+        
+        /// Whether this subscription is Exclusive or Shared or Failover 
+        optional string type                        = 13;
+        
+        /// Total rate of messages expired on this subscription. msg/s 
+        optional double msgRateExpired              = 14;
+        
+        /// Number of messages in the subscription backlog 
+        optional uint64 msgBacklog                  = 15;
+}
+
 message BaseCommand {
 	enum Type {
 		CONNECT     = 2;
@@ -314,6 +366,10 @@ message BaseCommand {
 		
 		LOOKUP           = 23;
 		LOOKUP_RESPONSE  = 24;
+
+		CONSUMER_STATS		= 25;
+		CONSUMER_STATS_RESPONSE	= 26;
+
 	}
 
 	required Type type = 1;
@@ -347,4 +403,7 @@ message BaseCommand {
 	
 	optional CommandLookupTopic lookupTopic                    = 23;
 	optional CommandLookupTopicResponse lookupTopicResponse    = 24;
+
+	optional CommandConsumerStats consumerStats                         = 25;
+	optional CommandConsumerStatsResponse consumerStatsResponse         = 26;
 }

@@ -242,4 +242,11 @@ public class ByteBufCodedOutputStream {
     static int makeTag(final int fieldNumber, final int wireType) {
         return (fieldNumber << TAG_TYPE_BITS) | wireType;
     }
+
+    /** Write an double field, including tag, to the stream. */
+    public void writeDouble(final int fieldNumber, double value) throws IOException {
+        writeTag(fieldNumber, WireFormat.WIRETYPE_FIXED64);
+        buf.order(ByteOrder.LITTLE_ENDIAN).writeDouble(value);
+    }
+
 }

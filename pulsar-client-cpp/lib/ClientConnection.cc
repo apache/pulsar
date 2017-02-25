@@ -83,6 +83,18 @@ static Result getResult(ServerError serverError) {
 
         case ProducerBlockedQuotaExceededException:
         	return ResultProducerBlockedQuotaExceededException;
+
+        case TopicNotFound:
+            return ResultTopicNotFound;
+
+        case SubscriptionNotFound:
+            return ResultSubscriptionNotFound;
+
+        case ConsumerNotFound:
+            return ResultConsumerNotFound;
+
+        case UnsupportedVersionError:
+            return ResultUnsupportedVersionError;
     }
     // NOTE : Do not add default case in the switch above. In future if we get new cases for
     // ServerError and miss them in the switch above we would like to get notified. Adding
@@ -111,6 +123,8 @@ outgoingCmd_(),
 havePendingPingRequest_(false),
 keepAliveTimer_(),
 maxPendingLookupRequest_(clientConfiguration.getConcurrentLookupRequest()),
+consumerStatsRequestTimer_(executor_->createDeadlineTimer()),
+consumerStatsTTLMs_(30 * 1000),
 numOfPendingLookupRequest_(0),
 isTlsAllowInsecureConnection_(false) {
     if (clientConfiguration.isUseTls()) {
@@ -183,6 +197,42 @@ void ClientConnection::handlePulsarConnected(const CommandConnected& cmdConnecte
         keepAliveTimer_->expires_from_now(boost::posix_time::seconds(KeepAliveIntervalInSeconds));
         keepAliveTimer_->async_wait(
                 boost::bind(&ClientConnection::handleKeepAliveTimeout, shared_from_this()));
+    }
+
+    if (serverProtocolVersion_ >= v7) {
+        startConsumerStatsTimer(std::vector<uint64_t>());
+    }
+}
+
+void ClientConnection::startConsumerStatsTimer(std::vector<uint64_t> consumerStatsRequests) {
+    std::vector<Promise<Result, BrokerConsumerStats> > consumerStatsPromises;
+    Lock lock(mutex_);
+
+    for (int i = 0; i < consumerStatsRequests.size(); i++) {
+        PendingConsumerStatsMap::iterator it = pendingConsumerStatsMap_.find(consumerStatsRequests[i]);
+        if (it != pendingConsumerStatsMap_.end()) {
+            LOG_DEBUG(cnxString_ << " removing request_id " << it->first << " from the pendingConsumerStatsMap_");
+            consumerStatsPromises.push_back(it->second);
+            pendingConsumerStatsMap_.erase(it);
+        } else {
+            LOG_DEBUG(cnxString_ << "request_id " << it->first << " already fulfilled - not removing it");
+        }
+    }
+
+    consumerStatsRequests.clear();
+    for (PendingConsumerStatsMap::iterator it = pendingConsumerStatsMap_.begin();
+         it != pendingConsumerStatsMap_.end(); ++it) {
+        consumerStatsRequests.push_back(it->first);
+    }
+    consumerStatsRequestTimer_->expires_from_now(operationsTimeout_);
+    consumerStatsRequestTimer_->async_wait(
+            boost::bind(&ClientConnection::handleConsumerStatsTimeout, shared_from_this(),
+                        boost::asio::placeholders::error, consumerStatsRequests));
+    lock.unlock();
+    // Complex logic since promises need to be fulfilled outside the lock
+    for (int i = 0; i < consumerStatsPromises.size(); i++) {
+        consumerStatsPromises[i].setFailed(ResultTimeout);
+        LOG_WARN(cnxString_ << " Operation timedout, didn't get response from broker");
     }
 }
 
@@ -655,6 +705,57 @@ void ClientConnection::handleIncomingCommand() {
                     break;
                 }
 
+                case BaseCommand::CONSUMER_STATS_RESPONSE: {
+                    const CommandConsumerStatsResponse& consumerStatsResponse = incomingCmd_.consumerstatsresponse();
+                    LOG_DEBUG(
+                            cnxString_
+                                    << "ConsumerStatsResponse command - Received consumer stats response from server. req_id: "
+                                    << consumerStatsResponse.request_id());
+                    Lock lock(mutex_);
+                    PendingConsumerStatsMap::iterator it = pendingConsumerStatsMap_.find(
+                            consumerStatsResponse.request_id());
+                    if (it != pendingConsumerStatsMap_.end()) {
+                        Promise<Result, BrokerConsumerStats> consumerStatsPromise = it->second;
+                        pendingConsumerStatsMap_.erase(it);
+                        lock.unlock();
+
+                        if (consumerStatsResponse.has_error_code()) {
+                            if (consumerStatsResponse.has_error_message()) {
+                                LOG_ERROR(cnxString_ << " Failed to get consumer stats - "
+                                                     << consumerStatsResponse.error_message());
+                            }
+                            consumerStatsPromise.setFailed(getResult(consumerStatsResponse.error_code()));
+                        } else {
+                            LOG_DEBUG(
+                                    cnxString_
+                                            << "ConsumerStatsResponse command - Received consumer stats response from server. req_id: "
+                                            << consumerStatsResponse.request_id() << " Stats: ");
+                            boost::posix_time::ptime validTill = now() + milliseconds(consumerStatsTTLMs_);
+                            BrokerConsumerStats brokerStats =
+                                    BrokerConsumerStats(validTill,
+                                                            consumerStatsResponse.msgrateout(),
+                                                            consumerStatsResponse.msgthroughputout(),
+                                                            consumerStatsResponse.msgrateredeliver(),
+                                                            consumerStatsResponse.consumername(),
+                                                            consumerStatsResponse.availablepermits(),
+                                                            consumerStatsResponse.unackedmessages(),
+                                                            consumerStatsResponse.blockedconsumeronunackedmsgs(),
+                                                            consumerStatsResponse.address(),
+                                                            consumerStatsResponse.connectedsince(),
+                                                            consumerStatsResponse.type(),
+                                                            consumerStatsResponse.msgrateexpired(),
+                                                            consumerStatsResponse.msgbacklog());
+                            consumerStatsPromise.setValue(brokerStats);
+                        }
+                    } else {
+                        LOG_WARN(
+                                "ConsumerStatsResponse command - Received unknown request id from server: "
+                                        << consumerStatsResponse.request_id());
+                    }
+                    break;
+
+                }
+
                 case BaseCommand::LOOKUP_RESPONSE: {
                     const CommandLookupTopicResponse& lookupTopicResponse = incomingCmd_.lookuptopicresponse();
                     LOG_DEBUG(
@@ -820,6 +921,22 @@ void ClientConnection::handleIncomingCommand() {
             }
         }
     }
+}
+
+Future<Result, BrokerConsumerStats>
+ClientConnection::newConsumerStats(const std::string topicName, const std::string subscriptionName,
+                                   uint64_t consumerId, uint64_t requestId) {
+    Lock lock(mutex_);
+    Promise<Result, BrokerConsumerStats> promise;
+    if (isClosed()) {
+        lock.unlock();
+        LOG_ERROR(cnxString_ << " Client is not connected to the broker");
+        promise.setFailed(ResultNotConnected);
+    }
+    pendingConsumerStatsMap_.insert(std::make_pair(requestId, promise));
+    lock.unlock();
+    sendCommand(Commands::newConsumerStats(outgoingCmd_, topicName, subscriptionName, consumerId, requestId));
+    return promise.getFuture();
 }
 
 void ClientConnection::newTopicLookup(const std::string& destinationName, bool authoritative,
@@ -996,6 +1113,15 @@ void ClientConnection::handleKeepAliveTimeout() {
     }
 }
 
+void ClientConnection::handleConsumerStatsTimeout(const boost::system::error_code& ec,
+                                                  std::vector<uint64_t> consumerStatsRequests) {
+    if (ec) {
+        LOG_DEBUG(cnxString_ << " Ignoring timer cancelled event, code[" << ec << "]");
+        return;
+    }
+    startConsumerStatsTimer(consumerStatsRequests);
+}
+
 void ClientConnection::close() {
     Lock lock(mutex_);
     state_ = Disconnected;
@@ -1009,28 +1135,45 @@ void ClientConnection::close() {
         keepAliveTimer_->cancel();
     }
 
-    for (ProducersMap::iterator it = producers_.begin(); it != producers_.end(); ++it ) {
-    	HandlerBase::handleDisconnection(ResultConnectError, shared_from_this(), it->second);
+    if (consumerStatsRequestTimer_) {
+        consumerStatsRequestTimer_->cancel();
+    }
+    for (ProducersMap::iterator it = producers_.begin(); it != producers_.end(); ++it) {
+        HandlerBase::handleDisconnection(ResultConnectError, shared_from_this(), it->second);
     }
 
-    for (ConsumersMap::iterator it = consumers_.begin(); it != consumers_.end(); ++it ) {
+    for (ConsumersMap::iterator it = consumers_.begin(); it != consumers_.end(); ++it) {
         HandlerBase::handleDisconnection(ResultConnectError, shared_from_this(), it->second);
     }
 
     connectPromise_.setFailed(ResultConnectError);
 
     // Fail all pending operations on the connection
-    for (PendingRequestsMap::iterator it = pendingRequests_.begin(); it != pendingRequests_.end(); ++it) {
+    for (PendingRequestsMap::iterator it = pendingRequests_.begin(); it != pendingRequests_.end(); ++it ) {
         it->second.promise.setFailed(ResultConnectError);
     }
 
     // Fail all pending lookup-requests on the connection
     lock.lock();
-    for (PendingLookupRequestsMap::iterator it = pendingLookupRequests_.begin(); it != pendingLookupRequests_.end(); ++it) {
-        it->second->setFailed(ResultConnectError);
-        numOfPendingLookupRequest_--;
-    }
+    PendingLookupRequestsMap pendingLookupRequests;
+    pendingLookupRequests_.swap(pendingLookupRequests);
+    numOfPendingLookupRequest_ -= pendingLookupRequests.size();
+
+    PendingConsumerStatsMap pendingConsumerStatsMap;
+    pendingConsumerStatsMap_.swap(pendingConsumerStatsMap);
     lock.unlock();
+
+    for (PendingLookupRequestsMap::iterator it = pendingLookupRequests.begin(); it != pendingLookupRequests.end(); ++it) {
+        it->second->setFailed(ResultConnectError);
+    }
+
+
+    for (PendingConsumerStatsMap::iterator it = pendingConsumerStatsMap.begin();
+         it != pendingConsumerStatsMap.end(); ++it) {
+        LOG_ERROR(cnxString_ << " Closing Client Connection, please try again later");
+        it->second.setFailed(ResultConnectError);
+    }
+
     if (tlsSocket_) {
         tlsSocket_->lowest_layer().close();
     }
@@ -1080,5 +1223,4 @@ Commands::ChecksumType ClientConnection::getChecksumType() const {
     return getServerProtocolVersion() >= proto::v6 ?
             Commands::Crc32c : Commands::None;
 }
-
 }

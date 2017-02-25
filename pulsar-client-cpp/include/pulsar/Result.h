@@ -63,8 +63,11 @@ enum Result {
     ResultProducerBlockedQuotaExceededError,     /// Producer is blocked
     ResultProducerBlockedQuotaExceededException,  /// Producer is getting exception
     ResultProducerQueueIsFull, /// Producer queue is full
-
-    ResultMessageTooBig /// Trying to send a messages exceeding the max size
+    ResultMessageTooBig, /// Trying to send a messages exceeding the max size
+    ResultTopicNotFound, /// Topic not found
+    ResultSubscriptionNotFound, /// Subscription not found
+    ResultConsumerNotFound, /// Consumer not found
+    ResultUnsupportedVersionError /// Error when an older client/version doesn't support a required feature
 };
 
 // Return string representation of result code

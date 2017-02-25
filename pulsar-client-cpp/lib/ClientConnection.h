@@ -39,6 +39,7 @@
 #include "LookupDataResult.h"
 #include "UtilAllocator.h"
 #include <pulsar/Client.h>
+#include <set>
 
 using namespace pulsar;
 
@@ -131,7 +132,10 @@ class ClientConnection : public boost::enable_shared_from_this<ClientConnection>
 
     Commands::ChecksumType getChecksumType() const;
 
+    Future<Result, BrokerConsumerStats> newConsumerStats(const std::string topicName, const std::string subscriptionName,
+                                                                               uint64_t consumerId, uint64_t requestId) ;
  private:
+    long consumerStatsTTLMs_ ;
 
     struct PendingRequestData {
         Promise<Result, std::string> promise;
@@ -250,6 +254,10 @@ class ClientConnection : public boost::enable_shared_from_this<ClientConnection>
     typedef std::map<long, ConsumerImplWeakPtr> ConsumersMap;
     ConsumersMap consumers_;
 
+    typedef std::map<uint64_t, Promise<Result, BrokerConsumerStats> > PendingConsumerStatsMap;
+    PendingConsumerStatsMap pendingConsumerStatsMap_;
+
+
     boost::mutex mutex_;
     typedef boost::unique_lock<boost::mutex> Lock;
 
@@ -266,10 +274,14 @@ class ClientConnection : public boost::enable_shared_from_this<ClientConnection>
     // Signals whether we're waiting for a response from broker
     bool havePendingPingRequest_;
     DeadlineTimerPtr keepAliveTimer_;
+    DeadlineTimerPtr consumerStatsRequestTimer_;
 
+    void handleConsumerStatsTimeout(const boost::system::error_code &ec,
+                                    std::vector<uint64_t> consumerStatsRequests);
+
+    void startConsumerStatsTimer(std::vector<uint64_t> consumerStatsRequests);
     uint32_t maxPendingLookupRequest_;
     uint32_t numOfPendingLookupRequest_;
-
     friend class PulsarFriend;
 
     bool isTlsAllowInsecureConnection_;
