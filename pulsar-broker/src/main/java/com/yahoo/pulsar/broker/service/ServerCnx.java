@@ -247,6 +247,7 @@ public class ServerCnx extends PulsarHandler {
         final long consumerId = subscribe.getConsumerId();
         final SubType subType = subscribe.getSubType();
         final String consumerName = subscribe.getConsumerName();
+        final int priorityLevel = subscribe.hasPriorityLevel() ? subscribe.getPriorityLevel() : 0;
 
         authorizationFuture.thenApply(isAuthorized -> {
             if (isAuthorized) {
@@ -279,7 +280,7 @@ public class ServerCnx extends PulsarHandler {
                 }
 
                 service.getTopic(topicName).thenCompose(
-                        topic -> topic.subscribe(ServerCnx.this, subscriptionName, consumerId, subType, consumerName))
+                        topic -> topic.subscribe(ServerCnx.this, subscriptionName, consumerId, subType, priorityLevel, consumerName))
                         .thenAccept(consumer -> {
                             if (consumerFuture.complete(consumer)) {
                                 log.info("[{}] Created subscription on topic {} / {}", remoteAddress, topicName,

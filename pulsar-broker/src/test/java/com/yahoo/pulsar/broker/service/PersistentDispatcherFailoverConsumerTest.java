@@ -26,9 +26,12 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertTrue;
 
+import java.lang.reflect.Field;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
@@ -46,6 +49,7 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -60,6 +64,7 @@ import com.yahoo.pulsar.broker.namespace.NamespaceService;
 import com.yahoo.pulsar.broker.service.Consumer;
 import com.yahoo.pulsar.broker.service.BrokerService;
 import com.yahoo.pulsar.broker.service.ServerCnx;
+import com.yahoo.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import com.yahoo.pulsar.broker.service.persistent.PersistentDispatcherSingleActiveConsumer;
 import com.yahoo.pulsar.broker.service.persistent.PersistentSubscription;
 import com.yahoo.pulsar.broker.service.persistent.PersistentTopic;
@@ -191,7 +196,7 @@ public class PersistentDispatcherFailoverConsumerTest {
         assertFalse(pdfc.isConsumerConnected());
 
         // 2. Add consumer
-        Consumer consumer1 = new Consumer(sub, SubType.Exclusive, 1 /* consumer id */, "Cons1"/* consumer name */,
+        Consumer consumer1 = new Consumer(sub, SubType.Exclusive, 1 /* consumer id */, 0, "Cons1"/* consumer name */,
                 50000, serverCnx, "myrole-1");
         pdfc.addConsumer(consumer1);
         List<Consumer> consumers = pdfc.getConsumers();
@@ -208,7 +213,7 @@ public class PersistentDispatcherFailoverConsumerTest {
         assertTrue(pdfc.getActiveConsumer().consumerName() == consumer1.consumerName());
 
         // 5. Add another consumer which does not change active consumer
-        Consumer consumer2 = new Consumer(sub, SubType.Exclusive, 2 /* consumer id */, "Cons2"/* consumer name */,
+        Consumer consumer2 = new Consumer(sub, SubType.Exclusive, 2 /* consumer id */, 0, "Cons2"/* consumer name */,
                 50000, serverCnx, "myrole-1");
         pdfc.addConsumer(consumer2);
         consumers = pdfc.getConsumers();
@@ -216,7 +221,7 @@ public class PersistentDispatcherFailoverConsumerTest {
         assertEquals(3, consumers.size());
 
         // 6. Add a consumer which changes active consumer
-        Consumer consumer0 = new Consumer(sub, SubType.Exclusive, 0 /* consumer id */, "Cons0"/* consumer name */,
+        Consumer consumer0 = new Consumer(sub, SubType.Exclusive, 0 /* consumer id */, 0, "Cons0"/* consumer name */,
                 50000, serverCnx, "myrole-1");
         pdfc.addConsumer(consumer0);
         consumers = pdfc.getConsumers();
@@ -256,6 +261,69 @@ public class PersistentDispatcherFailoverConsumerTest {
         // 11. With only one consumer, unsubscribe is allowed
         assertTrue(pdfc.canUnsubscribe(consumer1));
 
+    }
+    
+    @Test
+    public void testMultipleDispatcherGetNextConsumerWithDifferentPriorityLevel() throws Exception {
+
+        PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+        PersistentDispatcherMultipleConsumers dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursorMock);
+        Consumer consumer1 = createConsumer(0, 2, 1);
+        Consumer consumer2 = createConsumer(0, 2, 2);
+        Consumer consumer3 = createConsumer(0, 2, 3);
+        Consumer consumer4 = createConsumer(1, 2, 4);
+        Consumer consumer5 = createConsumer(1, 1, 5);
+        Consumer consumer6 = createConsumer(1, 2, 6);
+        Consumer consumer7 = createConsumer(2, 1, 7);
+        Consumer consumer8 = createConsumer(2, 1, 8);
+        Consumer consumer9 = createConsumer(2, 1, 9);
+        dispatcher.addConsumer(consumer1);
+        dispatcher.addConsumer(consumer2);
+        dispatcher.addConsumer(consumer3);
+        dispatcher.addConsumer(consumer4);
+        dispatcher.addConsumer(consumer5);
+        dispatcher.addConsumer(consumer6);
+        dispatcher.addConsumer(consumer7);
+        dispatcher.addConsumer(consumer8);
+        dispatcher.addConsumer(consumer9);
+        Assert.assertEquals(getNextConsumer(dispatcher), consumer1);
+        Assert.assertEquals(getNextConsumer(dispatcher), consumer2);
+        Assert.assertEquals(getNextConsumer(dispatcher), consumer3);
+        Assert.assertEquals(getNextConsumer(dispatcher), consumer1);
+        Assert.assertEquals(getNextConsumer(dispatcher), consumer2);
+        Assert.assertEquals(getNextConsumer(dispatcher), consumer3);
+        Assert.assertEquals(getNextConsumer(dispatcher), consumer4);
+        Assert.assertEquals(getNextConsumer(dispatcher), consumer5);
+        Assert.assertEquals(getNextConsumer(dispatcher), consumer6);
+        Assert.assertEquals(getNextConsumer(dispatcher), consumer4);
+        Assert.assertEquals(getNextConsumer(dispatcher), consumer6);
+        Assert.assertEquals(getNextConsumer(dispatcher), consumer7);
+        Assert.assertEquals(getNextConsumer(dispatcher), consumer8);
+        // in between add upper priority consumer with more permits
+        Consumer consumer10 = createConsumer(0, 2, 10);
+        dispatcher.addConsumer(consumer10);
+        Assert.assertEquals(getNextConsumer(dispatcher), consumer10);
+        Assert.assertEquals(getNextConsumer(dispatcher), consumer10);
+        Assert.assertEquals(getNextConsumer(dispatcher), consumer9);
+
+    }
+
+    private Consumer getNextConsumer(PersistentDispatcherMultipleConsumers dispatcher) throws Exception {
+        Consumer consumer = dispatcher.getNextConsumer();
+        Field field = Consumer.class.getDeclaredField("MESSAGE_PERMITS_UPDATER");
+        field.setAccessible(true);
+        AtomicIntegerFieldUpdater<Consumer> messagePermits = (AtomicIntegerFieldUpdater) field.get(consumer);
+        messagePermits.decrementAndGet(consumer);
+        return consumer;
+    }
+
+    private Consumer createConsumer(int priority, int permit, int id) throws BrokerServiceException {
+        Consumer consumer = new Consumer(null, SubType.Shared, id, priority, ""+id, 5000, serverCnx, "appId");
+        try {
+            consumer.flowPermits(permit);
+        } catch (Exception e) {
+        }
+        return consumer;
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentDispatcherFailoverConsumerTest.class);

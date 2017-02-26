@@ -124,6 +124,7 @@ message CommandSubscribe {
 	required uint64 consumer_id  = 4;
 	required uint64 request_id   = 5;
 	optional string consumer_name = 6;
+	optional int32 priority_level = 7;
 }
 
 message CommandPartitionedTopicMetadata {
