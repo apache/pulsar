@@ -1077,7 +1077,8 @@ public class ServerCnxTest {
         doReturn(false).when(brokerService).isAuthorizationEnabled();
         // test SUBSCRIBE on topic and cursor creation success
         ByteBuf clientCommand = Commands.newSubscribe(successTopicName, //
-                successSubName, 1 /* consumer id */, 1 /* request id */, SubType.Exclusive, "test" /* consumer name */);
+                successSubName, 1 /* consumer id */, 1 /* request id */, SubType.Exclusive, 0 /* priority */,
+                "test" /* consumer name */);
         channel.writeInbound(clientCommand);
         assertTrue(getResponse() instanceof CommandSuccess);
 
@@ -1085,7 +1086,7 @@ public class ServerCnxTest {
         topicRef.markBatchMessagePublished();
 
         // test SUBSCRIBE on topic and cursor creation success
-        clientCommand = Commands.newSubscribe(successTopicName, failSubName, 2, 2, SubType.Exclusive,
+        clientCommand = Commands.newSubscribe(successTopicName, failSubName, 2, 2, SubType.Exclusive, 0 /* priority */,
                 "test" /* consumer name */);
         channel.writeInbound(clientCommand);
         Object response = getResponse();
