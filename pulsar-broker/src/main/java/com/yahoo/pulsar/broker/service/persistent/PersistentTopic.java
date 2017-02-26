@@ -322,7 +322,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
     @Override
     public CompletableFuture<Consumer> subscribe(final ServerCnx cnx, String subscriptionName, long consumerId,
-            SubType subType, String consumerName) {
+            SubType subType, int priorityLevel, String consumerName) {
 
         final CompletableFuture<Consumer> future = new CompletableFuture<>();
 
@@ -367,7 +367,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                     PersistentSubscription subscription = subscriptions.computeIfAbsent(subscriptionName,
                             name -> new PersistentSubscription(PersistentTopic.this, cursor));
                     
-                    Consumer consumer = new Consumer(subscription, subType, consumerId, consumerName,
+                    Consumer consumer = new Consumer(subscription, subType, consumerId, priorityLevel, consumerName,
                             brokerService.pulsar().getConfiguration().getMaxUnackedMessagesPerConsumer(), cnx,
                             cnx.getRole());
                     subscription.addConsumer(consumer);

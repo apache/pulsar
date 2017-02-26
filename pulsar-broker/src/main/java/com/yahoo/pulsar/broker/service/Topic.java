@@ -39,7 +39,7 @@ public interface Topic {
     void removeProducer(Producer producer);
 
     CompletableFuture<Consumer> subscribe(ServerCnx cnx, String subscriptionName, long consumerId, SubType subType,
-            String consumerName);
+            int priorityLevel, String consumerName);
 
     CompletableFuture<Void> unsubscribe(String subName);
 

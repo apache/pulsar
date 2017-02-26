@@ -281,7 +281,7 @@ public class Commands {
     }
 
     public static ByteBuf newSubscribe(String topic, String subscription, long consumerId, long requestId,
-            SubType subType, String consumerName) {
+            SubType subType, int priorityLevel, String consumerName) {
         CommandSubscribe.Builder subscribeBuilder = CommandSubscribe.newBuilder();
         subscribeBuilder.setTopic(topic);
         subscribeBuilder.setSubscription(subscription);
@@ -289,6 +289,7 @@ public class Commands {
         subscribeBuilder.setConsumerId(consumerId);
         subscribeBuilder.setConsumerName(consumerName);
         subscribeBuilder.setRequestId(requestId);
+        subscribeBuilder.setPriorityLevel(priorityLevel);
         CommandSubscribe subscribe = subscribeBuilder.build();
         ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.SUBSCRIBE).setSubscribe(subscribe));
         subscribeBuilder.recycle();
