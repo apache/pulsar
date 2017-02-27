@@ -214,7 +214,7 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
     }
 
     @Override
-    public synchronized CompletableFuture<Void> disconnect() {
+    public synchronized CompletableFuture<Void> disconnectAllConsumers() {
         closeFuture = new CompletableFuture<>();
         if (consumerList.isEmpty()) {
             closeFuture.complete(null);
@@ -228,7 +228,7 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
     }
 
     @Override
-    public synchronized void connect() {
+    public synchronized void reset() {
         closeFuture = null;
     }
     

@@ -45,12 +45,12 @@ public interface Dispatcher {
      * 
      * @return
      */
-    CompletableFuture<Void> disconnect();
+    CompletableFuture<Void> disconnectAllConsumers();
 
     /**
      * mark dispatcher open to serve new incoming requests
      */
-    void connect();
+    void reset();
 
     SubType getType();
 

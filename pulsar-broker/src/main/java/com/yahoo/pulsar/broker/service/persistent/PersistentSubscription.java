@@ -332,12 +332,12 @@ public class PersistentSubscription implements Subscription {
                     return;
                 }
 
-                dispatcher.disconnect().whenComplete((aVoid, throwable) -> {
+                dispatcher.disconnectAllConsumers().whenComplete((aVoid, throwable) -> {
                     if (throwable != null) {
                         if (log.isDebugEnabled()) {
                             log.debug("[{}][{}] Failed to disconnect consumer from subscription", topicName, subName, throwable);
                         }
-                        unfenceSubscriptionAndConnectDispatcher();
+                        clearFencingState();
                         future.completeExceptionally(new SubscriptionBusyException("Failed to disconnect consumers from subscription"));
                         return;
                     }
@@ -349,7 +349,7 @@ public class PersistentSubscription implements Subscription {
                                 log.debug("[{}][{}] Successfully reset subscription to timestamp {}", topicName, subName,
                                         timestamp);
                             }
-                            unfenceSubscriptionAndConnectDispatcher();
+                            clearFencingState();
                             future.complete(null);
                         }
 
@@ -357,7 +357,7 @@ public class PersistentSubscription implements Subscription {
                         public void resetFailed(ManagedLedgerException exception, Object ctx) {
                             log.error("[{}][{}] Failed to reset subscription to timestamp {}", topicName, subName, timestamp,
                                     exception);
-                            unfenceSubscriptionAndConnectDispatcher();
+                            clearFencingState();
                             // todo - retry on InvalidCursorPositionException
                             // or should we just ask user to retry one more time?
                             if (exception instanceof InvalidCursorPositionException) {
@@ -471,12 +471,12 @@ public class PersistentSubscription implements Subscription {
         // block any further consumers on this subscription
         IS_FENCED_UPDATER.set(this, TRUE);
 
-        (dispatcher != null ? dispatcher.disconnect() : CompletableFuture.completedFuture(null))
+        (dispatcher != null ? dispatcher.disconnectAllConsumers() : CompletableFuture.completedFuture(null))
                 .thenCompose(v -> close()).thenRun(() -> {
                     log.info("[{}][{}] Successfully disconnected and closed subscription", topicName, subName);
                     disconnectFuture.complete(null);
                 }).exceptionally(exception -> {
-                    unfenceSubscriptionAndConnectDispatcher();
+                    clearFencingState();
                     log.error("[{}][{}] Error disconnecting consumers from subscription", topicName, subName,
                             exception);
                     disconnectFuture.completeExceptionally(exception);
@@ -560,9 +560,9 @@ public class PersistentSubscription implements Subscription {
         return expiryMonitor.getMessageExpiryRate();
     }
 
-    private void unfenceSubscriptionAndConnectDispatcher() {
+    private void clearFencingState() {
         IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
-        dispatcher.connect();
+        dispatcher.reset();
     }
     
     public PersistentSubscriptionStats getStats() {

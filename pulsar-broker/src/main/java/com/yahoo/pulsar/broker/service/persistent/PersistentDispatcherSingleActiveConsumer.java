@@ -160,7 +160,7 @@ public final class PersistentDispatcherSingleActiveConsumer implements Dispatche
      * @return
      */
     @Override
-    public synchronized CompletableFuture<Void> disconnect() {
+    public synchronized CompletableFuture<Void> disconnectAllConsumers() {
         closeFuture = new CompletableFuture<>();
 
         if (!consumers.isEmpty()) {
@@ -176,7 +176,7 @@ public final class PersistentDispatcherSingleActiveConsumer implements Dispatche
     }
 
     @Override
-    public synchronized void connect() {
+    public synchronized void reset() {
         closeFuture = null;
     }
     
