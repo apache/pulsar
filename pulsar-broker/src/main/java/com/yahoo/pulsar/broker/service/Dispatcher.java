@@ -40,7 +40,17 @@ public interface Dispatcher {
 
     boolean canUnsubscribe(Consumer consumer);
 
+    /**
+     * disconnect all consumers and mark dispatcher closed to stop new incoming requests
+     * 
+     * @return
+     */
     CompletableFuture<Void> disconnect();
+
+    /**
+     * mark dispatcher open to serve new incoming requests
+     */
+    void connect();
 
     SubType getType();
 

@@ -99,6 +99,10 @@ public final class PersistentDispatcherSingleActiveConsumer implements Dispatche
 
     @Override
     public synchronized void addConsumer(Consumer consumer) throws BrokerServiceException {
+        if (closeFuture != null) {
+            log.warn("[{}] Dispatcher is already closed. Closing consumer ", this.topic.getName(), consumer);
+            consumer.disconnect();
+        }
         if (subscriptionType == SubType.Exclusive && !consumers.isEmpty()) {
             throw new ConsumerBusyException("Exclusive consumer is already connected");
         }
@@ -171,6 +175,11 @@ public final class PersistentDispatcherSingleActiveConsumer implements Dispatche
         return closeFuture;
     }
 
+    @Override
+    public synchronized void connect() {
+        closeFuture = null;
+    }
+    
     @Override
     public synchronized void readEntriesComplete(final List<Entry> entries, Object obj) {
         Consumer readConsumer = (Consumer) obj;

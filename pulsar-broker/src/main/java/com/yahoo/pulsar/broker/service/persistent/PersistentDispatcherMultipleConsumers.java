@@ -83,6 +83,10 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
 
     @Override
     public synchronized void addConsumer(Consumer consumer) {
+        if (closeFuture != null) {
+            log.warn("[{}] Dispatcher is already closed. Closing consumer ", name, consumer);
+            consumer.disconnect();
+        }
         if (consumerList.isEmpty()) {
             if (havePendingRead || havePendingReplayRead) {
                 // There is a pending read from previous run. We must wait for it to complete and then rewind
@@ -223,6 +227,11 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
         return closeFuture;
     }
 
+    @Override
+    public synchronized void connect() {
+        closeFuture = null;
+    }
+    
     @Override
     public SubType getType() {
         return SubType.Shared;
