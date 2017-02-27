@@ -45,7 +45,9 @@ struct ClientConfiguration::Impl {
              operationTimeoutSeconds(30),
              messageListenerThreads(1),
              concurrentLookupRequest(5000),
-             logConfFilePath() {}
+             logConfFilePath(),
+             useTls(false),
+             tlsAllowInsecureConnection(true) {}
 };
 
 ClientConfiguration::ClientConfiguration()

@@ -59,6 +59,17 @@ SharedBuffer Commands::newLookup(BaseCommand& cmd, const std::string& topic, con
     return writeMessageWithSize(cmd);
 }
 
+SharedBuffer Commands::newConsumerStats(BaseCommand& cmd, const std::string& topicName, const std::string& subscriptionName,
+                                 uint64_t consumerId, uint64_t requestId) {
+    cmd.set_type(BaseCommand::CONSUMER_STATS);
+    CommandConsumerStats* consumerStats = cmd.mutable_consumerstats();
+    consumerStats->set_topic_name(topicName);
+    consumerStats->set_subscription_name(subscriptionName);
+    consumerStats->set_consumer_id(consumerId);
+    consumerStats->set_request_id(requestId);
+    return writeMessageWithSize(cmd);
+}
+
 PairSharedBuffer Commands::newSend(SharedBuffer& headers, BaseCommand& cmd,
                                    uint64_t producerId, uint64_t sequenceId, ChecksumType checksumType, const Message& msg) {
     const proto::MessageMetadata& metadata = msg.impl_->metadata;
@@ -317,6 +328,12 @@ std::string Commands::messageType(BaseCommand_Type type) {
             break;
         case BaseCommand::LOOKUP_RESPONSE:
             return "LOOKUP_RESPONSE";
+            break;
+        case BaseCommand::CONSUMER_STATS:
+            return "CONSUMER_STATS";
+            break;
+        case BaseCommand::CONSUMER_STATS_RESPONSE:
+            return "CONSUMER_STATS_RESPONSE";
             break;
     };
 }

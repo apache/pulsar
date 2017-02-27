@@ -117,7 +117,8 @@ SharedBuffer BatchMessageContainer::getBatchedPayload() {
 void BatchMessageContainer::clear() {
     LOG_DEBUG(*this << " BatchMessageContainer::clear() called");
     timer_->cancel();
-    averageBatchSize_ = (messagesContainerListPtr_->size() + (averageBatchSize_ * numberOfBatchesSent_))/++numberOfBatchesSent_;
+    averageBatchSize_ = (messagesContainerListPtr_->size() + (averageBatchSize_ * numberOfBatchesSent_))/(numberOfBatchesSent_ + 1);
+    numberOfBatchesSent_++;
     messagesContainerListPtr_ = messageContainerListPool.create();
     // Try to optimize this
     messagesContainerListPtr_->reserve(10000);
