@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
@@ -60,6 +61,11 @@ public final class PersistentDispatcherSingleActiveConsumer implements Dispatche
     private static final int MaxReadBatchSize = 100;
     private int readBatchSize;
     private final Backoff readFailureBackoff = new Backoff(15, TimeUnit.SECONDS, 1, TimeUnit.MINUTES);
+    private static final int FALSE = 0;
+    private static final int TRUE = 1;
+    private static final AtomicIntegerFieldUpdater<PersistentDispatcherSingleActiveConsumer> IS_CLOSED_UPDATER =
+            AtomicIntegerFieldUpdater.newUpdater(PersistentDispatcherSingleActiveConsumer.class, "isClosed");
+    private volatile int isClosed = FALSE;
 
     public PersistentDispatcherSingleActiveConsumer(ManagedCursor cursor, SubType subscriptionType, int partitionIndex,
             PersistentTopic topic) {
@@ -99,7 +105,7 @@ public final class PersistentDispatcherSingleActiveConsumer implements Dispatche
 
     @Override
     public synchronized void addConsumer(Consumer consumer) throws BrokerServiceException {
-        if (closeFuture != null) {
+        if (IS_CLOSED_UPDATER.get(this) == TRUE) {
             log.warn("[{}] Dispatcher is already closed. Closing consumer ", this.topic.getName(), consumer);
             consumer.disconnect();
         }
@@ -153,6 +159,12 @@ public final class PersistentDispatcherSingleActiveConsumer implements Dispatche
         return (consumers.size() == 1) && Objects.equals(consumer, ACTIVE_CONSUMER_UPDATER.get(this));
     }
 
+    @Override
+    public CompletableFuture<Void> close() {
+        IS_CLOSED_UPDATER.set(this, TRUE);
+        return disconnectAllConsumers();
+    }
+    
     /**
      * Disconnect all consumers on this dispatcher (server side close). This triggers channelInactive on the inbound
      * handler which calls dispatcher.removeConsumer(), where the closeFuture is completed
@@ -176,8 +188,8 @@ public final class PersistentDispatcherSingleActiveConsumer implements Dispatche
     }
 
     @Override
-    public synchronized void reset() {
-        closeFuture = null;
+    public void reset() {
+        IS_CLOSED_UPDATER.set(this, FALSE);
     }
     
     @Override

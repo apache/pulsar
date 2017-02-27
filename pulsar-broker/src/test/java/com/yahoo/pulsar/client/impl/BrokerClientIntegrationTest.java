@@ -348,8 +348,8 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(timeOut = 10000)
-    public void testResetCursor() throws Exception {
+    @Test(timeOut = 10000, dataProvider = "subType")
+    public void testResetCursor(SubscriptionType subType) throws Exception {
         final RetentionPolicies policy = new RetentionPolicies(60, 52 * 1024);
         final DestinationName destName = DestinationName.get("persistent://my-property/use/my-ns/unacked-topic");
         final int warmup = 20;
@@ -360,7 +360,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
 
         final NavigableMap<Long, TimestampEntryCount> publishTimeIdMap = new ConcurrentSkipListMap<>();
 
-        consConfig.setSubscriptionType(SubscriptionType.Shared);
+        consConfig.setSubscriptionType(subType);
         consConfig.setMessageListener((MessageListener) (Consumer consumer, Message msg) -> {
             try {
                 synchronized (received) {
@@ -426,7 +426,6 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         for (String subs : subList) {
             log.info("got sub " + subs);
         }
-        consumer.close();
         publishTimeIdMap.clear();
         // reset the cursor to this timestamp
         Assert.assertTrue(subList.contains(subsId));
@@ -440,7 +439,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         }
         // validate that replay happens after the timestamp
         Assert.assertTrue(publishTimeIdMap.firstEntry().getKey() >= timestamp);
-        consumer.unsubscribe();
+        consumer.close();
         producer.close();
         // validate that expected and received counts match
         int totalReceived = 0;

@@ -337,7 +337,7 @@ public class PersistentSubscription implements Subscription {
                         if (log.isDebugEnabled()) {
                             log.debug("[{}][{}] Failed to disconnect consumer from subscription", topicName, subName, throwable);
                         }
-                        clearFencingState();
+                        IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
                         future.completeExceptionally(new SubscriptionBusyException("Failed to disconnect consumers from subscription"));
                         return;
                     }
@@ -349,7 +349,7 @@ public class PersistentSubscription implements Subscription {
                                 log.debug("[{}][{}] Successfully reset subscription to timestamp {}", topicName, subName,
                                         timestamp);
                             }
-                            clearFencingState();
+                            IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
                             future.complete(null);
                         }
 
@@ -357,7 +357,7 @@ public class PersistentSubscription implements Subscription {
                         public void resetFailed(ManagedLedgerException exception, Object ctx) {
                             log.error("[{}][{}] Failed to reset subscription to timestamp {}", topicName, subName, timestamp,
                                     exception);
-                            clearFencingState();
+                            IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
                             // todo - retry on InvalidCursorPositionException
                             // or should we just ask user to retry one more time?
                             if (exception instanceof InvalidCursorPositionException) {
@@ -471,12 +471,13 @@ public class PersistentSubscription implements Subscription {
         // block any further consumers on this subscription
         IS_FENCED_UPDATER.set(this, TRUE);
 
-        (dispatcher != null ? dispatcher.disconnectAllConsumers() : CompletableFuture.completedFuture(null))
+        (dispatcher != null ? dispatcher.close() : CompletableFuture.completedFuture(null))
                 .thenCompose(v -> close()).thenRun(() -> {
                     log.info("[{}][{}] Successfully disconnected and closed subscription", topicName, subName);
                     disconnectFuture.complete(null);
                 }).exceptionally(exception -> {
-                    clearFencingState();
+                    IS_FENCED_UPDATER.set(this, FALSE);
+                    dispatcher.reset();
                     log.error("[{}][{}] Error disconnecting consumers from subscription", topicName, subName,
                             exception);
                     disconnectFuture.completeExceptionally(exception);
@@ -560,11 +561,6 @@ public class PersistentSubscription implements Subscription {
         return expiryMonitor.getMessageExpiryRate();
     }
 
-    private void clearFencingState() {
-        IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
-        dispatcher.reset();
-    }
-    
     public PersistentSubscriptionStats getStats() {
         PersistentSubscriptionStats subStats = new PersistentSubscriptionStats();
 
