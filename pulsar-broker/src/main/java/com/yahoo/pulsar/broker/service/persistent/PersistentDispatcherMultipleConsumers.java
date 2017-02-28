@@ -15,14 +15,13 @@
  */
 package com.yahoo.pulsar.broker.service.persistent;
 
-import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
-import com.yahoo.pulsar.common.api.proto.PulsarApi;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -30,7 +29,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,12 +37,12 @@ import com.carrotsearch.hppc.ObjectSet;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
-import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
-import com.yahoo.pulsar.common.util.Codec;
+import com.yahoo.pulsar.broker.service.BrokerServiceException;
 import com.yahoo.pulsar.broker.service.Consumer;
 import com.yahoo.pulsar.broker.service.Dispatcher;
-import com.yahoo.pulsar.broker.service.BrokerServiceException;
 import com.yahoo.pulsar.client.impl.Backoff;
+import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
+import com.yahoo.pulsar.common.util.Codec;
 import com.yahoo.pulsar.utils.CopyOnWriteArrayList;
 
 /**
@@ -71,6 +69,11 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
     private int totalAvailablePermits = 0;
     private int readBatchSize;
     private final Backoff readFailureBackoff = new Backoff(15, TimeUnit.SECONDS, 1, TimeUnit.MINUTES);
+    private static final int FALSE = 0;
+    private static final int TRUE = 1;
+    private static final AtomicIntegerFieldUpdater<PersistentDispatcherMultipleConsumers> IS_CLOSED_UPDATER = AtomicIntegerFieldUpdater
+            .newUpdater(PersistentDispatcherMultipleConsumers.class, "isClosed");
+    private volatile int isClosed = FALSE;
 
     enum ReadType {
         Normal, Replay
@@ -86,6 +89,10 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
 
     @Override
     public synchronized void addConsumer(Consumer consumer) {
+        if (IS_CLOSED_UPDATER.get(this) == TRUE) {
+            log.warn("[{}] Dispatcher is already closed. Closing consumer ", name, consumer);
+            consumer.disconnect();
+        }
         if (consumerList.isEmpty()) {
             if (havePendingRead || havePendingReplayRead) {
                 // There is a pending read from previous run. We must wait for it to complete and then rewind
@@ -212,7 +219,13 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
     }
 
     @Override
-    public synchronized CompletableFuture<Void> disconnect() {
+    public CompletableFuture<Void> close() {
+        IS_CLOSED_UPDATER.set(this, TRUE);
+        return disconnectAllConsumers();
+    }
+
+    @Override
+    public synchronized CompletableFuture<Void> disconnectAllConsumers() {
         closeFuture = new CompletableFuture<>();
         if (consumerList.isEmpty()) {
             closeFuture.complete(null);
@@ -223,6 +236,11 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
             }
         }
         return closeFuture;
+    }
+
+    @Override
+    public void reset() {
+        IS_CLOSED_UPDATER.set(this, FALSE);
     }
 
     @Override
@@ -353,7 +371,7 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
     }
 
     private Consumer getNextConsumer() {
-        if (consumerList.isEmpty() || closeFuture != null) {
+        if (consumerList.isEmpty() || IS_CLOSED_UPDATER.get(this) == TRUE) {
             // abort read if no consumers are connected or if disconnect is initiated
             return null;
         }
@@ -384,7 +402,7 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
      * @return
      */
     private boolean isAtleastOneConsumerAvailable() {
-        if (consumerList.isEmpty() || closeFuture != null) {
+        if (consumerList.isEmpty() || IS_CLOSED_UPDATER.get(this) == TRUE) {
             // abort read if no consumers are connected or if disconnect is initiated
             return false;
         }
