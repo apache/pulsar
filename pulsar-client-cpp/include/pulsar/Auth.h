@@ -19,7 +19,7 @@
 
 #include <vector>
 #include <string>
-#include <unordered_map>
+#include <map>
 #include <boost/shared_ptr.hpp>
 #include <pulsar/Result.h>
 
@@ -27,7 +27,7 @@
 
 namespace pulsar {
     
-    typedef std::unordered_map<std::string, std::string> ParamMap;
+    typedef std::map<std::string, std::string> ParamMap;
     
     class AuthenticationDataProvider {
     public:

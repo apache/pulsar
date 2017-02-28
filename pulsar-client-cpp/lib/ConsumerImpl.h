@@ -91,6 +91,7 @@ enum ConsumerTopicType {
     virtual Result pauseMessageListener();
     virtual Result resumeMessageListener();
     virtual void redeliverUnacknowledgedMessages();
+    virtual Result getConsumerStats(BrokerConsumerStats& brokerConsumerStats, int partitionIndex = -1);
 protected:
     void connectionOpened(const ClientConnectionPtr& cnx);
     void connectionFailed(Result result);
@@ -103,7 +104,7 @@ protected:
     }
     virtual const std::string& getName() const;
     virtual int getNumOfPrefetchedMessages() const ;
- private:
+private:
     bool waitingForZeroQueueSizeMessage;
     bool uncompressMessageIfNeeded(const ClientConnectionPtr& cnx, const proto::CommandMessage& msg,
                                    const proto::MessageMetadata& metadata, SharedBuffer& payload);
@@ -133,7 +134,7 @@ protected:
     CompressionCodecProvider compressionCodecProvider_;
     UnAckedMessageTrackerScopedPtr unAckedMessageTrackerPtr_;
     BatchAcknowledgementTracker batchAcknowledgementTracker_;
-
+    BrokerConsumerStats brokerConsumerStats_;
 };
 
 } /* namespace pulsar */

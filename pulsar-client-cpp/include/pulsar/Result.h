@@ -54,6 +54,7 @@ enum Result {
 
     ResultConsumerNotInitialized,  /// Consumer is not initialized
     ResultProducerNotInitialized,  /// Producer is not initialized
+    ResultTooManyLookupRequestException, /// Too Many concurrent LookupRequest
 
     ResultInvalidTopicName,         /// Invalid topic name
     ResultInvalidUrl,  /// Client Initialized with Invalid Broker Url (VIP Url passed to Client Constructor)
@@ -62,8 +63,11 @@ enum Result {
     ResultProducerBlockedQuotaExceededError,     /// Producer is blocked
     ResultProducerBlockedQuotaExceededException,  /// Producer is getting exception
     ResultProducerQueueIsFull, /// Producer queue is full
-
-    ResultMessageTooBig /// Trying to send a messages exceeding the max size
+    ResultMessageTooBig, /// Trying to send a messages exceeding the max size
+    ResultTopicNotFound, /// Topic not found
+    ResultSubscriptionNotFound, /// Subscription not found
+    ResultConsumerNotFound, /// Consumer not found
+    ResultUnsupportedVersionError /// Error when an older client/version doesn't support a required feature
 };
 
 // Return string representation of result code

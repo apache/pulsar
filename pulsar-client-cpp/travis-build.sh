@@ -5,9 +5,9 @@
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
 #  You may obtain a copy of the License at
-# 
+#
 #      http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 #  Unless required by applicable law or agreed to in writing, software
 #  distributed under the License is distributed on an "AS IS" BASIS,
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -54,17 +54,23 @@ exec_cmd() {
 
 if [ "$3" = "all" -o "$3" = "dep" ]; then
   # Install dependant packages
-  exec_cmd "apt-get install -y cmake libssl-dev libcurl4-openssl-dev liblog4cxx10-dev libprotobuf-dev libboost1.55-all-dev libgtest-dev";
+  exec_cmd "apt-get update && apt-get install -y cmake gcc-4.4 cpp-4.4 gcc-4.4-base libssl-dev libcurl4-openssl-dev liblog4cxx10-dev libprotobuf-dev libboost1.55-all-dev libgtest-dev libxml2-utils";
+  exec_cmd "unlink `which gcc` && ln -s `which gcc-4.4` `which gcc`"
   exec_cmd "pushd $1/ && wget https://github.com/google/protobuf/releases/download/v2.6.1/protobuf-2.6.1.tar.gz && popd";
   exec_cmd "pushd /usr/src/gtest && cmake . && make && cp *.a /usr/lib && popd";
   exec_cmd "pushd $1/ && tar xvfz $1/protobuf-2.6.1.tar.gz && pushd $1/protobuf-2.6.1 && ./configure && make && make install && popd && popd";
-fi           
+fi
 
 if [ "$3" = "all" -o "$3" = "compile" ]; then
   # Compile and run unit tests
   exec_cmd "pushd $2/pulsar-client-cpp && cmake . && make && popd";
   PULSAR_STANDALONE_CONF=$2/pulsar-client-cpp/tests/standalone.conf $2/bin/pulsar standalone &
-  pid=$!;
-  exec_cmd "sleep 10 && pushd $2/pulsar-client-cpp/tests && ./main && popd";
+  standalone_pid=$!;
+  PULSAR_STANDALONE_CONF=$2/pulsar-client-cpp/tests/authentication.conf $2/bin/pulsar standalone --zookeeper-port 2191 --bookkeeper-port 3191 --zookeeper-dir data2/standalone/zookeeper --bookkeeper-dir data2/standalone/zookeeper &
+  auth_pid=$!;
+  sleep 10
+  PULSAR_CLIENT_CONF=$2/pulsar-client-cpp/tests/client.conf $2/bin/pulsar-admin clusters create --url http://localhost:9765/ --url-secure https://localhost:9766/ --broker-url pulsar://localhost:9885/ --broker-url-secure pulsar+ssl://localhost:9886/ cluster
+  exec_cmd "sleep 5 && pushd $2/pulsar-client-cpp/tests && ./main && popd";
   exec_cmd "kill -SIGTERM $pid";
-fi 
+  exec_cmd "kill -SIGTERM $auth_pid";
+fi

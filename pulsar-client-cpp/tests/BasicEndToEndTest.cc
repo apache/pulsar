@@ -170,6 +170,21 @@ void resendMessage(Result r, const Message& msg, Producer &producer) {
     ASSERT_EQ(ResultOk, client.close());
 }
 
+TEST(BasicEndToEndTest, testLookupThrottling) {
+    ClientConfiguration config;
+    config.setConcurrentLookupRequest(0);
+    Client client(lookupUrl, config);
+
+    Producer producer;
+    Result result = client.createProducer("persistent://prop/unit/ns1/my-topic-1", producer);
+    ASSERT_EQ(ResultTooManyLookupRequestException, result);
+
+    Consumer consumer1;
+    result = client.subscribe("persistent://prop/unit/ns1/my-topic-1", "my-sub-name", consumer1);
+    ASSERT_EQ(ResultTooManyLookupRequestException, result);
+
+}
+
     TEST(BasicEndToEndTest, testNonExistingTopic)
 {
     Client client(lookupUrl);

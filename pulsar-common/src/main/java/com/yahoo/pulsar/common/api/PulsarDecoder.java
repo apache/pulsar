@@ -26,6 +26,8 @@ import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandCloseConsumer;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandCloseProducer;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConnect;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConnected;
+import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStats;
+import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandError;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandFlow;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandLookupTopic;
@@ -223,8 +225,19 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                 handleRedeliverUnacknowledged(cmd.getRedeliverUnacknowledgedMessages());
                 cmd.getRedeliverUnacknowledgedMessages().recycle();
                 break;
-            }
+                
+            case CONSUMER_STATS:
+                checkArgument(cmd.hasConsumerStats());
+                handleConsumerStats(cmd.getConsumerStats());
+                cmd.getConsumerStats().recycle();
+                break;
 
+            case CONSUMER_STATS_RESPONSE:
+                checkArgument(cmd.hasConsumerStatsResponse());
+                handleConsumerStatsResponse(cmd.getConsumerStatsResponse());
+                cmd.getConsumerStatsResponse().recycle();
+                break;
+            }
         } finally {
             if (cmdBuilder != null) {
                 cmdBuilder.recycle();
@@ -332,5 +345,13 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
         throw new UnsupportedOperationException();
     }
 
+    protected void handleConsumerStats(CommandConsumerStats commandConsumerStats) {
+    	throw new UnsupportedOperationException();
+    }
+    
+    protected void handleConsumerStatsResponse(CommandConsumerStatsResponse commandConsumerStatsResponse) {
+    	throw new UnsupportedOperationException();
+    }
+    
     private static final Logger log = LoggerFactory.getLogger(PulsarDecoder.class);
 }

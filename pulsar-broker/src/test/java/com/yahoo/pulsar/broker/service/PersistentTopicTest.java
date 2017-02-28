@@ -22,6 +22,7 @@ import static org.mockito.Matchers.matches;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
@@ -32,7 +33,9 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
+import java.lang.reflect.Method;
 import java.net.InetSocketAddress;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -57,8 +60,11 @@ import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
+import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.zookeeper.ZooKeeper;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
@@ -69,12 +75,15 @@ import org.testng.annotations.Test;
 
 import com.yahoo.pulsar.broker.PulsarService;
 import com.yahoo.pulsar.broker.ServiceConfiguration;
+import com.yahoo.pulsar.broker.admin.AdminResource;
 import com.yahoo.pulsar.broker.cache.ConfigurationCacheService;
 import com.yahoo.pulsar.broker.namespace.NamespaceService;
 import com.yahoo.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import com.yahoo.pulsar.broker.service.persistent.PersistentDispatcherSingleActiveConsumer;
+import com.yahoo.pulsar.broker.service.persistent.PersistentReplicator;
 import com.yahoo.pulsar.broker.service.persistent.PersistentSubscription;
 import com.yahoo.pulsar.broker.service.persistent.PersistentTopic;
+import com.yahoo.pulsar.client.api.PulsarClient;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSubscribe;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.MessageMetadata;
@@ -333,12 +342,12 @@ public class PersistentTopicTest {
 
         // 1. simple subscribe
         Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
-                cmd.getConsumerName());
+                0, cmd.getConsumerName());
         f1.get();
 
         // 2. duplicate subscribe
         Future<Consumer> f2 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
-                cmd.getConsumerName());
+                0, cmd.getConsumerName());
 
         try {
             f2.get();
@@ -361,7 +370,7 @@ public class PersistentTopicTest {
         PersistentSubscription sub = new PersistentSubscription(topic, cursorMock);
 
         // 1. simple add consumer
-        Consumer consumer = new Consumer(sub, SubType.Exclusive, 1 /* consumer id */, "Cons1"/* consumer name */,
+        Consumer consumer = new Consumer(sub, SubType.Exclusive, 1 /* consumer id */, 0, "Cons1"/* consumer name */,
                 50000, serverCnx, "myrole-1");
         sub.addConsumer(consumer);
         assertTrue(sub.getDispatcher().isConsumerConnected());
@@ -391,7 +400,7 @@ public class PersistentTopicTest {
     public void testUbsubscribeRaceConditions() throws Exception {
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
         PersistentSubscription sub = new PersistentSubscription(topic, cursorMock);
-        Consumer consumer1 = new Consumer(sub, SubType.Exclusive, 1 /* consumer id */, "Cons1"/* consumer name */,
+        Consumer consumer1 = new Consumer(sub, SubType.Exclusive, 1 /* consumer id */, 0, "Cons1"/* consumer name */,
                 50000, serverCnx, "myrole-1");
         sub.addConsumer(consumer1);
 
@@ -413,7 +422,7 @@ public class PersistentTopicTest {
 
         try {
             Thread.sleep(10); /* delay to ensure that the ubsubscribe gets executed first */
-            Consumer consumer2 = new Consumer(sub, SubType.Exclusive, 2 /* consumer id */, "Cons2"/* consumer name */,
+            Consumer consumer2 = new Consumer(sub, SubType.Exclusive, 2 /* consumer id */, 0, "Cons2"/* consumer name */,
                     50000, serverCnx, "myrole-1");
         } catch (BrokerServiceException e) {
             assertTrue(e instanceof BrokerServiceException.SubscriptionFencedException);
@@ -443,7 +452,7 @@ public class PersistentTopicTest {
                 .setSubscription(successSubName).setRequestId(1).setSubType(SubType.Exclusive).build();
 
         Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
-                cmd.getConsumerName());
+                0, cmd.getConsumerName());
         f1.get();
 
         assertTrue(topic.delete().isCompletedExceptionally());
@@ -458,7 +467,7 @@ public class PersistentTopicTest {
                 .setSubscription(successSubName).setRequestId(1).setSubType(SubType.Exclusive).build();
 
         Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
-                cmd.getConsumerName());
+                0, cmd.getConsumerName());
         f1.get();
 
         final CyclicBarrier barrier = new CyclicBarrier(2);
@@ -512,7 +521,7 @@ public class PersistentTopicTest {
                 .setSubscription(successSubName).setRequestId(1).setSubType(SubType.Exclusive).build();
 
         Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
-                cmd.getConsumerName());
+                0, cmd.getConsumerName());
         f1.get();
 
         final CyclicBarrier barrier = new CyclicBarrier(2);
@@ -598,7 +607,7 @@ public class PersistentTopicTest {
                 .setSubscription(successSubName).setRequestId(1).setSubType(SubType.Exclusive).build();
 
         Future<Consumer> f = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
-                cmd.getConsumerName());
+                0, cmd.getConsumerName());
 
         try {
             f.get();
@@ -709,7 +718,7 @@ public class PersistentTopicTest {
 
         // 1. Subscribe with non partition topic
         Future<Consumer> f1 = topic1.subscribe(serverCnx, cmd1.getSubscription(), cmd1.getConsumerId(),
-                cmd1.getSubType(), cmd1.getConsumerName());
+                cmd1.getSubType(), 0, cmd1.getConsumerName());
         f1.get();
 
         // 2. Subscribe with partition topic
@@ -720,7 +729,7 @@ public class PersistentTopicTest {
                 .setSubType(SubType.Failover).build();
 
         Future<Consumer> f2 = topic2.subscribe(serverCnx, cmd2.getSubscription(), cmd2.getConsumerId(),
-                cmd2.getSubType(), cmd2.getConsumerName());
+                cmd2.getSubType(), 0, cmd2.getConsumerName());
         f2.get();
 
         // 3. Subscribe and create second consumer
@@ -729,7 +738,7 @@ public class PersistentTopicTest {
                 .setSubType(SubType.Failover).build();
 
         Future<Consumer> f3 = topic2.subscribe(serverCnx, cmd3.getSubscription(), cmd3.getConsumerId(),
-                cmd3.getSubType(), cmd3.getConsumerName());
+                cmd3.getSubType(), 0, cmd3.getConsumerName());
         f3.get();
 
         assertEquals(
@@ -749,7 +758,7 @@ public class PersistentTopicTest {
                 .setSubType(SubType.Failover).build();
 
         Future<Consumer> f4 = topic2.subscribe(serverCnx, cmd4.getSubscription(), cmd4.getConsumerId(),
-                cmd4.getSubType(), cmd4.getConsumerName());
+                cmd4.getSubType(), 0, cmd4.getConsumerName());
         f4.get();
 
         assertEquals(
@@ -774,7 +783,7 @@ public class PersistentTopicTest {
                 .setSubType(SubType.Exclusive).build();
 
         Future<Consumer> f5 = topic2.subscribe(serverCnx, cmd5.getSubscription(), cmd5.getConsumerId(),
-                cmd5.getSubType(), cmd5.getConsumerName());
+                cmd5.getSubType(), 0, cmd5.getConsumerName());
 
         try {
             f5.get();
@@ -790,7 +799,7 @@ public class PersistentTopicTest {
                 .setSubType(SubType.Exclusive).build();
 
         Future<Consumer> f6 = topic2.subscribe(serverCnx, cmd6.getSubscription(), cmd6.getConsumerId(),
-                cmd6.getSubType(), cmd6.getConsumerName());
+                cmd6.getSubType(), 0, cmd6.getConsumerName());
         f6.get();
 
         // 7. unsubscribe exclusive sub
@@ -827,5 +836,63 @@ public class PersistentTopicTest {
         f8.get();
 
         assertNull(topic2.getPersistentSubscription(successSubName));
+    }
+
+    /**
+     * {@link PersistentReplicator.removeReplicator} doesn't remove replicator in atomic way and does in multiple step:
+     * 1. disconnect replicator producer
+     * <p>
+     * 2. close cursor
+     * <p>
+     * 3. remove from replicator-list.
+     * <p>
+     * 
+     * If we try to startReplicationProducer before step-c finish then it should not avoid restarting repl-producer.
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testAtomicReplicationRemoval() throws Exception {
+        final String globalTopicName = "persistent://prop/global/ns-abc/successTopic";
+        String localCluster = "local";
+        String remoteCluster = "remote";
+        final ManagedLedger ledgerMock = mock(ManagedLedger.class);
+        doNothing().when(ledgerMock).asyncDeleteCursor(anyObject(), anyObject(), anyObject());
+        doReturn(new ArrayList<Object>()).when(ledgerMock).getCursors();
+
+        PersistentTopic topic = new PersistentTopic(globalTopicName, ledgerMock, brokerService);
+        String remoteReplicatorName = topic.replicatorPrefix + "." + remoteCluster;
+        ConcurrentOpenHashMap<String, PersistentReplicator> replicatorMap = topic.getReplicators();
+        ;
+        final URL brokerUrl = new URL(
+                "http://" + pulsar.getAdvertisedAddress() + ":" + pulsar.getConfiguration().getBrokerServicePort());
+        PulsarClient client = PulsarClient.create(brokerUrl.toString());
+        ManagedCursor cursor = mock(ManagedCursorImpl.class);
+        doReturn(remoteCluster).when(cursor).getName();
+        brokerService.getReplicationClients().put(remoteCluster, client);
+        PersistentReplicator replicator = spy(
+                new PersistentReplicator(topic, cursor, localCluster, remoteCluster, brokerService));
+        replicatorMap.put(remoteReplicatorName, replicator);
+
+        // step-1 remove replicator : it will disconnect the producer but it will wait for callback to be completed
+        Method removeMethod = PersistentTopic.class.getDeclaredMethod("removeReplicator", String.class);
+        removeMethod.setAccessible(true);
+        removeMethod.invoke(topic, remoteReplicatorName);
+
+        // step-2 now, policies doesn't have removed replication cluster so, it should not invoke "startProducer" of the
+        // replicator
+        when(pulsar.getConfigurationCache().policiesCache()
+                .get(AdminResource.path("policies", DestinationName.get(globalTopicName).getNamespace())))
+                        .thenReturn(Optional.of(new Policies()));
+        // try to start replicator again
+        topic.startReplProducers();
+        // verify: replicator.startProducer is not invoked
+        verify(replicator, Mockito.times(0)).startProducer();
+
+        // step-3 : complete the callback to remove replicator from the list
+        ArgumentCaptor<DeleteCursorCallback> captor = ArgumentCaptor.forClass(DeleteCursorCallback.class);
+        Mockito.verify(ledgerMock).asyncDeleteCursor(anyObject(), captor.capture(), anyObject());
+        DeleteCursorCallback callback = captor.getValue();
+        callback.deleteCursorComplete(null);
     }
 }

@@ -334,7 +334,7 @@ public class PersistentSubscription implements Subscription {
 
                 final CompletableFuture<Void> disconnectFuture;
                 if (dispatcher != null && dispatcher.isConsumerConnected()) {
-                    disconnectFuture = dispatcher.disconnect();
+                    disconnectFuture = dispatcher.disconnectAllConsumers();
                 } else {
                     disconnectFuture = CompletableFuture.completedFuture(null);
                 }
@@ -483,13 +483,13 @@ public class PersistentSubscription implements Subscription {
         // block any further consumers on this subscription
         IS_FENCED_UPDATER.set(this, TRUE);
 
-        (dispatcher != null ? dispatcher.disconnect() : CompletableFuture.completedFuture(null))
+        (dispatcher != null ? dispatcher.close() : CompletableFuture.completedFuture(null))
                 .thenCompose(v -> close()).thenRun(() -> {
                     log.info("[{}][{}] Successfully disconnected and closed subscription", topicName, subName);
                     disconnectFuture.complete(null);
                 }).exceptionally(exception -> {
                     IS_FENCED_UPDATER.set(this, FALSE);
-
+                    dispatcher.reset();
                     log.error("[{}][{}] Error disconnecting consumers from subscription", topicName, subName,
                             exception);
                     disconnectFuture.completeExceptionally(exception);
@@ -604,5 +604,10 @@ public class PersistentSubscription implements Subscription {
         dispatcher.redeliverUnacknowledgedMessages(consumer, positions);
     }
 
+    @Override
+    public void markTopicWithBatchMessagePublished() {
+        topic.markBatchMessagePublished();
+    }
+    
     private static final Logger log = LoggerFactory.getLogger(PersistentSubscription.class);
 }

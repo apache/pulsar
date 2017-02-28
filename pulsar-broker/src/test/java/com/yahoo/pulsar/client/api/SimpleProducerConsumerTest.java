@@ -1772,6 +1772,69 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             pulsar.getConfiguration().setMaxUnackedMessagesPerConsumer(unAckedMessages);
         }
     }
+    
+    @Test
+    public void testPriorityConsumer() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+        ConsumerConfiguration conf1 = new ConsumerConfiguration();
+        conf1.setSubscriptionType(SubscriptionType.Shared);
+        conf1.setPriorityLevel(1);
+        conf1.setReceiverQueueSize(5);
+        ConsumerConfiguration conf4 = new ConsumerConfiguration();
+        conf4.setSubscriptionType(SubscriptionType.Shared);
+        conf4.setPriorityLevel(2);
+        conf4.setReceiverQueueSize(5);
+        Consumer consumer1 = pulsarClient.subscribe("persistent://my-property/use/my-ns/my-topic2", "my-subscriber-name",
+                conf1);
+        Consumer consumer2 = pulsarClient.subscribe("persistent://my-property/use/my-ns/my-topic2", "my-subscriber-name",
+                conf1);
+        Consumer consumer3 = pulsarClient.subscribe("persistent://my-property/use/my-ns/my-topic2", "my-subscriber-name",
+                conf1);
+        Consumer consumer4 = pulsarClient.subscribe("persistent://my-property/use/my-ns/my-topic2", "my-subscriber-name",
+                conf4);
+        ProducerConfiguration producerConf = new ProducerConfiguration();
+        Producer producer = pulsarClient.createProducer("persistent://my-property/use/my-ns/my-topic2", producerConf);
+        List<Future<MessageId>> futures = Lists.newArrayList();
+
+        // Asynchronously produce messages
+        for (int i = 0; i < 15; i++) {
+            final String message = "my-message-" + i;
+            Future<MessageId> future = producer.sendAsync(message.getBytes());
+            futures.add(future);
+        }
+
+        log.info("Waiting for async publish to complete");
+        for (Future<MessageId> future : futures) {
+            future.get();
+        }
+
+        for (int i = 0; i < 20; i++) {
+            consumer1.receive(100, TimeUnit.MILLISECONDS);
+            consumer2.receive(100, TimeUnit.MILLISECONDS);
+        }
+
+        /**
+         * a. consumer1 and consumer2 now has more permits (as received and sent more permits) 
+         * b. try to produce more messages: which will again distribute among consumer1 and consumer2 
+         * and should not dispatch to consumer4
+         * 
+         */
+        for (int i = 0; i < 5; i++) {
+            final String message = "my-message-" + i;
+            Future<MessageId> future = producer.sendAsync(message.getBytes());
+            futures.add(future);
+        }
+
+        Assert.assertNull(consumer4.receive(100, TimeUnit.MILLISECONDS));
+
+        // Asynchronously acknowledge upto and including the last message
+        producer.close();
+        consumer1.close();
+        consumer2.close();
+        consumer3.close();
+        consumer4.close();
+        log.info("-- Exiting {} test --", methodName);
+    }
 
     @Test
     public void testRedeliveryFailOverConsumer() throws Exception {

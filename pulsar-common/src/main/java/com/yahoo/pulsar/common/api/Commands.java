@@ -21,6 +21,7 @@ import java.util.List;
 import com.google.protobuf.ByteString;
 import static com.yahoo.pulsar.checksum.utils.Crc32cChecksum.computeChecksum;
 import static com.yahoo.pulsar.checksum.utils.Crc32cChecksum.resumeChecksum;
+    
 import com.yahoo.pulsar.common.api.proto.PulsarApi;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.AuthMethod;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.BaseCommand;
@@ -32,6 +33,7 @@ import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandCloseConsumer;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandCloseProducer;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConnect;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConnected;
+import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandError;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandFlow;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandLookupTopic;
@@ -50,8 +52,10 @@ import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSendError;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSendReceipt;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSubscribe;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
+import com.yahoo.pulsar.common.policies.data.ConsumerStats;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSuccess;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandUnsubscribe;
+import com.yahoo.pulsar.common.api.proto.PulsarApi.KeyValue;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
@@ -281,7 +285,7 @@ public class Commands {
     }
 
     public static ByteBuf newSubscribe(String topic, String subscription, long consumerId, long requestId,
-            SubType subType, String consumerName) {
+            SubType subType, int priorityLevel, String consumerName) {
         CommandSubscribe.Builder subscribeBuilder = CommandSubscribe.newBuilder();
         subscribeBuilder.setTopic(topic);
         subscribeBuilder.setSubscription(subscription);
@@ -289,6 +293,7 @@ public class Commands {
         subscribeBuilder.setConsumerId(consumerId);
         subscribeBuilder.setConsumerName(consumerName);
         subscribeBuilder.setRequestId(requestId);
+        subscribeBuilder.setPriorityLevel(priorityLevel);
         CommandSubscribe subscribe = subscribeBuilder.build();
         ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.SUBSCRIBE).setSubscribe(subscribe));
         subscribeBuilder.recycle();
@@ -499,6 +504,30 @@ public class Commands {
                 .setRedeliverUnacknowledgedMessages(redeliverBuilder));
         redeliver.recycle();
         redeliverBuilder.recycle();
+        return res;
+    }
+
+    public static ByteBuf newConsumerStatsResponse(ServerError serverError, String errMsg, long requestId) {
+        CommandConsumerStatsResponse.Builder commandConsumerStatsResponseBuilder = CommandConsumerStatsResponse
+                .newBuilder();
+        commandConsumerStatsResponseBuilder.setRequestId(requestId);
+        commandConsumerStatsResponseBuilder.setErrorMessage(errMsg);
+        commandConsumerStatsResponseBuilder.setErrorCode(serverError);
+        
+        CommandConsumerStatsResponse commandConsumerStatsResponse = commandConsumerStatsResponseBuilder.build();
+        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.CONSUMER_STATS_RESPONSE)
+                .setConsumerStatsResponse(commandConsumerStatsResponseBuilder));
+        commandConsumerStatsResponse.recycle();
+        commandConsumerStatsResponseBuilder.recycle();
+        return res;
+    }
+
+    public static ByteBuf newConsumerStatsResponse(CommandConsumerStatsResponse.Builder builder) {
+        CommandConsumerStatsResponse commandConsumerStatsResponse = builder.build();
+        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.CONSUMER_STATS_RESPONSE)
+                .setConsumerStatsResponse(builder));
+        commandConsumerStatsResponse.recycle();
+        builder.recycle();
         return res;
     }
 

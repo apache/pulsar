@@ -48,6 +48,7 @@
 .settings/
 .pydevproject
 .idea/
+*.cbp
 
 # doxygen files
 apidocs/

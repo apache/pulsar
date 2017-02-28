@@ -195,7 +195,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
         return parts.get(8);
     }
 
-    private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS").withZone(ZoneId.systemDefault());
+    private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSZ").withZone(ZoneId.systemDefault());
 
     private static final Logger log = LoggerFactory.getLogger(ConsumerHandler.class);
 

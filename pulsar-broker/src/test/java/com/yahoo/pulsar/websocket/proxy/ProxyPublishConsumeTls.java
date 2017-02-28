@@ -29,6 +29,7 @@ import javax.net.ssl.KeyManager;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 
+import org.apache.bookkeeper.test.PortManager;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
@@ -50,12 +51,13 @@ import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 
 public class ProxyPublishConsumeTls extends ProducerConsumerBase {
     protected String methodName;
-    private static final String CONSUME_URI = "wss://localhost:6090/ws/consumer/persistent/my-property/use/my-ns/my-topic/my-sub";
-    private static final String PRODUCE_URI = "wss://localhost:6090/ws/producer/persistent/my-property/use/my-ns/my-topic/";
+    private static final int TEST_PORT = PortManager.nextFreePort();
+    private static final int TLS_TEST_PORT = PortManager.nextFreePort();
+    private static final String CONSUME_URI = "wss://localhost:" + TLS_TEST_PORT + "/ws/consumer/persistent/my-property/use/my-ns/my-topic/my-sub";
+    private static final String PRODUCE_URI = "wss://localhost:" + TLS_TEST_PORT + "/ws/producer/persistent/my-property/use/my-ns/my-topic/";
     private static final String TLS_SERVER_CERT_FILE_PATH = "./src/test/resources/certificate/server.crt";
-    private static final String TLS_SERVER_KEY_FILE_PATH = "./src/test/resources/certificate/server.key";
-    private static final int TEST_PORT = 6080;
-    private static final int TLS_TEST_PORT = 6090;
+    private static final String TLS_SERVER_KEY_FILE_PATH = "./src/test/resources/certificate/server.key";    
+    
     private ProxyServer proxyServer;
     private WebSocketService service;
 

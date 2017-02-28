@@ -58,6 +58,7 @@ import com.yahoo.pulsar.broker.service.BrokerService;
 import com.yahoo.pulsar.broker.service.BrokerServiceException;
 import com.yahoo.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import com.yahoo.pulsar.broker.service.BrokerServiceException.NamingException;
+import com.yahoo.pulsar.broker.service.BrokerServiceException.UnsupportedVersionException;
 import com.yahoo.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import com.yahoo.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import com.yahoo.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
@@ -124,10 +125,14 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     
     private static final long POLICY_UPDATE_FAILURE_RETRY_TIME_SECONDS = 60;
 
-    public static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS").withZone(ZoneId.systemDefault());
+    public static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSZ").withZone(ZoneId.systemDefault());
 
     // Timestamp of when this topic was last seen active
     private volatile long lastActive;
+    
+    // Flag to signal that producer of this topic has published batch-message so, broker should not allow consumer which
+    // doesn't support batch-message
+    private volatile boolean hasBatchMessagePublished = false;
 
     private static final FastThreadLocal<TopicStats> threadLocalTopicStats = new FastThreadLocal<TopicStats>() {
         @Override
@@ -267,8 +272,26 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         return foundRemote.get();
     }
 
-    private void startReplProducers() {
-        replicators.forEach((region, replicator) -> replicator.startProducer());
+    public void startReplProducers() {
+        // read repl-cluster from policies to avoid restart of replicator which are in process of disconnect and close
+        try {
+            Policies policies = brokerService.pulsar().getConfigurationCache().policiesCache()
+                    .get(AdminResource.path("policies", DestinationName.get(topic).getNamespace()))
+                    .orElseThrow(() -> new KeeperException.NoNodeException());
+            if (policies.replication_clusters != null) {
+                Set<String> configuredClusters = Sets.newTreeSet(policies.replication_clusters);
+                replicators.forEach((region, replicator) -> {
+                    if (configuredClusters.contains(region)) {
+                        replicator.startProducer();
+                    }
+                });
+            }
+        } catch (Exception e) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Error getting policies while starting repl-producers {}", topic, e.getMessage());
+            }
+            replicators.forEach((region, replicator) -> replicator.startProducer());
+        }
     }
 
     public CompletableFuture<Void> stopReplProducers() {
@@ -299,10 +322,18 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
     @Override
     public CompletableFuture<Consumer> subscribe(final ServerCnx cnx, String subscriptionName, long consumerId,
-            SubType subType, String consumerName) {
+            SubType subType, int priorityLevel, String consumerName) {
 
         final CompletableFuture<Consumer> future = new CompletableFuture<>();
 
+        if(hasBatchMessagePublished && !cnx.isBatchMessageCompatibleVersion()) {
+            if(log.isDebugEnabled()) {
+                log.debug("[{}] Consumer doesn't support batch-message {}", topic, subscriptionName);
+            }
+            future.completeExceptionally(new UnsupportedVersionException("Consumer doesn't support batch-message"));
+            return future;
+        }
+        
         if (subscriptionName.startsWith(replicatorPrefix)) {
             log.warn("[{}] Failed to create subscription for {}", topic, subscriptionName);
             future.completeExceptionally(new NamingException("Subscription with reserved subscription name attempted"));
@@ -336,7 +367,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                     PersistentSubscription subscription = subscriptions.computeIfAbsent(subscriptionName,
                             name -> new PersistentSubscription(PersistentTopic.this, cursor));
                     
-                    Consumer consumer = new Consumer(subscription, subType, consumerId, consumerName,
+                    Consumer consumer = new Consumer(subscription, subType, consumerId, priorityLevel, consumerName,
                             brokerService.pulsar().getConfiguration().getMaxUnackedMessagesPerConsumer(), cnx,
                             cnx.getRole());
                     subscription.addConsumer(consumer);
@@ -1206,5 +1237,9 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         return FutureUtil.failedFuture(new BrokerServiceException("Cursor not found"));
     }
 
+    public void markBatchMessagePublished() {
+        this.hasBatchMessagePublished = true;
+    }
+    
     private static final Logger log = LoggerFactory.getLogger(PersistentTopic.class);
 }

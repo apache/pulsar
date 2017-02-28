@@ -15,14 +15,13 @@
  */
 package com.yahoo.pulsar.broker.service.persistent;
 
-import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
-import com.yahoo.pulsar.common.api.proto.PulsarApi;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -30,7 +29,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,12 +37,12 @@ import com.carrotsearch.hppc.ObjectSet;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
-import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
-import com.yahoo.pulsar.common.util.Codec;
+import com.yahoo.pulsar.broker.service.BrokerServiceException;
 import com.yahoo.pulsar.broker.service.Consumer;
 import com.yahoo.pulsar.broker.service.Dispatcher;
-import com.yahoo.pulsar.broker.service.BrokerServiceException;
 import com.yahoo.pulsar.client.impl.Backoff;
+import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
+import com.yahoo.pulsar.common.util.Codec;
 import com.yahoo.pulsar.utils.CopyOnWriteArrayList;
 
 /**
@@ -62,7 +60,7 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
     private CompletableFuture<Void> closeFuture = null;
     private TreeSet<PositionImpl> messagesToReplay;
 
-    private int consumerIndex = 0;
+    private int currentConsumerRoundRobinIndex = 0;
     private boolean havePendingRead = false;
     private boolean havePendingReplayRead = false;
     private boolean shouldRewindBeforeReadingOrReplaying = false;
@@ -71,6 +69,11 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
     private int totalAvailablePermits = 0;
     private int readBatchSize;
     private final Backoff readFailureBackoff = new Backoff(15, TimeUnit.SECONDS, 1, TimeUnit.MINUTES);
+    private static final int FALSE = 0;
+    private static final int TRUE = 1;
+    private static final AtomicIntegerFieldUpdater<PersistentDispatcherMultipleConsumers> IS_CLOSED_UPDATER =
+            AtomicIntegerFieldUpdater.newUpdater(PersistentDispatcherMultipleConsumers.class, "isClosed");
+    private volatile int isClosed = FALSE;
 
     enum ReadType {
         Normal, Replay
@@ -86,6 +89,10 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
 
     @Override
     public synchronized void addConsumer(Consumer consumer) {
+        if (IS_CLOSED_UPDATER.get(this) == TRUE) {
+            log.warn("[{}] Dispatcher is already closed. Closing consumer ", name, consumer);
+            consumer.disconnect();
+        }
         if (consumerList.isEmpty()) {
             if (havePendingRead || havePendingReplayRead) {
                 // There is a pending read from previous run. We must wait for it to complete and then rewind
@@ -98,6 +105,7 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
         }
 
         consumerList.add(consumer);
+        consumerList.sort((c1, c2) -> c1.getPriorityLevel() - c2.getPriorityLevel());
         consumerSet.add(consumer);
     }
 
@@ -212,7 +220,13 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
     }
 
     @Override
-    public synchronized CompletableFuture<Void> disconnect() {
+    public CompletableFuture<Void> close() {
+        IS_CLOSED_UPDATER.set(this, TRUE);
+        return disconnectAllConsumers();
+    }
+    
+    @Override
+    public synchronized CompletableFuture<Void> disconnectAllConsumers() {
         closeFuture = new CompletableFuture<>();
         if (consumerList.isEmpty()) {
             closeFuture.complete(null);
@@ -225,6 +239,11 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
         return closeFuture;
     }
 
+    @Override
+    public void reset() {
+        IS_CLOSED_UPDATER.set(this, FALSE);
+    }
+    
     @Override
     public SubType getType() {
         return SubType.Shared;
@@ -351,28 +370,112 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
         }, waitTimeMillis, TimeUnit.MILLISECONDS);
 
     }
-
-    private Consumer getNextConsumer() {
-        if (consumerList.isEmpty() || closeFuture != null) {
+    
+    /**
+     * <pre>
+     * Broker gives more priority while dispatching messages. Here, broker follows descending priorities. (eg:
+     * 0=max-priority, 1, 2,..)
+     * <p>
+     * Broker will first dispatch messages to max priority-level consumers if they
+     * have permits, else broker will consider next priority level consumers. 
+     * Also on the same priority-level, it selects consumer in round-robin manner. 
+     * <p> 
+     * If subscription has consumer-A with  priorityLevel 1 and Consumer-B with priorityLevel 2 then broker will dispatch 
+     * messages to only consumer-A until it runs out permit and then broker starts dispatching messages to Consumer-B.
+     * <p>
+     * Consumer PriorityLevel Permits
+     * C1       0             2
+     * C2       0             1
+     * C3       0             1
+     * C4       1             2
+     * C5       1             1
+     * Result of getNextConsumer(): C1, C2, C3, C1, C4, C5, C4
+     * </pre>
+     * 
+     * <pre>
+     * <b>Algorithm:</b>
+     * 1. sorted-list: consumers stored in sorted-list: max-priority stored first 
+     * 2. currentConsumerRoundRobinIndex: it always stores last served consumer-index
+     * 3. resultingAvailableConsumerIndex: traversal index. we always start searching availableConsumer from the  
+     *    beginning of sorted-list and update resultingAvailableConsumerIndex according searching-traversal
+     *    
+     * Each time getNextConsumer() is called:<p>
+     * 1. It always starts to traverse from the max-priority consumer (first element) from sorted-list
+     * 2. Consumers on same priority-level will be treated equally and it tries to pick one of them in round-robin manner
+     * 3. If consumer is not available on given priority-level then it will go to the next lower priority-level consumers
+     * 4. Optimization: <p>
+     *    A. Consumers on same priority-level must be treated equally => dispatch message round-robin to them: 
+     *       [if Consumer of resultingAvailableConsumerIndex(current-traversal-index) has the same 
+     *       priority-level as consumer of currentConsumerRoundRobinIndex(last-Served-Consumer-Index)] 
+     *       <b>Dispatching in Round-Robin:</b> then it means we should do round-robin and skip all the consumers before 
+     *          currentConsumerRoundRobinIndex (as they are already served previously)
+     *               a. if found: if we found availableConsumer on the same priority-level after currentConsumerRoundRobinIndex 
+     *                            then return that consumer and update currentConsumerRoundRobinIndex with that consumer-index
+     *               b. else not_found: if we don't find any consumer on that same-priority level after currentConsumerRoundRobinIndex
+     *                      - a. check skipped consumers: check skipped consumer (4.A.a) which are on index before than currentConsumerRoundRobinIndex
+     *                      - b. next priority-level: if not found in previous step: then it means no consumer available in prior level. So, move to 
+     *                           next lower priority level and try to find next-available consumer as per 4.A
+     * 
+     * </pre>
+     * 
+     * @return nextAvailableConsumer
+     */
+    public Consumer getNextConsumer() {
+        if (consumerList.isEmpty() || IS_CLOSED_UPDATER.get(this) == TRUE) {
             // abort read if no consumers are connected or if disconnect is initiated
             return null;
         }
 
-        if (consumerIndex >= consumerList.size()) {
-            consumerIndex = 0;
+        if (currentConsumerRoundRobinIndex >= consumerList.size()) {
+            currentConsumerRoundRobinIndex = 0;
         }
-        
-        // find next available unblocked consumer
-        int unblockedConsumerIndex = consumerIndex;
+
+        // index of resulting consumer which will be returned
+        int resultingAvailableConsumerIndex = 0;
+        boolean scanFromBeginningIfCurrentConsumerNotAvailable = true;
+        int firstConsumerIndexOfCurrentPriorityLevel = -1;
         do {
-            if (isConsumerAvailable(consumerList.get(unblockedConsumerIndex))) {
-                consumerIndex = unblockedConsumerIndex;
-                return consumerList.get(consumerIndex++);
+            int priorityLevel = consumerList.get(currentConsumerRoundRobinIndex).getPriorityLevel()
+                    - consumerList.get(resultingAvailableConsumerIndex).getPriorityLevel();
+
+            boolean isSamePriorityLevel = priorityLevel == 0;
+            // store first-consumer index with same-priority as currentConsumerRoundRobinIndex
+            if (isSamePriorityLevel && firstConsumerIndexOfCurrentPriorityLevel == -1) {
+                firstConsumerIndexOfCurrentPriorityLevel = resultingAvailableConsumerIndex;
             }
-            if (++unblockedConsumerIndex >= consumerList.size()) {
-                unblockedConsumerIndex = 0;
+
+            // skip already served same-priority-consumer to select consumer in round-robin manner
+            resultingAvailableConsumerIndex = (isSamePriorityLevel
+                    && currentConsumerRoundRobinIndex > resultingAvailableConsumerIndex)
+                            ? currentConsumerRoundRobinIndex : resultingAvailableConsumerIndex;
+
+            // if resultingAvailableConsumerIndex moved ahead of currentConsumerRoundRobinIndex: then we should
+            // check skipped consumer which had same priority as currentConsumerRoundRobinIndex consumer
+            boolean isLastConsumerBlocked = (currentConsumerRoundRobinIndex == (consumerList.size() - 1)
+                    && !isConsumerAvailable(consumerList.get(currentConsumerRoundRobinIndex)));
+            boolean shouldScanCurrentLevel = priorityLevel < 0
+                    /* means moved to next lower-priority-level */ || isLastConsumerBlocked;
+            if (shouldScanCurrentLevel && scanFromBeginningIfCurrentConsumerNotAvailable) {
+                for (int i = firstConsumerIndexOfCurrentPriorityLevel; i < currentConsumerRoundRobinIndex; i++) {
+                    Consumer nextConsumer = consumerList.get(i);
+                    if (isConsumerAvailable(nextConsumer)) {
+                        currentConsumerRoundRobinIndex = i + 1;
+                        return nextConsumer;
+                    }
+                }
+                // now, we have scanned from the beginning: flip the flag to avoid scan again
+                scanFromBeginningIfCurrentConsumerNotAvailable = false;
             }
-        } while (unblockedConsumerIndex != consumerIndex);
+
+            Consumer nextConsumer = consumerList.get(resultingAvailableConsumerIndex);
+            if (isConsumerAvailable(nextConsumer)) {
+                currentConsumerRoundRobinIndex = resultingAvailableConsumerIndex + 1;
+                return nextConsumer;
+            }
+            if (++resultingAvailableConsumerIndex >= consumerList.size()) {
+                break;
+            }
+        } while (true);
 
         // not found unblocked consumer
         return null;
@@ -384,7 +487,7 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
      * @return
      */
     private boolean isAtleastOneConsumerAvailable() {
-        if (consumerList.isEmpty() || closeFuture != null) {
+        if (consumerList.isEmpty() || IS_CLOSED_UPDATER.get(this) == TRUE) {
             // abort read if no consumers are connected or if disconnect is initiated
             return false;
         }

@@ -44,6 +44,8 @@ void protobuf_ShutdownFile_PulsarApi_2eproto() {
   delete CommandError::default_instance_;
   delete CommandPing::default_instance_;
   delete CommandPong::default_instance_;
+  delete CommandConsumerStats::default_instance_;
+  delete CommandConsumerStatsResponse::default_instance_;
   delete BaseCommand::default_instance_;
 }
 
@@ -86,6 +88,8 @@ void protobuf_AddDesc_PulsarApi_2eproto() {
   CommandError::default_instance_ = new CommandError();
   CommandPing::default_instance_ = new CommandPing();
   CommandPong::default_instance_ = new CommandPong();
+  CommandConsumerStats::default_instance_ = new CommandConsumerStats();
+  CommandConsumerStatsResponse::default_instance_ = new CommandConsumerStatsResponse();
   BaseCommand::default_instance_ = new BaseCommand();
   MessageIdData::default_instance_->InitAsDefaultInstance();
   KeyValue::default_instance_->InitAsDefaultInstance();
@@ -114,6 +118,8 @@ void protobuf_AddDesc_PulsarApi_2eproto() {
   CommandError::default_instance_->InitAsDefaultInstance();
   CommandPing::default_instance_->InitAsDefaultInstance();
   CommandPong::default_instance_->InitAsDefaultInstance();
+  CommandConsumerStats::default_instance_->InitAsDefaultInstance();
+  CommandConsumerStatsResponse::default_instance_->InitAsDefaultInstance();
   BaseCommand::default_instance_->InitAsDefaultInstance();
   ::google::protobuf::internal::OnShutdown(&protobuf_ShutdownFile_PulsarApi_2eproto);
 }
@@ -155,6 +161,10 @@ bool ServerError_IsValid(int value) {
     case 7:
     case 8:
     case 9:
+    case 10:
+    case 11:
+    case 12:
+    case 13:
       return true;
     default:
       return false;
@@ -181,6 +191,7 @@ bool ProtocolVersion_IsValid(int value) {
     case 4:
     case 5:
     case 6:
+    case 7:
       return true;
     default:
       return false;
@@ -7917,6 +7928,1028 @@ void CommandPong::Swap(CommandPong* other) {
 
 // ===================================================================
 
+#ifndef _MSC_VER
+const int CommandConsumerStats::kRequestIdFieldNumber;
+const int CommandConsumerStats::kTopicNameFieldNumber;
+const int CommandConsumerStats::kSubscriptionNameFieldNumber;
+const int CommandConsumerStats::kConsumerIdFieldNumber;
+#endif  // !_MSC_VER
+
+CommandConsumerStats::CommandConsumerStats()
+  : ::google::protobuf::MessageLite() {
+  SharedCtor();
+  // @@protoc_insertion_point(constructor:pulsar.proto.CommandConsumerStats)
+}
+
+void CommandConsumerStats::InitAsDefaultInstance() {
+}
+
+CommandConsumerStats::CommandConsumerStats(const CommandConsumerStats& from)
+  : ::google::protobuf::MessageLite() {
+  SharedCtor();
+  MergeFrom(from);
+  // @@protoc_insertion_point(copy_constructor:pulsar.proto.CommandConsumerStats)
+}
+
+void CommandConsumerStats::SharedCtor() {
+  ::google::protobuf::internal::GetEmptyString();
+  _cached_size_ = 0;
+  request_id_ = GOOGLE_ULONGLONG(0);
+  topic_name_ = const_cast< ::std::string*>(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  subscription_name_ = const_cast< ::std::string*>(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  consumer_id_ = GOOGLE_ULONGLONG(0);
+  ::memset(_has_bits_, 0, sizeof(_has_bits_));
+}
+
+CommandConsumerStats::~CommandConsumerStats() {
+  // @@protoc_insertion_point(destructor:pulsar.proto.CommandConsumerStats)
+  SharedDtor();
+}
+
+void CommandConsumerStats::SharedDtor() {
+  if (topic_name_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+    delete topic_name_;
+  }
+  if (subscription_name_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+    delete subscription_name_;
+  }
+  #ifdef GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER
+  if (this != &default_instance()) {
+  #else
+  if (this != default_instance_) {
+  #endif
+  }
+}
+
+void CommandConsumerStats::SetCachedSize(int size) const {
+  GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
+  _cached_size_ = size;
+  GOOGLE_SAFE_CONCURRENT_WRITES_END();
+}
+const CommandConsumerStats& CommandConsumerStats::default_instance() {
+#ifdef GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER
+  protobuf_AddDesc_PulsarApi_2eproto();
+#else
+  if (default_instance_ == NULL) protobuf_AddDesc_PulsarApi_2eproto();
+#endif
+  return *default_instance_;
+}
+
+CommandConsumerStats* CommandConsumerStats::default_instance_ = NULL;
+
+CommandConsumerStats* CommandConsumerStats::New() const {
+  return new CommandConsumerStats;
+}
+
+void CommandConsumerStats::Clear() {
+  if (_has_bits_[0 / 32] & 15) {
+    request_id_ = GOOGLE_ULONGLONG(0);
+    if (has_topic_name()) {
+      if (topic_name_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+        topic_name_->clear();
+      }
+    }
+    if (has_subscription_name()) {
+      if (subscription_name_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+        subscription_name_->clear();
+      }
+    }
+    consumer_id_ = GOOGLE_ULONGLONG(0);
+  }
+  ::memset(_has_bits_, 0, sizeof(_has_bits_));
+  mutable_unknown_fields()->clear();
+}
+
+bool CommandConsumerStats::MergePartialFromCodedStream(
+    ::google::protobuf::io::CodedInputStream* input) {
+#define DO_(EXPRESSION) if (!(EXPRESSION)) goto failure
+  ::google::protobuf::uint32 tag;
+  ::google::protobuf::io::StringOutputStream unknown_fields_string(
+      mutable_unknown_fields());
+  ::google::protobuf::io::CodedOutputStream unknown_fields_stream(
+      &unknown_fields_string);
+  // @@protoc_insertion_point(parse_start:pulsar.proto.CommandConsumerStats)
+  for (;;) {
+    ::std::pair< ::google::protobuf::uint32, bool> p = input->ReadTagWithCutoff(127);
+    tag = p.first;
+    if (!p.second) goto handle_unusual;
+    switch (::google::protobuf::internal::WireFormatLite::GetTagFieldNumber(tag)) {
+      // required uint64 request_id = 1;
+      case 1: {
+        if (tag == 8) {
+          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
+                   ::google::protobuf::uint64, ::google::protobuf::internal::WireFormatLite::TYPE_UINT64>(
+                 input, &request_id_)));
+          set_has_request_id();
+        } else {
+          goto handle_unusual;
+        }
+        if (input->ExpectTag(18)) goto parse_topic_name;
+        break;
+      }
+
+      // required string topic_name = 2;
+      case 2: {
+        if (tag == 18) {
+         parse_topic_name:
+          DO_(::google::protobuf::internal::WireFormatLite::ReadString(
+                input, this->mutable_topic_name()));
+        } else {
+          goto handle_unusual;
+        }
+        if (input->ExpectTag(26)) goto parse_subscription_name;
+        break;
+      }
+
+      // required string subscription_name = 3;
+      case 3: {
+        if (tag == 26) {
+         parse_subscription_name:
+          DO_(::google::protobuf::internal::WireFormatLite::ReadString(
+                input, this->mutable_subscription_name()));
+        } else {
+          goto handle_unusual;
+        }
+        if (input->ExpectTag(32)) goto parse_consumer_id;
+        break;
+      }
+
+      // required uint64 consumer_id = 4;
+      case 4: {
+        if (tag == 32) {
+         parse_consumer_id:
+          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
+                   ::google::protobuf::uint64, ::google::protobuf::internal::WireFormatLite::TYPE_UINT64>(
+                 input, &consumer_id_)));
+          set_has_consumer_id();
+        } else {
+          goto handle_unusual;
+        }
+        if (input->ExpectAtEnd()) goto success;
+        break;
+      }
+
+      default: {
+      handle_unusual:
+        if (tag == 0 ||
+            ::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
+            ::google::protobuf::internal::WireFormatLite::WIRETYPE_END_GROUP) {
+          goto success;
+        }
+        DO_(::google::protobuf::internal::WireFormatLite::SkipField(
+            input, tag, &unknown_fields_stream));
+        break;
+      }
+    }
+  }
+success:
+  // @@protoc_insertion_point(parse_success:pulsar.proto.CommandConsumerStats)
+  return true;
+failure:
+  // @@protoc_insertion_point(parse_failure:pulsar.proto.CommandConsumerStats)
+  return false;
+#undef DO_
+}
+
+void CommandConsumerStats::SerializeWithCachedSizes(
+    ::google::protobuf::io::CodedOutputStream* output) const {
+  // @@protoc_insertion_point(serialize_start:pulsar.proto.CommandConsumerStats)
+  // required uint64 request_id = 1;
+  if (has_request_id()) {
+    ::google::protobuf::internal::WireFormatLite::WriteUInt64(1, this->request_id(), output);
+  }
+
+  // required string topic_name = 2;
+  if (has_topic_name()) {
+    ::google::protobuf::internal::WireFormatLite::WriteStringMaybeAliased(
+      2, this->topic_name(), output);
+  }
+
+  // required string subscription_name = 3;
+  if (has_subscription_name()) {
+    ::google::protobuf::internal::WireFormatLite::WriteStringMaybeAliased(
+      3, this->subscription_name(), output);
+  }
+
+  // required uint64 consumer_id = 4;
+  if (has_consumer_id()) {
+    ::google::protobuf::internal::WireFormatLite::WriteUInt64(4, this->consumer_id(), output);
+  }
+
+  output->WriteRaw(unknown_fields().data(),
+                   unknown_fields().size());
+  // @@protoc_insertion_point(serialize_end:pulsar.proto.CommandConsumerStats)
+}
+
+int CommandConsumerStats::ByteSize() const {
+  int total_size = 0;
+
+  if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
+    // required uint64 request_id = 1;
+    if (has_request_id()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::UInt64Size(
+          this->request_id());
+    }
+
+    // required string topic_name = 2;
+    if (has_topic_name()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::StringSize(
+          this->topic_name());
+    }
+
+    // required string subscription_name = 3;
+    if (has_subscription_name()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::StringSize(
+          this->subscription_name());
+    }
+
+    // required uint64 consumer_id = 4;
+    if (has_consumer_id()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::UInt64Size(
+          this->consumer_id());
+    }
+
+  }
+  total_size += unknown_fields().size();
+
+  GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
+  _cached_size_ = total_size;
+  GOOGLE_SAFE_CONCURRENT_WRITES_END();
+  return total_size;
+}
+
+void CommandConsumerStats::CheckTypeAndMergeFrom(
+    const ::google::protobuf::MessageLite& from) {
+  MergeFrom(*::google::protobuf::down_cast<const CommandConsumerStats*>(&from));
+}
+
+void CommandConsumerStats::MergeFrom(const CommandConsumerStats& from) {
+  GOOGLE_CHECK_NE(&from, this);
+  if (from._has_bits_[0 / 32] & (0xffu << (0 % 32))) {
+    if (from.has_request_id()) {
+      set_request_id(from.request_id());
+    }
+    if (from.has_topic_name()) {
+      set_topic_name(from.topic_name());
+    }
+    if (from.has_subscription_name()) {
+      set_subscription_name(from.subscription_name());
+    }
+    if (from.has_consumer_id()) {
+      set_consumer_id(from.consumer_id());
+    }
+  }
+  mutable_unknown_fields()->append(from.unknown_fields());
+}
+
+void CommandConsumerStats::CopyFrom(const CommandConsumerStats& from) {
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool CommandConsumerStats::IsInitialized() const {
+  if ((_has_bits_[0] & 0x0000000f) != 0x0000000f) return false;
+
+  return true;
+}
+
+void CommandConsumerStats::Swap(CommandConsumerStats* other) {
+  if (other != this) {
+    std::swap(request_id_, other->request_id_);
+    std::swap(topic_name_, other->topic_name_);
+    std::swap(subscription_name_, other->subscription_name_);
+    std::swap(consumer_id_, other->consumer_id_);
+    std::swap(_has_bits_[0], other->_has_bits_[0]);
+    _unknown_fields_.swap(other->_unknown_fields_);
+    std::swap(_cached_size_, other->_cached_size_);
+  }
+}
+
+::std::string CommandConsumerStats::GetTypeName() const {
+  return "pulsar.proto.CommandConsumerStats";
+}
+
+
+// ===================================================================
+
+#ifndef _MSC_VER
+const int CommandConsumerStatsResponse::kRequestIdFieldNumber;
+const int CommandConsumerStatsResponse::kErrorCodeFieldNumber;
+const int CommandConsumerStatsResponse::kErrorMessageFieldNumber;
+const int CommandConsumerStatsResponse::kMsgRateOutFieldNumber;
+const int CommandConsumerStatsResponse::kMsgThroughputOutFieldNumber;
+const int CommandConsumerStatsResponse::kMsgRateRedeliverFieldNumber;
+const int CommandConsumerStatsResponse::kConsumerNameFieldNumber;
+const int CommandConsumerStatsResponse::kAvailablePermitsFieldNumber;
+const int CommandConsumerStatsResponse::kUnackedMessagesFieldNumber;
+const int CommandConsumerStatsResponse::kBlockedConsumerOnUnackedMsgsFieldNumber;
+const int CommandConsumerStatsResponse::kAddressFieldNumber;
+const int CommandConsumerStatsResponse::kConnectedSinceFieldNumber;
+const int CommandConsumerStatsResponse::kTypeFieldNumber;
+const int CommandConsumerStatsResponse::kMsgRateExpiredFieldNumber;
+const int CommandConsumerStatsResponse::kMsgBacklogFieldNumber;
+#endif  // !_MSC_VER
+
+CommandConsumerStatsResponse::CommandConsumerStatsResponse()
+  : ::google::protobuf::MessageLite() {
+  SharedCtor();
+  // @@protoc_insertion_point(constructor:pulsar.proto.CommandConsumerStatsResponse)
+}
+
+void CommandConsumerStatsResponse::InitAsDefaultInstance() {
+}
+
+CommandConsumerStatsResponse::CommandConsumerStatsResponse(const CommandConsumerStatsResponse& from)
+  : ::google::protobuf::MessageLite() {
+  SharedCtor();
+  MergeFrom(from);
+  // @@protoc_insertion_point(copy_constructor:pulsar.proto.CommandConsumerStatsResponse)
+}
+
+void CommandConsumerStatsResponse::SharedCtor() {
+  ::google::protobuf::internal::GetEmptyString();
+  _cached_size_ = 0;
+  request_id_ = GOOGLE_ULONGLONG(0);
+  error_code_ = 0;
+  error_message_ = const_cast< ::std::string*>(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  msgrateout_ = 0;
+  msgthroughputout_ = 0;
+  msgrateredeliver_ = 0;
+  consumername_ = const_cast< ::std::string*>(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  availablepermits_ = GOOGLE_ULONGLONG(0);
+  unackedmessages_ = GOOGLE_ULONGLONG(0);
+  blockedconsumeronunackedmsgs_ = false;
+  address_ = const_cast< ::std::string*>(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  connectedsince_ = const_cast< ::std::string*>(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  type_ = const_cast< ::std::string*>(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  msgrateexpired_ = 0;
+  msgbacklog_ = GOOGLE_ULONGLONG(0);
+  ::memset(_has_bits_, 0, sizeof(_has_bits_));
+}
+
+CommandConsumerStatsResponse::~CommandConsumerStatsResponse() {
+  // @@protoc_insertion_point(destructor:pulsar.proto.CommandConsumerStatsResponse)
+  SharedDtor();
+}
+
+void CommandConsumerStatsResponse::SharedDtor() {
+  if (error_message_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+    delete error_message_;
+  }
+  if (consumername_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+    delete consumername_;
+  }
+  if (address_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+    delete address_;
+  }
+  if (connectedsince_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+    delete connectedsince_;
+  }
+  if (type_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+    delete type_;
+  }
+  #ifdef GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER
+  if (this != &default_instance()) {
+  #else
+  if (this != default_instance_) {
+  #endif
+  }
+}
+
+void CommandConsumerStatsResponse::SetCachedSize(int size) const {
+  GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
+  _cached_size_ = size;
+  GOOGLE_SAFE_CONCURRENT_WRITES_END();
+}
+const CommandConsumerStatsResponse& CommandConsumerStatsResponse::default_instance() {
+#ifdef GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER
+  protobuf_AddDesc_PulsarApi_2eproto();
+#else
+  if (default_instance_ == NULL) protobuf_AddDesc_PulsarApi_2eproto();
+#endif
+  return *default_instance_;
+}
+
+CommandConsumerStatsResponse* CommandConsumerStatsResponse::default_instance_ = NULL;
+
+CommandConsumerStatsResponse* CommandConsumerStatsResponse::New() const {
+  return new CommandConsumerStatsResponse;
+}
+
+void CommandConsumerStatsResponse::Clear() {
+#define OFFSET_OF_FIELD_(f) (reinterpret_cast<char*>(      \
+  &reinterpret_cast<CommandConsumerStatsResponse*>(16)->f) - \
+   reinterpret_cast<char*>(16))
+
+#define ZR_(first, last) do {                              \
+    size_t f = OFFSET_OF_FIELD_(first);                    \
+    size_t n = OFFSET_OF_FIELD_(last) - f + sizeof(last);  \
+    ::memset(&first, 0, n);                                \
+  } while (0)
+
+  if (_has_bits_[0 / 32] & 255) {
+    ZR_(msgrateout_, error_code_);
+    request_id_ = GOOGLE_ULONGLONG(0);
+    if (has_error_message()) {
+      if (error_message_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+        error_message_->clear();
+      }
+    }
+    if (has_consumername()) {
+      if (consumername_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+        consumername_->clear();
+      }
+    }
+    availablepermits_ = GOOGLE_ULONGLONG(0);
+  }
+  if (_has_bits_[8 / 32] & 32512) {
+    ZR_(msgrateexpired_, msgbacklog_);
+    unackedmessages_ = GOOGLE_ULONGLONG(0);
+    blockedconsumeronunackedmsgs_ = false;
+    if (has_address()) {
+      if (address_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+        address_->clear();
+      }
+    }
+    if (has_connectedsince()) {
+      if (connectedsince_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+        connectedsince_->clear();
+      }
+    }
+    if (has_type()) {
+      if (type_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+        type_->clear();
+      }
+    }
+  }
+
+#undef OFFSET_OF_FIELD_
+#undef ZR_
+
+  ::memset(_has_bits_, 0, sizeof(_has_bits_));
+  mutable_unknown_fields()->clear();
+}
+
+bool CommandConsumerStatsResponse::MergePartialFromCodedStream(
+    ::google::protobuf::io::CodedInputStream* input) {
+#define DO_(EXPRESSION) if (!(EXPRESSION)) goto failure
+  ::google::protobuf::uint32 tag;
+  ::google::protobuf::io::StringOutputStream unknown_fields_string(
+      mutable_unknown_fields());
+  ::google::protobuf::io::CodedOutputStream unknown_fields_stream(
+      &unknown_fields_string);
+  // @@protoc_insertion_point(parse_start:pulsar.proto.CommandConsumerStatsResponse)
+  for (;;) {
+    ::std::pair< ::google::protobuf::uint32, bool> p = input->ReadTagWithCutoff(127);
+    tag = p.first;
+    if (!p.second) goto handle_unusual;
+    switch (::google::protobuf::internal::WireFormatLite::GetTagFieldNumber(tag)) {
+      // required uint64 request_id = 1;
+      case 1: {
+        if (tag == 8) {
+          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
+                   ::google::protobuf::uint64, ::google::protobuf::internal::WireFormatLite::TYPE_UINT64>(
+                 input, &request_id_)));
+          set_has_request_id();
+        } else {
+          goto handle_unusual;
+        }
+        if (input->ExpectTag(16)) goto parse_error_code;
+        break;
+      }
+
+      // optional .pulsar.proto.ServerError error_code = 2;
+      case 2: {
+        if (tag == 16) {
+         parse_error_code:
+          int value;
+          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
+                   int, ::google::protobuf::internal::WireFormatLite::TYPE_ENUM>(
+                 input, &value)));
+          if (::pulsar::proto::ServerError_IsValid(value)) {
+            set_error_code(static_cast< ::pulsar::proto::ServerError >(value));
+          } else {
+            unknown_fields_stream.WriteVarint32(tag);
+            unknown_fields_stream.WriteVarint32(value);
+          }
+        } else {
+          goto handle_unusual;
+        }
+        if (input->ExpectTag(26)) goto parse_error_message;
+        break;
+      }
+
+      // optional string error_message = 3;
+      case 3: {
+        if (tag == 26) {
+         parse_error_message:
+          DO_(::google::protobuf::internal::WireFormatLite::ReadString(
+                input, this->mutable_error_message()));
+        } else {
+          goto handle_unusual;
+        }
+        if (input->ExpectTag(33)) goto parse_msgRateOut;
+        break;
+      }
+
+      // optional double msgRateOut = 4;
+      case 4: {
+        if (tag == 33) {
+         parse_msgRateOut:
+          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
+                   double, ::google::protobuf::internal::WireFormatLite::TYPE_DOUBLE>(
+                 input, &msgrateout_)));
+          set_has_msgrateout();
+        } else {
+          goto handle_unusual;
+        }
+        if (input->ExpectTag(41)) goto parse_msgThroughputOut;
+        break;
+      }
+
+      // optional double msgThroughputOut = 5;
+      case 5: {
+        if (tag == 41) {
+         parse_msgThroughputOut:
+          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
+                   double, ::google::protobuf::internal::WireFormatLite::TYPE_DOUBLE>(
+                 input, &msgthroughputout_)));
+          set_has_msgthroughputout();
+        } else {
+          goto handle_unusual;
+        }
+        if (input->ExpectTag(49)) goto parse_msgRateRedeliver;
+        break;
+      }
+
+      // optional double msgRateRedeliver = 6;
+      case 6: {
+        if (tag == 49) {
+         parse_msgRateRedeliver:
+          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
+                   double, ::google::protobuf::internal::WireFormatLite::TYPE_DOUBLE>(
+                 input, &msgrateredeliver_)));
+          set_has_msgrateredeliver();
+        } else {
+          goto handle_unusual;
+        }
+        if (input->ExpectTag(58)) goto parse_consumerName;
+        break;
+      }
+
+      // optional string consumerName = 7;
+      case 7: {
+        if (tag == 58) {
+         parse_consumerName:
+          DO_(::google::protobuf::internal::WireFormatLite::ReadString(
+                input, this->mutable_consumername()));
+        } else {
+          goto handle_unusual;
+        }
+        if (input->ExpectTag(64)) goto parse_availablePermits;
+        break;
+      }
+
+      // optional uint64 availablePermits = 8;
+      case 8: {
+        if (tag == 64) {
+         parse_availablePermits:
+          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
+                   ::google::protobuf::uint64, ::google::protobuf::internal::WireFormatLite::TYPE_UINT64>(
+                 input, &availablepermits_)));
+          set_has_availablepermits();
+        } else {
+          goto handle_unusual;
+        }
+        if (input->ExpectTag(72)) goto parse_unackedMessages;
+        break;
+      }
+
+      // optional uint64 unackedMessages = 9;
+      case 9: {
+        if (tag == 72) {
+         parse_unackedMessages:
+          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
+                   ::google::protobuf::uint64, ::google::protobuf::internal::WireFormatLite::TYPE_UINT64>(
+                 input, &unackedmessages_)));
+          set_has_unackedmessages();
+        } else {
+          goto handle_unusual;
+        }
+        if (input->ExpectTag(80)) goto parse_blockedConsumerOnUnackedMsgs;
+        break;
+      }
+
+      // optional bool blockedConsumerOnUnackedMsgs = 10;
+      case 10: {
+        if (tag == 80) {
+         parse_blockedConsumerOnUnackedMsgs:
+          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
+                   bool, ::google::protobuf::internal::WireFormatLite::TYPE_BOOL>(
+                 input, &blockedconsumeronunackedmsgs_)));
+          set_has_blockedconsumeronunackedmsgs();
+        } else {
+          goto handle_unusual;
+        }
+        if (input->ExpectTag(90)) goto parse_address;
+        break;
+      }
+
+      // optional string address = 11;
+      case 11: {
+        if (tag == 90) {
+         parse_address:
+          DO_(::google::protobuf::internal::WireFormatLite::ReadString(
+                input, this->mutable_address()));
+        } else {
+          goto handle_unusual;
+        }
+        if (input->ExpectTag(98)) goto parse_connectedSince;
+        break;
+      }
+
+      // optional string connectedSince = 12;
+      case 12: {
+        if (tag == 98) {
+         parse_connectedSince:
+          DO_(::google::protobuf::internal::WireFormatLite::ReadString(
+                input, this->mutable_connectedsince()));
+        } else {
+          goto handle_unusual;
+        }
+        if (input->ExpectTag(106)) goto parse_type;
+        break;
+      }
+
+      // optional string type = 13;
+      case 13: {
+        if (tag == 106) {
+         parse_type:
+          DO_(::google::protobuf::internal::WireFormatLite::ReadString(
+                input, this->mutable_type()));
+        } else {
+          goto handle_unusual;
+        }
+        if (input->ExpectTag(113)) goto parse_msgRateExpired;
+        break;
+      }
+
+      // optional double msgRateExpired = 14;
+      case 14: {
+        if (tag == 113) {
+         parse_msgRateExpired:
+          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
+                   double, ::google::protobuf::internal::WireFormatLite::TYPE_DOUBLE>(
+                 input, &msgrateexpired_)));
+          set_has_msgrateexpired();
+        } else {
+          goto handle_unusual;
+        }
+        if (input->ExpectTag(120)) goto parse_msgBacklog;
+        break;
+      }
+
+      // optional uint64 msgBacklog = 15;
+      case 15: {
+        if (tag == 120) {
+         parse_msgBacklog:
+          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
+                   ::google::protobuf::uint64, ::google::protobuf::internal::WireFormatLite::TYPE_UINT64>(
+                 input, &msgbacklog_)));
+          set_has_msgbacklog();
+        } else {
+          goto handle_unusual;
+        }
+        if (input->ExpectAtEnd()) goto success;
+        break;
+      }
+
+      default: {
+      handle_unusual:
+        if (tag == 0 ||
+            ::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
+            ::google::protobuf::internal::WireFormatLite::WIRETYPE_END_GROUP) {
+          goto success;
+        }
+        DO_(::google::protobuf::internal::WireFormatLite::SkipField(
+            input, tag, &unknown_fields_stream));
+        break;
+      }
+    }
+  }
+success:
+  // @@protoc_insertion_point(parse_success:pulsar.proto.CommandConsumerStatsResponse)
+  return true;
+failure:
+  // @@protoc_insertion_point(parse_failure:pulsar.proto.CommandConsumerStatsResponse)
+  return false;
+#undef DO_
+}
+
+void CommandConsumerStatsResponse::SerializeWithCachedSizes(
+    ::google::protobuf::io::CodedOutputStream* output) const {
+  // @@protoc_insertion_point(serialize_start:pulsar.proto.CommandConsumerStatsResponse)
+  // required uint64 request_id = 1;
+  if (has_request_id()) {
+    ::google::protobuf::internal::WireFormatLite::WriteUInt64(1, this->request_id(), output);
+  }
+
+  // optional .pulsar.proto.ServerError error_code = 2;
+  if (has_error_code()) {
+    ::google::protobuf::internal::WireFormatLite::WriteEnum(
+      2, this->error_code(), output);
+  }
+
+  // optional string error_message = 3;
+  if (has_error_message()) {
+    ::google::protobuf::internal::WireFormatLite::WriteStringMaybeAliased(
+      3, this->error_message(), output);
+  }
+
+  // optional double msgRateOut = 4;
+  if (has_msgrateout()) {
+    ::google::protobuf::internal::WireFormatLite::WriteDouble(4, this->msgrateout(), output);
+  }
+
+  // optional double msgThroughputOut = 5;
+  if (has_msgthroughputout()) {
+    ::google::protobuf::internal::WireFormatLite::WriteDouble(5, this->msgthroughputout(), output);
+  }
+
+  // optional double msgRateRedeliver = 6;
+  if (has_msgrateredeliver()) {
+    ::google::protobuf::internal::WireFormatLite::WriteDouble(6, this->msgrateredeliver(), output);
+  }
+
+  // optional string consumerName = 7;
+  if (has_consumername()) {
+    ::google::protobuf::internal::WireFormatLite::WriteStringMaybeAliased(
+      7, this->consumername(), output);
+  }
+
+  // optional uint64 availablePermits = 8;
+  if (has_availablepermits()) {
+    ::google::protobuf::internal::WireFormatLite::WriteUInt64(8, this->availablepermits(), output);
+  }
+
+  // optional uint64 unackedMessages = 9;
+  if (has_unackedmessages()) {
+    ::google::protobuf::internal::WireFormatLite::WriteUInt64(9, this->unackedmessages(), output);
+  }
+
+  // optional bool blockedConsumerOnUnackedMsgs = 10;
+  if (has_blockedconsumeronunackedmsgs()) {
+    ::google::protobuf::internal::WireFormatLite::WriteBool(10, this->blockedconsumeronunackedmsgs(), output);
+  }
+
+  // optional string address = 11;
+  if (has_address()) {
+    ::google::protobuf::internal::WireFormatLite::WriteStringMaybeAliased(
+      11, this->address(), output);
+  }
+
+  // optional string connectedSince = 12;
+  if (has_connectedsince()) {
+    ::google::protobuf::internal::WireFormatLite::WriteStringMaybeAliased(
+      12, this->connectedsince(), output);
+  }
+
+  // optional string type = 13;
+  if (has_type()) {
+    ::google::protobuf::internal::WireFormatLite::WriteStringMaybeAliased(
+      13, this->type(), output);
+  }
+
+  // optional double msgRateExpired = 14;
+  if (has_msgrateexpired()) {
+    ::google::protobuf::internal::WireFormatLite::WriteDouble(14, this->msgrateexpired(), output);
+  }
+
+  // optional uint64 msgBacklog = 15;
+  if (has_msgbacklog()) {
+    ::google::protobuf::internal::WireFormatLite::WriteUInt64(15, this->msgbacklog(), output);
+  }
+
+  output->WriteRaw(unknown_fields().data(),
+                   unknown_fields().size());
+  // @@protoc_insertion_point(serialize_end:pulsar.proto.CommandConsumerStatsResponse)
+}
+
+int CommandConsumerStatsResponse::ByteSize() const {
+  int total_size = 0;
+
+  if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
+    // required uint64 request_id = 1;
+    if (has_request_id()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::UInt64Size(
+          this->request_id());
+    }
+
+    // optional .pulsar.proto.ServerError error_code = 2;
+    if (has_error_code()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::EnumSize(this->error_code());
+    }
+
+    // optional string error_message = 3;
+    if (has_error_message()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::StringSize(
+          this->error_message());
+    }
+
+    // optional double msgRateOut = 4;
+    if (has_msgrateout()) {
+      total_size += 1 + 8;
+    }
+
+    // optional double msgThroughputOut = 5;
+    if (has_msgthroughputout()) {
+      total_size += 1 + 8;
+    }
+
+    // optional double msgRateRedeliver = 6;
+    if (has_msgrateredeliver()) {
+      total_size += 1 + 8;
+    }
+
+    // optional string consumerName = 7;
+    if (has_consumername()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::StringSize(
+          this->consumername());
+    }
+
+    // optional uint64 availablePermits = 8;
+    if (has_availablepermits()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::UInt64Size(
+          this->availablepermits());
+    }
+
+  }
+  if (_has_bits_[8 / 32] & (0xffu << (8 % 32))) {
+    // optional uint64 unackedMessages = 9;
+    if (has_unackedmessages()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::UInt64Size(
+          this->unackedmessages());
+    }
+
+    // optional bool blockedConsumerOnUnackedMsgs = 10;
+    if (has_blockedconsumeronunackedmsgs()) {
+      total_size += 1 + 1;
+    }
+
+    // optional string address = 11;
+    if (has_address()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::StringSize(
+          this->address());
+    }
+
+    // optional string connectedSince = 12;
+    if (has_connectedsince()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::StringSize(
+          this->connectedsince());
+    }
+
+    // optional string type = 13;
+    if (has_type()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::StringSize(
+          this->type());
+    }
+
+    // optional double msgRateExpired = 14;
+    if (has_msgrateexpired()) {
+      total_size += 1 + 8;
+    }
+
+    // optional uint64 msgBacklog = 15;
+    if (has_msgbacklog()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::UInt64Size(
+          this->msgbacklog());
+    }
+
+  }
+  total_size += unknown_fields().size();
+
+  GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
+  _cached_size_ = total_size;
+  GOOGLE_SAFE_CONCURRENT_WRITES_END();
+  return total_size;
+}
+
+void CommandConsumerStatsResponse::CheckTypeAndMergeFrom(
+    const ::google::protobuf::MessageLite& from) {
+  MergeFrom(*::google::protobuf::down_cast<const CommandConsumerStatsResponse*>(&from));
+}
+
+void CommandConsumerStatsResponse::MergeFrom(const CommandConsumerStatsResponse& from) {
+  GOOGLE_CHECK_NE(&from, this);
+  if (from._has_bits_[0 / 32] & (0xffu << (0 % 32))) {
+    if (from.has_request_id()) {
+      set_request_id(from.request_id());
+    }
+    if (from.has_error_code()) {
+      set_error_code(from.error_code());
+    }
+    if (from.has_error_message()) {
+      set_error_message(from.error_message());
+    }
+    if (from.has_msgrateout()) {
+      set_msgrateout(from.msgrateout());
+    }
+    if (from.has_msgthroughputout()) {
+      set_msgthroughputout(from.msgthroughputout());
+    }
+    if (from.has_msgrateredeliver()) {
+      set_msgrateredeliver(from.msgrateredeliver());
+    }
+    if (from.has_consumername()) {
+      set_consumername(from.consumername());
+    }
+    if (from.has_availablepermits()) {
+      set_availablepermits(from.availablepermits());
+    }
+  }
+  if (from._has_bits_[8 / 32] & (0xffu << (8 % 32))) {
+    if (from.has_unackedmessages()) {
+      set_unackedmessages(from.unackedmessages());
+    }
+    if (from.has_blockedconsumeronunackedmsgs()) {
+      set_blockedconsumeronunackedmsgs(from.blockedconsumeronunackedmsgs());
+    }
+    if (from.has_address()) {
+      set_address(from.address());
+    }
+    if (from.has_connectedsince()) {
+      set_connectedsince(from.connectedsince());
+    }
+    if (from.has_type()) {
+      set_type(from.type());
+    }
+    if (from.has_msgrateexpired()) {
+      set_msgrateexpired(from.msgrateexpired());
+    }
+    if (from.has_msgbacklog()) {
+      set_msgbacklog(from.msgbacklog());
+    }
+  }
+  mutable_unknown_fields()->append(from.unknown_fields());
+}
+
+void CommandConsumerStatsResponse::CopyFrom(const CommandConsumerStatsResponse& from) {
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool CommandConsumerStatsResponse::IsInitialized() const {
+  if ((_has_bits_[0] & 0x00000001) != 0x00000001) return false;
+
+  return true;
+}
+
+void CommandConsumerStatsResponse::Swap(CommandConsumerStatsResponse* other) {
+  if (other != this) {
+    std::swap(request_id_, other->request_id_);
+    std::swap(error_code_, other->error_code_);
+    std::swap(error_message_, other->error_message_);
+    std::swap(msgrateout_, other->msgrateout_);
+    std::swap(msgthroughputout_, other->msgthroughputout_);
+    std::swap(msgrateredeliver_, other->msgrateredeliver_);
+    std::swap(consumername_, other->consumername_);
+    std::swap(availablepermits_, other->availablepermits_);
+    std::swap(unackedmessages_, other->unackedmessages_);
+    std::swap(blockedconsumeronunackedmsgs_, other->blockedconsumeronunackedmsgs_);
+    std::swap(address_, other->address_);
+    std::swap(connectedsince_, other->connectedsince_);
+    std::swap(type_, other->type_);
+    std::swap(msgrateexpired_, other->msgrateexpired_);
+    std::swap(msgbacklog_, other->msgbacklog_);
+    std::swap(_has_bits_[0], other->_has_bits_[0]);
+    _unknown_fields_.swap(other->_unknown_fields_);
+    std::swap(_cached_size_, other->_cached_size_);
+  }
+}
+
+::std::string CommandConsumerStatsResponse::GetTypeName() const {
+  return "pulsar.proto.CommandConsumerStatsResponse";
+}
+
+
+// ===================================================================
+
 bool BaseCommand_Type_IsValid(int value) {
   switch(value) {
     case 2:
@@ -7942,6 +8975,8 @@ bool BaseCommand_Type_IsValid(int value) {
     case 22:
     case 23:
     case 24:
+    case 25:
+    case 26:
       return true;
     default:
       return false;
@@ -7972,6 +9007,8 @@ const BaseCommand_Type BaseCommand::PARTITIONED_METADATA;
 const BaseCommand_Type BaseCommand::PARTITIONED_METADATA_RESPONSE;
 const BaseCommand_Type BaseCommand::LOOKUP;
 const BaseCommand_Type BaseCommand::LOOKUP_RESPONSE;
+const BaseCommand_Type BaseCommand::CONSUMER_STATS;
+const BaseCommand_Type BaseCommand::CONSUMER_STATS_RESPONSE;
 const BaseCommand_Type BaseCommand::Type_MIN;
 const BaseCommand_Type BaseCommand::Type_MAX;
 const int BaseCommand::Type_ARRAYSIZE;
@@ -8001,6 +9038,8 @@ const int BaseCommand::kPartitionMetadataFieldNumber;
 const int BaseCommand::kPartitionMetadataResponseFieldNumber;
 const int BaseCommand::kLookupTopicFieldNumber;
 const int BaseCommand::kLookupTopicResponseFieldNumber;
+const int BaseCommand::kConsumerStatsFieldNumber;
+const int BaseCommand::kConsumerStatsResponseFieldNumber;
 #endif  // !_MSC_VER
 
 BaseCommand::BaseCommand()
@@ -8148,6 +9187,18 @@ void BaseCommand::InitAsDefaultInstance() {
 #else
   lookuptopicresponse_ = const_cast< ::pulsar::proto::CommandLookupTopicResponse*>(&::pulsar::proto::CommandLookupTopicResponse::default_instance());
 #endif
+#ifdef GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER
+  consumerstats_ = const_cast< ::pulsar::proto::CommandConsumerStats*>(
+      ::pulsar::proto::CommandConsumerStats::internal_default_instance());
+#else
+  consumerstats_ = const_cast< ::pulsar::proto::CommandConsumerStats*>(&::pulsar::proto::CommandConsumerStats::default_instance());
+#endif
+#ifdef GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER
+  consumerstatsresponse_ = const_cast< ::pulsar::proto::CommandConsumerStatsResponse*>(
+      ::pulsar::proto::CommandConsumerStatsResponse::internal_default_instance());
+#else
+  consumerstatsresponse_ = const_cast< ::pulsar::proto::CommandConsumerStatsResponse*>(&::pulsar::proto::CommandConsumerStatsResponse::default_instance());
+#endif
 }
 
 BaseCommand::BaseCommand(const BaseCommand& from)
@@ -8183,6 +9234,8 @@ void BaseCommand::SharedCtor() {
   partitionmetadataresponse_ = NULL;
   lookuptopic_ = NULL;
   lookuptopicresponse_ = NULL;
+  consumerstats_ = NULL;
+  consumerstatsresponse_ = NULL;
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
 
@@ -8220,6 +9273,8 @@ void BaseCommand::SharedDtor() {
     delete partitionmetadataresponse_;
     delete lookuptopic_;
     delete lookuptopicresponse_;
+    delete consumerstats_;
+    delete consumerstatsresponse_;
   }
 }
 
@@ -8318,6 +9373,14 @@ void BaseCommand::Clear() {
     }
     if (has_lookuptopicresponse()) {
       if (lookuptopicresponse_ != NULL) lookuptopicresponse_->::pulsar::proto::CommandLookupTopicResponse::Clear();
+    }
+  }
+  if (_has_bits_[24 / 32] & 50331648) {
+    if (has_consumerstats()) {
+      if (consumerstats_ != NULL) consumerstats_->::pulsar::proto::CommandConsumerStats::Clear();
+    }
+    if (has_consumerstatsresponse()) {
+      if (consumerstatsresponse_ != NULL) consumerstatsresponse_->::pulsar::proto::CommandConsumerStatsResponse::Clear();
     }
   }
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
@@ -8653,6 +9716,32 @@ bool BaseCommand::MergePartialFromCodedStream(
         } else {
           goto handle_unusual;
         }
+        if (input->ExpectTag(202)) goto parse_consumerStats;
+        break;
+      }
+
+      // optional .pulsar.proto.CommandConsumerStats consumerStats = 25;
+      case 25: {
+        if (tag == 202) {
+         parse_consumerStats:
+          DO_(::google::protobuf::internal::WireFormatLite::ReadMessageNoVirtual(
+               input, mutable_consumerstats()));
+        } else {
+          goto handle_unusual;
+        }
+        if (input->ExpectTag(210)) goto parse_consumerStatsResponse;
+        break;
+      }
+
+      // optional .pulsar.proto.CommandConsumerStatsResponse consumerStatsResponse = 26;
+      case 26: {
+        if (tag == 210) {
+         parse_consumerStatsResponse:
+          DO_(::google::protobuf::internal::WireFormatLite::ReadMessageNoVirtual(
+               input, mutable_consumerstatsresponse()));
+        } else {
+          goto handle_unusual;
+        }
         if (input->ExpectAtEnd()) goto success;
         break;
       }
@@ -8824,6 +9913,18 @@ void BaseCommand::SerializeWithCachedSizes(
   if (has_lookuptopicresponse()) {
     ::google::protobuf::internal::WireFormatLite::WriteMessage(
       24, this->lookuptopicresponse(), output);
+  }
+
+  // optional .pulsar.proto.CommandConsumerStats consumerStats = 25;
+  if (has_consumerstats()) {
+    ::google::protobuf::internal::WireFormatLite::WriteMessage(
+      25, this->consumerstats(), output);
+  }
+
+  // optional .pulsar.proto.CommandConsumerStatsResponse consumerStatsResponse = 26;
+  if (has_consumerstatsresponse()) {
+    ::google::protobuf::internal::WireFormatLite::WriteMessage(
+      26, this->consumerstatsresponse(), output);
   }
 
   output->WriteRaw(unknown_fields().data(),
@@ -9007,6 +10108,22 @@ int BaseCommand::ByteSize() const {
     }
 
   }
+  if (_has_bits_[24 / 32] & (0xffu << (24 % 32))) {
+    // optional .pulsar.proto.CommandConsumerStats consumerStats = 25;
+    if (has_consumerstats()) {
+      total_size += 2 +
+        ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
+          this->consumerstats());
+    }
+
+    // optional .pulsar.proto.CommandConsumerStatsResponse consumerStatsResponse = 26;
+    if (has_consumerstatsresponse()) {
+      total_size += 2 +
+        ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
+          this->consumerstatsresponse());
+    }
+
+  }
   total_size += unknown_fields().size();
 
   GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
@@ -9100,6 +10217,14 @@ void BaseCommand::MergeFrom(const BaseCommand& from) {
       mutable_lookuptopicresponse()->::pulsar::proto::CommandLookupTopicResponse::MergeFrom(from.lookuptopicresponse());
     }
   }
+  if (from._has_bits_[24 / 32] & (0xffu << (24 % 32))) {
+    if (from.has_consumerstats()) {
+      mutable_consumerstats()->::pulsar::proto::CommandConsumerStats::MergeFrom(from.consumerstats());
+    }
+    if (from.has_consumerstatsresponse()) {
+      mutable_consumerstatsresponse()->::pulsar::proto::CommandConsumerStatsResponse::MergeFrom(from.consumerstatsresponse());
+    }
+  }
   mutable_unknown_fields()->append(from.unknown_fields());
 }
 
@@ -9175,6 +10300,12 @@ bool BaseCommand::IsInitialized() const {
   if (has_lookuptopicresponse()) {
     if (!this->lookuptopicresponse().IsInitialized()) return false;
   }
+  if (has_consumerstats()) {
+    if (!this->consumerstats().IsInitialized()) return false;
+  }
+  if (has_consumerstatsresponse()) {
+    if (!this->consumerstatsresponse().IsInitialized()) return false;
+  }
   return true;
 }
 
@@ -9204,6 +10335,8 @@ void BaseCommand::Swap(BaseCommand* other) {
     std::swap(partitionmetadataresponse_, other->partitionmetadataresponse_);
     std::swap(lookuptopic_, other->lookuptopic_);
     std::swap(lookuptopicresponse_, other->lookuptopicresponse_);
+    std::swap(consumerstats_, other->consumerstats_);
+    std::swap(consumerstatsresponse_, other->consumerstatsresponse_);
     std::swap(_has_bits_[0], other->_has_bits_[0]);
     _unknown_fields_.swap(other->_unknown_fields_);
     std::swap(_cached_size_, other->_cached_size_);

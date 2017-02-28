@@ -64,6 +64,10 @@ public final class PulsarApi {
     ProducerBlockedQuotaExceededError(7, 7),
     ProducerBlockedQuotaExceededException(8, 8),
     ChecksumError(9, 9),
+    UnsupportedVersionError(10, 10),
+    TopicNotFound(11, 11),
+    SubscriptionNotFound(12, 12),
+    ConsumerNotFound(13, 13),
     ;
     
     public static final int UnknownError_VALUE = 0;
@@ -76,6 +80,10 @@ public final class PulsarApi {
     public static final int ProducerBlockedQuotaExceededError_VALUE = 7;
     public static final int ProducerBlockedQuotaExceededException_VALUE = 8;
     public static final int ChecksumError_VALUE = 9;
+    public static final int UnsupportedVersionError_VALUE = 10;
+    public static final int TopicNotFound_VALUE = 11;
+    public static final int SubscriptionNotFound_VALUE = 12;
+    public static final int ConsumerNotFound_VALUE = 13;
     
     
     public final int getNumber() { return value; }
@@ -92,6 +100,10 @@ public final class PulsarApi {
         case 7: return ProducerBlockedQuotaExceededError;
         case 8: return ProducerBlockedQuotaExceededException;
         case 9: return ChecksumError;
+        case 10: return UnsupportedVersionError;
+        case 11: return TopicNotFound;
+        case 12: return SubscriptionNotFound;
+        case 13: return ConsumerNotFound;
         default: return null;
       }
     }
@@ -170,6 +182,7 @@ public final class PulsarApi {
     v4(4, 4),
     v5(5, 5),
     v6(6, 6),
+    v7(7, 7),
     ;
     
     public static final int v0_VALUE = 0;
@@ -179,6 +192,7 @@ public final class PulsarApi {
     public static final int v4_VALUE = 4;
     public static final int v5_VALUE = 5;
     public static final int v6_VALUE = 6;
+    public static final int v7_VALUE = 7;
     
     
     public final int getNumber() { return value; }
@@ -192,6 +206,7 @@ public final class PulsarApi {
         case 4: return v4;
         case 5: return v5;
         case 6: return v6;
+        case 7: return v7;
         default: return null;
       }
     }
@@ -3991,6 +4006,10 @@ public final class PulsarApi {
     // optional string consumer_name = 6;
     boolean hasConsumerName();
     String getConsumerName();
+    
+    // optional int32 priority_level = 7;
+    boolean hasPriorityLevel();
+    int getPriorityLevel();
   }
   public static final class CommandSubscribe extends
       com.google.protobuf.GeneratedMessageLite
@@ -4197,6 +4216,16 @@ public final class PulsarApi {
       }
     }
     
+    // optional int32 priority_level = 7;
+    public static final int PRIORITY_LEVEL_FIELD_NUMBER = 7;
+    private int priorityLevel_;
+    public boolean hasPriorityLevel() {
+      return ((bitField0_ & 0x00000040) == 0x00000040);
+    }
+    public int getPriorityLevel() {
+      return priorityLevel_;
+    }
+    
     private void initFields() {
       topic_ = "";
       subscription_ = "";
@@ -4204,6 +4233,7 @@ public final class PulsarApi {
       consumerId_ = 0L;
       requestId_ = 0L;
       consumerName_ = "";
+      priorityLevel_ = 0;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -4260,6 +4290,9 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000020) == 0x00000020)) {
         output.writeBytes(6, getConsumerNameBytes());
       }
+      if (((bitField0_ & 0x00000040) == 0x00000040)) {
+        output.writeInt32(7, priorityLevel_);
+      }
     }
     
     private int memoizedSerializedSize = -1;
@@ -4291,6 +4324,10 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000020) == 0x00000020)) {
         size += com.google.protobuf.CodedOutputStream
           .computeBytesSize(6, getConsumerNameBytes());
+      }
+      if (((bitField0_ & 0x00000040) == 0x00000040)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeInt32Size(7, priorityLevel_);
       }
       memoizedSerializedSize = size;
       return size;
@@ -4417,6 +4454,8 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000010);
         consumerName_ = "";
         bitField0_ = (bitField0_ & ~0x00000020);
+        priorityLevel_ = 0;
+        bitField0_ = (bitField0_ & ~0x00000040);
         return this;
       }
       
@@ -4474,6 +4513,10 @@ public final class PulsarApi {
           to_bitField0_ |= 0x00000020;
         }
         result.consumerName_ = consumerName_;
+        if (((from_bitField0_ & 0x00000040) == 0x00000040)) {
+          to_bitField0_ |= 0x00000040;
+        }
+        result.priorityLevel_ = priorityLevel_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -4497,6 +4540,9 @@ public final class PulsarApi {
         }
         if (other.hasConsumerName()) {
           setConsumerName(other.getConsumerName());
+        }
+        if (other.hasPriorityLevel()) {
+          setPriorityLevel(other.getPriorityLevel());
         }
         return this;
       }
@@ -4579,6 +4625,11 @@ public final class PulsarApi {
             case 50: {
               bitField0_ |= 0x00000020;
               consumerName_ = input.readBytes();
+              break;
+            }
+            case 56: {
+              bitField0_ |= 0x00000040;
+              priorityLevel_ = input.readInt32();
               break;
             }
           }
@@ -4759,6 +4810,27 @@ public final class PulsarApi {
         bitField0_ |= 0x00000020;
         consumerName_ = value;
         
+      }
+      
+      // optional int32 priority_level = 7;
+      private int priorityLevel_ ;
+      public boolean hasPriorityLevel() {
+        return ((bitField0_ & 0x00000040) == 0x00000040);
+      }
+      public int getPriorityLevel() {
+        return priorityLevel_;
+      }
+      public Builder setPriorityLevel(int value) {
+        bitField0_ |= 0x00000040;
+        priorityLevel_ = value;
+        
+        return this;
+      }
+      public Builder clearPriorityLevel() {
+        bitField0_ = (bitField0_ & ~0x00000040);
+        priorityLevel_ = 0;
+        
+        return this;
       }
       
       // @@protoc_insertion_point(builder_scope:pulsar.proto.CommandSubscribe)
@@ -14184,6 +14256,1921 @@ public final class PulsarApi {
     // @@protoc_insertion_point(class_scope:pulsar.proto.CommandPong)
   }
   
+  public interface CommandConsumerStatsOrBuilder
+      extends com.google.protobuf.MessageLiteOrBuilder {
+    
+    // required uint64 request_id = 1;
+    boolean hasRequestId();
+    long getRequestId();
+    
+    // required string topic_name = 2;
+    boolean hasTopicName();
+    String getTopicName();
+    
+    // required string subscription_name = 3;
+    boolean hasSubscriptionName();
+    String getSubscriptionName();
+    
+    // required uint64 consumer_id = 4;
+    boolean hasConsumerId();
+    long getConsumerId();
+  }
+  public static final class CommandConsumerStats extends
+      com.google.protobuf.GeneratedMessageLite
+      implements CommandConsumerStatsOrBuilder, com.yahoo.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
+    // Use CommandConsumerStats.newBuilder() to construct.
+    private io.netty.util.Recycler.Handle handle;
+    private CommandConsumerStats(io.netty.util.Recycler.Handle handle) {
+      this.handle = handle;
+    }
+    
+     private static final io.netty.util.Recycler<CommandConsumerStats> RECYCLER = new io.netty.util.Recycler<CommandConsumerStats>() {
+            protected CommandConsumerStats newObject(Handle handle) {
+              return new CommandConsumerStats(handle);
+            }
+          };
+        
+        public void recycle() {
+            this.initFields();
+            this.memoizedIsInitialized = -1;
+            this.bitField0_ = 0;
+            this.memoizedSerializedSize = -1;
+            if (handle != null) { RECYCLER.recycle(this, handle); }
+        }
+         
+    private CommandConsumerStats(boolean noInit) {}
+    
+    private static final CommandConsumerStats defaultInstance;
+    public static CommandConsumerStats getDefaultInstance() {
+      return defaultInstance;
+    }
+    
+    public CommandConsumerStats getDefaultInstanceForType() {
+      return defaultInstance;
+    }
+    
+    private int bitField0_;
+    // required uint64 request_id = 1;
+    public static final int REQUEST_ID_FIELD_NUMBER = 1;
+    private long requestId_;
+    public boolean hasRequestId() {
+      return ((bitField0_ & 0x00000001) == 0x00000001);
+    }
+    public long getRequestId() {
+      return requestId_;
+    }
+    
+    // required string topic_name = 2;
+    public static final int TOPIC_NAME_FIELD_NUMBER = 2;
+    private java.lang.Object topicName_;
+    public boolean hasTopicName() {
+      return ((bitField0_ & 0x00000002) == 0x00000002);
+    }
+    public String getTopicName() {
+      java.lang.Object ref = topicName_;
+      if (ref instanceof String) {
+        return (String) ref;
+      } else {
+        com.google.protobuf.ByteString bs = 
+            (com.google.protobuf.ByteString) ref;
+        String s = bs.toStringUtf8();
+        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
+          topicName_ = s;
+        }
+        return s;
+      }
+    }
+    private com.google.protobuf.ByteString getTopicNameBytes() {
+      java.lang.Object ref = topicName_;
+      if (ref instanceof String) {
+        com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
+        topicName_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+    
+    // required string subscription_name = 3;
+    public static final int SUBSCRIPTION_NAME_FIELD_NUMBER = 3;
+    private java.lang.Object subscriptionName_;
+    public boolean hasSubscriptionName() {
+      return ((bitField0_ & 0x00000004) == 0x00000004);
+    }
+    public String getSubscriptionName() {
+      java.lang.Object ref = subscriptionName_;
+      if (ref instanceof String) {
+        return (String) ref;
+      } else {
+        com.google.protobuf.ByteString bs = 
+            (com.google.protobuf.ByteString) ref;
+        String s = bs.toStringUtf8();
+        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
+          subscriptionName_ = s;
+        }
+        return s;
+      }
+    }
+    private com.google.protobuf.ByteString getSubscriptionNameBytes() {
+      java.lang.Object ref = subscriptionName_;
+      if (ref instanceof String) {
+        com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
+        subscriptionName_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+    
+    // required uint64 consumer_id = 4;
+    public static final int CONSUMER_ID_FIELD_NUMBER = 4;
+    private long consumerId_;
+    public boolean hasConsumerId() {
+      return ((bitField0_ & 0x00000008) == 0x00000008);
+    }
+    public long getConsumerId() {
+      return consumerId_;
+    }
+    
+    private void initFields() {
+      requestId_ = 0L;
+      topicName_ = "";
+      subscriptionName_ = "";
+      consumerId_ = 0L;
+    }
+    private byte memoizedIsInitialized = -1;
+    public final boolean isInitialized() {
+      byte isInitialized = memoizedIsInitialized;
+      if (isInitialized != -1) return isInitialized == 1;
+      
+      if (!hasRequestId()) {
+        memoizedIsInitialized = 0;
+        return false;
+      }
+      if (!hasTopicName()) {
+        memoizedIsInitialized = 0;
+        return false;
+      }
+      if (!hasSubscriptionName()) {
+        memoizedIsInitialized = 0;
+        return false;
+      }
+      if (!hasConsumerId()) {
+        memoizedIsInitialized = 0;
+        return false;
+      }
+      memoizedIsInitialized = 1;
+      return true;
+    }
+    
+    public void writeTo(com.google.protobuf.CodedOutputStream output)
+                        throws java.io.IOException {
+        throw new RuntimeException("Cannot use CodedOutputStream");
+    }
+    
+    public void writeTo(com.yahoo.pulsar.common.util.protobuf.ByteBufCodedOutputStream output)
+                        throws java.io.IOException {
+      getSerializedSize();
+      if (((bitField0_ & 0x00000001) == 0x00000001)) {
+        output.writeUInt64(1, requestId_);
+      }
+      if (((bitField0_ & 0x00000002) == 0x00000002)) {
+        output.writeBytes(2, getTopicNameBytes());
+      }
+      if (((bitField0_ & 0x00000004) == 0x00000004)) {
+        output.writeBytes(3, getSubscriptionNameBytes());
+      }
+      if (((bitField0_ & 0x00000008) == 0x00000008)) {
+        output.writeUInt64(4, consumerId_);
+      }
+    }
+    
+    private int memoizedSerializedSize = -1;
+    public int getSerializedSize() {
+      int size = memoizedSerializedSize;
+      if (size != -1) return size;
+    
+      size = 0;
+      if (((bitField0_ & 0x00000001) == 0x00000001)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeUInt64Size(1, requestId_);
+      }
+      if (((bitField0_ & 0x00000002) == 0x00000002)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeBytesSize(2, getTopicNameBytes());
+      }
+      if (((bitField0_ & 0x00000004) == 0x00000004)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeBytesSize(3, getSubscriptionNameBytes());
+      }
+      if (((bitField0_ & 0x00000008) == 0x00000008)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeUInt64Size(4, consumerId_);
+      }
+      memoizedSerializedSize = size;
+      return size;
+    }
+    
+    private static final long serialVersionUID = 0L;
+    @java.lang.Override
+    protected java.lang.Object writeReplace()
+        throws java.io.ObjectStreamException {
+      return super.writeReplace();
+    }
+    
+    public static com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStats parseFrom(
+        com.google.protobuf.ByteString data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+         throw new RuntimeException("Disabled");
+    }
+    public static com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStats parseFrom(
+        com.google.protobuf.ByteString data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+         throw new RuntimeException("Disabled");
+    }
+    public static com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStats parseFrom(byte[] data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return newBuilder().mergeFrom(data).buildParsed();
+    }
+    public static com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStats parseFrom(
+        byte[] data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return newBuilder().mergeFrom(data, extensionRegistry)
+               .buildParsed();
+    }
+    public static com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStats parseFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input).buildParsed();
+    }
+    public static com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStats parseFrom(
+        java.io.InputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input, extensionRegistry)
+               .buildParsed();
+    }
+    public static com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStats parseDelimitedFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      Builder builder = newBuilder();
+      if (builder.mergeDelimitedFrom(input)) {
+        return builder.buildParsed();
+      } else {
+        return null;
+      }
+    }
+    public static com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStats parseDelimitedFrom(
+        java.io.InputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      Builder builder = newBuilder();
+      if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
+        return builder.buildParsed();
+      } else {
+        return null;
+      }
+    }
+    public static com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStats parseFrom(
+        com.google.protobuf.CodedInputStream input)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input).buildParsed();
+    }
+    public static com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStats parseFrom(
+        com.google.protobuf.CodedInputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input, extensionRegistry)
+               .buildParsed();
+    }
+    
+    public static Builder newBuilder() { return Builder.create(); }
+    public Builder newBuilderForType() { return newBuilder(); }
+    public static Builder newBuilder(com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStats prototype) {
+      return newBuilder().mergeFrom(prototype);
+    }
+    public Builder toBuilder() { return newBuilder(this); }
+    
+    public static final class Builder extends
+        com.google.protobuf.GeneratedMessageLite.Builder<
+          com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStats, Builder>
+        implements com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsOrBuilder, com.yahoo.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
+      // Construct using com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStats.newBuilder()
+      private final io.netty.util.Recycler.Handle handle;
+      private Builder(io.netty.util.Recycler.Handle handle) {
+        this.handle = handle;
+        maybeForceBuilderInitialization();
+      }
+      private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
+         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
+               return new Builder(handle);
+             }
+            };
+      
+       public void recycle() {
+                clear();
+                if (handle != null) {RECYCLER.recycle(this, handle);}
+            }
+      
+      private void maybeForceBuilderInitialization() {
+      }
+      private static Builder create() {
+        return RECYCLER.get();
+      }
+      
+      public Builder clear() {
+        super.clear();
+        requestId_ = 0L;
+        bitField0_ = (bitField0_ & ~0x00000001);
+        topicName_ = "";
+        bitField0_ = (bitField0_ & ~0x00000002);
+        subscriptionName_ = "";
+        bitField0_ = (bitField0_ & ~0x00000004);
+        consumerId_ = 0L;
+        bitField0_ = (bitField0_ & ~0x00000008);
+        return this;
+      }
+      
+      public Builder clone() {
+        return create().mergeFrom(buildPartial());
+      }
+      
+      public com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStats getDefaultInstanceForType() {
+        return com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStats.getDefaultInstance();
+      }
+      
+      public com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStats build() {
+        com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStats result = buildPartial();
+        if (!result.isInitialized()) {
+          throw newUninitializedMessageException(result);
+        }
+        return result;
+      }
+      
+      private com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStats buildParsed()
+          throws com.google.protobuf.InvalidProtocolBufferException {
+        com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStats result = buildPartial();
+        if (!result.isInitialized()) {
+          throw newUninitializedMessageException(
+            result).asInvalidProtocolBufferException();
+        }
+        return result;
+      }
+      
+      public com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStats buildPartial() {
+        com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStats result = com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStats.RECYCLER.get();
+        int from_bitField0_ = bitField0_;
+        int to_bitField0_ = 0;
+        if (((from_bitField0_ & 0x00000001) == 0x00000001)) {
+          to_bitField0_ |= 0x00000001;
+        }
+        result.requestId_ = requestId_;
+        if (((from_bitField0_ & 0x00000002) == 0x00000002)) {
+          to_bitField0_ |= 0x00000002;
+        }
+        result.topicName_ = topicName_;
+        if (((from_bitField0_ & 0x00000004) == 0x00000004)) {
+          to_bitField0_ |= 0x00000004;
+        }
+        result.subscriptionName_ = subscriptionName_;
+        if (((from_bitField0_ & 0x00000008) == 0x00000008)) {
+          to_bitField0_ |= 0x00000008;
+        }
+        result.consumerId_ = consumerId_;
+        result.bitField0_ = to_bitField0_;
+        return result;
+      }
+      
+      public Builder mergeFrom(com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStats other) {
+        if (other == com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStats.getDefaultInstance()) return this;
+        if (other.hasRequestId()) {
+          setRequestId(other.getRequestId());
+        }
+        if (other.hasTopicName()) {
+          setTopicName(other.getTopicName());
+        }
+        if (other.hasSubscriptionName()) {
+          setSubscriptionName(other.getSubscriptionName());
+        }
+        if (other.hasConsumerId()) {
+          setConsumerId(other.getConsumerId());
+        }
+        return this;
+      }
+      
+      public final boolean isInitialized() {
+        if (!hasRequestId()) {
+          
+          return false;
+        }
+        if (!hasTopicName()) {
+          
+          return false;
+        }
+        if (!hasSubscriptionName()) {
+          
+          return false;
+        }
+        if (!hasConsumerId()) {
+          
+          return false;
+        }
+        return true;
+      }
+      
+      public Builder mergeFrom(com.google.protobuf.CodedInputStream input,
+                              com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+                              throws java.io.IOException {
+         throw new java.io.IOException("Merge from CodedInputStream is disabled");
+                              }
+      public Builder mergeFrom(
+          com.yahoo.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
+          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          throws java.io.IOException {
+        while (true) {
+          int tag = input.readTag();
+          switch (tag) {
+            case 0:
+              
+              return this;
+            default: {
+              if (!input.skipField(tag)) {
+                
+                return this;
+              }
+              break;
+            }
+            case 8: {
+              bitField0_ |= 0x00000001;
+              requestId_ = input.readUInt64();
+              break;
+            }
+            case 18: {
+              bitField0_ |= 0x00000002;
+              topicName_ = input.readBytes();
+              break;
+            }
+            case 26: {
+              bitField0_ |= 0x00000004;
+              subscriptionName_ = input.readBytes();
+              break;
+            }
+            case 32: {
+              bitField0_ |= 0x00000008;
+              consumerId_ = input.readUInt64();
+              break;
+            }
+          }
+        }
+      }
+      
+      private int bitField0_;
+      
+      // required uint64 request_id = 1;
+      private long requestId_ ;
+      public boolean hasRequestId() {
+        return ((bitField0_ & 0x00000001) == 0x00000001);
+      }
+      public long getRequestId() {
+        return requestId_;
+      }
+      public Builder setRequestId(long value) {
+        bitField0_ |= 0x00000001;
+        requestId_ = value;
+        
+        return this;
+      }
+      public Builder clearRequestId() {
+        bitField0_ = (bitField0_ & ~0x00000001);
+        requestId_ = 0L;
+        
+        return this;
+      }
+      
+      // required string topic_name = 2;
+      private java.lang.Object topicName_ = "";
+      public boolean hasTopicName() {
+        return ((bitField0_ & 0x00000002) == 0x00000002);
+      }
+      public String getTopicName() {
+        java.lang.Object ref = topicName_;
+        if (!(ref instanceof String)) {
+          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
+          topicName_ = s;
+          return s;
+        } else {
+          return (String) ref;
+        }
+      }
+      public Builder setTopicName(String value) {
+        if (value == null) {
+    throw new NullPointerException();
+  }
+  bitField0_ |= 0x00000002;
+        topicName_ = value;
+        
+        return this;
+      }
+      public Builder clearTopicName() {
+        bitField0_ = (bitField0_ & ~0x00000002);
+        topicName_ = getDefaultInstance().getTopicName();
+        
+        return this;
+      }
+      void setTopicName(com.google.protobuf.ByteString value) {
+        bitField0_ |= 0x00000002;
+        topicName_ = value;
+        
+      }
+      
+      // required string subscription_name = 3;
+      private java.lang.Object subscriptionName_ = "";
+      public boolean hasSubscriptionName() {
+        return ((bitField0_ & 0x00000004) == 0x00000004);
+      }
+      public String getSubscriptionName() {
+        java.lang.Object ref = subscriptionName_;
+        if (!(ref instanceof String)) {
+          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
+          subscriptionName_ = s;
+          return s;
+        } else {
+          return (String) ref;
+        }
+      }
+      public Builder setSubscriptionName(String value) {
+        if (value == null) {
+    throw new NullPointerException();
+  }
+  bitField0_ |= 0x00000004;
+        subscriptionName_ = value;
+        
+        return this;
+      }
+      public Builder clearSubscriptionName() {
+        bitField0_ = (bitField0_ & ~0x00000004);
+        subscriptionName_ = getDefaultInstance().getSubscriptionName();
+        
+        return this;
+      }
+      void setSubscriptionName(com.google.protobuf.ByteString value) {
+        bitField0_ |= 0x00000004;
+        subscriptionName_ = value;
+        
+      }
+      
+      // required uint64 consumer_id = 4;
+      private long consumerId_ ;
+      public boolean hasConsumerId() {
+        return ((bitField0_ & 0x00000008) == 0x00000008);
+      }
+      public long getConsumerId() {
+        return consumerId_;
+      }
+      public Builder setConsumerId(long value) {
+        bitField0_ |= 0x00000008;
+        consumerId_ = value;
+        
+        return this;
+      }
+      public Builder clearConsumerId() {
+        bitField0_ = (bitField0_ & ~0x00000008);
+        consumerId_ = 0L;
+        
+        return this;
+      }
+      
+      // @@protoc_insertion_point(builder_scope:pulsar.proto.CommandConsumerStats)
+    }
+    
+    static {
+      defaultInstance = new CommandConsumerStats(true);
+      defaultInstance.initFields();
+    }
+    
+    // @@protoc_insertion_point(class_scope:pulsar.proto.CommandConsumerStats)
+  }
+  
+  public interface CommandConsumerStatsResponseOrBuilder
+      extends com.google.protobuf.MessageLiteOrBuilder {
+    
+    // required uint64 request_id = 1;
+    boolean hasRequestId();
+    long getRequestId();
+    
+    // optional .pulsar.proto.ServerError error_code = 2;
+    boolean hasErrorCode();
+    com.yahoo.pulsar.common.api.proto.PulsarApi.ServerError getErrorCode();
+    
+    // optional string error_message = 3;
+    boolean hasErrorMessage();
+    String getErrorMessage();
+    
+    // optional double msgRateOut = 4;
+    boolean hasMsgRateOut();
+    double getMsgRateOut();
+    
+    // optional double msgThroughputOut = 5;
+    boolean hasMsgThroughputOut();
+    double getMsgThroughputOut();
+    
+    // optional double msgRateRedeliver = 6;
+    boolean hasMsgRateRedeliver();
+    double getMsgRateRedeliver();
+    
+    // optional string consumerName = 7;
+    boolean hasConsumerName();
+    String getConsumerName();
+    
+    // optional uint64 availablePermits = 8;
+    boolean hasAvailablePermits();
+    long getAvailablePermits();
+    
+    // optional uint64 unackedMessages = 9;
+    boolean hasUnackedMessages();
+    long getUnackedMessages();
+    
+    // optional bool blockedConsumerOnUnackedMsgs = 10;
+    boolean hasBlockedConsumerOnUnackedMsgs();
+    boolean getBlockedConsumerOnUnackedMsgs();
+    
+    // optional string address = 11;
+    boolean hasAddress();
+    String getAddress();
+    
+    // optional string connectedSince = 12;
+    boolean hasConnectedSince();
+    String getConnectedSince();
+    
+    // optional string type = 13;
+    boolean hasType();
+    String getType();
+    
+    // optional double msgRateExpired = 14;
+    boolean hasMsgRateExpired();
+    double getMsgRateExpired();
+    
+    // optional uint64 msgBacklog = 15;
+    boolean hasMsgBacklog();
+    long getMsgBacklog();
+  }
+  public static final class CommandConsumerStatsResponse extends
+      com.google.protobuf.GeneratedMessageLite
+      implements CommandConsumerStatsResponseOrBuilder, com.yahoo.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
+    // Use CommandConsumerStatsResponse.newBuilder() to construct.
+    private io.netty.util.Recycler.Handle handle;
+    private CommandConsumerStatsResponse(io.netty.util.Recycler.Handle handle) {
+      this.handle = handle;
+    }
+    
+     private static final io.netty.util.Recycler<CommandConsumerStatsResponse> RECYCLER = new io.netty.util.Recycler<CommandConsumerStatsResponse>() {
+            protected CommandConsumerStatsResponse newObject(Handle handle) {
+              return new CommandConsumerStatsResponse(handle);
+            }
+          };
+        
+        public void recycle() {
+            this.initFields();
+            this.memoizedIsInitialized = -1;
+            this.bitField0_ = 0;
+            this.memoizedSerializedSize = -1;
+            if (handle != null) { RECYCLER.recycle(this, handle); }
+        }
+         
+    private CommandConsumerStatsResponse(boolean noInit) {}
+    
+    private static final CommandConsumerStatsResponse defaultInstance;
+    public static CommandConsumerStatsResponse getDefaultInstance() {
+      return defaultInstance;
+    }
+    
+    public CommandConsumerStatsResponse getDefaultInstanceForType() {
+      return defaultInstance;
+    }
+    
+    private int bitField0_;
+    // required uint64 request_id = 1;
+    public static final int REQUEST_ID_FIELD_NUMBER = 1;
+    private long requestId_;
+    public boolean hasRequestId() {
+      return ((bitField0_ & 0x00000001) == 0x00000001);
+    }
+    public long getRequestId() {
+      return requestId_;
+    }
+    
+    // optional .pulsar.proto.ServerError error_code = 2;
+    public static final int ERROR_CODE_FIELD_NUMBER = 2;
+    private com.yahoo.pulsar.common.api.proto.PulsarApi.ServerError errorCode_;
+    public boolean hasErrorCode() {
+      return ((bitField0_ & 0x00000002) == 0x00000002);
+    }
+    public com.yahoo.pulsar.common.api.proto.PulsarApi.ServerError getErrorCode() {
+      return errorCode_;
+    }
+    
+    // optional string error_message = 3;
+    public static final int ERROR_MESSAGE_FIELD_NUMBER = 3;
+    private java.lang.Object errorMessage_;
+    public boolean hasErrorMessage() {
+      return ((bitField0_ & 0x00000004) == 0x00000004);
+    }
+    public String getErrorMessage() {
+      java.lang.Object ref = errorMessage_;
+      if (ref instanceof String) {
+        return (String) ref;
+      } else {
+        com.google.protobuf.ByteString bs = 
+            (com.google.protobuf.ByteString) ref;
+        String s = bs.toStringUtf8();
+        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
+          errorMessage_ = s;
+        }
+        return s;
+      }
+    }
+    private com.google.protobuf.ByteString getErrorMessageBytes() {
+      java.lang.Object ref = errorMessage_;
+      if (ref instanceof String) {
+        com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
+        errorMessage_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+    
+    // optional double msgRateOut = 4;
+    public static final int MSGRATEOUT_FIELD_NUMBER = 4;
+    private double msgRateOut_;
+    public boolean hasMsgRateOut() {
+      return ((bitField0_ & 0x00000008) == 0x00000008);
+    }
+    public double getMsgRateOut() {
+      return msgRateOut_;
+    }
+    
+    // optional double msgThroughputOut = 5;
+    public static final int MSGTHROUGHPUTOUT_FIELD_NUMBER = 5;
+    private double msgThroughputOut_;
+    public boolean hasMsgThroughputOut() {
+      return ((bitField0_ & 0x00000010) == 0x00000010);
+    }
+    public double getMsgThroughputOut() {
+      return msgThroughputOut_;
+    }
+    
+    // optional double msgRateRedeliver = 6;
+    public static final int MSGRATEREDELIVER_FIELD_NUMBER = 6;
+    private double msgRateRedeliver_;
+    public boolean hasMsgRateRedeliver() {
+      return ((bitField0_ & 0x00000020) == 0x00000020);
+    }
+    public double getMsgRateRedeliver() {
+      return msgRateRedeliver_;
+    }
+    
+    // optional string consumerName = 7;
+    public static final int CONSUMERNAME_FIELD_NUMBER = 7;
+    private java.lang.Object consumerName_;
+    public boolean hasConsumerName() {
+      return ((bitField0_ & 0x00000040) == 0x00000040);
+    }
+    public String getConsumerName() {
+      java.lang.Object ref = consumerName_;
+      if (ref instanceof String) {
+        return (String) ref;
+      } else {
+        com.google.protobuf.ByteString bs = 
+            (com.google.protobuf.ByteString) ref;
+        String s = bs.toStringUtf8();
+        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
+          consumerName_ = s;
+        }
+        return s;
+      }
+    }
+    private com.google.protobuf.ByteString getConsumerNameBytes() {
+      java.lang.Object ref = consumerName_;
+      if (ref instanceof String) {
+        com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
+        consumerName_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+    
+    // optional uint64 availablePermits = 8;
+    public static final int AVAILABLEPERMITS_FIELD_NUMBER = 8;
+    private long availablePermits_;
+    public boolean hasAvailablePermits() {
+      return ((bitField0_ & 0x00000080) == 0x00000080);
+    }
+    public long getAvailablePermits() {
+      return availablePermits_;
+    }
+    
+    // optional uint64 unackedMessages = 9;
+    public static final int UNACKEDMESSAGES_FIELD_NUMBER = 9;
+    private long unackedMessages_;
+    public boolean hasUnackedMessages() {
+      return ((bitField0_ & 0x00000100) == 0x00000100);
+    }
+    public long getUnackedMessages() {
+      return unackedMessages_;
+    }
+    
+    // optional bool blockedConsumerOnUnackedMsgs = 10;
+    public static final int BLOCKEDCONSUMERONUNACKEDMSGS_FIELD_NUMBER = 10;
+    private boolean blockedConsumerOnUnackedMsgs_;
+    public boolean hasBlockedConsumerOnUnackedMsgs() {
+      return ((bitField0_ & 0x00000200) == 0x00000200);
+    }
+    public boolean getBlockedConsumerOnUnackedMsgs() {
+      return blockedConsumerOnUnackedMsgs_;
+    }
+    
+    // optional string address = 11;
+    public static final int ADDRESS_FIELD_NUMBER = 11;
+    private java.lang.Object address_;
+    public boolean hasAddress() {
+      return ((bitField0_ & 0x00000400) == 0x00000400);
+    }
+    public String getAddress() {
+      java.lang.Object ref = address_;
+      if (ref instanceof String) {
+        return (String) ref;
+      } else {
+        com.google.protobuf.ByteString bs = 
+            (com.google.protobuf.ByteString) ref;
+        String s = bs.toStringUtf8();
+        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
+          address_ = s;
+        }
+        return s;
+      }
+    }
+    private com.google.protobuf.ByteString getAddressBytes() {
+      java.lang.Object ref = address_;
+      if (ref instanceof String) {
+        com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
+        address_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+    
+    // optional string connectedSince = 12;
+    public static final int CONNECTEDSINCE_FIELD_NUMBER = 12;
+    private java.lang.Object connectedSince_;
+    public boolean hasConnectedSince() {
+      return ((bitField0_ & 0x00000800) == 0x00000800);
+    }
+    public String getConnectedSince() {
+      java.lang.Object ref = connectedSince_;
+      if (ref instanceof String) {
+        return (String) ref;
+      } else {
+        com.google.protobuf.ByteString bs = 
+            (com.google.protobuf.ByteString) ref;
+        String s = bs.toStringUtf8();
+        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
+          connectedSince_ = s;
+        }
+        return s;
+      }
+    }
+    private com.google.protobuf.ByteString getConnectedSinceBytes() {
+      java.lang.Object ref = connectedSince_;
+      if (ref instanceof String) {
+        com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
+        connectedSince_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+    
+    // optional string type = 13;
+    public static final int TYPE_FIELD_NUMBER = 13;
+    private java.lang.Object type_;
+    public boolean hasType() {
+      return ((bitField0_ & 0x00001000) == 0x00001000);
+    }
+    public String getType() {
+      java.lang.Object ref = type_;
+      if (ref instanceof String) {
+        return (String) ref;
+      } else {
+        com.google.protobuf.ByteString bs = 
+            (com.google.protobuf.ByteString) ref;
+        String s = bs.toStringUtf8();
+        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
+          type_ = s;
+        }
+        return s;
+      }
+    }
+    private com.google.protobuf.ByteString getTypeBytes() {
+      java.lang.Object ref = type_;
+      if (ref instanceof String) {
+        com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
+        type_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+    
+    // optional double msgRateExpired = 14;
+    public static final int MSGRATEEXPIRED_FIELD_NUMBER = 14;
+    private double msgRateExpired_;
+    public boolean hasMsgRateExpired() {
+      return ((bitField0_ & 0x00002000) == 0x00002000);
+    }
+    public double getMsgRateExpired() {
+      return msgRateExpired_;
+    }
+    
+    // optional uint64 msgBacklog = 15;
+    public static final int MSGBACKLOG_FIELD_NUMBER = 15;
+    private long msgBacklog_;
+    public boolean hasMsgBacklog() {
+      return ((bitField0_ & 0x00004000) == 0x00004000);
+    }
+    public long getMsgBacklog() {
+      return msgBacklog_;
+    }
+    
+    private void initFields() {
+      requestId_ = 0L;
+      errorCode_ = com.yahoo.pulsar.common.api.proto.PulsarApi.ServerError.UnknownError;
+      errorMessage_ = "";
+      msgRateOut_ = 0D;
+      msgThroughputOut_ = 0D;
+      msgRateRedeliver_ = 0D;
+      consumerName_ = "";
+      availablePermits_ = 0L;
+      unackedMessages_ = 0L;
+      blockedConsumerOnUnackedMsgs_ = false;
+      address_ = "";
+      connectedSince_ = "";
+      type_ = "";
+      msgRateExpired_ = 0D;
+      msgBacklog_ = 0L;
+    }
+    private byte memoizedIsInitialized = -1;
+    public final boolean isInitialized() {
+      byte isInitialized = memoizedIsInitialized;
+      if (isInitialized != -1) return isInitialized == 1;
+      
+      if (!hasRequestId()) {
+        memoizedIsInitialized = 0;
+        return false;
+      }
+      memoizedIsInitialized = 1;
+      return true;
+    }
+    
+    public void writeTo(com.google.protobuf.CodedOutputStream output)
+                        throws java.io.IOException {
+        throw new RuntimeException("Cannot use CodedOutputStream");
+    }
+    
+    public void writeTo(com.yahoo.pulsar.common.util.protobuf.ByteBufCodedOutputStream output)
+                        throws java.io.IOException {
+      getSerializedSize();
+      if (((bitField0_ & 0x00000001) == 0x00000001)) {
+        output.writeUInt64(1, requestId_);
+      }
+      if (((bitField0_ & 0x00000002) == 0x00000002)) {
+        output.writeEnum(2, errorCode_.getNumber());
+      }
+      if (((bitField0_ & 0x00000004) == 0x00000004)) {
+        output.writeBytes(3, getErrorMessageBytes());
+      }
+      if (((bitField0_ & 0x00000008) == 0x00000008)) {
+        output.writeDouble(4, msgRateOut_);
+      }
+      if (((bitField0_ & 0x00000010) == 0x00000010)) {
+        output.writeDouble(5, msgThroughputOut_);
+      }
+      if (((bitField0_ & 0x00000020) == 0x00000020)) {
+        output.writeDouble(6, msgRateRedeliver_);
+      }
+      if (((bitField0_ & 0x00000040) == 0x00000040)) {
+        output.writeBytes(7, getConsumerNameBytes());
+      }
+      if (((bitField0_ & 0x00000080) == 0x00000080)) {
+        output.writeUInt64(8, availablePermits_);
+      }
+      if (((bitField0_ & 0x00000100) == 0x00000100)) {
+        output.writeUInt64(9, unackedMessages_);
+      }
+      if (((bitField0_ & 0x00000200) == 0x00000200)) {
+        output.writeBool(10, blockedConsumerOnUnackedMsgs_);
+      }
+      if (((bitField0_ & 0x00000400) == 0x00000400)) {
+        output.writeBytes(11, getAddressBytes());
+      }
+      if (((bitField0_ & 0x00000800) == 0x00000800)) {
+        output.writeBytes(12, getConnectedSinceBytes());
+      }
+      if (((bitField0_ & 0x00001000) == 0x00001000)) {
+        output.writeBytes(13, getTypeBytes());
+      }
+      if (((bitField0_ & 0x00002000) == 0x00002000)) {
+        output.writeDouble(14, msgRateExpired_);
+      }
+      if (((bitField0_ & 0x00004000) == 0x00004000)) {
+        output.writeUInt64(15, msgBacklog_);
+      }
+    }
+    
+    private int memoizedSerializedSize = -1;
+    public int getSerializedSize() {
+      int size = memoizedSerializedSize;
+      if (size != -1) return size;
+    
+      size = 0;
+      if (((bitField0_ & 0x00000001) == 0x00000001)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeUInt64Size(1, requestId_);
+      }
+      if (((bitField0_ & 0x00000002) == 0x00000002)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeEnumSize(2, errorCode_.getNumber());
+      }
+      if (((bitField0_ & 0x00000004) == 0x00000004)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeBytesSize(3, getErrorMessageBytes());
+      }
+      if (((bitField0_ & 0x00000008) == 0x00000008)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeDoubleSize(4, msgRateOut_);
+      }
+      if (((bitField0_ & 0x00000010) == 0x00000010)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeDoubleSize(5, msgThroughputOut_);
+      }
+      if (((bitField0_ & 0x00000020) == 0x00000020)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeDoubleSize(6, msgRateRedeliver_);
+      }
+      if (((bitField0_ & 0x00000040) == 0x00000040)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeBytesSize(7, getConsumerNameBytes());
+      }
+      if (((bitField0_ & 0x00000080) == 0x00000080)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeUInt64Size(8, availablePermits_);
+      }
+      if (((bitField0_ & 0x00000100) == 0x00000100)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeUInt64Size(9, unackedMessages_);
+      }
+      if (((bitField0_ & 0x00000200) == 0x00000200)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeBoolSize(10, blockedConsumerOnUnackedMsgs_);
+      }
+      if (((bitField0_ & 0x00000400) == 0x00000400)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeBytesSize(11, getAddressBytes());
+      }
+      if (((bitField0_ & 0x00000800) == 0x00000800)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeBytesSize(12, getConnectedSinceBytes());
+      }
+      if (((bitField0_ & 0x00001000) == 0x00001000)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeBytesSize(13, getTypeBytes());
+      }
+      if (((bitField0_ & 0x00002000) == 0x00002000)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeDoubleSize(14, msgRateExpired_);
+      }
+      if (((bitField0_ & 0x00004000) == 0x00004000)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeUInt64Size(15, msgBacklog_);
+      }
+      memoizedSerializedSize = size;
+      return size;
+    }
+    
+    private static final long serialVersionUID = 0L;
+    @java.lang.Override
+    protected java.lang.Object writeReplace()
+        throws java.io.ObjectStreamException {
+      return super.writeReplace();
+    }
+    
+    public static com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse parseFrom(
+        com.google.protobuf.ByteString data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+         throw new RuntimeException("Disabled");
+    }
+    public static com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse parseFrom(
+        com.google.protobuf.ByteString data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+         throw new RuntimeException("Disabled");
+    }
+    public static com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse parseFrom(byte[] data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return newBuilder().mergeFrom(data).buildParsed();
+    }
+    public static com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse parseFrom(
+        byte[] data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return newBuilder().mergeFrom(data, extensionRegistry)
+               .buildParsed();
+    }
+    public static com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse parseFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input).buildParsed();
+    }
+    public static com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse parseFrom(
+        java.io.InputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input, extensionRegistry)
+               .buildParsed();
+    }
+    public static com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse parseDelimitedFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      Builder builder = newBuilder();
+      if (builder.mergeDelimitedFrom(input)) {
+        return builder.buildParsed();
+      } else {
+        return null;
+      }
+    }
+    public static com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse parseDelimitedFrom(
+        java.io.InputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      Builder builder = newBuilder();
+      if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
+        return builder.buildParsed();
+      } else {
+        return null;
+      }
+    }
+    public static com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse parseFrom(
+        com.google.protobuf.CodedInputStream input)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input).buildParsed();
+    }
+    public static com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse parseFrom(
+        com.google.protobuf.CodedInputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input, extensionRegistry)
+               .buildParsed();
+    }
+    
+    public static Builder newBuilder() { return Builder.create(); }
+    public Builder newBuilderForType() { return newBuilder(); }
+    public static Builder newBuilder(com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse prototype) {
+      return newBuilder().mergeFrom(prototype);
+    }
+    public Builder toBuilder() { return newBuilder(this); }
+    
+    public static final class Builder extends
+        com.google.protobuf.GeneratedMessageLite.Builder<
+          com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse, Builder>
+        implements com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponseOrBuilder, com.yahoo.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
+      // Construct using com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse.newBuilder()
+      private final io.netty.util.Recycler.Handle handle;
+      private Builder(io.netty.util.Recycler.Handle handle) {
+        this.handle = handle;
+        maybeForceBuilderInitialization();
+      }
+      private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
+         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
+               return new Builder(handle);
+             }
+            };
+      
+       public void recycle() {
+                clear();
+                if (handle != null) {RECYCLER.recycle(this, handle);}
+            }
+      
+      private void maybeForceBuilderInitialization() {
+      }
+      private static Builder create() {
+        return RECYCLER.get();
+      }
+      
+      public Builder clear() {
+        super.clear();
+        requestId_ = 0L;
+        bitField0_ = (bitField0_ & ~0x00000001);
+        errorCode_ = com.yahoo.pulsar.common.api.proto.PulsarApi.ServerError.UnknownError;
+        bitField0_ = (bitField0_ & ~0x00000002);
+        errorMessage_ = "";
+        bitField0_ = (bitField0_ & ~0x00000004);
+        msgRateOut_ = 0D;
+        bitField0_ = (bitField0_ & ~0x00000008);
+        msgThroughputOut_ = 0D;
+        bitField0_ = (bitField0_ & ~0x00000010);
+        msgRateRedeliver_ = 0D;
+        bitField0_ = (bitField0_ & ~0x00000020);
+        consumerName_ = "";
+        bitField0_ = (bitField0_ & ~0x00000040);
+        availablePermits_ = 0L;
+        bitField0_ = (bitField0_ & ~0x00000080);
+        unackedMessages_ = 0L;
+        bitField0_ = (bitField0_ & ~0x00000100);
+        blockedConsumerOnUnackedMsgs_ = false;
+        bitField0_ = (bitField0_ & ~0x00000200);
+        address_ = "";
+        bitField0_ = (bitField0_ & ~0x00000400);
+        connectedSince_ = "";
+        bitField0_ = (bitField0_ & ~0x00000800);
+        type_ = "";
+        bitField0_ = (bitField0_ & ~0x00001000);
+        msgRateExpired_ = 0D;
+        bitField0_ = (bitField0_ & ~0x00002000);
+        msgBacklog_ = 0L;
+        bitField0_ = (bitField0_ & ~0x00004000);
+        return this;
+      }
+      
+      public Builder clone() {
+        return create().mergeFrom(buildPartial());
+      }
+      
+      public com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse getDefaultInstanceForType() {
+        return com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse.getDefaultInstance();
+      }
+      
+      public com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse build() {
+        com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse result = buildPartial();
+        if (!result.isInitialized()) {
+          throw newUninitializedMessageException(result);
+        }
+        return result;
+      }
+      
+      private com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse buildParsed()
+          throws com.google.protobuf.InvalidProtocolBufferException {
+        com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse result = buildPartial();
+        if (!result.isInitialized()) {
+          throw newUninitializedMessageException(
+            result).asInvalidProtocolBufferException();
+        }
+        return result;
+      }
+      
+      public com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse buildPartial() {
+        com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse result = com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse.RECYCLER.get();
+        int from_bitField0_ = bitField0_;
+        int to_bitField0_ = 0;
+        if (((from_bitField0_ & 0x00000001) == 0x00000001)) {
+          to_bitField0_ |= 0x00000001;
+        }
+        result.requestId_ = requestId_;
+        if (((from_bitField0_ & 0x00000002) == 0x00000002)) {
+          to_bitField0_ |= 0x00000002;
+        }
+        result.errorCode_ = errorCode_;
+        if (((from_bitField0_ & 0x00000004) == 0x00000004)) {
+          to_bitField0_ |= 0x00000004;
+        }
+        result.errorMessage_ = errorMessage_;
+        if (((from_bitField0_ & 0x00000008) == 0x00000008)) {
+          to_bitField0_ |= 0x00000008;
+        }
+        result.msgRateOut_ = msgRateOut_;
+        if (((from_bitField0_ & 0x00000010) == 0x00000010)) {
+          to_bitField0_ |= 0x00000010;
+        }
+        result.msgThroughputOut_ = msgThroughputOut_;
+        if (((from_bitField0_ & 0x00000020) == 0x00000020)) {
+          to_bitField0_ |= 0x00000020;
+        }
+        result.msgRateRedeliver_ = msgRateRedeliver_;
+        if (((from_bitField0_ & 0x00000040) == 0x00000040)) {
+          to_bitField0_ |= 0x00000040;
+        }
+        result.consumerName_ = consumerName_;
+        if (((from_bitField0_ & 0x00000080) == 0x00000080)) {
+          to_bitField0_ |= 0x00000080;
+        }
+        result.availablePermits_ = availablePermits_;
+        if (((from_bitField0_ & 0x00000100) == 0x00000100)) {
+          to_bitField0_ |= 0x00000100;
+        }
+        result.unackedMessages_ = unackedMessages_;
+        if (((from_bitField0_ & 0x00000200) == 0x00000200)) {
+          to_bitField0_ |= 0x00000200;
+        }
+        result.blockedConsumerOnUnackedMsgs_ = blockedConsumerOnUnackedMsgs_;
+        if (((from_bitField0_ & 0x00000400) == 0x00000400)) {
+          to_bitField0_ |= 0x00000400;
+        }
+        result.address_ = address_;
+        if (((from_bitField0_ & 0x00000800) == 0x00000800)) {
+          to_bitField0_ |= 0x00000800;
+        }
+        result.connectedSince_ = connectedSince_;
+        if (((from_bitField0_ & 0x00001000) == 0x00001000)) {
+          to_bitField0_ |= 0x00001000;
+        }
+        result.type_ = type_;
+        if (((from_bitField0_ & 0x00002000) == 0x00002000)) {
+          to_bitField0_ |= 0x00002000;
+        }
+        result.msgRateExpired_ = msgRateExpired_;
+        if (((from_bitField0_ & 0x00004000) == 0x00004000)) {
+          to_bitField0_ |= 0x00004000;
+        }
+        result.msgBacklog_ = msgBacklog_;
+        result.bitField0_ = to_bitField0_;
+        return result;
+      }
+      
+      public Builder mergeFrom(com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse other) {
+        if (other == com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse.getDefaultInstance()) return this;
+        if (other.hasRequestId()) {
+          setRequestId(other.getRequestId());
+        }
+        if (other.hasErrorCode()) {
+          setErrorCode(other.getErrorCode());
+        }
+        if (other.hasErrorMessage()) {
+          setErrorMessage(other.getErrorMessage());
+        }
+        if (other.hasMsgRateOut()) {
+          setMsgRateOut(other.getMsgRateOut());
+        }
+        if (other.hasMsgThroughputOut()) {
+          setMsgThroughputOut(other.getMsgThroughputOut());
+        }
+        if (other.hasMsgRateRedeliver()) {
+          setMsgRateRedeliver(other.getMsgRateRedeliver());
+        }
+        if (other.hasConsumerName()) {
+          setConsumerName(other.getConsumerName());
+        }
+        if (other.hasAvailablePermits()) {
+          setAvailablePermits(other.getAvailablePermits());
+        }
+        if (other.hasUnackedMessages()) {
+          setUnackedMessages(other.getUnackedMessages());
+        }
+        if (other.hasBlockedConsumerOnUnackedMsgs()) {
+          setBlockedConsumerOnUnackedMsgs(other.getBlockedConsumerOnUnackedMsgs());
+        }
+        if (other.hasAddress()) {
+          setAddress(other.getAddress());
+        }
+        if (other.hasConnectedSince()) {
+          setConnectedSince(other.getConnectedSince());
+        }
+        if (other.hasType()) {
+          setType(other.getType());
+        }
+        if (other.hasMsgRateExpired()) {
+          setMsgRateExpired(other.getMsgRateExpired());
+        }
+        if (other.hasMsgBacklog()) {
+          setMsgBacklog(other.getMsgBacklog());
+        }
+        return this;
+      }
+      
+      public final boolean isInitialized() {
+        if (!hasRequestId()) {
+          
+          return false;
+        }
+        return true;
+      }
+      
+      public Builder mergeFrom(com.google.protobuf.CodedInputStream input,
+                              com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+                              throws java.io.IOException {
+         throw new java.io.IOException("Merge from CodedInputStream is disabled");
+                              }
+      public Builder mergeFrom(
+          com.yahoo.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
+          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          throws java.io.IOException {
+        while (true) {
+          int tag = input.readTag();
+          switch (tag) {
+            case 0:
+              
+              return this;
+            default: {
+              if (!input.skipField(tag)) {
+                
+                return this;
+              }
+              break;
+            }
+            case 8: {
+              bitField0_ |= 0x00000001;
+              requestId_ = input.readUInt64();
+              break;
+            }
+            case 16: {
+              int rawValue = input.readEnum();
+              com.yahoo.pulsar.common.api.proto.PulsarApi.ServerError value = com.yahoo.pulsar.common.api.proto.PulsarApi.ServerError.valueOf(rawValue);
+              if (value != null) {
+                bitField0_ |= 0x00000002;
+                errorCode_ = value;
+              }
+              break;
+            }
+            case 26: {
+              bitField0_ |= 0x00000004;
+              errorMessage_ = input.readBytes();
+              break;
+            }
+            case 33: {
+              bitField0_ |= 0x00000008;
+              msgRateOut_ = input.readDouble();
+              break;
+            }
+            case 41: {
+              bitField0_ |= 0x00000010;
+              msgThroughputOut_ = input.readDouble();
+              break;
+            }
+            case 49: {
+              bitField0_ |= 0x00000020;
+              msgRateRedeliver_ = input.readDouble();
+              break;
+            }
+            case 58: {
+              bitField0_ |= 0x00000040;
+              consumerName_ = input.readBytes();
+              break;
+            }
+            case 64: {
+              bitField0_ |= 0x00000080;
+              availablePermits_ = input.readUInt64();
+              break;
+            }
+            case 72: {
+              bitField0_ |= 0x00000100;
+              unackedMessages_ = input.readUInt64();
+              break;
+            }
+            case 80: {
+              bitField0_ |= 0x00000200;
+              blockedConsumerOnUnackedMsgs_ = input.readBool();
+              break;
+            }
+            case 90: {
+              bitField0_ |= 0x00000400;
+              address_ = input.readBytes();
+              break;
+            }
+            case 98: {
+              bitField0_ |= 0x00000800;
+              connectedSince_ = input.readBytes();
+              break;
+            }
+            case 106: {
+              bitField0_ |= 0x00001000;
+              type_ = input.readBytes();
+              break;
+            }
+            case 113: {
+              bitField0_ |= 0x00002000;
+              msgRateExpired_ = input.readDouble();
+              break;
+            }
+            case 120: {
+              bitField0_ |= 0x00004000;
+              msgBacklog_ = input.readUInt64();
+              break;
+            }
+          }
+        }
+      }
+      
+      private int bitField0_;
+      
+      // required uint64 request_id = 1;
+      private long requestId_ ;
+      public boolean hasRequestId() {
+        return ((bitField0_ & 0x00000001) == 0x00000001);
+      }
+      public long getRequestId() {
+        return requestId_;
+      }
+      public Builder setRequestId(long value) {
+        bitField0_ |= 0x00000001;
+        requestId_ = value;
+        
+        return this;
+      }
+      public Builder clearRequestId() {
+        bitField0_ = (bitField0_ & ~0x00000001);
+        requestId_ = 0L;
+        
+        return this;
+      }
+      
+      // optional .pulsar.proto.ServerError error_code = 2;
+      private com.yahoo.pulsar.common.api.proto.PulsarApi.ServerError errorCode_ = com.yahoo.pulsar.common.api.proto.PulsarApi.ServerError.UnknownError;
+      public boolean hasErrorCode() {
+        return ((bitField0_ & 0x00000002) == 0x00000002);
+      }
+      public com.yahoo.pulsar.common.api.proto.PulsarApi.ServerError getErrorCode() {
+        return errorCode_;
+      }
+      public Builder setErrorCode(com.yahoo.pulsar.common.api.proto.PulsarApi.ServerError value) {
+        if (value == null) {
+          throw new NullPointerException();
+        }
+        bitField0_ |= 0x00000002;
+        errorCode_ = value;
+        
+        return this;
+      }
+      public Builder clearErrorCode() {
+        bitField0_ = (bitField0_ & ~0x00000002);
+        errorCode_ = com.yahoo.pulsar.common.api.proto.PulsarApi.ServerError.UnknownError;
+        
+        return this;
+      }
+      
+      // optional string error_message = 3;
+      private java.lang.Object errorMessage_ = "";
+      public boolean hasErrorMessage() {
+        return ((bitField0_ & 0x00000004) == 0x00000004);
+      }
+      public String getErrorMessage() {
+        java.lang.Object ref = errorMessage_;
+        if (!(ref instanceof String)) {
+          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
+          errorMessage_ = s;
+          return s;
+        } else {
+          return (String) ref;
+        }
+      }
+      public Builder setErrorMessage(String value) {
+        if (value == null) {
+    throw new NullPointerException();
+  }
+  bitField0_ |= 0x00000004;
+        errorMessage_ = value;
+        
+        return this;
+      }
+      public Builder clearErrorMessage() {
+        bitField0_ = (bitField0_ & ~0x00000004);
+        errorMessage_ = getDefaultInstance().getErrorMessage();
+        
+        return this;
+      }
+      void setErrorMessage(com.google.protobuf.ByteString value) {
+        bitField0_ |= 0x00000004;
+        errorMessage_ = value;
+        
+      }
+      
+      // optional double msgRateOut = 4;
+      private double msgRateOut_ ;
+      public boolean hasMsgRateOut() {
+        return ((bitField0_ & 0x00000008) == 0x00000008);
+      }
+      public double getMsgRateOut() {
+        return msgRateOut_;
+      }
+      public Builder setMsgRateOut(double value) {
+        bitField0_ |= 0x00000008;
+        msgRateOut_ = value;
+        
+        return this;
+      }
+      public Builder clearMsgRateOut() {
+        bitField0_ = (bitField0_ & ~0x00000008);
+        msgRateOut_ = 0D;
+        
+        return this;
+      }
+      
+      // optional double msgThroughputOut = 5;
+      private double msgThroughputOut_ ;
+      public boolean hasMsgThroughputOut() {
+        return ((bitField0_ & 0x00000010) == 0x00000010);
+      }
+      public double getMsgThroughputOut() {
+        return msgThroughputOut_;
+      }
+      public Builder setMsgThroughputOut(double value) {
+        bitField0_ |= 0x00000010;
+        msgThroughputOut_ = value;
+        
+        return this;
+      }
+      public Builder clearMsgThroughputOut() {
+        bitField0_ = (bitField0_ & ~0x00000010);
+        msgThroughputOut_ = 0D;
+        
+        return this;
+      }
+      
+      // optional double msgRateRedeliver = 6;
+      private double msgRateRedeliver_ ;
+      public boolean hasMsgRateRedeliver() {
+        return ((bitField0_ & 0x00000020) == 0x00000020);
+      }
+      public double getMsgRateRedeliver() {
+        return msgRateRedeliver_;
+      }
+      public Builder setMsgRateRedeliver(double value) {
+        bitField0_ |= 0x00000020;
+        msgRateRedeliver_ = value;
+        
+        return this;
+      }
+      public Builder clearMsgRateRedeliver() {
+        bitField0_ = (bitField0_ & ~0x00000020);
+        msgRateRedeliver_ = 0D;
+        
+        return this;
+      }
+      
+      // optional string consumerName = 7;
+      private java.lang.Object consumerName_ = "";
+      public boolean hasConsumerName() {
+        return ((bitField0_ & 0x00000040) == 0x00000040);
+      }
+      public String getConsumerName() {
+        java.lang.Object ref = consumerName_;
+        if (!(ref instanceof String)) {
+          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
+          consumerName_ = s;
+          return s;
+        } else {
+          return (String) ref;
+        }
+      }
+      public Builder setConsumerName(String value) {
+        if (value == null) {
+    throw new NullPointerException();
+  }
+  bitField0_ |= 0x00000040;
+        consumerName_ = value;
+        
+        return this;
+      }
+      public Builder clearConsumerName() {
+        bitField0_ = (bitField0_ & ~0x00000040);
+        consumerName_ = getDefaultInstance().getConsumerName();
+        
+        return this;
+      }
+      void setConsumerName(com.google.protobuf.ByteString value) {
+        bitField0_ |= 0x00000040;
+        consumerName_ = value;
+        
+      }
+      
+      // optional uint64 availablePermits = 8;
+      private long availablePermits_ ;
+      public boolean hasAvailablePermits() {
+        return ((bitField0_ & 0x00000080) == 0x00000080);
+      }
+      public long getAvailablePermits() {
+        return availablePermits_;
+      }
+      public Builder setAvailablePermits(long value) {
+        bitField0_ |= 0x00000080;
+        availablePermits_ = value;
+        
+        return this;
+      }
+      public Builder clearAvailablePermits() {
+        bitField0_ = (bitField0_ & ~0x00000080);
+        availablePermits_ = 0L;
+        
+        return this;
+      }
+      
+      // optional uint64 unackedMessages = 9;
+      private long unackedMessages_ ;
+      public boolean hasUnackedMessages() {
+        return ((bitField0_ & 0x00000100) == 0x00000100);
+      }
+      public long getUnackedMessages() {
+        return unackedMessages_;
+      }
+      public Builder setUnackedMessages(long value) {
+        bitField0_ |= 0x00000100;
+        unackedMessages_ = value;
+        
+        return this;
+      }
+      public Builder clearUnackedMessages() {
+        bitField0_ = (bitField0_ & ~0x00000100);
+        unackedMessages_ = 0L;
+        
+        return this;
+      }
+      
+      // optional bool blockedConsumerOnUnackedMsgs = 10;
+      private boolean blockedConsumerOnUnackedMsgs_ ;
+      public boolean hasBlockedConsumerOnUnackedMsgs() {
+        return ((bitField0_ & 0x00000200) == 0x00000200);
+      }
+      public boolean getBlockedConsumerOnUnackedMsgs() {
+        return blockedConsumerOnUnackedMsgs_;
+      }
+      public Builder setBlockedConsumerOnUnackedMsgs(boolean value) {
+        bitField0_ |= 0x00000200;
+        blockedConsumerOnUnackedMsgs_ = value;
+        
+        return this;
+      }
+      public Builder clearBlockedConsumerOnUnackedMsgs() {
+        bitField0_ = (bitField0_ & ~0x00000200);
+        blockedConsumerOnUnackedMsgs_ = false;
+        
+        return this;
+      }
+      
+      // optional string address = 11;
+      private java.lang.Object address_ = "";
+      public boolean hasAddress() {
+        return ((bitField0_ & 0x00000400) == 0x00000400);
+      }
+      public String getAddress() {
+        java.lang.Object ref = address_;
+        if (!(ref instanceof String)) {
+          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
+          address_ = s;
+          return s;
+        } else {
+          return (String) ref;
+        }
+      }
+      public Builder setAddress(String value) {
+        if (value == null) {
+    throw new NullPointerException();
+  }
+  bitField0_ |= 0x00000400;
+        address_ = value;
+        
+        return this;
+      }
+      public Builder clearAddress() {
+        bitField0_ = (bitField0_ & ~0x00000400);
+        address_ = getDefaultInstance().getAddress();
+        
+        return this;
+      }
+      void setAddress(com.google.protobuf.ByteString value) {
+        bitField0_ |= 0x00000400;
+        address_ = value;
+        
+      }
+      
+      // optional string connectedSince = 12;
+      private java.lang.Object connectedSince_ = "";
+      public boolean hasConnectedSince() {
+        return ((bitField0_ & 0x00000800) == 0x00000800);
+      }
+      public String getConnectedSince() {
+        java.lang.Object ref = connectedSince_;
+        if (!(ref instanceof String)) {
+          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
+          connectedSince_ = s;
+          return s;
+        } else {
+          return (String) ref;
+        }
+      }
+      public Builder setConnectedSince(String value) {
+        if (value == null) {
+    throw new NullPointerException();
+  }
+  bitField0_ |= 0x00000800;
+        connectedSince_ = value;
+        
+        return this;
+      }
+      public Builder clearConnectedSince() {
+        bitField0_ = (bitField0_ & ~0x00000800);
+        connectedSince_ = getDefaultInstance().getConnectedSince();
+        
+        return this;
+      }
+      void setConnectedSince(com.google.protobuf.ByteString value) {
+        bitField0_ |= 0x00000800;
+        connectedSince_ = value;
+        
+      }
+      
+      // optional string type = 13;
+      private java.lang.Object type_ = "";
+      public boolean hasType() {
+        return ((bitField0_ & 0x00001000) == 0x00001000);
+      }
+      public String getType() {
+        java.lang.Object ref = type_;
+        if (!(ref instanceof String)) {
+          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
+          type_ = s;
+          return s;
+        } else {
+          return (String) ref;
+        }
+      }
+      public Builder setType(String value) {
+        if (value == null) {
+    throw new NullPointerException();
+  }
+  bitField0_ |= 0x00001000;
+        type_ = value;
+        
+        return this;
+      }
+      public Builder clearType() {
+        bitField0_ = (bitField0_ & ~0x00001000);
+        type_ = getDefaultInstance().getType();
+        
+        return this;
+      }
+      void setType(com.google.protobuf.ByteString value) {
+        bitField0_ |= 0x00001000;
+        type_ = value;
+        
+      }
+      
+      // optional double msgRateExpired = 14;
+      private double msgRateExpired_ ;
+      public boolean hasMsgRateExpired() {
+        return ((bitField0_ & 0x00002000) == 0x00002000);
+      }
+      public double getMsgRateExpired() {
+        return msgRateExpired_;
+      }
+      public Builder setMsgRateExpired(double value) {
+        bitField0_ |= 0x00002000;
+        msgRateExpired_ = value;
+        
+        return this;
+      }
+      public Builder clearMsgRateExpired() {
+        bitField0_ = (bitField0_ & ~0x00002000);
+        msgRateExpired_ = 0D;
+        
+        return this;
+      }
+      
+      // optional uint64 msgBacklog = 15;
+      private long msgBacklog_ ;
+      public boolean hasMsgBacklog() {
+        return ((bitField0_ & 0x00004000) == 0x00004000);
+      }
+      public long getMsgBacklog() {
+        return msgBacklog_;
+      }
+      public Builder setMsgBacklog(long value) {
+        bitField0_ |= 0x00004000;
+        msgBacklog_ = value;
+        
+        return this;
+      }
+      public Builder clearMsgBacklog() {
+        bitField0_ = (bitField0_ & ~0x00004000);
+        msgBacklog_ = 0L;
+        
+        return this;
+      }
+      
+      // @@protoc_insertion_point(builder_scope:pulsar.proto.CommandConsumerStatsResponse)
+    }
+    
+    static {
+      defaultInstance = new CommandConsumerStatsResponse(true);
+      defaultInstance.initFields();
+    }
+    
+    // @@protoc_insertion_point(class_scope:pulsar.proto.CommandConsumerStatsResponse)
+  }
+  
   public interface BaseCommandOrBuilder
       extends com.google.protobuf.MessageLiteOrBuilder {
     
@@ -14282,6 +16269,14 @@ public final class PulsarApi {
     // optional .pulsar.proto.CommandLookupTopicResponse lookupTopicResponse = 24;
     boolean hasLookupTopicResponse();
     com.yahoo.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse getLookupTopicResponse();
+    
+    // optional .pulsar.proto.CommandConsumerStats consumerStats = 25;
+    boolean hasConsumerStats();
+    com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStats getConsumerStats();
+    
+    // optional .pulsar.proto.CommandConsumerStatsResponse consumerStatsResponse = 26;
+    boolean hasConsumerStatsResponse();
+    com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse getConsumerStatsResponse();
   }
   public static final class BaseCommand extends
       com.google.protobuf.GeneratedMessageLite
@@ -14342,6 +16337,8 @@ public final class PulsarApi {
       PARTITIONED_METADATA_RESPONSE(20, 22),
       LOOKUP(21, 23),
       LOOKUP_RESPONSE(22, 24),
+      CONSUMER_STATS(23, 25),
+      CONSUMER_STATS_RESPONSE(24, 26),
       ;
       
       public static final int CONNECT_VALUE = 2;
@@ -14367,6 +16364,8 @@ public final class PulsarApi {
       public static final int PARTITIONED_METADATA_RESPONSE_VALUE = 22;
       public static final int LOOKUP_VALUE = 23;
       public static final int LOOKUP_RESPONSE_VALUE = 24;
+      public static final int CONSUMER_STATS_VALUE = 25;
+      public static final int CONSUMER_STATS_RESPONSE_VALUE = 26;
       
       
       public final int getNumber() { return value; }
@@ -14396,6 +16395,8 @@ public final class PulsarApi {
           case 22: return PARTITIONED_METADATA_RESPONSE;
           case 23: return LOOKUP;
           case 24: return LOOKUP_RESPONSE;
+          case 25: return CONSUMER_STATS;
+          case 26: return CONSUMER_STATS_RESPONSE;
           default: return null;
         }
       }
@@ -14662,6 +16663,26 @@ public final class PulsarApi {
       return lookupTopicResponse_;
     }
     
+    // optional .pulsar.proto.CommandConsumerStats consumerStats = 25;
+    public static final int CONSUMERSTATS_FIELD_NUMBER = 25;
+    private com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStats consumerStats_;
+    public boolean hasConsumerStats() {
+      return ((bitField0_ & 0x01000000) == 0x01000000);
+    }
+    public com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStats getConsumerStats() {
+      return consumerStats_;
+    }
+    
+    // optional .pulsar.proto.CommandConsumerStatsResponse consumerStatsResponse = 26;
+    public static final int CONSUMERSTATSRESPONSE_FIELD_NUMBER = 26;
+    private com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse consumerStatsResponse_;
+    public boolean hasConsumerStatsResponse() {
+      return ((bitField0_ & 0x02000000) == 0x02000000);
+    }
+    public com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse getConsumerStatsResponse() {
+      return consumerStatsResponse_;
+    }
+    
     private void initFields() {
       type_ = com.yahoo.pulsar.common.api.proto.PulsarApi.BaseCommand.Type.CONNECT;
       connect_ = com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConnect.getDefaultInstance();
@@ -14687,6 +16708,8 @@ public final class PulsarApi {
       partitionMetadataResponse_ = com.yahoo.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadataResponse.getDefaultInstance();
       lookupTopic_ = com.yahoo.pulsar.common.api.proto.PulsarApi.CommandLookupTopic.getDefaultInstance();
       lookupTopicResponse_ = com.yahoo.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse.getDefaultInstance();
+      consumerStats_ = com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStats.getDefaultInstance();
+      consumerStatsResponse_ = com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse.getDefaultInstance();
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -14823,6 +16846,18 @@ public final class PulsarApi {
           return false;
         }
       }
+      if (hasConsumerStats()) {
+        if (!getConsumerStats().isInitialized()) {
+          memoizedIsInitialized = 0;
+          return false;
+        }
+      }
+      if (hasConsumerStatsResponse()) {
+        if (!getConsumerStatsResponse().isInitialized()) {
+          memoizedIsInitialized = 0;
+          return false;
+        }
+      }
       memoizedIsInitialized = 1;
       return true;
     }
@@ -14906,6 +16941,12 @@ public final class PulsarApi {
       }
       if (((bitField0_ & 0x00800000) == 0x00800000)) {
         output.writeMessage(24, lookupTopicResponse_);
+      }
+      if (((bitField0_ & 0x01000000) == 0x01000000)) {
+        output.writeMessage(25, consumerStats_);
+      }
+      if (((bitField0_ & 0x02000000) == 0x02000000)) {
+        output.writeMessage(26, consumerStatsResponse_);
       }
     }
     
@@ -15010,6 +17051,14 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00800000) == 0x00800000)) {
         size += com.google.protobuf.CodedOutputStream
           .computeMessageSize(24, lookupTopicResponse_);
+      }
+      if (((bitField0_ & 0x01000000) == 0x01000000)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeMessageSize(25, consumerStats_);
+      }
+      if (((bitField0_ & 0x02000000) == 0x02000000)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeMessageSize(26, consumerStatsResponse_);
       }
       memoizedSerializedSize = size;
       return size;
@@ -15172,6 +17221,10 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00400000);
         lookupTopicResponse_ = com.yahoo.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse.getDefaultInstance();
         bitField0_ = (bitField0_ & ~0x00800000);
+        consumerStats_ = com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStats.getDefaultInstance();
+        bitField0_ = (bitField0_ & ~0x01000000);
+        consumerStatsResponse_ = com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse.getDefaultInstance();
+        bitField0_ = (bitField0_ & ~0x02000000);
         return this;
       }
       
@@ -15301,6 +17354,14 @@ public final class PulsarApi {
           to_bitField0_ |= 0x00800000;
         }
         result.lookupTopicResponse_ = lookupTopicResponse_;
+        if (((from_bitField0_ & 0x01000000) == 0x01000000)) {
+          to_bitField0_ |= 0x01000000;
+        }
+        result.consumerStats_ = consumerStats_;
+        if (((from_bitField0_ & 0x02000000) == 0x02000000)) {
+          to_bitField0_ |= 0x02000000;
+        }
+        result.consumerStatsResponse_ = consumerStatsResponse_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -15378,6 +17439,12 @@ public final class PulsarApi {
         }
         if (other.hasLookupTopicResponse()) {
           mergeLookupTopicResponse(other.getLookupTopicResponse());
+        }
+        if (other.hasConsumerStats()) {
+          mergeConsumerStats(other.getConsumerStats());
+        }
+        if (other.hasConsumerStatsResponse()) {
+          mergeConsumerStatsResponse(other.getConsumerStatsResponse());
         }
         return this;
       }
@@ -15509,6 +17576,18 @@ public final class PulsarApi {
         }
         if (hasLookupTopicResponse()) {
           if (!getLookupTopicResponse().isInitialized()) {
+            
+            return false;
+          }
+        }
+        if (hasConsumerStats()) {
+          if (!getConsumerStats().isInitialized()) {
+            
+            return false;
+          }
+        }
+        if (hasConsumerStatsResponse()) {
+          if (!getConsumerStatsResponse().isInitialized()) {
             
             return false;
           }
@@ -15774,6 +17853,26 @@ public final class PulsarApi {
               }
               input.readMessage(subBuilder, extensionRegistry);
               setLookupTopicResponse(subBuilder.buildPartial());
+              subBuilder.recycle();
+              break;
+            }
+            case 202: {
+              com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStats.Builder subBuilder = com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStats.newBuilder();
+              if (hasConsumerStats()) {
+                subBuilder.mergeFrom(getConsumerStats());
+              }
+              input.readMessage(subBuilder, extensionRegistry);
+              setConsumerStats(subBuilder.buildPartial());
+              subBuilder.recycle();
+              break;
+            }
+            case 210: {
+              com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse.Builder subBuilder = com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse.newBuilder();
+              if (hasConsumerStatsResponse()) {
+                subBuilder.mergeFrom(getConsumerStatsResponse());
+              }
+              input.readMessage(subBuilder, extensionRegistry);
+              setConsumerStatsResponse(subBuilder.buildPartial());
               subBuilder.recycle();
               break;
             }
@@ -16793,6 +18892,92 @@ public final class PulsarApi {
         lookupTopicResponse_ = com.yahoo.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse.getDefaultInstance();
         
         bitField0_ = (bitField0_ & ~0x00800000);
+        return this;
+      }
+      
+      // optional .pulsar.proto.CommandConsumerStats consumerStats = 25;
+      private com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStats consumerStats_ = com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStats.getDefaultInstance();
+      public boolean hasConsumerStats() {
+        return ((bitField0_ & 0x01000000) == 0x01000000);
+      }
+      public com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStats getConsumerStats() {
+        return consumerStats_;
+      }
+      public Builder setConsumerStats(com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStats value) {
+        if (value == null) {
+          throw new NullPointerException();
+        }
+        consumerStats_ = value;
+        
+        bitField0_ |= 0x01000000;
+        return this;
+      }
+      public Builder setConsumerStats(
+          com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStats.Builder builderForValue) {
+        consumerStats_ = builderForValue.build();
+        
+        bitField0_ |= 0x01000000;
+        return this;
+      }
+      public Builder mergeConsumerStats(com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStats value) {
+        if (((bitField0_ & 0x01000000) == 0x01000000) &&
+            consumerStats_ != com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStats.getDefaultInstance()) {
+          consumerStats_ =
+            com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStats.newBuilder(consumerStats_).mergeFrom(value).buildPartial();
+        } else {
+          consumerStats_ = value;
+        }
+        
+        bitField0_ |= 0x01000000;
+        return this;
+      }
+      public Builder clearConsumerStats() {
+        consumerStats_ = com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStats.getDefaultInstance();
+        
+        bitField0_ = (bitField0_ & ~0x01000000);
+        return this;
+      }
+      
+      // optional .pulsar.proto.CommandConsumerStatsResponse consumerStatsResponse = 26;
+      private com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse consumerStatsResponse_ = com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse.getDefaultInstance();
+      public boolean hasConsumerStatsResponse() {
+        return ((bitField0_ & 0x02000000) == 0x02000000);
+      }
+      public com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse getConsumerStatsResponse() {
+        return consumerStatsResponse_;
+      }
+      public Builder setConsumerStatsResponse(com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse value) {
+        if (value == null) {
+          throw new NullPointerException();
+        }
+        consumerStatsResponse_ = value;
+        
+        bitField0_ |= 0x02000000;
+        return this;
+      }
+      public Builder setConsumerStatsResponse(
+          com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse.Builder builderForValue) {
+        consumerStatsResponse_ = builderForValue.build();
+        
+        bitField0_ |= 0x02000000;
+        return this;
+      }
+      public Builder mergeConsumerStatsResponse(com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse value) {
+        if (((bitField0_ & 0x02000000) == 0x02000000) &&
+            consumerStatsResponse_ != com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse.getDefaultInstance()) {
+          consumerStatsResponse_ =
+            com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse.newBuilder(consumerStatsResponse_).mergeFrom(value).buildPartial();
+        } else {
+          consumerStatsResponse_ = value;
+        }
+        
+        bitField0_ |= 0x02000000;
+        return this;
+      }
+      public Builder clearConsumerStatsResponse() {
+        consumerStatsResponse_ = com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse.getDefaultInstance();
+        
+        bitField0_ = (bitField0_ & ~0x02000000);
         return this;
       }
       
