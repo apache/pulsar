@@ -16,25 +16,48 @@
 package com.yahoo.pulsar.client.impl;
 
 import static org.mockito.Matchers.anyObject;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 
 import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.NavigableMap;
+import java.util.Set;
+import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+import com.google.common.collect.Sets;
 import com.yahoo.pulsar.broker.namespace.OwnershipCache;
+import com.yahoo.pulsar.broker.service.Topic;
+import com.yahoo.pulsar.client.api.Consumer;
 import com.yahoo.pulsar.client.api.ConsumerConfiguration;
+import com.yahoo.pulsar.client.api.Message;
+import com.yahoo.pulsar.client.api.MessageListener;
+import com.yahoo.pulsar.client.api.Producer;
 import com.yahoo.pulsar.client.api.ProducerConfiguration;
 import com.yahoo.pulsar.client.api.ProducerConsumerBase;
+import com.yahoo.pulsar.client.api.PulsarClient;
+import com.yahoo.pulsar.client.api.PulsarClientException;
+import com.yahoo.pulsar.client.api.SubscriptionType;
 import com.yahoo.pulsar.client.impl.HandlerBase.State;
+import com.yahoo.pulsar.common.api.PulsarHandler;
 import com.yahoo.pulsar.common.naming.DestinationName;
 import com.yahoo.pulsar.common.naming.NamespaceBundle;
-import com.yahoo.pulsar.common.naming.NamespaceBundle;
+import com.yahoo.pulsar.common.policies.data.RetentionPolicies;
 import com.yahoo.pulsar.common.util.collections.ConcurrentLongHashMap;
 
 public class BrokerClientIntegrationTest extends ProducerConsumerBase {
@@ -51,6 +74,11 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
+    }
+    
+    @DataProvider
+    public Object[][] subType() {
+        return new Object[][] {{SubscriptionType.Shared}, {SubscriptionType.Failover}};
     }
 
     
@@ -226,5 +254,217 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         
     }
 
-    
+    /**
+     * It verifies that consumer which doesn't support batch-message:
+     * <p>
+     * 1. broker disconnects that consumer
+     * <p>
+     * 2. redeliver all those messages to other supported consumer under the same subscription
+     * 
+     * @param subType
+     * @throws Exception
+     */
+    @Test(timeOut = 7000, dataProvider = "subType")
+    public void testUnsupportedBatchMessageConsumer(SubscriptionType subType) throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        final int batchMessageDelayMs = 1000;
+        final String topicName = "persistent://my-property/use/my-ns/my-topic1";
+        final String subscriptionName = "my-subscriber-name" + subType;
+
+        ConsumerConfiguration conf = new ConsumerConfiguration();
+        conf.setSubscriptionType(subType);
+        ConsumerImpl consumer1 = (ConsumerImpl) pulsarClient.subscribe(topicName, subscriptionName, conf);
+
+        ProducerConfiguration producerConf = new ProducerConfiguration();
+
+        if (batchMessageDelayMs != 0) {
+            producerConf.setBatchingEnabled(true);
+            producerConf.setBatchingMaxPublishDelay(batchMessageDelayMs, TimeUnit.MILLISECONDS);
+            producerConf.setBatchingMaxMessages(20);
+        }
+
+        Producer producer = pulsarClient.createProducer(topicName, new ProducerConfiguration());
+        Producer batchProducer = pulsarClient.createProducer(topicName, producerConf);
+
+        // update consumer's version to incompatible batch-message version = Version.V3
+        Topic topic = pulsar.getBrokerService().getTopic(topicName).get();
+        com.yahoo.pulsar.broker.service.Consumer brokerConsumer = topic.getSubscriptions().get(subscriptionName)
+                .getConsumers().get(0);
+        Field cnxField = com.yahoo.pulsar.broker.service.Consumer.class.getDeclaredField("cnx");
+        cnxField.setAccessible(true);
+        PulsarHandler cnx = (PulsarHandler) cnxField.get(brokerConsumer);
+        Field versionField = PulsarHandler.class.getDeclaredField("remoteEndpointProtocolVersion");
+        versionField.setAccessible(true);
+        versionField.set(cnx, 3);
+
+        // (1) send non-batch message: consumer should be able to consume
+        for (int i = 0; i < 10; i++) {
+            String message = "my-message-" + i;
+            producer.send(message.getBytes());
+        }
+        Set<String> messageSet = Sets.newHashSet();
+        Message msg = null;
+        for (int i = 0; i < 10; i++) {
+            msg = consumer1.receive(1, TimeUnit.SECONDS);
+            String receivedMessage = new String(msg.getData());
+            String expectedMessage = "my-message-" + i;
+            testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
+            consumer1.acknowledge(msg);
+        }
+
+        // Also set clientCnx of the consumer to null so, it avoid reconnection so, other consumer can consume for
+        // verification
+        consumer1.setClientCnx(null);
+        // (2) send batch-message which should not be able to consume: as broker will disconnect the consumer
+        for (int i = 0; i < 10; i++) {
+            String message = "my-message-" + i;
+            batchProducer.sendAsync(message.getBytes());
+        }
+
+        Thread.sleep(batchMessageDelayMs);
+
+        // consumer should have not received any message as it should have been disconnected
+        msg = consumer1.receive(2, TimeUnit.SECONDS);
+        assertNull(msg);
+
+        // subscrie consumer2 with supporting batch version
+        pulsarClient = PulsarClient.create(brokerUrl.toString());
+        Consumer consumer2 = pulsarClient.subscribe(topicName, subscriptionName, conf);
+
+        messageSet.clear();
+        for (int i = 0; i < 10; i++) {
+            msg = consumer2.receive(1, TimeUnit.SECONDS);
+            String receivedMessage = new String(msg.getData());
+            log.debug("Received message: [{}]", receivedMessage);
+            String expectedMessage = "my-message-" + i;
+            testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
+            consumer2.acknowledge(msg);
+        }
+
+        consumer2.close();
+        producer.close();
+        batchProducer.close();
+        log.info("-- Exiting {} test --", methodName);
+    }
+
+    @Test(timeOut = 10000, dataProvider = "subType")
+    public void testResetCursor(SubscriptionType subType) throws Exception {
+        final RetentionPolicies policy = new RetentionPolicies(60, 52 * 1024);
+        final DestinationName destName = DestinationName.get("persistent://my-property/use/my-ns/unacked-topic");
+        final int warmup = 20;
+        final int testSize = 150;
+        final List<Message> received = new ArrayList<Message>();
+        final ConsumerConfiguration consConfig = new ConsumerConfiguration();
+        final String subsId = "sub";
+
+        final NavigableMap<Long, TimestampEntryCount> publishTimeIdMap = new ConcurrentSkipListMap<>();
+
+        consConfig.setSubscriptionType(subType);
+        consConfig.setMessageListener((MessageListener) (Consumer consumer, Message msg) -> {
+            try {
+                synchronized (received) {
+                    received.add(msg);
+                }
+                consumer.acknowledge(msg);
+                long publishTime = ((MessageImpl) msg).getPublishTime();
+                System.out.println(" publish time is " + publishTime + "," + msg.getMessageId());
+                TimestampEntryCount timestampEntryCount = publishTimeIdMap.computeIfAbsent(publishTime,
+                        (k) -> new TimestampEntryCount(publishTime));
+                timestampEntryCount.incrementAndGet();
+            } catch (final PulsarClientException e) {
+                System.out.println("Failed to ack!");
+            }
+        });
+
+        admin.namespaces().setRetention(destName.getNamespace(), policy);
+
+        Consumer consumer = pulsarClient.subscribe(destName.toString(), subsId, consConfig);
+        final Producer producer = pulsarClient.createProducer(destName.toString());
+
+        log.info("warm up started for " + destName.toString());
+        // send warmup msgs
+        byte[] msgBytes = new byte[1000];
+        for (Integer i = 0; i < warmup; i++) {
+            producer.send(msgBytes);
+        }
+        log.info("warm up finished.");
+
+        // sleep to ensure receiving of msgs
+        for (int n = 0; n < 10 && received.size() < warmup; n++) {
+            Thread.sleep(100);
+        }
+
+        // validate received msgs
+        Assert.assertEquals(received.size(), warmup);
+        received.clear();
+
+        // publish testSize num of msgs
+        System.out.println("Sending more messages.");
+        for (Integer n = 0; n < testSize; n++) {
+            producer.send(msgBytes);
+            Thread.sleep(1);
+        }
+        log.info("Sending more messages done.");
+
+        Thread.sleep(3000);
+
+        long begints = publishTimeIdMap.firstEntry().getKey();
+        long endts = publishTimeIdMap.lastEntry().getKey();
+        // find reset timestamp
+        long timestamp = (endts - begints) / 2 + begints;
+        timestamp = publishTimeIdMap.floorKey(timestamp);
+
+        NavigableMap<Long, TimestampEntryCount> expectedMessages = new ConcurrentSkipListMap<>();
+        expectedMessages.putAll(publishTimeIdMap.tailMap(timestamp, true));
+
+        received.clear();
+
+        log.info("reset cursor to " + timestamp + " for topic " + destName.toString() + " for subs " + subsId);
+        System.out.println("issuing admin operation on " + admin.getServiceUrl().toString());
+        List<String> subList = admin.persistentTopics().getSubscriptions(destName.toString());
+        for (String subs : subList) {
+            log.info("got sub " + subs);
+        }
+        publishTimeIdMap.clear();
+        // reset the cursor to this timestamp
+        Assert.assertTrue(subList.contains(subsId));
+        admin.persistentTopics().resetCursor(destName.toString(), subsId, timestamp);
+
+        consumer = pulsarClient.subscribe(destName.toString(), subsId, consConfig);
+        Thread.sleep(3000);
+        int totalExpected = 0;
+        for (TimestampEntryCount tec : expectedMessages.values()) {
+            totalExpected += tec.numMessages;
+        }
+        // validate that replay happens after the timestamp
+        Assert.assertTrue(publishTimeIdMap.firstEntry().getKey() >= timestamp);
+        consumer.close();
+        producer.close();
+        // validate that expected and received counts match
+        int totalReceived = 0;
+        for (TimestampEntryCount tec : publishTimeIdMap.values()) {
+            totalReceived += tec.numMessages;
+        }
+        Assert.assertEquals(totalReceived, totalExpected, "did not receive all messages on replay after reset");
+    }
+
+    private static class TimestampEntryCount {
+        private final long timestamp;
+        private int numMessages;
+
+        public TimestampEntryCount(long ts) {
+            this.numMessages = 0;
+            this.timestamp = ts;
+        }
+
+        public int incrementAndGet() {
+            return ++numMessages;
+        }
+
+        public long getTimestamp() {
+            return timestamp;
+        }
+    }
+
 }

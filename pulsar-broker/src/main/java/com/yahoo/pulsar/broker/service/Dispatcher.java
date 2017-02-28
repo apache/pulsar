@@ -18,7 +18,6 @@ package com.yahoo.pulsar.broker.service;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-import com.yahoo.pulsar.common.api.proto.PulsarApi;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import com.yahoo.pulsar.utils.CopyOnWriteArrayList;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -41,11 +40,29 @@ public interface Dispatcher {
 
     boolean canUnsubscribe(Consumer consumer);
 
-    CompletableFuture<Void> disconnect();
+    /**
+     * mark dispatcher closed to stop new incoming requests and disconnect all consumers
+     * 
+     * @return
+     */
+    CompletableFuture<Void> close();
+    
+    /**
+     * disconnect all consumers
+     * 
+     * @return
+     */
+    CompletableFuture<Void> disconnectAllConsumers();
+
+    /**
+     * mark dispatcher open to serve new incoming requests
+     */
+    void reset();
 
     SubType getType();
 
     void redeliverUnacknowledgedMessages(Consumer consumer);
 
     void redeliverUnacknowledgedMessages(Consumer consumer, List<PositionImpl> positions);
+
 }

@@ -21,6 +21,8 @@ set(Boost_NO_BOOST_CMAKE ON)
 
 set (CMAKE_CXX_FLAGS "-Wno-deprecated-declarations ${CMAKE_CXX_FLAGS}")
 
+execute_process(COMMAND gcc -dumpversion OUTPUT_VARIABLE GCC_DUMP_VERSION)
+
 find_package(Boost REQUIRED COMPONENTS program_options filesystem regex thread system)
 find_package(OpenSSL REQUIRED)
 find_package(ZLIB REQUIRED)
@@ -61,6 +63,8 @@ set(CLIENT_LIBS
   ${COMMON_LIBS}
   pulsar
 )
+
+message( STATUS "GCC_DUMP_VERSION: " ${GCC_DUMP_VERSION} )
 
 add_subdirectory(lib)
 add_subdirectory(perf)

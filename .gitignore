@@ -34,3 +34,6 @@ target/
 
 # Perf tools
 *.hgrm
+
+# tmp files
+*.pid

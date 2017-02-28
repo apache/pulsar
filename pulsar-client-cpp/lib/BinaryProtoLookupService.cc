@@ -117,21 +117,15 @@ namespace pulsar {
         ClientConnectionPtr conn = clientCnx.lock();
         uint64_t requestId = newRequestId();
         conn->newPartitionedMetadataLookup(destinationName, requestId, lookupPromise);
-        lookupPromise->getFuture().addListener(boost::bind(&BinaryProtoLookupService::handleLookup, this, destinationName, _1, _2, clientCnx, promise));
+        lookupPromise->getFuture().addListener(boost::bind(&BinaryProtoLookupService::handlePartitionMetadataLookup, this, destinationName, _1, _2, clientCnx, promise));
     }
 
     void BinaryProtoLookupService::handlePartitionMetadataLookup(const std::string& destinationName,
             Result result, LookupDataResultPtr data, const ClientConnectionWeakPtr& clientCnx,
             LookupDataResultPromisePtr promise) {
         if (data) {
-            if(data->isRedirect()) {
-                LOG_DEBUG("PartitionMetadataLookup request is for " << destinationName << " redirected to " << data->getBrokerUrl());
-                Future<Result, ClientConnectionWeakPtr> future = cnxPool_.getConnectionAsync(data->getBrokerUrl());
-                future.addListener(boost::bind(&BinaryProtoLookupService::sendPartitionMetadataLookupRequest, this, destinationName, _1, _2, promise));
-            } else {
-                LOG_DEBUG("PartitionMetadataLookup response for " << destinationName << ", lookup-broker-url " << data->getBrokerUrl());
-                promise->setValue(data);
-            }
+            LOG_DEBUG("PartitionMetadataLookup response for " << destinationName << ", lookup-broker-url " << data->getBrokerUrl());
+            promise->setValue(data);
         } else {
             LOG_DEBUG("PartitionMetadataLookup failed for " << destinationName << ", result " << result);
             promise->setFailed(result);

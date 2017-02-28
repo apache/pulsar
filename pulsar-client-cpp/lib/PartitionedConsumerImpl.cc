@@ -380,4 +380,12 @@ namespace pulsar {
         return messages_.size();
     }
 
+    Result PartitionedConsumerImpl::getConsumerStats(BrokerConsumerStats& BrokerConsumerStats, int partitionIndex) {
+        if (partitionIndex >= numPartitions_ && partitionIndex < 0 && consumers_.size() <= partitionIndex)
+        {
+            LOG_ERROR(getName() << " PartitionIndex must be positive and less than number of partitiones")
+            return ResultInvalidConfiguration;
+        }
+        return consumers_[partitionIndex]->getConsumerStats(BrokerConsumerStats);
+    }
 }

@@ -33,13 +33,18 @@ import org.slf4j.LoggerFactory;
 
 import com.yahoo.pulsar.broker.authentication.AuthenticationDataCommand;
 import com.yahoo.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
+import com.yahoo.pulsar.broker.service.persistent.PersistentSubscription;
+import com.yahoo.pulsar.broker.service.persistent.PersistentTopic;
 import com.yahoo.pulsar.client.api.PulsarClientException;
+import com.yahoo.pulsar.common.policies.data.ConsumerStats;
 import com.yahoo.pulsar.common.api.Commands;
 import com.yahoo.pulsar.common.api.PulsarHandler;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandAck;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandCloseConsumer;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandCloseProducer;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConnect;
+import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStats;
+import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandFlow;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandLookupTopic;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadata;
@@ -50,6 +55,7 @@ import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSubscribe;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandUnsubscribe;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.MessageMetadata;
+import com.yahoo.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.ServerError;
 import com.yahoo.pulsar.common.naming.DestinationName;
 import com.yahoo.pulsar.common.policies.data.BacklogQuota;
@@ -192,6 +198,88 @@ public class ServerCnx extends PulsarHandler {
     }
     
     @Override
+    protected void handleConsumerStats(CommandConsumerStats commandConsumerStats) {
+        if (log.isDebugEnabled()) {
+            log.debug("Received CommandConsumerStats call from {}", remoteAddress);
+        }
+
+        final long requestId = commandConsumerStats.getRequestId();
+        final String topicName = commandConsumerStats.getTopicName();
+        final String subscriptionName = commandConsumerStats.getSubscriptionName();
+        final long consumerId = commandConsumerStats.getConsumerId();
+        
+        if (log.isDebugEnabled()) {
+            log.debug("CommandConsumerStats[requestId = {}, topicName = {}, subscriptionName = {}, consumerId = {}]", requestId, topicName, subscriptionName, consumerId);
+        }
+        
+        ByteBuf msg = null;
+        try {
+            PersistentTopic topic = (PersistentTopic) getBrokerService().getTopicReference(topicName);
+            if (topic != null) {
+                if (topic.getSubscriptions().containsKey(subscriptionName)) {
+                    PersistentSubscription subscription = topic.getSubscriptions().get(subscriptionName);
+                    boolean consumerFound = false;
+                    for (Consumer consumer : subscription.getConsumers()) {
+                        if (consumer.consumerId() == consumerId) {
+                            consumerFound = true;
+                            msg = Commands.newConsumerStatsResponse(createConsumerStatsResponse(consumer, subscription, requestId));
+                            break;
+                        }
+                    }
+                    if (!consumerFound) {
+                        log.error(
+                                "Failed to get consumer-stats response - Consumer not found for CommandConsumerStats[remoteAddress = {}, requestId = {}, topicName = {}, subscriptionName = {}, consumerId = {}]",
+                                remoteAddress, requestId, topicName, subscriptionName, consumerId);
+                        msg = Commands.newConsumerStatsResponse(ServerError.ConsumerNotFound,
+                                "Consumer " + consumerId + " not found", requestId);
+                    }
+                } else {
+                    log.error(
+                            "Failed to get consumer-stats response - Subscription  not found for CommandConsumerStats[remoteAddress = {}, requestId = {}, topicName = {}, subscriptionName = {}, consumerId = {}]",
+                            remoteAddress, requestId, topicName, subscriptionName, consumerId);
+                    msg = Commands.newConsumerStatsResponse(ServerError.SubscriptionNotFound,
+                            "Subscription " + subscriptionName + " not found", requestId);
+                }
+            } else {
+                log.error(
+                        "Failed to get consumer-stats response - Topic not found for CommandConsumerStats[remoteAddress = {}, requestId = {}, topicName = {}, subscriptionName = {}, consumerId = {}]",
+                        remoteAddress, requestId, topicName, subscriptionName, consumerId);
+                msg = Commands.newConsumerStatsResponse(ServerError.TopicNotFound, "Topic " + topicName + " not found",
+                        requestId);
+            }
+        } catch (Exception e) {
+            log.error("Failed to get consumer-stats response - Exception: {} for CommandConsumerStats[remoteAddress = {}, requestId = {}, topicName = {}, subscriptionName = {}, consumerId = {}]", 
+                    e, remoteAddress, requestId, topicName, subscriptionName, consumerId);
+            msg = Commands.newConsumerStatsResponse(ServerError.UnknownError, "Exception: " + e, requestId);
+        } finally {
+            if (msg != null) {
+                ctx.writeAndFlush(msg);
+            }
+        }
+    }
+
+    CommandConsumerStatsResponse.Builder createConsumerStatsResponse(Consumer consumer, PersistentSubscription subscription, long requestId) {
+        CommandConsumerStatsResponse.Builder commandConsumerStatsResponseBuilder = CommandConsumerStatsResponse
+                .newBuilder();
+        ConsumerStats consumerStats = consumer.getStats();
+        commandConsumerStatsResponseBuilder.setRequestId(requestId);
+        commandConsumerStatsResponseBuilder.setMsgRateOut(consumerStats.msgRateOut);
+        commandConsumerStatsResponseBuilder.setMsgThroughputOut(consumerStats.msgThroughputOut);
+        commandConsumerStatsResponseBuilder.setMsgRateRedeliver(consumerStats.msgRateRedeliver);
+        commandConsumerStatsResponseBuilder.setConsumerName(consumerStats.consumerName);
+        commandConsumerStatsResponseBuilder.setAvailablePermits(consumerStats.availablePermits);
+        commandConsumerStatsResponseBuilder.setUnackedMessages(consumerStats.unackedMessages);
+        commandConsumerStatsResponseBuilder.setBlockedConsumerOnUnackedMsgs(consumerStats.blockedConsumerOnUnackedMsgs);
+        commandConsumerStatsResponseBuilder.setAddress(consumerStats.address);
+        commandConsumerStatsResponseBuilder.setConnectedSince(consumerStats.connectedSince);
+        
+        commandConsumerStatsResponseBuilder.setType(subscription.getTypeString());
+        commandConsumerStatsResponseBuilder.setMsgRateExpired(subscription.getExpiredMessageRate());
+        commandConsumerStatsResponseBuilder.setMsgBacklog(subscription.getNumberOfEntriesInBacklog());
+        return commandConsumerStatsResponseBuilder;
+    }
+
+    @Override
     protected void handleConnect(CommandConnect connect) {
         checkArgument(state == State.Start);
         if (service.isAuthenticationEnabled()) {
@@ -246,6 +334,7 @@ public class ServerCnx extends PulsarHandler {
         final long consumerId = subscribe.getConsumerId();
         final SubType subType = subscribe.getSubType();
         final String consumerName = subscribe.getConsumerName();
+        final int priorityLevel = subscribe.hasPriorityLevel() ? subscribe.getPriorityLevel() : 0;
 
         authorizationFuture.thenApply(isAuthorized -> {
             if (isAuthorized) {
@@ -278,7 +367,7 @@ public class ServerCnx extends PulsarHandler {
                 }
 
                 service.getTopic(topicName).thenCompose(
-                        topic -> topic.subscribe(ServerCnx.this, subscriptionName, consumerId, subType, consumerName))
+                        topic -> topic.subscribe(ServerCnx.this, subscriptionName, consumerId, subType, priorityLevel, consumerName))
                         .thenAccept(consumer -> {
                             if (consumerFuture.complete(consumer)) {
                                 log.info("[{}] Created subscription on topic {} / {}", remoteAddress, topicName,
@@ -767,5 +856,9 @@ public class ServerCnx extends PulsarHandler {
 
     boolean hasConsumer(long consumerId) {
         return consumers.containsKey(consumerId);
+    }
+    
+    public boolean isBatchMessageCompatibleVersion() {
+        return remoteEndpointProtocolVersion >= ProtocolVersion.v4.getNumber();
     }
 }

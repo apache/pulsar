@@ -62,4 +62,6 @@ public interface Subscription {
     void redeliverUnacknowledgedMessages(Consumer consumer);
 
     void redeliverUnacknowledgedMessages(Consumer consumer, List<PositionImpl> positions);
+
+    void markTopicWithBatchMessagePublished();
 }
