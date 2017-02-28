@@ -332,7 +332,7 @@ public class PersistentSubscription implements Subscription {
                     return;
                 }
 
-                dispatcher.disconnect().whenComplete((aVoid, throwable) -> {
+                dispatcher.disconnectAllConsumers().whenComplete((aVoid, throwable) -> {
                     if (throwable != null) {
                         if (log.isDebugEnabled()) {
                             log.debug("[{}][{}] Failed to disconnect consumer from subscription", topicName, subName, throwable);
@@ -471,13 +471,13 @@ public class PersistentSubscription implements Subscription {
         // block any further consumers on this subscription
         IS_FENCED_UPDATER.set(this, TRUE);
 
-        (dispatcher != null ? dispatcher.disconnect() : CompletableFuture.completedFuture(null))
+        (dispatcher != null ? dispatcher.close() : CompletableFuture.completedFuture(null))
                 .thenCompose(v -> close()).thenRun(() -> {
                     log.info("[{}][{}] Successfully disconnected and closed subscription", topicName, subName);
                     disconnectFuture.complete(null);
                 }).exceptionally(exception -> {
                     IS_FENCED_UPDATER.set(this, FALSE);
-
+                    dispatcher.reset();
                     log.error("[{}][{}] Error disconnecting consumers from subscription", topicName, subName,
                             exception);
                     disconnectFuture.completeExceptionally(exception);
