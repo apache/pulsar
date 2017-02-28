@@ -42,6 +42,7 @@ public class ClientConfiguration implements Serializable {
     private int numIoThreads = 1;
     private int numListenerThreads = 1;
     private int connectionsPerBroker = 1;
+    private long lookupConnectionLifetimeInSecond = 600;
 
     private boolean useTcpNoDelay = true;
 
@@ -220,6 +221,30 @@ public class ClientConfiguration implements Serializable {
     }
 
     /**
+     * 
+     * @return lifetime of the persistent-connection used for the binary-proto lookup
+     */
+    public long getLookupConnectionLifetimeInSecond() {
+        return lookupConnectionLifetimeInSecond;
+    }
+
+    /**
+     * Sets lifetime of the persistent-connection (with broker) used for the binary-proto lookup <i>(default: 10
+     * mins)</i>
+     * <p>
+     * Setting time to -1 will not force connection to be closed after default-lifetime duration. Client creates a
+     * separate dedicated connection with broker for a given service-lookup url, if this url is same as broker's
+     * brokerServiceUrl then client shares the same created lookup-connection for producer/consumer connection also. So,
+     * in that case {@link #setLookupConnectionLifetimeInSecond(long)} should be configured -1 to avoid
+     * producer/consumer disruption due to disconnection/reconnection.
+     * 
+     * @param lookupConnectionLifetimeInSecond
+     */
+    public void setLookupConnectionLifetimeInSecond(long lookupConnectionLifetimeInSecond) {
+        this.lookupConnectionLifetimeInSecond = lookupConnectionLifetimeInSecond;
+    }
+
+    /**
      * @return whether TCP no-delay should be set on the connections
      */
     public boolean isUseTcpNoDelay() {
@@ -322,8 +347,8 @@ public class ClientConfiguration implements Serializable {
 
     /**
      * Number of concurrent lookup-requests allowed on each broker-connection to prevent overload on broker.
-     * <i>(default: 5000)</i> It should be configured with higher value only in case of it requires to produce/subscribe on
-     * thousands of topic using created {@link PulsarClient}
+     * <i>(default: 5000)</i> It should be configured with higher value only in case of it requires to produce/subscribe
+     * on thousands of topic using created {@link PulsarClient}
      * 
      * @param concurrentLookupRequest
      */

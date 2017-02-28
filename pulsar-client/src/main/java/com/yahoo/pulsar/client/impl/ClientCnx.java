@@ -338,6 +338,7 @@ public class ClientCnx extends PulsarHandler {
                 if (!writeFuture.isSuccess()) {
                     log.warn("{} Failed to send request {} to broker: {}", ctx.channel(), requestId,
                             writeFuture.cause().getMessage());
+                    getAndRemovePendingLookupRequest(requestId);
                     future.completeExceptionally(writeFuture.cause());
                 }
             });
@@ -377,6 +378,7 @@ public class ClientCnx extends PulsarHandler {
         ctx.writeAndFlush(cmd).addListener(writeFuture -> {
             if (!writeFuture.isSuccess()) {
                 log.warn("{} Failed to send request to broker: {}", ctx.channel(), writeFuture.cause().getMessage());
+                pendingRequests.remove(requestId);
                 future.completeExceptionally(writeFuture.cause());
             }
         });
