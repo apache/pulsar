@@ -128,7 +128,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
                     barrier.await();
                     // assertTrue(topic.unsubscribe(successSubName).isDone());
                     Thread.sleep(5, 0);
-                    System.out.println("deleter outcome is " + topic.delete().get());
+                    log.info("deleter outcome is {}", topic.delete().get());
                 } catch (Exception e) {
                     e.printStackTrace();
                     gotException.set(true);
@@ -146,7 +146,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
                     ConcurrentOpenHashMap<String, PersistentSubscription> subscriptions = topic.getSubscriptions();
                     PersistentSubscription ps = subscriptions.get(successSubName);
                     // Thread.sleep(2,0);
-                    System.out.println("unsubscriber outcome is " + ps.doUnsubscribe(ps.getConsumers().get(0)).get());
+                    log.info("unsubscriber outcome is {}", ps.doUnsubscribe(ps.getConsumers().get(0)).get());
                     // assertFalse(ps.delete().isCompletedExceptionally());
                 } catch (Exception e) {
                     e.printStackTrace();
@@ -186,11 +186,11 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
                     barrier.await();
                     // assertTrue(topic.unsubscribe(successSubName).isDone());
                     // Thread.sleep(5,0);
-                    System.out.println(Thread.currentThread() + " forcing topic GC ");
+                    log.info("{} forcing topic GC ", Thread.currentThread());
                     for (int i = 0; i < 2000; i++) {
                         topic.checkGC(0);
                     }
-                    System.out.println("GC done..");
+                    log.info("GC done..");
                 } catch (Exception e) {
                     e.printStackTrace();
                     gotException.set(true);
@@ -208,7 +208,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
                     ConcurrentOpenHashMap<String, PersistentSubscription> subscriptions = topic.getSubscriptions();
                     PersistentSubscription ps = subscriptions.get(successSubName);
                     // Thread.sleep(2,0);
-                    System.out.println("unsubscriber outcome is " + ps.doUnsubscribe(ps.getConsumers().get(0)).get());
+                    log.info("unsubscriber outcome is {}", ps.doUnsubscribe(ps.getConsumers().get(0)).get());
                     // assertFalse(ps.delete().isCompletedExceptionally());
                 } catch (Exception e) {
                     e.printStackTrace();
@@ -247,7 +247,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
                 try {
                     barrier.await();
                     Thread.sleep(4, 700);
-                    System.out.println("deleter outcome is " + topic.delete().get());
+                    log.info("deleter outcome is {}", topic.delete().get());
                 } catch (Exception e) {
                     e.printStackTrace();
                     gotException.set(true);
@@ -265,8 +265,8 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
                     // assertTrue(topic.unsubscribe(successSubName).isDone());
                     ConcurrentOpenHashMap<String, PersistentSubscription> subscriptions = topic.getSubscriptions();
                     PersistentSubscription ps = subscriptions.get(successSubName);
-                    System.out.println("unsubscribe result : " + topic.unsubscribe(successSubName).get());
-                    System.out.println("closing consumer..");
+                    log.info("unsubscribe result : {}", topic.unsubscribe(successSubName).get());
+                    log.info("closing consumer..");
                     ps.getConsumers().get(0).close();
                 } catch (Exception e) {
                     e.printStackTrace();
@@ -325,10 +325,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
                     // assertTrue(topic.unsubscribe(successSubName).isDone());
                     ConcurrentOpenHashMap<String, PersistentSubscription> subscriptions = topic.getSubscriptions();
                     PersistentSubscription ps = subscriptions.get(successSubName);
-                    // System.out.println("unsubscribe result : " + topic.unsubscribe(successSubName).get());
                     log.info("unsubscribe result : " + ps.doUnsubscribe(ps.getConsumers().get(0)).get());
-                    // System.out.println("closing consumer..");
-                    // ps.getConsumers().get(0).close();
                 } catch (Exception e) {
                     e.printStackTrace();
                     gotException.set(true);
