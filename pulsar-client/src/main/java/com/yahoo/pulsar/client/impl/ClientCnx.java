@@ -33,6 +33,8 @@ import com.yahoo.pulsar.common.api.PulsarHandler;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandCloseConsumer;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandCloseProducer;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConnected;
+import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStats;
+import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandError;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandMessage;
@@ -56,6 +58,7 @@ public class ClientCnx extends PulsarHandler {
 
     private final ConcurrentLongHashMap<CompletableFuture<String>> pendingRequests = new ConcurrentLongHashMap<>(16, 1);
     private final ConcurrentLongHashMap<CompletableFuture<LookupDataResult>> pendingLookupRequests = new ConcurrentLongHashMap<>(16, 1);
+    private final ConcurrentLongHashMap<CompletableFuture<BrokerConsumerStats>> pendingConsumerStatsRequests = new ConcurrentLongHashMap<>(16, 1);
     private final ConcurrentLongHashMap<ProducerImpl> producers = new ConcurrentLongHashMap<>(16, 1);
     private final ConcurrentLongHashMap<ConsumerImpl> consumers = new ConcurrentLongHashMap<>(16, 1);
 
@@ -110,7 +113,8 @@ public class ClientCnx extends PulsarHandler {
         // Fail out all the pending ops
         pendingRequests.forEach((key, future) -> future.completeExceptionally(e));
         pendingLookupRequests.forEach((key, future) -> getAndRemovePendingLookupRequest(key).completeExceptionally(e));
-
+        pendingConsumerStatsRequests.forEach((key, future) -> future.completeExceptionally(e));
+        pendingConsumerStatsRequests.clear();
         // Notify all attached producers/consumers so they have a chance to reconnect
         producers.forEach((id, producer) -> producer.connectionClosed(this));
         consumers.forEach((id, consumer) -> consumer.connectionClosed(this));
@@ -228,6 +232,26 @@ public class ClientCnx extends PulsarHandler {
             log.warn("{} Received unknown request id from server: {}", ctx.channel(), lookupResult.getRequestId());
         }
     }
+    
+    @Override
+    protected void handleConsumerStatsResponse(CommandConsumerStatsResponse response) {
+        if (log.isDebugEnabled()) {
+            log.debug("Received Consumer Stats response for request id: {}", response.getRequestId());
+        }
+        long requestId = response.getRequestId();
+        CompletableFuture<BrokerConsumerStats> future = pendingConsumerStatsRequests.remove(requestId);
+
+        if (future != null) {
+            if (response.hasErrorCode()) {
+                future.completeExceptionally(getPulsarClientException(response.getErrorCode(),
+                        response.hasErrorMessage() ? response.getErrorMessage() : null));
+            } else {
+                future.complete(new BrokerConsumerStats(response));
+            }
+        } else {
+            log.warn("{} Received unknown request id from server: {}", ctx.channel(), requestId);
+        }
+    }
 
     @Override
     protected void handlePartitionResponse(CommandPartitionedTopicMetadataResponse lookupResult) {
@@ -339,6 +363,7 @@ public class ClientCnx extends PulsarHandler {
                     log.warn("{} Failed to send request {} to broker: {}", ctx.channel(), requestId,
                             writeFuture.cause().getMessage());
                     future.completeExceptionally(writeFuture.cause());
+                    getAndRemovePendingLookupRequest(requestId);
                 }
             });
         } else {
@@ -350,7 +375,22 @@ public class ClientCnx extends PulsarHandler {
         }
         return future;
     }
-
+    
+    CompletableFuture<BrokerConsumerStats> newConsumerStats(String topicName, String subscriptionName, long consumerId, long requestId) {
+        CompletableFuture<BrokerConsumerStats> future = new CompletableFuture<>();
+        ByteBuf request = Commands.newConsumerStats(topicName, subscriptionName, consumerId, requestId);
+        ctx.writeAndFlush(request).addListener(writeFuture -> {
+            if (!writeFuture.isSuccess()) {
+                log.warn("{} Failed to send request {} to broker: {}", ctx.channel(), requestId,
+                        writeFuture.cause().getMessage());
+                future.completeExceptionally(writeFuture.cause());
+            } else {
+                pendingConsumerStatsRequests.put(requestId, future);
+            }
+        });
+        return future;
+    }
+    
     Promise<Void> newPromise() {
         return ctx.newPromise();
     }
@@ -420,9 +460,22 @@ public class ClientCnx extends PulsarHandler {
         case ProducerBlockedQuotaExceededException:
             return new PulsarClientException.ProducerBlockedQuotaExceededException(errorMsg);
         case UnknownError:
-        default:
-            return new PulsarClientException(errorMsg);
+            return new PulsarClientException.UnknownError(errorMsg);
+        case TopicNotFound: 
+            return new PulsarClientException.UnknownError(errorMsg);
+        case ConsumerNotFound:
+            return new PulsarClientException.UnknownError(errorMsg);
+        case SubscriptionNotFound:
+            return new PulsarClientException.UnknownError(errorMsg);
+        case ChecksumError:
+            return new PulsarClientException.ChecksumException(errorMsg);
+        case UnsupportedVersionError:
+            return new PulsarClientException.UnsupportedVersionError(errorMsg);
         }
+        // NOTE : Do not add default case in the switch above. In future if we get new cases for
+        // ServerError and miss them in the switch above we will get a warning. 
+        // Adding return here to make the compiler happy.
+        return new PulsarClientException(errorMsg);
     }
 
     private static final Logger log = LoggerFactory.getLogger(ClientCnx.class);

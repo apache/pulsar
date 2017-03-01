@@ -92,6 +92,7 @@ public class ConsumerImpl extends ConsumerBase {
 
     private final ConsumerStats stats;
     private final int priorityLevel;
+    private volatile BrokerConsumerStats brokerConsumerStats = new BrokerConsumerStats();
 
     ConsumerImpl(PulsarClientImpl client, String topic, String subscription, ConsumerConfiguration conf,
                  ExecutorService listenerExecutor, CompletableFuture<Consumer> subscribeFuture) {
@@ -1014,5 +1015,25 @@ public class ConsumerImpl extends ConsumerBase {
     }
 
     private static final Logger log = LoggerFactory.getLogger(ConsumerImpl.class);
+
+    @Override
+    public CompletableFuture<BrokerConsumerStats> getBrokerConsumerStatsAsync() {
+        if (getState() != State.Ready || !isConnected()) {
+            return FutureUtil.failedFuture(new PulsarClientException.NotConnectedException());
+        }
+
+        if (brokerConsumerStats.isValid()) {
+            CompletableFuture<BrokerConsumerStats> future = new CompletableFuture<BrokerConsumerStats>();
+            future.complete(brokerConsumerStats);
+            return future;
+        }
+        long requestId = client.newRequestId();
+        return cnx().newConsumerStats(topic, subscription, consumerId, requestId)
+                .thenApplyAsync(brokerConsumerStats -> {
+                    brokerConsumerStats.setCacheTime(conf.getBrokerConsumerStatsCacheTimeInMs());
+                    this.brokerConsumerStats = brokerConsumerStats;
+                    return brokerConsumerStats;
+                });
+    }
 
 }

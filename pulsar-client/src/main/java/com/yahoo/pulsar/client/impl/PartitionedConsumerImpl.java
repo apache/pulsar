@@ -17,6 +17,7 @@ package com.yahoo.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -449,4 +450,14 @@ public class PartitionedConsumerImpl extends ConsumerBase {
     }
 
     private static final Logger log = LoggerFactory.getLogger(PartitionedConsumerImpl.class);
+
+    @Override
+    public CompletableFuture<BrokerConsumerStats> getBrokerConsumerStatsAsync() {
+        BrokerConsumerStats brokerConsumerStats = new BrokerConsumerStats();
+        List<CompletableFuture<Void>> futures = Lists.newArrayList();
+        for (Consumer c : consumers) {
+            futures.add(c.getBrokerConsumerStatsAsync().thenAcceptAsync(stats -> {brokerConsumerStats.add(stats);}));
+        }
+        return FutureUtil.waitForAll(futures).thenApplyAsync( r -> {return brokerConsumerStats;});
+    }
 }
