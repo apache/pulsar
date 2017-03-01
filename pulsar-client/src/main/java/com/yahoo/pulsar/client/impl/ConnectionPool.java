@@ -192,15 +192,26 @@ public class ConnectionPool implements Closeable {
 
             // close the connection after connection-lifetime completes
             if (connectionLifetimeInSecond > 0) {
-                scheduler.schedule(() -> {
-                    if (cnx != null && cnx.channel().isActive()) {
-                        cnx.channel().disconnect();
-                    }
-                }, connectionLifetimeInSecond, TimeUnit.SECONDS);
+                scheduleCloseConnection(cnx, connectionLifetimeInSecond);
             }
         });
 
         return cnxFuture;
+    }
+
+    private void scheduleCloseConnection(ClientCnx cnx, long connectionLifetimeInSecond) {
+        scheduler.schedule(() -> {
+            if (cnx != null && cnx.channel().isActive()) {
+                if (System.nanoTime() - cnx.lastLookupRequestTime > TimeUnit.SECONDS
+                        .toNanos(connectionLifetimeInSecond)) {
+                    cnx.channel().disconnect();
+                } else {
+                    // connection is active as received lookup request in last connectionLifetimeInSecond, schedule
+                    // retry and check later again
+                    scheduleCloseConnection(cnx, connectionLifetimeInSecond);
+                }
+            }
+        }, connectionLifetimeInSecond, TimeUnit.SECONDS);
     }
 
     @Override
