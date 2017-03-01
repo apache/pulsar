@@ -96,7 +96,7 @@ public abstract class ConsumerBase extends HandlerBase implements Consumer {
     public CompletableFuture<Message> receiveAsync() {
 
         if (listener != null) {
-            FutureUtil.failedFuture(new PulsarClientException.InvalidConfigurationException(
+            return FutureUtil.failedFuture(new PulsarClientException.InvalidConfigurationException(
                     "Cannot use receive() when a listener has been set"));
         }
 
@@ -106,10 +106,10 @@ public abstract class ConsumerBase extends HandlerBase implements Consumer {
             break; // Ok
         case Closing:
         case Closed:
-            FutureUtil.failedFuture(new PulsarClientException.AlreadyClosedException("Consumer already closed"));
+            return FutureUtil.failedFuture(new PulsarClientException.AlreadyClosedException("Consumer already closed"));
         case Failed:
         case Uninitialized:
-            FutureUtil.failedFuture(new PulsarClientException.NotConnectedException());
+            return FutureUtil.failedFuture(new PulsarClientException.NotConnectedException());
         }
 
         return internalReceiveAsync();
