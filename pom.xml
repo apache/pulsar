@@ -488,6 +488,9 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>pulsar-client-cpp/lib/PulsarApi.pb.*</exclude>
             <exclude>pulsar-client-cpp/CMakeFiles/**</exclude>
             <exclude>pulsar-client-cpp/travis-build.sh</exclude>
+            <exclude>**/*.pyc</exclude>
+            <exclude>**/*.graffle</exclude>
+            <exclude>**/*.hgrm</exclude>
           </excludes>
           <mapping>
             <proto>JAVADOC_STYLE</proto>
