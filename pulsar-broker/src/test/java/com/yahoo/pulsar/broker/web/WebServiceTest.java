@@ -21,7 +21,6 @@ import static org.mockito.Mockito.spy;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.net.InetAddress;
 import java.net.URL;
 import java.security.KeyStore;
 import java.security.PrivateKey;
@@ -40,6 +39,8 @@ import javax.net.ssl.TrustManager;
 
 import org.apache.bookkeeper.test.PortManager;
 import org.apache.zookeeper.CreateMode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
@@ -259,7 +260,7 @@ public class WebServiceTest {
                 response = new URL(BROKER_LOOKUP_URL).openStream();
             }
             String resp = CharStreams.toString(new InputStreamReader(response));
-            System.out.println(resp);
+            log.info("Response: {}", resp);
             return resp;
         } finally {
             Closeables.close(response, false);
@@ -337,4 +338,6 @@ public class WebServiceTest {
             Assert.fail("Got exception while closing the pulsar instance ", e);
         }
     }
+
+    private static final Logger log = LoggerFactory.getLogger(WebServiceTest.class);
 }

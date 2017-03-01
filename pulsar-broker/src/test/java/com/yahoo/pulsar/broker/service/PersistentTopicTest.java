@@ -535,7 +535,7 @@ public class PersistentTopicTest {
                     barrier.await();
                     // assertTrue(topic.unsubscribe(successSubName).isDone());
                     Thread.sleep(5, 0);
-                    System.out.println("deleter outcome is " + topic.delete().get());
+                    log.info("deleter outcome is {}", topic.delete().get());
                 } catch (Exception e) {
                     e.printStackTrace();
                     gotException.set(true);
@@ -554,7 +554,7 @@ public class PersistentTopicTest {
                     ConcurrentOpenHashMap<String, PersistentSubscription> subscriptions = topic.getSubscriptions();
                     PersistentSubscription ps = subscriptions.get(successSubName);
                     // Thread.sleep(5,0);
-                    System.out.println("unsubscriber outcome is " + ps.doUnsubscribe(ps.getConsumers().get(0)).get());
+                    log.info("unsubscriber outcome is {}", ps.doUnsubscribe(ps.getConsumers().get(0)).get());
                     // assertFalse(ps.delete().isCompletedExceptionally());
                 } catch (Exception e) {
                     e.printStackTrace();

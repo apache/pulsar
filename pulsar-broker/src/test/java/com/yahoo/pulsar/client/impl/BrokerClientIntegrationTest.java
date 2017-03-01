@@ -368,12 +368,12 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
                 }
                 consumer.acknowledge(msg);
                 long publishTime = ((MessageImpl) msg).getPublishTime();
-                System.out.println(" publish time is " + publishTime + "," + msg.getMessageId());
+                log.info(" publish time is " + publishTime + "," + msg.getMessageId());
                 TimestampEntryCount timestampEntryCount = publishTimeIdMap.computeIfAbsent(publishTime,
                         (k) -> new TimestampEntryCount(publishTime));
                 timestampEntryCount.incrementAndGet();
             } catch (final PulsarClientException e) {
-                System.out.println("Failed to ack!");
+                log.warn("Failed to ack!");
             }
         });
 
@@ -400,7 +400,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         received.clear();
 
         // publish testSize num of msgs
-        System.out.println("Sending more messages.");
+        log.info("Sending more messages.");
         for (Integer n = 0; n < testSize; n++) {
             producer.send(msgBytes);
             Thread.sleep(1);
@@ -421,7 +421,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         received.clear();
 
         log.info("reset cursor to " + timestamp + " for topic " + destName.toString() + " for subs " + subsId);
-        System.out.println("issuing admin operation on " + admin.getServiceUrl().toString());
+        log.info("issuing admin operation on " + admin.getServiceUrl().toString());
         List<String> subList = admin.persistentTopics().getSubscriptions(destName.toString());
         for (String subs : subList) {
             log.info("got sub " + subs);
