@@ -28,6 +28,8 @@ import java.util.SortedSet;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.commons.lang3.tuple.Pair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
 
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
@@ -269,7 +271,8 @@ public class NamespaceBundlesTest {
         String uRange = String.format("0x%08x_0x%08x", middle, upper);
         assertTrue(bundles.get(0).getBundleRange().equals(lRange));
         assertTrue(bundles.get(1).getBundleRange().equals(uRange));
-        System.out.println(String.format("[%s,%s] => [%s,%s]", range[0], range[1], lRange, uRange));
-
+        log.info("[{},{}] => [{},{}]", range[0], range[1], lRange, uRange);
     }
+
+    private static final Logger log = LoggerFactory.getLogger(NamespaceBundlesTest.class);
 }

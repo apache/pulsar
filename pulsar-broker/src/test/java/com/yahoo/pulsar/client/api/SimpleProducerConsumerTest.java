@@ -781,7 +781,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             produceMsgs.add(message);
         }
 
-        System.out.println(" start receiving messages :");
+        log.info(" start receiving messages :");
         CountDownLatch latch = new CountDownLatch(totalMsg);
         // receive messages
         ExecutorService executor = Executors.newFixedThreadPool(1);
@@ -822,7 +822,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             produceMsgs.add(message);
         }
 
-        System.out.println(" start receiving messages :");
+        log.info(" start receiving messages :");
         CountDownLatch latch = new CountDownLatch(totalMsg);
         // receive messages
         ExecutorService executor = Executors.newFixedThreadPool(1);

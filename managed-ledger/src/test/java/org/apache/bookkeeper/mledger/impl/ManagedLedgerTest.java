@@ -1898,8 +1898,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         cursor2.markDelete((entries2.get(entries2.size() - 1)).getPosition());
 
         // (3) Validate: cache should remove all entries read by both active cursors
-        System.out.println(
-                "expected, found :" + (5 * (totalInsertedEntries - readEntries)) + ", " + entryCache.getSize());
+		log.info("expected, found : {}, {}", (5 * (totalInsertedEntries - readEntries)), entryCache.getSize());
         assertEquals((5 * (totalInsertedEntries - readEntries)), entryCache.getSize());
 
         final int remainingEntries = totalInsertedEntries - readEntries;
