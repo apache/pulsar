@@ -15,11 +15,14 @@
  */
 package com.yahoo.pulsar.websocket.proxy;
 
+import static java.util.concurrent.Executors.newFixedThreadPool;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 
 import java.net.URI;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.bookkeeper.test.PortManager;
 import org.eclipse.jetty.websocket.api.Session;
@@ -100,12 +103,21 @@ public class ProxyPublishConsumeWithoutZKTest extends ProducerConsumerBase {
             Assert.assertTrue(produceSocket.getBuffer().size() > 0);
             Assert.assertEquals(produceSocket.getBuffer(), consumeSocket.getBuffer());
         } finally {
+            ExecutorService executor = newFixedThreadPool(1);
             try {
-                consumeClient.stop();
-                produceClient.stop();
+                executor.submit(() -> {
+                    try {
+                        consumeClient.stop();
+                        produceClient.stop();
+                        log.info("proxy clients are stopped successfully");
+                    } catch (Exception e) {
+                        log.error(e.getMessage());
+                    }
+                }).get(2, TimeUnit.SECONDS);
             } catch (Exception e) {
-                log.error(e.getMessage());
+                log.error("failed to close clients ", e);
             }
+            executor.shutdownNow();
         }
     }
 
