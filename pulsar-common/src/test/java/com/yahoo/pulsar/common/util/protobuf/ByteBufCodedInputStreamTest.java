@@ -18,6 +18,7 @@ package com.yahoo.pulsar.common.util.protobuf;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import static org.testng.Assert.assertEquals;
 
 import java.io.IOException;
 
@@ -26,6 +27,7 @@ import org.testng.annotations.Test;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.WireFormat;
 
+import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 
 public class ByteBufCodedInputStreamTest {
@@ -68,5 +70,25 @@ public class ByteBufCodedInputStreamTest {
             // pass
         }
 
+    }
+
+    @Test
+    public void testWritingDouble() throws IOException {
+        ByteBuf buf = Unpooled.buffer();
+        buf.clear();
+        ByteBufCodedOutputStream outputStream = ByteBufCodedOutputStream.get(buf);
+        outputStream.writeDouble(12, 23d);
+        outputStream.writeDouble(15, 13.13d);
+        outputStream.writeDouble(1, -0.003d);
+
+        ByteBufCodedInputStream inputStream = ByteBufCodedInputStream.get(buf);
+        assertEquals(WireFormat.getTagFieldNumber(inputStream.readTag()), 12);
+        assertEquals(inputStream.readDouble(), 23d);
+
+        assertEquals(WireFormat.getTagFieldNumber(inputStream.readTag()), 15);
+        assertEquals(inputStream.readDouble(), 13.13d);
+
+        assertEquals(WireFormat.getTagFieldNumber(inputStream.readTag()), 1);
+        assertEquals(inputStream.readDouble(), -0.003d);
     }
 }
