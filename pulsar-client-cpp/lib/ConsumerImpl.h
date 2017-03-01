@@ -91,8 +91,8 @@ enum ConsumerTopicType {
     virtual Result pauseMessageListener();
     virtual Result resumeMessageListener();
     virtual void redeliverUnacknowledgedMessages();
-    virtual Result getConsumerStats(BrokerConsumerStats& brokerConsumerStats, int partitionIndex = -1);
-protected:
+    virtual void getConsumerStatsAsync(BrokerConsumerStatsCallback callback, int partitionIndex = -1);
+ protected:
     void connectionOpened(const ClientConnectionPtr& cnx);
     void connectionFailed(Result result);
     void handleCreateConsumer(const ClientConnectionPtr& cnx, Result result);
@@ -114,6 +114,7 @@ private:
     void increaseAvailablePermits(const ClientConnectionPtr& currentCnx);
     void drainIncomingMessageQueue(size_t count);
     unsigned int receiveIndividualMessagesFromBatch(Message &batchedMessage);
+    void brokerConsumerStatsListener(Result, const BrokerConsumerStats, BrokerConsumerStatsCallback);
 
     boost::mutex mutexForReceiveWithZeroQueueSize;
     const ConsumerConfiguration config_;

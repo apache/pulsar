@@ -135,8 +135,6 @@ class ClientConnection : public boost::enable_shared_from_this<ClientConnection>
     Future<Result, BrokerConsumerStats> newConsumerStats(const std::string topicName, const std::string subscriptionName,
                                                                                uint64_t consumerId, uint64_t requestId) ;
  private:
-    long consumerStatsTTLMs_ ;
-
     struct PendingRequestData {
         Promise<Result, std::string> promise;
         DeadlineTimerPtr timer;

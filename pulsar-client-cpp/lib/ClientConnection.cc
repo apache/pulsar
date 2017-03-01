@@ -124,7 +124,6 @@ havePendingPingRequest_(false),
 keepAliveTimer_(),
 maxPendingLookupRequest_(clientConfiguration.getConcurrentLookupRequest()),
 consumerStatsRequestTimer_(executor_->createDeadlineTimer()),
-consumerStatsTTLMs_(30 * 1000),
 numOfPendingLookupRequest_(0),
 isTlsAllowInsecureConnection_(false) {
     if (clientConfiguration.isUseTls()) {
@@ -730,10 +729,8 @@ void ClientConnection::handleIncomingCommand() {
                                     cnxString_
                                             << "ConsumerStatsResponse command - Received consumer stats response from server. req_id: "
                                             << consumerStatsResponse.request_id() << " Stats: ");
-                            boost::posix_time::ptime validTill = now() + milliseconds(consumerStatsTTLMs_);
                             BrokerConsumerStats brokerStats =
-                                    BrokerConsumerStats(validTill,
-                                                            consumerStatsResponse.msgrateout(),
+                                    BrokerConsumerStats(consumerStatsResponse.msgrateout(),
                                                             consumerStatsResponse.msgthroughputout(),
                                                             consumerStatsResponse.msgrateredeliver(),
                                                             consumerStatsResponse.consumername(),

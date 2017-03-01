@@ -18,6 +18,7 @@
 #include <pulsar/MessageBuilder.h>
 #include "ConsumerImpl.h"
 #include "Utils.h"
+#include <boost/date_time/local_time/local_time.hpp>
 
 namespace pulsar {
 
@@ -25,11 +26,11 @@ const std::string EMPTY_STRING;
 
 BrokerConsumerStats::BrokerConsumerStats():validTill_(now()) {};
 
-BrokerConsumerStats::BrokerConsumerStats(boost::posix_time::ptime& validTill, double msgRateOut, double msgThroughputOut,
-                                                 double msgRateRedeliver, std::string consumerName, int availablePermits,
-                                                 int unackedMessages, bool blockedConsumerOnUnackedMsgs, std::string address,
-                                                 std::string connectedSince, std::string type, double msgRateExpired, long msgBacklog):
-    validTill_(validTill),
+BrokerConsumerStats::BrokerConsumerStats(double msgRateOut, double msgThroughputOut,
+                                             double msgRateRedeliver, std::string consumerName, uint64_t availablePermits,
+                                             uint64_t unackedMessages, bool blockedConsumerOnUnackedMsgs, std::string address,
+                                             std::string connectedSince, std::string type, double msgRateExpired, uint64_t msgBacklog):
+    validTill_(microsec_clock::universal_time() + milliseconds(CONSUMER_STATS_TTL_IN_MS)),
     msgRateOut_(msgRateOut),
     msgThroughputOut_(msgThroughputOut),
     msgRateRedeliver_(msgRateRedeliver),
@@ -304,10 +305,19 @@ void Consumer::redeliverUnacknowledgedMessages() {
     }
 }
 
-Result Consumer::getConsumerStats(BrokerConsumerStats& BrokerConsumerStats, int partitionIndex) {
+Result Consumer::getConsumerStats(BrokerConsumerStats& brokerConsumerStats, int partitionIndex) {
     if (!impl_) {
         return ResultConsumerNotInitialized;
     }
-    return impl_->getConsumerStats(BrokerConsumerStats, partitionIndex);
+    Promise<Result, BrokerConsumerStats> promise;
+    impl_->getConsumerStatsAsync(WaitForCallbackValue<BrokerConsumerStats>(promise), partitionIndex);
+    return promise.getFuture().get(brokerConsumerStats);;
+}
+
+void Consumer::getConsumerStatsAsync(BrokerConsumerStatsCallback callback, int partitionIndex) {
+    if (!impl_) {
+        return callback(ResultConsumerNotInitialized, BrokerConsumerStats());
+    }
+    return impl_->getConsumerStatsAsync(callback, partitionIndex);
 }
 }
