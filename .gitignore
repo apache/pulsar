@@ -7,6 +7,7 @@ logs
 /data
 pulsar-broker/tmp.*
 pulsar-broker/src/test/resources/log4j.properties
+*.log
 
 *.versionsBackup
 
@@ -27,6 +28,12 @@ pulsar-broker/src/test/resources/log4j.properties
 # Maven
 log/
 target/
+
+# Python
+*.pyc
+
+# Perf tools
+*.hgrm
 
 # tmp files
 *.pid

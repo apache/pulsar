@@ -4,6 +4,7 @@
 * [Architecture](Architecture.md)
 * Administration
   - [Cluster Setup](ClusterSetup.md)
+  - [Dashboard](Dashboard.md)
   - [Admin tools and APIs](AdminTools.md)
 * Features
   - [Authentication](Authentication.md)
