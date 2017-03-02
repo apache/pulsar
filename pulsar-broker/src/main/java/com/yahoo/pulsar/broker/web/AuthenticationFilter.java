@@ -26,6 +26,8 @@ import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.ws.rs.WebApplicationException;
+import javax.ws.rs.core.Response.Status;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -65,7 +67,19 @@ public class AuthenticationFilter implements Filter {
             return;
         }
 
-        chain.doFilter(request, response);
+        try {
+            chain.doFilter(request, response);
+        } catch (WebApplicationException we) {
+            if (we.getResponse().getStatus() == Status.INTERNAL_SERVER_ERROR.getStatusCode()) {
+                // kill the current session
+                try {
+                    ((HttpServletRequest) request).getSession(false).invalidate();
+                } catch (Exception ignoreException) {
+                    /* connection is already invalidated */
+                }
+            }
+            throw we;
+        }
     }
 
     @Override
