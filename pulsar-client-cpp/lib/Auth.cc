@@ -31,98 +31,91 @@
 DECLARE_LOG_OBJECT()
 
 namespace pulsar {
-    
+
     AuthenticationDataProvider::AuthenticationDataProvider(){
-        
+
     }
-    
+
     AuthenticationDataProvider::~AuthenticationDataProvider() {
-        
+
     }
-    
+
     bool AuthenticationDataProvider::hasDataForTls() {
         return false;
     }
-    
+
     std::string AuthenticationDataProvider::getTlsCertificates() {
         return "none";
     }
-    
+
     std::string AuthenticationDataProvider::getTlsPrivateKey() {
         return "none";
     }
-    
+
     bool AuthenticationDataProvider::hasDataForHttp() {
         return false;
     }
-    
+
     std::string AuthenticationDataProvider::getHttpAuthType() {
         return "none";
     }
-    
+
     std::string AuthenticationDataProvider::getHttpHeaders() {
         return "none";
     }
-    
+
     bool AuthenticationDataProvider::hasDataFromCommand(){
         return false;
     }
-    
+
     std::string AuthenticationDataProvider::getCommandData() {
         return "none";
     }
-    
-    
+
+
     Authentication::Authentication() {
     }
-    
+
     Authentication::~Authentication() {
     }
-    
+
     class AuthDisabledData : public AuthenticationDataProvider {
     public:
         AuthDisabledData(ParamMap& params){
         }
     };
-    
+
     class AuthDisabled : public Authentication {
     public:
         AuthDisabled(AuthenticationDataPtr& authData) {
             authData_ = authData;
         }
-        
+
         static AuthenticationPtr create(ParamMap& params) {
             AuthenticationDataPtr authData = AuthenticationDataPtr(new AuthDisabledData(params));
             return AuthenticationPtr(new AuthDisabled(authData));
         }
-        
+
         const std::string getAuthMethodName() const {
             return "none";
         }
-        
-        Result getAuthData(AuthenticationDataPtr& authDataContent) const {
-            authDataContent = authData_;
-            return ResultOk;
-        }
-    private:
-        AuthenticationDataPtr authData_;
     };
-    
-    
+
+
     AuthenticationPtr Auth::Disabled() {
         ParamMap params;
         return AuthDisabled::create(params);
     }
-    
+
     AuthenticationPtr Auth::create(const std::string& dynamicLibPath) {
         ParamMap params;
         return Auth::create(dynamicLibPath, params);
     }
-    
+
     boost::mutex mutex;
     std::vector<void*> Auth::loadedLibrariesHandles_;
     bool Auth::isShutdownHookRegistered_ = false;
-    
+
     void Auth::release_handles() {
         boost::lock_guard<boost::mutex> lock(mutex);
         for (std::vector<void*>::iterator ite = Auth::loadedLibrariesHandles_.begin(); ite != Auth::loadedLibrariesHandles_.end();
@@ -131,7 +124,7 @@ namespace pulsar {
         }
         loadedLibrariesHandles_.clear();
     }
-    
+
     AuthenticationPtr Auth::create(const std::string& dynamicLibPath, const std::string& authParamsString) {
         ParamMap paramMap;
         if(!authParamsString.empty()) {
@@ -147,7 +140,7 @@ namespace pulsar {
         }
         return Auth::create(dynamicLibPath, paramMap);
     }
-    
+
     AuthenticationPtr Auth::create(const std::string& dynamicLibPath, ParamMap& params) {
         {
             boost::lock_guard<boost::mutex> lock(mutex);
@@ -169,5 +162,5 @@ namespace pulsar {
         }
         return boost::shared_ptr<Authentication>(auth);
     }
-    
+
 }
