@@ -17,7 +17,6 @@ package com.yahoo.pulsar.broker.web;
 
 import java.io.IOException;
 
-import javax.naming.AuthenticationException;
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
 import javax.servlet.FilterConfig;
@@ -26,46 +25,40 @@ import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.ws.rs.core.Response.Status;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.yahoo.pulsar.broker.PulsarService;
-import com.yahoo.pulsar.broker.authentication.AuthenticationService;
 
 /**
- * Servlet filter that hooks up with AuthenticationService to reject unauthenticated HTTP requests
+ * Servlet filter that hooks up to handle outgoing response
  */
-public class AuthenticationFilter implements Filter {
-    private static final Logger LOG = LoggerFactory.getLogger(AuthenticationFilter.class);
+public class ResponseHandlerFilter implements Filter {
+    private static final Logger LOG = LoggerFactory.getLogger(ResponseHandlerFilter.class);
 
-    private final AuthenticationService authenticationService;
+    private final String brokerAddress;
 
-    public static final String AuthenticatedRoleAttributeName = AuthenticationFilter.class.getName() + "-role";
-
-    public AuthenticationFilter(PulsarService pulsar) {
-        this.authenticationService = pulsar.getBrokerService().getAuthenticationService();
+    public ResponseHandlerFilter(PulsarService pulsar) {
+        this.brokerAddress = pulsar.getAdvertisedAddress();
     }
 
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
             throws IOException, ServletException {
 
-        try {
-            String role = authenticationService.authenticateHttpRequest((HttpServletRequest) request);
-            request.setAttribute(AuthenticatedRoleAttributeName, role);
-
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("[{}] Authenticated HTTP request with role {}", request.getRemoteAddr(), role);
+        chain.doFilter(request, response);
+        ((HttpServletResponse) response).addHeader("broker-address", brokerAddress);
+        if (((HttpServletResponse) response).getStatus() == Status.INTERNAL_SERVER_ERROR.getStatusCode()) {
+            // invalidate current session from servlet-container if it received internal-server-error 
+            try {
+                ((HttpServletRequest) request).getSession(false).invalidate();
+            } catch (Exception ignoreException) {
+                /* connection is already invalidated */
             }
-        } catch (AuthenticationException e) {
-            HttpServletResponse httpResponse = (HttpServletResponse) response;
-            httpResponse.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Authentication required");
-            LOG.warn("[{}] Failed to authenticate HTTP request: {}", request.getRemoteAddr(), e.getMessage());
-            return;
         }
 
-        chain.doFilter(request, response);
     }
 
     @Override
