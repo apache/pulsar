@@ -417,8 +417,15 @@ public class Consumer {
 
     public void checkPermissions() {
         DestinationName destination = DestinationName.get(subscription.getDestination());
-        if (cnx.getBrokerService().getAuthorizationManager() != null
-                && !cnx.getBrokerService().getAuthorizationManager().canConsume(destination, appId)) {
+        if (cnx.getBrokerService().getAuthorizationManager() != null) {
+            try {
+                if (cnx.getBrokerService().getAuthorizationManager().canConsume(destination, appId)) {
+                    return;
+                }
+            } catch (Exception e) {
+                log.warn("[{}] Get unexpected error while autorizing [{}]  {}", appId, subscription.getDestination(),
+                        e.getMessage(), e);
+            }
             log.info("[{}] is not allowed to consume from Destination" + " [{}] anymore", appId,
                     subscription.getDestination());
             disconnect();

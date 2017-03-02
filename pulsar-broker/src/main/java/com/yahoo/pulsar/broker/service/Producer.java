@@ -350,9 +350,16 @@ public class Producer {
 
     public void checkPermissions() {
         DestinationName destination = DestinationName.get(topic.getName());
-        if (cnx.getBrokerService().getAuthorizationManager() != null
-                && !cnx.getBrokerService().getAuthorizationManager().canProduce(destination, appId)) {
-            log.info("[{}] is not allowed to consume from destination [{}] anymore", appId, topic.getName());
+        if (cnx.getBrokerService().getAuthorizationManager() != null) {
+            try {
+                if (cnx.getBrokerService().getAuthorizationManager().canProduce(destination, appId)) {
+                    return;
+                }
+            } catch (Exception e) {
+                log.warn("[{}] Get unexpected error while autorizing [{}]  {}", appId, topic.getName(), e.getMessage(),
+                        e);
+            }
+            log.info("[{}] is not allowed to produce from destination [{}] anymore", appId, topic.getName());
             disconnect();
         }
     }

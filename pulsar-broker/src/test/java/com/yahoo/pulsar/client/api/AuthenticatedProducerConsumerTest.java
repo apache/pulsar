@@ -28,6 +28,7 @@ import java.util.concurrent.TimeUnit;
 import javax.ws.rs.InternalServerErrorException;
 
 import org.junit.Assert;
+import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
@@ -71,7 +72,8 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         conf.setSuperUserRoles(superUserRoles);
 
         conf.setBrokerClientAuthenticationPlugin(AuthenticationTls.class.getName());
-        conf.setBrokerClientAuthenticationParameters("tlsCertFile:" + TLS_CLIENT_CERT_FILE_PATH + "," + "tlsKeyFile:" + TLS_SERVER_KEY_FILE_PATH);
+        conf.setBrokerClientAuthenticationParameters(
+                "tlsCertFile:" + TLS_CLIENT_CERT_FILE_PATH + "," + "tlsKeyFile:" + TLS_SERVER_KEY_FILE_PATH);
 
         Set<String> providers = new HashSet<>();
         providers.add(AuthenticationProviderTls.class.getName());
@@ -117,7 +119,8 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         authTls.configure(authParams);
         internalSetup(authTls);
 
-        admin.clusters().createCluster("use", new ClusterData(brokerUrl.toString(),brokerUrlTls.toString(),"pulsar://localhost:" + BROKER_PORT, "pulsar+ssl://localhost:" + BROKER_PORT_TLS));
+        admin.clusters().createCluster("use", new ClusterData(brokerUrl.toString(), brokerUrlTls.toString(),
+                "pulsar://localhost:" + BROKER_PORT, "pulsar+ssl://localhost:" + BROKER_PORT_TLS));
         admin.properties().createProperty("my-property",
                 new PropertyAdmin(Lists.newArrayList("appid1", "appid2"), Sets.newHashSet("use")));
         admin.namespaces().createNamespace("my-property/use/my-ns");
@@ -126,7 +129,6 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         conf.setSubscriptionType(SubscriptionType.Exclusive);
         Consumer consumer = pulsarClient.subscribe("persistent://my-property/use/my-ns/my-topic1", "my-subscriber-name",
                 conf);
-
 
         ProducerConfiguration producerConf = new ProducerConfiguration();
 
@@ -156,7 +158,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         consumer.close();
         log.info("-- Exiting {} test --", methodName);
     }
-    
+
     /**
      * Verifies: on 500 server error, broker invalidates session and client receives 500 correctly.
      * 
@@ -185,6 +187,47 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         }
 
         log.info("-- Exiting {} test --", methodName);
+    }
+
+    /**
+     * verifies that topicLookup/PartitionMetadataLookup gives InternalServerError(500) instead 401(auth_failed) on
+     * unknown-exception failure
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testInternalServerExceptionOnLookup() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        Map<String, String> authParams = new HashMap<>();
+        authParams.put("tlsCertFile", TLS_CLIENT_CERT_FILE_PATH);
+        authParams.put("tlsKeyFile", TLS_CLIENT_KEY_FILE_PATH);
+        Authentication authTls = new AuthenticationTls();
+        authTls.configure(authParams);
+        internalSetup(authTls);
+
+        admin.clusters().createCluster("use", new ClusterData(brokerUrl.toString(), brokerUrlTls.toString(),
+                "pulsar://localhost:" + BROKER_PORT, "pulsar+ssl://localhost:" + BROKER_PORT_TLS));
+        admin.properties().createProperty("my-property",
+                new PropertyAdmin(Lists.newArrayList("appid1", "appid2"), Sets.newHashSet("use")));
+        String namespace = "my-property/use/my-ns";
+        admin.namespaces().createNamespace(namespace);
+
+        String destination = "persistent://" + namespace + "1/topic1";
+        // this will cause NPE and it should throw 500
+        mockZookKeeper.shutdown();
+        pulsar.getConfiguration().setSuperUserRoles(Sets.newHashSet());
+        try {
+            admin.persistentTopics().getPartitionedTopicMetadata(destination);
+        } catch (PulsarAdminException e) {
+            Assert.assertTrue(e.getCause() instanceof InternalServerErrorException);
+        }
+        try {
+            admin.lookups().lookupDestination(destination);
+        } catch (PulsarAdminException e) {
+            Assert.assertTrue(e.getCause() instanceof InternalServerErrorException);
+        }
+
     }
 
 }
