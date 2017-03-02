@@ -210,6 +210,9 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         
         // enable authorization: so, broker can validate cluster and redirect if finds different cluster
         pulsar.getConfiguration().setAuthorizationEnabled(true);
+        // restart broker with authorization enabled: it initialize AuthorizationManager
+        stopBroker();
+        startBroker();
         
         LoadManager loadManager2 = spy(pulsar2.getLoadManager());
         Field loadManagerField = NamespaceService.class.getDeclaredField("loadManager");

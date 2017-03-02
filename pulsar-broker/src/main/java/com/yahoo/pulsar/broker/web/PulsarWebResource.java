@@ -561,11 +561,11 @@ public abstract class PulsarWebResource {
         return validationFuture;
     }
 
-    protected void checkConnect(DestinationName destination) {
+    protected void checkConnect(DestinationName destination) throws RestException, Exception {
         checkAuthorization(pulsar(), destination, clientAppId());
     }
     
-    protected static void checkAuthorization(PulsarService pulsarService, DestinationName destination, String role) {
+    protected static void checkAuthorization(PulsarService pulsarService, DestinationName destination, String role) throws RestException, Exception{
         if (!pulsarService.getConfiguration().isAuthorizationEnabled()) {
             // No enforcing of authorization policies
             return;
@@ -579,11 +579,6 @@ public abstract class PulsarWebResource {
         } catch (RestException e) {
             // Let it through
             throw e;
-        } catch (Exception e) {
-            // unknown error marked as internal server error
-            log.warn("Error in authorizing lookup. destination={}, role={}. Error: {}", destination, role,
-                    e.getMessage(), e);
-            throw new RestException(e);
         }
     }
 
