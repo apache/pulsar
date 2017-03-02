@@ -16,6 +16,7 @@
 package com.yahoo.pulsar.discovery.service;
 
 import static com.yahoo.pulsar.discovery.service.web.ZookeeperCacheLoader.LOADBALANCE_BROKERS_ROOT;
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -26,17 +27,23 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.security.PrivateKey;
 import java.security.cert.X509Certificate;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.zookeeper.CreateMode;
+import org.apache.zookeeper.KeeperException.Code;
+import org.apache.zookeeper.KeeperException.SessionExpiredException;
 import org.apache.zookeeper.ZooDefs;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import com.yahoo.pulsar.common.api.Commands;
+import com.yahoo.pulsar.common.naming.DestinationName;
+import com.yahoo.pulsar.common.partition.PartitionedTopicMetadata;
 import com.yahoo.pulsar.common.policies.data.loadbalancer.LoadReport;
 import com.yahoo.pulsar.common.util.ObjectMapperFactory;
 import com.yahoo.pulsar.common.util.SecurityUtility;
@@ -61,7 +68,7 @@ public class DiscoveryServiceTest extends BaseDiscoveryTestSetup {
 
     private final static String TLS_CLIENT_CERT_FILE_PATH = "./src/test/resources/certificate/client.crt";
     private final static String TLS_CLIENT_KEY_FILE_PATH = "./src/test/resources/certificate/client.key";
-    
+
     @BeforeMethod
     private void init() throws Exception {
         super.setup();
@@ -85,6 +92,27 @@ public class DiscoveryServiceTest extends BaseDiscoveryTestSetup {
             String current = service.getDiscoveryProvider().nextBroker().getPulsarServiceUrl();
             assertNotEquals(prevUrl, current);
             prevUrl = current;
+        }
+    }
+
+    @Test
+    public void testGetPartitionsMetadata() throws Exception {
+        DestinationName topic1 = DestinationName.get("persistent://test/local/ns/my-topic-1");
+
+        PartitionedTopicMetadata m = service.getDiscoveryProvider().getPartitionedTopicMetadata(service, topic1, "role")
+                .get();
+        assertEquals(m.partitions, 0);
+
+        // Simulate ZK error
+        mockZookKeeper.failNow(Code.SESSIONEXPIRED);
+        DestinationName topic2 = DestinationName.get("persistent://test/local/ns/my-topic-2");
+        CompletableFuture<PartitionedTopicMetadata> future = service.getDiscoveryProvider()
+                .getPartitionedTopicMetadata(service, topic2, "role");
+        try {
+            future.get();
+            fail("Partition metadata lookup should have failed");
+        } catch (ExecutionException e) {
+            assertEquals(e.getCause().getClass(), SessionExpiredException.class);
         }
     }
 
@@ -137,18 +165,19 @@ public class DiscoveryServiceTest extends BaseDiscoveryTestSetup {
         Bootstrap b = new Bootstrap();
         b.group(workerGroup);
         b.channel(NioSocketChannel.class);
-        
+
         b.handler(new ChannelInitializer<SocketChannel>() {
             @Override
             public void initChannel(SocketChannel ch) throws Exception {
-                if(tls) {
+                if (tls) {
                     SslContextBuilder builder = SslContextBuilder.forClient();
                     builder.trustManager(InsecureTrustManagerFactory.INSTANCE);
-                    X509Certificate[] certificates = SecurityUtility.loadCertificatesFromPemFile(TLS_CLIENT_CERT_FILE_PATH);
+                    X509Certificate[] certificates = SecurityUtility
+                            .loadCertificatesFromPemFile(TLS_CLIENT_CERT_FILE_PATH);
                     PrivateKey privateKey = SecurityUtility.loadPrivateKeyFromPemFile(TLS_CLIENT_KEY_FILE_PATH);
                     builder.keyManager(privateKey, (X509Certificate[]) certificates);
                     SslContext sslCtx = builder.build();
-                    ch.pipeline().addLast("tls", sslCtx.newHandler(ch.alloc()));    
+                    ch.pipeline().addLast("tls", sslCtx.newHandler(ch.alloc()));
                 }
                 ch.pipeline().addLast(new ClientHandler(latch));
             }
@@ -156,7 +185,7 @@ public class DiscoveryServiceTest extends BaseDiscoveryTestSetup {
         URI uri = new URI(serviceUrl);
         InetSocketAddress serviceAddress = new InetSocketAddress(uri.getHost(), uri.getPort());
         b.connect(serviceAddress).addListener((ChannelFuture future) -> {
-            if(!future.isSuccess()) {
+            if (!future.isSuccess()) {
                 throw new IllegalStateException(future.cause());
             }
         });
