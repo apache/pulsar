@@ -677,7 +677,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
         final AsyncCallbacks.ResetCursorCallback callback = resetCursorCallback;
 
-        persistPosition(cursorLedger, newPosition, new VoidCallback() {
+        VoidCallback finalCallback = new VoidCallback() {
             @Override
             public void operationComplete() {
 
@@ -731,7 +731,26 @@ public class ManagedCursorImpl implements ManagedCursor {
                         "unable to persist position for cursor reset " + newPosition.toString()), newPosition);
             }
 
-        });
+        };
+
+        if (cursorLedger == null) {
+            persistPositionMetaStore(-1, newPosition, new MetaStoreCallback<Void>() {
+                @Override
+                public void operationComplete(Void result, Version version) {
+                    log.info("[{}] Updated cursor {} with ledger id {} md-position={} rd-position={}",
+                            ledger.getName(), name, -1, markDeletePosition, readPosition);
+                    cursorLedgerVersion = version;
+                    finalCallback.operationComplete();
+                }
+
+                @Override
+                public void operationFailed(MetaStoreException e) {
+                    finalCallback.operationFailed(e);
+                }
+            });
+        } else {
+            persistPosition(cursorLedger, newPosition, finalCallback);
+        }
     }
 
     @Override
@@ -1624,6 +1643,28 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
     }
 
+    private void persistPositionMetaStore(long cursorsLedgerId, PositionImpl position, MetaStoreCallback<Void> callback) {
+        // When closing we store the last mark-delete position in the z-node itself, so we won't need the cursor ledger,
+        // hence we write it as -1. The cursor ledger is deleted once the z-node write is confirmed.
+        ManagedCursorInfo info = ManagedCursorInfo.newBuilder()
+                .setCursorsLedgerId(cursorsLedgerId)
+                .setMarkDeleteLedgerId(position.getLedgerId())
+                .setMarkDeleteEntryId(position.getEntryId()).build();
+
+        ledger.getStore().asyncUpdateCursorInfo(ledger.getName(), name, info, cursorLedgerVersion,
+                new MetaStoreCallback<Void>() {
+                    @Override
+                    public void operationComplete(Void result, Version version) {
+                        callback.operationComplete(result, version);
+                    }
+
+                    @Override
+                    public void operationFailed(MetaStoreException e) {
+                        callback.operationFailed(e);
+                    }
+                });
+    }
+
     @Override
     public void asyncClose(final AsyncCallbacks.CloseCallback callback, final Object ctx) {
         State oldState = STATE_UPDATER.getAndSet(this, State.Closed);
@@ -1633,36 +1674,25 @@ public class ManagedCursorImpl implements ManagedCursor {
             return;
         }
 
-        // When closing we store the last mark-delete position in the z-node itself, so we won't need the cursor ledger,
-        // hence we write it as -1. The cursor ledger is deleted once the z-node write is confirmed.
-        ManagedCursorInfo info = ManagedCursorInfo.newBuilder().setCursorsLedgerId(-1)
-                .setMarkDeleteLedgerId(markDeletePosition.getLedgerId())
-                .setMarkDeleteEntryId(markDeletePosition.getEntryId()).build();
-        if (log.isDebugEnabled()) {
-            log.debug("[{}][{}]  Closing cursor at md-position: {}", ledger.getName(), name, markDeletePosition);
-        }
+        persistPositionMetaStore(-1, markDeletePosition, new MetaStoreCallback<Void>() {
+            @Override
+            public void operationComplete(Void result, Version version) {
+                log.info("[{}][{}] Closed cursor at md-position={}", ledger.getName(), name,
+                        markDeletePosition);
 
-        ledger.getStore().asyncUpdateCursorInfo(ledger.getName(), name, info, cursorLedgerVersion,
-                new MetaStoreCallback<Void>() {
-                    @Override
-                    public void operationComplete(Void result, Version version) {
-                        log.info("[{}][{}] Closed cursor at md-position={}", ledger.getName(), name,
-                                markDeletePosition);
+                // At this point the position had already been safely stored in the cursor z-node
+                callback.closeComplete(ctx);
 
-                        // At this point the position had already been safely stored in the cursor z-node
-                        callback.closeComplete(ctx);
+                asyncDeleteLedger(cursorLedger);
+            }
 
-                        asyncDeleteLedger(cursorLedger);
-                    }
-
-                    @Override
-                    public void operationFailed(MetaStoreException e) {
-                        log.warn("[{}][{}] Failed to update cursor info when closing: {}", ledger.getName(), name,
-                                e.getMessage());
-                        callback.closeFailed(e, ctx);
-                    }
-                });
-
+            @Override
+            public void operationFailed(MetaStoreException e) {
+                log.warn("[{}][{}] Failed to update cursor info when closing: {}", ledger.getName(), name,
+                        e.getMessage());
+                callback.closeFailed(e, ctx);
+            }
+        });
     }
 
     /**
@@ -1847,38 +1877,30 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     void switchToNewLedger(final LedgerHandle lh, final VoidCallback callback) {
-        // Now we have an opened ledger that already has the acknowledged
-        // position written into. At this point we can start using this new
-        // ledger and delete the old one.
-        ManagedCursorInfo info = ManagedCursorInfo.newBuilder().setCursorsLedgerId(lh.getId())
-                .setMarkDeleteLedgerId(markDeletePosition.getLedgerId())
-                .setMarkDeleteEntryId(markDeletePosition.getEntryId()).build();
         if (log.isDebugEnabled()) {
             log.debug("[{}] Switching cursor {} to ledger {}", ledger.getName(), name, lh.getId());
         }
+        persistPositionMetaStore(lh.getId(), markDeletePosition, new MetaStoreCallback<Void>() {
+            @Override
+            public void operationComplete(Void result, Version version) {
+                log.info("[{}] Updated cursor {} with ledger id {} md-position={} rd-position={}",
+                        ledger.getName(), name, lh.getId(), markDeletePosition, readPosition);
+                final LedgerHandle oldLedger = cursorLedger;
+                cursorLedger = lh;
+                cursorLedgerVersion = version;
 
-        ledger.getStore().asyncUpdateCursorInfo(ledger.getName(), name, info, cursorLedgerVersion,
-                new MetaStoreCallback<Void>() {
-                    @Override
-                    public void operationComplete(Void result, Version version) {
-                        log.info("[{}] Updated cursor {} with ledger id {} md-position={} rd-position={}",
-                                ledger.getName(), name, lh.getId(), markDeletePosition, readPosition);
-                        final LedgerHandle oldLedger = cursorLedger;
-                        cursorLedger = lh;
-                        cursorLedgerVersion = version;
+                // At this point the position had already been safely markdeleted
+                callback.operationComplete();
 
-                        // At this point the position had already been safely markdeleted
-                        callback.operationComplete();
+                asyncDeleteLedger(oldLedger);
+            }
 
-                        asyncDeleteLedger(oldLedger);
-                    }
-
-                    @Override
-                    public void operationFailed(MetaStoreException e) {
-                        log.warn("[{}] Failed to update consumer {}", ledger.getName(), name, e);
-                        callback.operationFailed(e);
-                    }
-                });
+            @Override
+            public void operationFailed(MetaStoreException e) {
+                log.warn("[{}] Failed to update consumer {}", ledger.getName(), name, e);
+                callback.operationFailed(e);
+            }
+        });
     }
 
     /**
