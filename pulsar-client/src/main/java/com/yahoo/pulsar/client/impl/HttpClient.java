@@ -21,15 +21,13 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.security.cert.X509Certificate;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
 
 import io.netty.channel.EventLoopGroup;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.ssl.SslContext;
-import io.netty.handler.ssl.SslContextBuilder;
 import org.asynchttpclient.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -72,6 +70,9 @@ public class HttpClient implements Closeable {
         confBuilder.setConnectTimeout(connectTimeoutInSeconds * 1000);
         confBuilder.setReadTimeout(readTimeoutInSeconds * 1000);
         confBuilder.setUserAgent(String.format("Pulsar-Java-v%s", getPulsarClientVersion()));
+        confBuilder.setKeepAliveStrategy((request, httpRequest, httpResponse) -> {
+            return !httpResponse.getStatus().equals(HttpResponseStatus.INTERNAL_SERVER_ERROR);
+        });
 
         if ("https".equals(url.getProtocol())) {
             try {
