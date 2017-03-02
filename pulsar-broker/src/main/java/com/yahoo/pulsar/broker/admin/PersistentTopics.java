@@ -1083,7 +1083,7 @@ public class PersistentTopics extends AdminResource {
                     metadataFuture.complete(new PartitionedTopicMetadata());
                 }
             }).exceptionally(ex -> {
-                metadataFuture.complete(new PartitionedTopicMetadata());
+                metadataFuture.completeExceptionally(ex);
                 return null;
             });
         } catch (Exception e) {
