@@ -994,8 +994,13 @@ public class PersistentTopics extends AdminResource {
 
         try {
             checkConnect(dn);
-        } catch (RestException e) {
+        } catch (WebApplicationException e) {
             validateAdminAccessOnProperty(dn.getProperty());
+        } catch (Exception e) {
+            // unknown error marked as internal server error
+            log.warn("Unexpected error while authorizing lookup. destination={}, role={}. Error: {}", destination,
+                    clientAppId(), e.getMessage(), e);
+            throw new RestException(e);
         }
 
         String path = path(PARTITIONED_TOPIC_PATH_ZNODE, property, cluster, namespace, domain(),
@@ -1024,6 +1029,12 @@ public class PersistentTopics extends AdminResource {
                     throw new PulsarClientException(String.format("Authorization failed %s on cluster %s with error %s",
                             clientAppId, dn.toString(), authException.getMessage()));
                 }
+            } catch (Exception ex) {
+                // unknown error marked as internal server error
+                log.warn("Failed to authorize {} on cluster {} with unexpected exception {}", clientAppId,
+                        dn.toString(), ex.getMessage(), ex);
+                throw new PulsarClientException(String.format("Authorization failed %s on cluster %s with error %s",
+                        clientAppId, dn.toString(), ex.getMessage()));
             }
             String path = path(PARTITIONED_TOPIC_PATH_ZNODE, dn.getProperty(), dn.getCluster(),
                     dn.getNamespacePortion(), "persistent", dn.getEncodedLocalName());
@@ -1072,7 +1083,7 @@ public class PersistentTopics extends AdminResource {
                     metadataFuture.complete(new PartitionedTopicMetadata());
                 }
             }).exceptionally(ex -> {
-                metadataFuture.complete(new PartitionedTopicMetadata());
+                metadataFuture.completeExceptionally(ex);
                 return null;
             });
         } catch (Exception e) {
