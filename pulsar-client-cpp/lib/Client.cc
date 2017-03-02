@@ -132,7 +132,7 @@ ClientConfiguration& ClientConfiguration::setTlsAllowInsecureConnection(bool all
 bool ClientConfiguration::isTlsAllowInsecureConnection() const {
     return impl_->tlsAllowInsecureConnection;
 }
-    
+
 ClientConfiguration& ClientConfiguration::setConcurrentLookupRequest(int concurrentLookupRequest) {
     impl_->concurrentLookupRequest = concurrentLookupRequest;
     return *this;
