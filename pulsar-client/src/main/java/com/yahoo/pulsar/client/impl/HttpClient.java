@@ -26,9 +26,12 @@ import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 
 import io.netty.channel.EventLoopGroup;
+import io.netty.handler.codec.http.HttpRequest;
+import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.ssl.SslContext;
 import org.asynchttpclient.*;
+import org.asynchttpclient.channel.DefaultKeepAliveStrategy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -70,8 +73,12 @@ public class HttpClient implements Closeable {
         confBuilder.setConnectTimeout(connectTimeoutInSeconds * 1000);
         confBuilder.setReadTimeout(readTimeoutInSeconds * 1000);
         confBuilder.setUserAgent(String.format("Pulsar-Java-v%s", getPulsarClientVersion()));
-        confBuilder.setKeepAliveStrategy((request, httpRequest, httpResponse) -> {
-            return !httpResponse.getStatus().equals(HttpResponseStatus.INTERNAL_SERVER_ERROR);
+        confBuilder.setKeepAliveStrategy(new DefaultKeepAliveStrategy() {
+            @Override
+            public boolean keepAlive(Request ahcRequest, HttpRequest request, HttpResponse response) {
+                // Close connection upon a server error or per HTTP spec
+                return (response.getStatus().code() / 100 != 5) && super.keepAlive(ahcRequest, request, response);
+            }
         });
 
         if ("https".equals(url.getProtocol())) {
