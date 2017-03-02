@@ -152,6 +152,9 @@ public class WebService implements AutoCloseable {
             context.addFilter(holder, MATCH_ALL, EnumSet.allOf(DispatcherType.class));
             log.info("Enabling ApiVersionFilter");
         }
+        
+        FilterHolder responseFilter = new FilterHolder(new ResponseHandlerFilter(pulsar));
+        context.addFilter(responseFilter, MATCH_ALL, EnumSet.allOf(DispatcherType.class));
 
         handlers.add(context);
     }
