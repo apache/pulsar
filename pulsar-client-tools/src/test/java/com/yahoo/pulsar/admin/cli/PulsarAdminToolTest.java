@@ -59,6 +59,15 @@ public class PulsarAdminToolTest {
 
         brokers.run(split("list use"));
         verify(mockBrokers).getActiveBrokers("use");
+        
+        brokers.run(split("get-all-dynamic-config"));
+        verify(mockBrokers).getAllDynamicConfigurations();
+        
+        brokers.run(split("list-dynamic-config"));
+        verify(mockBrokers).getDynamicConfigurationNames();
+        
+        brokers.run(split("update-dynamic-config --config brokerShutdownTimeoutMs --value 100"));
+        verify(mockBrokers).updateDynamicConfiguration("brokerShutdownTimeoutMs", "100");
     }
 
     @Test

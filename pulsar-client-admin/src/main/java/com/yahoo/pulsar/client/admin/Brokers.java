@@ -69,11 +69,30 @@ public interface Brokers {
     Map<String, NamespaceOwnershipStatus> getOwnedNamespaces(String cluster, String brokerUrl) throws PulsarAdminException;
     
     /**
-     * Update value of any dynamic {@link ServiceConfiguration} 
+	 * It updates dynamic configuration value in to Zk that triggers watch on
+	 * brokers and all brokers can update {@link ServiceConfiguration} value
+	 * locally
+	 * 
+	 * @param key
+	 * @param value
+	 * @throws PulsarAdminException
+	 */
+    void updateDynamicConfiguration(String configName, String configValue) throws PulsarAdminException;
+
+    /**
+     * Get list of updatable configuration name
      * 
-     * @param key
-     * @param value
+     * @return
      * @throws PulsarAdminException
      */
-    void updateConfiguration(String configName, String configValue) throws PulsarAdminException;
+    List<String> getDynamicConfigurationNames() throws PulsarAdminException;
+
+    /**
+     * Get values of all overridden dynamic-configs
+     * 
+     * @return
+     * @throws PulsarAdminException
+     */
+    Map<String, String> getAllDynamicConfigurations() throws PulsarAdminException;
+
 }

@@ -57,14 +57,34 @@ public class CmdBrokers extends CmdBase {
 
         @Override
         void run() throws Exception {
-            admin.brokers().updateConfiguration(configName, configValue);
+            admin.brokers().updateDynamicConfiguration(configName, configValue);
         }
     }
 
+    @Parameters(commandDescription = "Get all overridden dynamic-configuration values")
+    private class GetAllConfigurationsCmd extends CliCommand {
+
+        @Override
+        void run() throws Exception {
+            print(admin.brokers().getAllDynamicConfigurations());
+        }
+    }
+    
+    @Parameters(commandDescription = "Get list of updatable configuration name")
+    private class GetUpdatableConfigCmd extends CliCommand {
+
+        @Override
+        void run() throws Exception {
+            print(admin.brokers().getDynamicConfigurationNames());
+        }
+    }
+    
     CmdBrokers(PulsarAdmin admin) {
         super("brokers", admin);
         jcommander.addCommand("list", new List());
         jcommander.addCommand("namespaces", new Namespaces());
-        jcommander.addCommand("update-config", new UpdateConfigurationCmd());
+        jcommander.addCommand("update-dynamic-config", new UpdateConfigurationCmd());
+        jcommander.addCommand("list-dynamic-config", new GetUpdatableConfigCmd());
+        jcommander.addCommand("get-all-dynamic-config", new GetAllConfigurationsCmd());
     }
 }

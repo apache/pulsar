@@ -59,10 +59,30 @@ public class BrokersImpl extends BaseResource implements Brokers {
     }
 
     @Override
-    public void updateConfiguration(String configName, String configValue) throws PulsarAdminException {
+    public void updateDynamicConfiguration(String configName, String configValue) throws PulsarAdminException {
         try {
             request(brokers.path("/configuration/").path(configName).path(configValue)).post(Entity.json(""),
                     ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public Map<String, String> getAllDynamicConfigurations() throws PulsarAdminException {
+        try {
+            return request(brokers.path("/configuration/").path("values")).get(new GenericType<Map<String, String>>() {
+            });
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public List<String> getDynamicConfigurationNames() throws PulsarAdminException {
+        try {
+            return request(brokers.path("/configuration")).get(new GenericType<List<String>>() {
+            });
         } catch (Exception e) {
             throw getApiException(e);
         }

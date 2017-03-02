@@ -17,6 +17,7 @@ package com.yahoo.pulsar.broker.admin;
 
 import static com.yahoo.pulsar.broker.service.BrokerService.BROKER_SERVICE_CONFIGURATION_PATH;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -97,29 +98,74 @@ public class Brokers extends AdminResource {
     
     @POST
     @Path("/configuration/{configName}/{configValue}")
-    @ApiOperation(value = "Update broker service configuration. This operation requires Pulsar super-user privileges.")
+    @ApiOperation(value = "Update dynamic serviceconfiguration into zk only. This operation requires Pulsar super-user privileges.")
     @ApiResponses(value = { @ApiResponse(code = 204, message = "Service configuration updated successfully"),
             @ApiResponse(code = 403, message = "You don't have admin permission to update service-configuration"),
             @ApiResponse(code = 404, message = "Configuration not found"),
             @ApiResponse(code = 412, message = "Configuration can't be updated dynamically") })
-    public void updateConfiguration(@PathParam("configName") String configName, @PathParam("configValue") String configValue) throws Exception{
+    public void updateDynamicConfiguration(@PathParam("configName") String configName, @PathParam("configValue") String configValue) throws Exception{
         validateSuperUserAccess();
-        updateServiceConfiguration(configName, configValue);
+        updateDynamicConfigurationOnZk(configName, configValue);
     }
 
+    @GET
+    @Path("/configuration/values")
+    @ApiOperation(value = "Get value of all dynamic configurations' value overridden on local config")
+    @ApiResponses(value = { @ApiResponse(code = 404, message = "Configuration not found") })
+    public Map<String, String> getAllDynamicConfigurations() throws Exception {
+        ZooKeeperDataCache<Map<String, String>> dynamicConfigurationCache = pulsar().getBrokerService()
+                .getDynamicConfigurationCache();
+        Map<String, String> configurationMap = null;
+        try {
+            configurationMap = dynamicConfigurationCache.get(BROKER_SERVICE_CONFIGURATION_PATH)
+                    .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Couldn't find configuration in zk"));
+        } catch (RestException e) {
+            LOG.error("[{}] couldn't find any configuration in zk {}", clientAppId(), e.getMessage(), e);
+            throw e;
+        } catch (Exception e) {
+            LOG.error("[{}] Failed to retrieve configuration from zk {}", clientAppId(), e.getMessage(), e);
+            throw new RestException(e);
+        }
+        return configurationMap;
+    }
+
+    @GET
+    @Path("/configuration")
+    @ApiOperation(value = "Get all updatable dynamic configurations's name")
+    public List<String> getDynamicConfigurationName() {
+        return BrokerService.getDynamicConfigurationMap().keys();
+    }
+    
     /**
      * if {@link ServiceConfiguration}-field is allowed to be modified dynamically, update configuration-map into zk, so
-     * all other brokers can see the change and take appropriate action on the change.
+     * all other brokers get the watch and can see the change and take appropriate action on the change.
      * 
      * @param configName
      *            : configuration key
      * @param configValue
      *            : configuration value
      */
-    private void updateServiceConfiguration(String configName, String configValue) {
+    private synchronized void updateDynamicConfigurationOnZk(String configName, String configValue) {
         try {
             if (BrokerService.getDynamicConfigurationMap().containsKey(configName)) {
-                updateConfigurationOnZk(configName, configValue);
+                ZooKeeperDataCache<Map<String, String>> dynamicConfigurationCache = pulsar().getBrokerService()
+                        .getDynamicConfigurationCache();
+                Map<String, String> configurationMap = dynamicConfigurationCache.get(BROKER_SERVICE_CONFIGURATION_PATH)
+                        .orElse(null);
+                if (configurationMap != null) {
+                    configurationMap.put(configName, configValue);
+                    byte[] content = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(configurationMap);
+                    dynamicConfigurationCache.invalidate(BROKER_SERVICE_CONFIGURATION_PATH);
+                    serviceConfigZkVersion = localZk()
+                            .setData(BROKER_SERVICE_CONFIGURATION_PATH, content, serviceConfigZkVersion).getVersion();
+                } else {
+                    configurationMap = Maps.newHashMap();
+                    configurationMap.put(configName, configValue);
+                    byte[] content = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(configurationMap);
+                    ZkUtils.createFullPathOptimistic(localZk(), BROKER_SERVICE_CONFIGURATION_PATH, content,
+                            ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+                }
+                LOG.info("[{}] Updated Service configuration {}/{}", clientAppId(), configName, configValue);
             } else {
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("[{}] Can't update non-dynamic configuration {}/{}", clientAppId(), configName,
@@ -134,27 +180,6 @@ public class Brokers extends AdminResource {
                     ie.getMessage(), ie);
             throw new RestException(ie);
         }
-    }
-
-    private synchronized void updateConfigurationOnZk(String key, String value) throws Exception {
-        ZooKeeperDataCache<Map<String, String>> dynamicConfigurationCache = pulsar().getBrokerService()
-                .getDynamicConfigurationCache();
-        Map<String, String> configurationMap = dynamicConfigurationCache.get(BROKER_SERVICE_CONFIGURATION_PATH)
-                .orElse(null);
-        if (configurationMap != null) {
-            configurationMap.put(key, value);
-            byte[] content = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(configurationMap);
-            dynamicConfigurationCache.invalidate(BROKER_SERVICE_CONFIGURATION_PATH);
-            serviceConfigZkVersion = localZk()
-                    .setData(BROKER_SERVICE_CONFIGURATION_PATH, content, serviceConfigZkVersion).getVersion();
-        } else {
-            configurationMap = Maps.newHashMap();
-            configurationMap.put(key, value);
-            byte[] content = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(configurationMap);
-            ZkUtils.createFullPathOptimistic(localZk(), BROKER_SERVICE_CONFIGURATION_PATH, content,
-                    ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
-        }
-        LOG.info("[{}] Updated Service configuration {}/{}", clientAppId(), key, value);
     }
 
 }
