@@ -80,8 +80,7 @@ public class DestinationLookup extends PulsarWebResource {
         } catch (Throwable t) {
             // Validation checks failed with unknown error
             log.error("Validation check failed: {}", t.getMessage(), t);
-            asyncResponse.resume(new RestException(Status.SERVICE_UNAVAILABLE, String.format(
-                    "Failed to validate Cluster configuration : cluster=%s  emsg=%s", cluster, t.getMessage())));
+            asyncResponse.resume(new RestException(t));
             return;
         }
 
