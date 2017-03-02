@@ -32,6 +32,7 @@ import org.apache.bookkeeper.util.OrderedSafeExecutor;
 import org.apache.bookkeeper.util.SafeRunnable;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.KeeperException.Code;
+import org.apache.zookeeper.KeeperException.NoNodeException;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooKeeper;
@@ -209,7 +210,12 @@ public abstract class ZooKeeperCache implements Watcher {
         getDataAsync(path, this, deserializer).thenAccept(data -> {
             future.complete(data.map(e -> e.getKey()));
         }).exceptionally(ex -> {
-            future.complete(Optional.empty());
+            if (ex.getCause() instanceof NoNodeException) {
+                future.complete(Optional.empty());
+            } else {
+                future.completeExceptionally(ex.getCause());
+            }
+
             return null;
         });
         return future;
