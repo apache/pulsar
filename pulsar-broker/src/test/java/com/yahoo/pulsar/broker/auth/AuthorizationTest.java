@@ -54,7 +54,7 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    void simple() throws PulsarAdminException {
+    void simple() throws Exception {
         AuthorizationManager auth = pulsar.getBrokerService().getAuthorizationManager();
 
         assertEquals(auth.canLookup(DestinationName.get("persistent://p1/c1/ns1/ds1"), "my-role"), false);

@@ -122,7 +122,7 @@ public class BrokerDiscoveryProvider implements Closeable {
     }
 
     protected static void checkAuthorization(DiscoveryService service, DestinationName destination, String role)
-            throws IllegalAccessException {
+            throws Exception {
         if (!service.getConfiguration().isAuthorizationEnabled()
                 || service.getConfiguration().getSuperUserRoles().contains(role)) {
             // No enforcing of authorization policies

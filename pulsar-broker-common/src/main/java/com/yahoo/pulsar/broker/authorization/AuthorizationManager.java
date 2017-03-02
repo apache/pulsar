@@ -53,13 +53,13 @@ public class AuthorizationManager {
         return checkAuthorization(destination, role, AuthAction.produce);
     }
     
-    public boolean canProduce(DestinationName destination, String role) {
+    public boolean canProduce(DestinationName destination, String role) throws Exception {
         try {
             return canProduceAsync(destination, role).get();
         } catch (Exception e) {
             log.warn("Producer-client  with Role - {} failed to get permissions for destination - {}", role,
                     destination, e);
-            return false;
+            throw e;
         }
     }
 
@@ -76,13 +76,13 @@ public class AuthorizationManager {
         return checkAuthorization(destination, role, AuthAction.consume);
     }
     
-    public boolean canConsume(DestinationName destination, String role) {
+    public boolean canConsume(DestinationName destination, String role) throws Exception {
         try {
             return canConsumeAsync(destination, role).get();
         } catch (Exception e) {
             log.warn("Consumer-client  with Role - {} failed to get permissions for destination - {}", role,
                     destination, e);
-            return false;
+            throw e;
         }
     }
 
@@ -94,8 +94,9 @@ public class AuthorizationManager {
      * @param destination
      * @param role
      * @return
+     * @throws Exception 
      */
-    public boolean canLookup(DestinationName destination, String role) {
+    public boolean canLookup(DestinationName destination, String role) throws Exception {
         return canProduce(destination, role) || canConsume(destination, role);
     }
 
@@ -156,12 +157,12 @@ public class AuthorizationManager {
             }).exceptionally(ex -> {
                 log.warn("Client  with Role - {} failed to get permissions for destination - {}", role, destination,
                         ex);
-                permissionFuture.complete(false);
+                permissionFuture.completeExceptionally(ex);
                 return null;
             });
         } catch (Exception e) {
             log.warn("Client  with Role - {} failed to get permissions for destination - {}", role, destination, e);
-            permissionFuture.complete(false);
+            permissionFuture.completeExceptionally(e);
         }
         return permissionFuture;
     }

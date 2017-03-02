@@ -73,7 +73,7 @@ public class ProxyAuthorizationTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void test() throws PulsarAdminException {
+    public void test() throws Exception {
         AuthorizationManager auth = service.getAuthorizationManager();
 
         assertEquals(auth.canLookup(DestinationName.get("persistent://p1/c1/ns1/ds1"), "my-role"), false);

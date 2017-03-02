@@ -41,6 +41,8 @@ import com.yahoo.pulsar.broker.web.PulsarWebResource;
 import com.yahoo.pulsar.common.naming.DestinationName;
 import com.yahoo.pulsar.broker.PulsarService;
 import com.yahoo.pulsar.broker.web.RestException;
+import com.yahoo.pulsar.client.api.PulsarClientException;
+
 import static com.yahoo.pulsar.common.api.Commands.newLookupResponse;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse.LookupType;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.ServerError;
@@ -70,10 +72,16 @@ public class DestinationLookup extends PulsarWebResource {
             validateClusterOwnership(topic.getCluster());
             checkConnect(topic);
             validateReplicationSettingsOnNamespace(pulsar(), topic.getNamespaceObject());
-        } catch (Throwable t) {
+        } catch (WebApplicationException we) {
             // Validation checks failed
-            log.error("Validation check failed: {}", t.getMessage());
-            asyncResponse.resume(t);
+            log.error("Validation check failed: {}", we.getMessage());
+            asyncResponse.resume(we);
+            return;
+        } catch (Throwable t) {
+            // Validation checks failed with unknown error
+            log.error("Validation check failed: {}", t.getMessage(), t);
+            asyncResponse.resume(new RestException(Status.SERVICE_UNAVAILABLE, String.format(
+                    "Failed to validate Cluster configuration : cluster=%s  emsg=%s", cluster, t.getMessage())));
             return;
         }
 
@@ -162,10 +170,14 @@ public class DestinationLookup extends PulsarWebResource {
                 // (2) authorize client
                 try {
                     checkAuthorization(pulsarService, fqdn, clientAppId);
-                } catch (Exception e) {
+                } catch (RestException authException) {
                     log.warn("Failed to authorized {} on cluster {}", clientAppId, fqdn.toString());
-                    validationFuture
-                            .complete(newLookupResponse(ServerError.AuthorizationError, e.getMessage(), requestId));
+                    validationFuture.complete(
+                            newLookupResponse(ServerError.AuthorizationError, authException.getMessage(), requestId));
+                    return;
+                } catch (Exception e) {
+                    log.warn("Unknown error while authorizing {} on cluster {}", clientAppId, fqdn.toString());
+                    validationFuture.completeExceptionally(e);
                     return;
                 }
                 // (3) validate global namespace
