@@ -14,6 +14,9 @@
 		- [Brokers](#brokers)
 			- [list of active brokers](#list-of-active-brokers)
 			- [list of namespaces owned by a given broker](#list-of-namespaces-owned-by-a-given-broker)
+			- [update dynamic configuration](#update-dynamic-configuration)
+			- [get list of dynamic configuration name](#get-list-of-dynamic-configuration-name)
+			- [get value of dynamic configurations](#get-value-of-dynamic-configurations)
 		- [Properties](#properties)
 			- [list existing properties](#list-existing-properties)
 			- [create property](#create-property)
@@ -232,6 +235,157 @@ GET /admin/brokers/{cluster}/{broker}/ownedNamespaces
 ```java
 admin.brokers().getOwnedNamespaces(cluster,brokerUrl)
 ```
+
+#### update dynamic configuration
+Broker can locally override value of updatable dynamic service-configurations that are stored into zookeeper. This interface allows to change the value of broker's dynamic-configuration into the zookeeper. Broker receives zookeeper-watch with new changed value and broker updates new value locally.
+
+###### CLI
+
+```
+$ pulsar-admin brokers update-dynamic-config brokerShutdownTimeoutMs 100
+```
+
+```
+N/A
+```
+
+###### REST
+
+```
+GET /admin/brokers/configuration/{configName}/{configValue}
+```
+
+###### Java
+
+```java
+admin.brokers().updateDynamicConfiguration(configName, configValue)
+```
+
+#### get list of dynamic configuration name
+It gives list of updatable dynamic service-configuration name.
+
+###### CLI
+
+```
+$ pulsar-admin brokers list-dynamic-config
+```
+
+```
+brokerShutdownTimeoutMs
+```
+
+###### REST
+
+```
+GET /admin/brokers/configuration
+```
+
+###### Java
+
+```java
+admin.brokers().getDynamicConfigurationNames()
+```
+
+#### get value of dynamic configurations
+It gives value of all dynamic configurations stored in zookeeper
+
+###### CLI
+
+```
+$ pulsar-admin brokers get-all-dynamic-config
+```
+
+```
+brokerShutdownTimeoutMs:100
+```
+
+###### REST
+
+```
+GET /admin/brokers/configuration/values
+```
+
+###### Java
+
+```java
+admin.brokers().getAllDynamicConfigurations()
+```
+
+#### Update dynamic configuration
+Broker can locally override value of updatable dynamic service-configurations that are stored into zookeeper. This interface allows to change the value of broker's dynamic-configuration into the zookeeper. Broker receives zookeeper-watch with new changed value and broker updates new value locally.
+
+###### CLI
+
+```
+$ pulsar-admin brokers update-dynamic-config brokerShutdownTimeoutMs 100
+```
+
+```
+N/A
+```
+
+###### REST
+
+```
+GET /admin/brokers/configuration/{configName}/{configValue}
+```
+
+###### Java
+
+```java
+admin.brokers().updateDynamicConfiguration(configName, configValue)
+```
+
+#### Get list of dynamic configuration name
+It gives list of updatable dynamic service-configuration name.
+
+###### CLI
+
+```
+$ pulsar-admin brokers list-dynamic-config
+```
+
+```
+brokerShutdownTimeoutMs
+```
+
+###### REST
+
+```
+GET /admin/brokers/configuration
+```
+
+###### Java
+
+```java
+admin.brokers().getDynamicConfigurationNames()
+```
+
+#### Get value of dynamic configurations
+It gives value of all dynamic configurations stored in zookeeper
+
+###### CLI
+
+```
+$ pulsar-admin brokers get-all-dynamic-config
+```
+
+```
+brokerShutdownTimeoutMs:100
+```
+
+###### REST
+
+```
+GET /admin/brokers/configuration/values
+```
+
+###### Java
+
+```java
+admin.brokers().getAllDynamicConfigurations()
+```
+
 
 
 ### Properties
