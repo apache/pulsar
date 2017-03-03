@@ -140,9 +140,6 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
     private final static String producerNameGeneratorPath = "/counters/producer-name";
 
-    public static final String LOOKUP_THROTTLING_PATH = "/loadbalance/settings/throttling";
-    public static final String THROTTLING_LOOKUP_REQUEST_KEY = "maxConcurrentLookupRequest";
-
     private final BacklogQuotaManager backlogQuotaManager;
 
     private final int keepAliveIntervalSeconds;
@@ -206,7 +203,6 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         this.backlogQuotaChecker = Executors
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-backlog-quota-checker"));
         this.authenticationService = new AuthenticationService(pulsar.getConfiguration());
-
         this.dynamicConfigurationCache = new ZooKeeperDataCache<Map<String, String>>(pulsar().getLocalZkCache()) {
             @Override
             public Map<String, String> deserialize(String key, byte[] content) throws Exception {
@@ -855,7 +851,6 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     public AuthenticationService getAuthenticationService() {
         return authenticationService;
     }
-    
 
     public List<PersistentTopic> getAllTopicsFromNamespaceBundle(String namespace, String bundle) {
         return multiLayerTopicsMap.get(namespace).get(bundle).values();

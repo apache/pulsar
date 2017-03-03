@@ -1030,11 +1030,11 @@ public class PersistentTopics extends AdminResource {
                             clientAppId, dn.toString(), authException.getMessage()));
                 }
             } catch (Exception ex) {
-                // unknown error marked as internal server error
+                // throw without wrapping to PulsarClientException that considers: unknown error marked as internal
+                // server error 
                 log.warn("Failed to authorize {} on cluster {} with unexpected exception {}", clientAppId,
                         dn.toString(), ex.getMessage(), ex);
-                throw new PulsarClientException(String.format("Authorization failed %s on cluster %s with error %s",
-                        clientAppId, dn.toString(), ex.getMessage()));
+                throw ex;
             }
             String path = path(PARTITIONED_TOPIC_PATH_ZNODE, dn.getProperty(), dn.getCluster(),
                     dn.getNamespacePortion(), "persistent", dn.getEncodedLocalName());
