@@ -624,7 +624,7 @@ public class PersistentReplicator implements ReadEntriesCallback, DeleteCallback
             return closeProducerAsync();
         } else {
             // If there's already a reconnection happening, signal to close it whenever it's ready
-            STATE_UPDATER.set(this, State.Stopping);
+            STATE_UPDATER.set(this, State.Stopped);
         }
         return CompletableFuture.completedFuture(null);
     }
