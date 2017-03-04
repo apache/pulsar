@@ -617,15 +617,20 @@ public class PersistentReplicator implements ReadEntriesCallback, DeleteCallback
             return disconnectFuture;
         }
 
+        if (STATE_UPDATER.get(this) == State.Stopping) {
+            // Do nothing since the all "STATE_UPDATER.set(this, Stopping)" instructions are followed by closeProducerAsync()
+            // which will at some point change the state to stopped
+            return CompletableFuture.completedFuture(null);
+        }
+        
         if (producer != null && (STATE_UPDATER.compareAndSet(this, State.Starting, State.Stopping)
                 || STATE_UPDATER.compareAndSet(this, State.Started, State.Stopping))) {
             log.info("[{}][{} -> {}] Disconnect replicator at position {} with backlog {}", topicName, localCluster,
                     remoteCluster, cursor.getMarkDeletedPosition(), cursor.getNumberOfEntriesInBacklog());
             return closeProducerAsync();
-        } else {
-            // If there's already a reconnection happening, signal to close it whenever it's ready
-            STATE_UPDATER.set(this, State.Stopping);
         }
+        
+        STATE_UPDATER.set(this, State.Stopped);
         return CompletableFuture.completedFuture(null);
     }
 
