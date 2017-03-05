@@ -15,12 +15,15 @@
  */
 package com.yahoo.pulsar.broker.admin;
 
+import static com.yahoo.pulsar.broker.service.BrokerService.BROKER_SERVICE_CONFIGURATION_PATH;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -36,6 +39,9 @@ import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
 
 import org.apache.bookkeeper.test.PortManager;
+import org.apache.bookkeeper.util.ZkUtils;
+import org.apache.zookeeper.CreateMode;
+import org.apache.zookeeper.ZooDefs;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -56,6 +62,7 @@ import com.yahoo.pulsar.broker.ServiceConfiguration;
 import com.yahoo.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import com.yahoo.pulsar.broker.namespace.NamespaceEphemeralData;
 import com.yahoo.pulsar.broker.namespace.NamespaceService;
+import com.yahoo.pulsar.broker.service.BrokerService;
 import com.yahoo.pulsar.client.admin.PulsarAdmin;
 import com.yahoo.pulsar.client.admin.PulsarAdminException;
 import com.yahoo.pulsar.client.admin.PulsarAdminException.ConflictException;
@@ -377,8 +384,116 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().deleteNamespace("prop-xyz/use/ns1");
         admin.clusters().deleteCluster("use");
         assertEquals(admin.clusters().getClusters(), Lists.newArrayList());
+        
+    }
+    
+    /**
+     * <pre>
+     * Verifies: zk-update configuration updates service-config
+     * 1. create znode for dynamic-config
+     * 2. start pulsar service so, pulsar can set the watch on that znode
+     * 3. update the configuration with new value
+     * 4. wait and verify that new value has been updated
+     * </pre>
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testUpdateDynamicConfigurationWithZkWatch() throws Exception {
+        // create configuration znode
+        ZkUtils.createFullPathOptimistic(mockZookKeeper, BROKER_SERVICE_CONFIGURATION_PATH, "{}".getBytes(),
+                ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+        // Now, znode is created: set the watch and listener on the znode
+        Method updateConfigListenerMethod = BrokerService.class
+                .getDeclaredMethod("updateConfigurationAndRegisterListeners");
+        updateConfigListenerMethod.setAccessible(true);
+        updateConfigListenerMethod.invoke(pulsar.getBrokerService());
+        pulsar.getConfiguration().setBrokerShutdownTimeoutMs(30000);
+        // (1) try to update dynamic field
+        final long shutdownTime = 10;
+        // update configuration
+        admin.brokers().updateDynamicConfiguration("brokerShutdownTimeoutMs", Long.toString(shutdownTime));
+        // wait config to be updated
+        for (int i = 0; i < 5; i++) {
+            if (pulsar.getConfiguration().getBrokerShutdownTimeoutMs() != shutdownTime) {
+                Thread.sleep(100 + (i * 10));
+            } else {
+                break;
+            }
+        }
+        // verify value is updated
+        assertEquals(pulsar.getConfiguration().getBrokerShutdownTimeoutMs(), shutdownTime);
+
+        // (2) try to update non-dynamic field
+        try {
+            admin.brokers().updateDynamicConfiguration("zookeeperServers", "test-zk:1234");
+        } catch (Exception e) {
+            assertTrue(e instanceof PreconditionFailedException);
+        }
+
+        // (3) try to update non-existent field
+        try {
+            admin.brokers().updateDynamicConfiguration("test", Long.toString(shutdownTime));
+        } catch (Exception e) {
+            assertTrue(e instanceof PreconditionFailedException);
+        }
+
     }
 
+    /**
+     * <pre>
+     * verifies: that registerListener updates pulsar.config value with newly updated zk-dynamic config
+     * NOTE: pulsar can't set the watch on non-existing znode
+     * So, when pulsar starts it is not able to set the watch on non-existing znode of dynamicConfiguration
+     * So, here, after creating znode we will trigger register explicitly
+     * 1.start pulsar
+     * 2.update zk-config with admin api
+     * 3. trigger watch and listener
+     * 4. verify that config is updated
+     * </pre>
+     * @throws Exception
+     */
+    @Test
+    public void testUpdateDynamicLocalConfiguration() throws Exception {
+        // (1) try to update dynamic field
+        final long shutdownTime = 10;
+        pulsar.getConfiguration().setBrokerShutdownTimeoutMs(30000);
+        // update configuration
+        admin.brokers().updateDynamicConfiguration("brokerShutdownTimeoutMs", Long.toString(shutdownTime));
+        // Now, znode is created: updateConfigurationAndregisterListeners and check if configuration updated
+        Method getPermitZkNodeMethod = BrokerService.class.getDeclaredMethod("updateConfigurationAndRegisterListeners");
+        getPermitZkNodeMethod.setAccessible(true);
+        getPermitZkNodeMethod.invoke(pulsar.getBrokerService());
+        // verify value is updated
+        assertEquals(pulsar.getConfiguration().getBrokerShutdownTimeoutMs(), shutdownTime);
+    }
+
+    @Test
+    public void testUpdatableConfigurationName() throws Exception {
+        // (1) try to update dynamic field
+        final String configName = "brokerShutdownTimeoutMs";
+        assertTrue(admin.brokers().getDynamicConfigurationNames().contains(configName));
+    }
+
+    @Test
+    public void testGetDynamicLocalConfiguration() throws Exception {
+        // (1) try to update dynamic field
+        final String configName = "brokerShutdownTimeoutMs";
+        final long shutdownTime = 10;
+        pulsar.getConfiguration().setBrokerShutdownTimeoutMs(30000);
+        try {
+            admin.brokers().getAllDynamicConfigurations();
+            fail("should have fail as configuration is not exist");
+        } catch (PulsarAdminException.NotFoundException ne) {
+            // ok : expected
+        }
+        assertNotEquals(pulsar.getConfiguration().getBrokerShutdownTimeoutMs(), shutdownTime);
+        // update configuration
+        admin.brokers().updateDynamicConfiguration(configName, Long.toString(shutdownTime));
+        // Now, znode is created: updateConfigurationAndregisterListeners and check if configuration updated
+        assertEquals(Long.parseLong(admin.brokers().getAllDynamicConfigurations().get(configName)), shutdownTime);
+    }
+    
     @Test(enabled = true)
     public void properties() throws PulsarAdminException {
         Set<String> allowedClusters = Sets.newHashSet("use");
