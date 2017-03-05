@@ -18,12 +18,14 @@ package com.yahoo.pulsar.client.admin.internal;
 import java.util.List;
 import java.util.Map;
 
+import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.GenericType;
 
 import com.yahoo.pulsar.client.admin.Brokers;
 import com.yahoo.pulsar.client.admin.PulsarAdminException;
 import com.yahoo.pulsar.client.api.Authentication;
+import com.yahoo.pulsar.common.policies.data.ErrorData;
 import com.yahoo.pulsar.common.policies.data.NamespaceOwnershipStatus;
 
 public class BrokersImpl extends BaseResource implements Brokers {
@@ -51,6 +53,36 @@ public class BrokersImpl extends BaseResource implements Brokers {
             return request(brokers.path(cluster).path(brokerUrl).path("ownedNamespaces")).get(
                     new GenericType<Map<String, NamespaceOwnershipStatus>>() {
                     });
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public void updateDynamicConfiguration(String configName, String configValue) throws PulsarAdminException {
+        try {
+            request(brokers.path("/configuration/").path(configName).path(configValue)).post(Entity.json(""),
+                    ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public Map<String, String> getAllDynamicConfigurations() throws PulsarAdminException {
+        try {
+            return request(brokers.path("/configuration/").path("values")).get(new GenericType<Map<String, String>>() {
+            });
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public List<String> getDynamicConfigurationNames() throws PulsarAdminException {
+        try {
+            return request(brokers.path("/configuration")).get(new GenericType<List<String>>() {
+            });
         } catch (Exception e) {
             throw getApiException(e);
         }
