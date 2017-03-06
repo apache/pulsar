@@ -34,7 +34,9 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
@@ -128,6 +130,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     private AuthorizationManager authorizationManager = null;
     private final ScheduledExecutorService statsUpdater;
     private final ScheduledExecutorService backlogQuotaChecker;
+    
+    protected final AtomicReference<Semaphore> lookupRequestSemaphore;
 
     private final ScheduledExecutorService inactivityMonitor;
     private final ScheduledExecutorService messageExpiryMonitor;
@@ -206,7 +210,10 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 return ObjectMapperFactory.getThreadLocal().readValue(content, HashMap.class);
             }
         };
+        // update dynamic configuration and register-listener
         updateConfigurationAndRegisterListeners();
+        this.lookupRequestSemaphore = new AtomicReference<Semaphore>(
+                new Semaphore(pulsar.getConfiguration().getMaxConcurrentLookupRequest(), true));
 
         PersistentReplicator.setReplicatorQueueSize(pulsar.getConfiguration().getReplicationProducerQueueSize());
     }
@@ -619,6 +626,10 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     public Map<String, NamespaceBundleStats> getBundleStats() {
         return pulsarStats.getBundleStats();
     }
+    
+    public Semaphore getLookupRequestSemaphore() {
+        return lookupRequestSemaphore.get();
+    }
 
     public void checkGC(int gcIntervalInSeconds) {
         topics.forEach((n, t) -> {
@@ -841,7 +852,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     public AuthenticationService getAuthenticationService() {
         return authenticationService;
     }
-
+    
     public List<PersistentTopic> getAllTopicsFromNamespaceBundle(String namespace, String bundle) {
         return multiLayerTopicsMap.get(namespace).get(bundle).values();
     }
@@ -857,7 +868,10 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     private void updateConfigurationAndRegisterListeners() {
         // update ServiceConfiguration value by reading zk-configuration-map
         updateDynamicServiceConfiguration();
-        //add more listeners here
+        // add listener on "maxConcurrentLookupRequest" value change
+        registerConfigurationListener("maxConcurrentLookupRequest",
+                (pendingLookupRequest) -> lookupRequestSemaphore.set(new Semaphore((int) pendingLookupRequest, true)));
+        // add more listeners here
     }
 
     /**

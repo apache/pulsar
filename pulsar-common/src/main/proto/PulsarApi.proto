@@ -81,6 +81,7 @@ enum ServerError {
     TopicNotFound = 11; // Topic not found
     SubscriptionNotFound = 12; // Subscription not found
     ConsumerNotFound = 13; // Consumer not found
+    TooManyRequests = 14; // Error with too many simultaneously request 
 }
 
 enum AuthMethod {
