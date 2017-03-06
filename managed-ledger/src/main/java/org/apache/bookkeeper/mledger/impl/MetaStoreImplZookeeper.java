@@ -21,16 +21,12 @@ import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.BadVersionException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo;
 import org.apache.bookkeeper.util.OrderedSafeExecutor;
 import org.apache.bookkeeper.util.ZkUtils;
-import org.apache.zookeeper.AsyncCallback.Children2Callback;
-import org.apache.zookeeper.AsyncCallback.DataCallback;
-import org.apache.zookeeper.AsyncCallback.StatCallback;
 import org.apache.zookeeper.AsyncCallback.StringCallback;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
@@ -38,11 +34,11 @@ import org.apache.zookeeper.KeeperException.Code;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.data.ACL;
-import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Charsets;
+import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.TextFormat;
 import com.google.protobuf.TextFormat.ParseException;
 
@@ -199,15 +195,11 @@ class MetaStoreImplZookeeper implements MetaStore {
                         new MetaStoreException(KeeperException.create(Code.get(rc))));
             } else {
                 try {
-                    callback.operationComplete(ManagedCursorInfo.parseFrom(data), new ZKVersion(stat.getVersion()));
-                } catch (InvalidProtocolBufferException e) {
-                    try {
-                        ManagedCursorInfo.Builder info = ManagedCursorInfo.newBuilder();
-                        TextFormat.merge(new String(data, Encoding), info);
-                        callback.operationComplete(info.build(), new ZKVersion(stat.getVersion()));
-                    } catch (ParseException e1) {
-                        callback.operationFailed(new MetaStoreException(e));
-                    }
+                    ManagedCursorInfo.Builder info = ManagedCursorInfo.newBuilder();
+                    TextFormat.merge(new String(data, Encoding), info);
+                    callback.operationComplete(info.build(), new ZKVersion(stat.getVersion()));
+                } catch (ParseException e) {
+                    callback.operationFailed(new MetaStoreException(e));
                 }
             }
         })), null);
@@ -224,7 +216,7 @@ class MetaStoreImplZookeeper implements MetaStore {
                 info.getCursorsLedgerId(), info.getMarkDeleteLedgerId(), info.getMarkDeleteEntryId());
 
         String path = prefix + ledgerName + "/" + cursorName;
-        byte[] content = info.toByteArray();
+        byte[] content = info.toString().getBytes(Encoding);
 
         if (version == null) {
             if (log.isDebugEnabled()) {
