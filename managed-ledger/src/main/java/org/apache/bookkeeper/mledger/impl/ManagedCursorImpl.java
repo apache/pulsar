@@ -1427,6 +1427,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         PositionImpl position = (PositionImpl) pos;
 
         PositionImpl previousPosition = ledger.getPreviousPosition(position);
+        PositionImpl newMarkDeletePosition = null;
 
         lock.writeLock().lock();
 
@@ -1444,8 +1445,6 @@ public class ManagedCursorImpl implements ManagedCursor {
                 callback.deleteComplete(ctx);
                 return;
             }
-
-            PositionImpl newMarkDeletePosition = null;
 
             if (previousPosition.compareTo(markDeletePosition) == 0 && individualDeletedMessages.isEmpty()) {
                 if (log.isDebugEnabled()) {
@@ -1482,7 +1481,16 @@ public class ManagedCursorImpl implements ManagedCursor {
                     newMarkDeletePosition = range.upperEndpoint();
                 }
             }
+        } catch (Exception e) {
+            log.warn("[{}] [{}] Error while updating individualDeletedMessages [{}]", ledger.getName(), name,
+                    e.getMessage(), e);
+            callback.deleteFailed(new ManagedLedgerException(e), ctx);
+            return;
+        } finally {
+            lock.writeLock().unlock();
+        }
 
+        try {
             if (newMarkDeletePosition != null) {
                 newMarkDeletePosition = setAcknowledgedPosition(newMarkDeletePosition);
             } else {
@@ -1515,8 +1523,6 @@ public class ManagedCursorImpl implements ManagedCursor {
                         ledger.getName(), name, messagesConsumedCounter, markDeletePosition, readPosition);
             }
             callback.deleteFailed(new ManagedLedgerException(e), ctx);
-        } finally {
-            lock.writeLock().unlock();
         }
     }
 
