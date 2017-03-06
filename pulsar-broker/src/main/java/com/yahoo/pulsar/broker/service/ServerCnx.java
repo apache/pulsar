@@ -177,7 +177,7 @@ public class ServerCnx extends PulsarHandler {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Failed lookup due to too many lookup-requets {}", remoteAddress, topic);
             }
-            ctx.writeAndFlush(newLookupResponse(ServerError.TooManyRequest,
+            ctx.writeAndFlush(newLookupResponse(ServerError.TooManyRequests,
                     "Failed due to too many pending lookup requests", requestId));
         }
 
@@ -217,7 +217,7 @@ public class ServerCnx extends PulsarHandler {
                 log.debug("[{}] Failed Partition-Metadata lookup due to too many lookup-requets {}", remoteAddress,
                         topic);
             }
-            ctx.writeAndFlush(newLookupResponse(ServerError.TooManyRequest,
+            ctx.writeAndFlush(newLookupResponse(ServerError.TooManyRequests,
                     "Failed due to too many pending lookup requests", requestId));
         }
     }

@@ -68,7 +68,7 @@ public final class PulsarApi {
     TopicNotFound(11, 11),
     SubscriptionNotFound(12, 12),
     ConsumerNotFound(13, 13),
-    TooManyRequest(14, 14),
+    TooManyRequests(14, 14),
     ;
     
     public static final int UnknownError_VALUE = 0;
@@ -85,7 +85,7 @@ public final class PulsarApi {
     public static final int TopicNotFound_VALUE = 11;
     public static final int SubscriptionNotFound_VALUE = 12;
     public static final int ConsumerNotFound_VALUE = 13;
-    public static final int TooManyRequest_VALUE = 14;
+    public static final int TooManyRequests_VALUE = 14;
     
     
     public final int getNumber() { return value; }
@@ -106,7 +106,7 @@ public final class PulsarApi {
         case 11: return TopicNotFound;
         case 12: return SubscriptionNotFound;
         case 13: return ConsumerNotFound;
-        case 14: return TooManyRequest;
+        case 14: return TooManyRequests;
         default: return null;
       }
     }
