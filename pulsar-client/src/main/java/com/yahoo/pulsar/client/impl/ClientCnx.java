@@ -413,6 +413,8 @@ public class ClientCnx extends PulsarHandler {
             return new PulsarClientException.BrokerPersistenceException(errorMsg);
         case ServiceNotReady:
             return new PulsarClientException.LookupException(errorMsg);
+        case TooManyRequests:
+            return new PulsarClientException.TooManyLookupRequestException(errorMsg);    
         case ProducerBlockedQuotaExceededError:
             return new PulsarClientException.ProducerBlockedQuotaExceededError(errorMsg);
         case ProducerBlockedQuotaExceededException:
