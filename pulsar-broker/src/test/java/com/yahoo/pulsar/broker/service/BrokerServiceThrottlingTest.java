@@ -249,8 +249,15 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
         stopBroker();
         conf.setMaxConcurrentLookupRequest(1);
         startBroker();
-        // wait for consumer to reconnect
-        Thread.sleep(3000);
+
+        // wait strategically for all consumers to reconnect
+        for (int i = 0; i < 5; i++) {
+            if (!areAllConsumersConnected(consumers)) {
+                Thread.sleep(1000 + (i * 500));
+            } else {
+                break;
+            }
+        }
 
         int totalConnectedConsumers = 0;
         for (int i = 0; i < consumers.size(); i++) {
@@ -263,6 +270,15 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
         assertEquals(totalConnectedConsumers, totalConsumers);
 
         pulsarClient.close();
+    }
+
+    private boolean areAllConsumersConnected(List<Consumer> consumers) {
+        for (int i = 0; i < consumers.size(); i++) {
+            if (!((ConsumerImpl) consumers.get(i)).isConnected()) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private void upsertLookupPermits(int permits) throws Exception {
