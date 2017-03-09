@@ -31,6 +31,7 @@ import com.google.common.base.Charsets;
 @Beta
 public class ManagedLedgerConfig {
 
+    private int maxUnackedRangesToPersist = 1000;
     private int maxEntriesPerLedger = 50000;
     private int maxSizePerLedgerMb = 100;
     private int minimumRolloverTimeMs = 0;
@@ -346,5 +347,22 @@ public class ManagedLedgerConfig {
      */
     public long getRetentionSizeInMB() {
         return retentionSizeInMB;
+    }
+
+    /**
+     * @return max unacked message ranges that will be persisted and recovered.
+     *
+     */
+    public int getMaxUnackedRangesToPersist() {
+        return maxUnackedRangesToPersist;
+    }
+
+    /**
+     * @param maxUnackedRangesToPersist
+     *            max unacked message ranges that will be persisted and receverd.
+     */
+    public ManagedLedgerConfig setMaxUnackedRangesToPersist(int maxUnackedRangesToPersist) {
+        this.maxUnackedRangesToPersist = maxUnackedRangesToPersist;
+        return this;
     }
 }
