@@ -15,13 +15,9 @@
  */
 package com.yahoo.pulsar.broker.stats;
 
-import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 
 import com.google.common.collect.Maps;
-import com.yahoo.pulsar.common.policies.data.PersistentSubscriptionStats;
-import com.yahoo.pulsar.common.policies.data.ReplicatorStats;
 
 public class NamespaceStats {
 
