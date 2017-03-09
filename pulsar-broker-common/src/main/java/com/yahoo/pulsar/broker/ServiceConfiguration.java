@@ -179,10 +179,13 @@ public class ServiceConfiguration implements PulsarConfiguration{
     private int managedLedgerCursorMaxEntriesPerLedger = 50000;
     // Max time before triggering a rollover on a cursor ledger
     private int managedLedgerCursorRolloverTimeInSeconds = 14400;
-    // Max number of entries to append to a ledger before triggering a rollover
-    // A ledger rollover is triggered on these conditions Either the max
-    // rollover time has been reached or max entries have been written to the
-    // ledged and at least min-time has passed
+    // Max number of "acknowledgment holes" that are going to be persistently stored.
+    // When acknowledging out of order, a consumer will leave holes that are supposed
+    // to be quickly filled by acking all the messages. The information of which
+    // messages are acknowledged is persisted by compressing in "ranges" of messages
+    // that were acknowledged. After the max number of ranges is reached, the information
+    // will only be tracked in memory and messages will be redelivered in case of
+    // crashes.
     private int managedLedgerMaxUnackedRangesToPersist = 1000;
 
     /*** --- Load balancer --- ****/

@@ -15,7 +15,9 @@
  */
 package org.apache.bookkeeper.mledger;
 
-import com.google.common.annotations.Beta;
+import java.util.List;
+import java.util.Set;
+
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.FindEntryCallback;
@@ -24,10 +26,8 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.SkipEntriesCallback;
 
-
-import java.util.List;
-import java.util.Set;
-import java.util.function.Predicate;
+import com.google.common.annotations.Beta;
+import com.google.common.base.Predicate;
 
 /**
  * A ManangedCursor is a persisted cursor inside a ManagedLedger.
@@ -326,7 +326,7 @@ public interface ManagedCursor {
      *            opaque context
      */
     public void asyncFindNewestMatching(FindPositionConstraint constraint, Predicate<Entry> condition,
-                                        FindEntryCallback callback, Object ctx);
+            FindEntryCallback callback, Object ctx);
 
     /**
      * reset the cursor to specified position to enable replay of messages

@@ -15,14 +15,13 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
-import org.apache.bookkeeper.mledger.AsyncCallbacks.FindEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.FindEntryCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.PositionBound;
-
-import java.util.function.Predicate;
+import com.google.common.base.Predicate;
 
 /**
  */
@@ -44,7 +43,7 @@ public class OpFindNewest implements ReadEntryCallback {
     State state;
 
     public OpFindNewest(ManagedCursorImpl cursor, PositionImpl startPosition, Predicate<Entry> condition,
-                        long numberOfEntries, FindEntryCallback callback, Object ctx) {
+            long numberOfEntries, FindEntryCallback callback, Object ctx) {
         this.cursor = cursor;
         this.startPosition = startPosition;
         this.callback = callback;
@@ -62,7 +61,7 @@ public class OpFindNewest implements ReadEntryCallback {
     public void readEntryComplete(Entry entry, Object ctx) {
         switch (state) {
         case checkFirst:
-            if (!condition.test(entry)) {
+            if (!condition.apply(entry)) {
                 callback.findEntryComplete(null, OpFindNewest.this.ctx);
                 return;
             } else {
@@ -75,7 +74,7 @@ public class OpFindNewest implements ReadEntryCallback {
             }
             break;
         case checkLast:
-            if (condition.test(entry)) {
+            if (condition.apply(entry)) {
                 callback.findEntryComplete(entry.getPosition(), OpFindNewest.this.ctx);
                 return;
             } else {
@@ -86,7 +85,7 @@ public class OpFindNewest implements ReadEntryCallback {
             }
             break;
         case searching:
-            if (condition.test(entry)) {
+            if (condition.apply(entry)) {
                 // mid - last
                 lastMatchedPosition = entry.getPosition();
                 min = mid();
