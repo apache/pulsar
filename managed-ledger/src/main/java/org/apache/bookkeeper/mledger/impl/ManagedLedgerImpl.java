@@ -366,7 +366,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
                         @Override
                         public void operationFailed(ManagedLedgerException exception) {
-                            log.warn("[{}] Recovery for cursor {} failed", name, cursorName);
+                            log.warn("[{}] Recovery for cursor {} failed", name, cursorName, exception);
                             cursorCount.set(-1);
                             callback.initializeFailed(exception);
                         }
