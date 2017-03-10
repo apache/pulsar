@@ -170,7 +170,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     private final ScheduledExecutorService scheduledExecutor;
     private final OrderedSafeExecutor executor;
-    private final ManagedLedgerFactoryImpl factory;
+    final ManagedLedgerFactoryImpl factory;
     protected final ManagedLedgerMBeanImpl mbean;
 
     /**

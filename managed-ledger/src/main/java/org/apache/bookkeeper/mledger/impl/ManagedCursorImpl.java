@@ -18,6 +18,7 @@ package org.apache.bookkeeper.mledger.impl;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
+import static org.apache.bookkeeper.mledger.impl.MetaStoreImplZookeeper.ZNodeProtobufFormat;
 
 import java.util.ArrayDeque;
 import java.util.Collections;
@@ -111,6 +112,8 @@ public class ManagedCursorImpl implements ManagedCursor {
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
 
     private final RateLimiter markDeleteLimiter;
+    
+    private final ZNodeProtobufFormat protobufFormat;
 
     class PendingMarkDeleteEntry {
         final PositionImpl newPosition;
@@ -164,6 +167,9 @@ public class ManagedCursorImpl implements ManagedCursor {
         RESET_CURSOR_IN_PROGRESS_UPDATER.set(this, FALSE);
         WAITING_READ_OP_UPDATER.set(this, null);
         this.lastLedgerSwitchTimestamp = System.currentTimeMillis();
+        this.protobufFormat = ledger.factory.getConfig().useProtobufBinaryFormatInZK() ? //
+                ZNodeProtobufFormat.Binary : //
+                ZNodeProtobufFormat.Text;
 
         if (config.getThrottleMarkDelete() > 0.0) {
             markDeleteLimiter = RateLimiter.create(config.getThrottleMarkDelete());
@@ -1666,21 +1672,20 @@ public class ManagedCursorImpl implements ManagedCursor {
             MetaStoreCallback<Void> callback) {
         // When closing we store the last mark-delete position in the z-node itself, so we won't need the cursor ledger,
         // hence we write it as -1. The cursor ledger is deleted once the z-node write is confirmed.
-        ManagedCursorInfo info = ManagedCursorInfo.newBuilder() //
+        ManagedCursorInfo.Builder info = ManagedCursorInfo.newBuilder() //
                 .setCursorsLedgerId(cursorsLedgerId) //
                 .setMarkDeleteLedgerId(position.getLedgerId()) //
-                .setMarkDeleteEntryId(position.getEntryId()) //
+                .setMarkDeleteEntryId(position.getEntryId()); //
 
-                // Do not add individually deleted messages in text format since it would break
-                // backward compatibility.
-                // TODO: Add this again, when binary format is enabled
-                // .addAllIndividualDeletedMessages(buildIndividualDeletedMessageRanges()) //
-                .build();
+        if (protobufFormat == ZNodeProtobufFormat.Binary) {
+            info.addAllIndividualDeletedMessages(buildIndividualDeletedMessageRanges());
+        }
+
         if (log.isDebugEnabled()) {
             log.debug("[{}][{}]  Closing cursor at md-position: {}", ledger.getName(), name, markDeletePosition);
         }
 
-        ledger.getStore().asyncUpdateCursorInfo(ledger.getName(), name, info, cursorLedgerVersion,
+        ledger.getStore().asyncUpdateCursorInfo(ledger.getName(), name, info.build(), cursorLedgerVersion,
                 new MetaStoreCallback<Void>() {
                     @Override
                     public void operationComplete(Void result, Version version) {
@@ -1705,7 +1710,8 @@ public class ManagedCursorImpl implements ManagedCursor {
 
         lock.readLock().lock();
         try {
-            if (!individualDeletedMessages.isEmpty()) {
+            if (cursorLedger != null && protobufFormat == ZNodeProtobufFormat.Text
+                    && !individualDeletedMessages.isEmpty()) {
                 // To save individualDeletedMessages status, we don't want to dump the information in text format into
                 // the z-node. Until we switch to binary format, just flush the mark-delete + the
                 // individualDeletedMessages into the ledger.
@@ -1921,6 +1927,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     position);
         }
 
+        checkNotNull(lh);
         lh.asyncAddEntry(pi.toByteArray(), (rc, lh1, entryId, ctx) -> {
             if (rc == BKException.Code.OK) {
                 if (log.isDebugEnabled()) {

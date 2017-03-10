@@ -42,7 +42,11 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.TextFormat;
 import com.google.protobuf.TextFormat.ParseException;
 
-class MetaStoreImplZookeeper implements MetaStore {
+public class MetaStoreImplZookeeper implements MetaStore {
+
+    public static enum ZNodeProtobufFormat {
+        Text, Binary
+    }
 
     private static final Charset Encoding = Charsets.UTF_8;
     private static final List<ACL> Acl = ZooDefs.Ids.OPEN_ACL_UNSAFE;
@@ -51,6 +55,7 @@ class MetaStoreImplZookeeper implements MetaStore {
     private static final String prefix = prefixName + "/";
 
     private final ZooKeeper zk;
+    private final ZNodeProtobufFormat protobufFormat;
     private final OrderedSafeExecutor executor;
 
     private static class ZKVersion implements Version {
@@ -62,7 +67,13 @@ class MetaStoreImplZookeeper implements MetaStore {
     }
 
     public MetaStoreImplZookeeper(ZooKeeper zk, OrderedSafeExecutor executor) throws Exception {
+        this(zk, ZNodeProtobufFormat.Text, executor);
+    }
+
+    public MetaStoreImplZookeeper(ZooKeeper zk, ZNodeProtobufFormat protobufFormat, OrderedSafeExecutor executor)
+            throws Exception {
         this.zk = zk;
+        this.protobufFormat = protobufFormat;
         this.executor = executor;
 
         if (zk.exists(prefixName, false) == null) {
@@ -100,12 +111,10 @@ class MetaStoreImplZookeeper implements MetaStore {
         zk.getData(prefix + ledgerName, false, (rc, path, ctx, readData, stat) -> executor.submit(safeRun(() -> {
             if (rc == Code.OK.intValue()) {
                 try {
-                    ManagedLedgerInfo.Builder builder = ManagedLedgerInfo.newBuilder();
-                    TextFormat.merge(new String(readData, Encoding), builder);
-                    ManagedLedgerInfo info = builder.build();
+                    ManagedLedgerInfo info = parseManagedLedgerInfo(readData);
                     info = updateMLInfoTimestamp(info);
                     callback.operationComplete(info, new ZKVersion(stat.getVersion()));
-                } catch (ParseException e) {
+                } catch (ParseException | InvalidProtocolBufferException e) {
                     callback.operationFailed(new MetaStoreException(e));
                 }
             } else if (rc == Code.NONODE.intValue()) {
@@ -116,16 +125,14 @@ class MetaStoreImplZookeeper implements MetaStore {
                         ManagedLedgerInfo info = ManagedLedgerInfo.getDefaultInstance();
                         callback.operationComplete(info, new ZKVersion(0));
                     } else {
-                        callback.operationFailed(
-                                new MetaStoreException(KeeperException.create(Code.get(rc1))));
+                        callback.operationFailed(new MetaStoreException(KeeperException.create(Code.get(rc1))));
                     }
                 };
 
-                ZkUtils.asyncCreateFullPathOptimistic(zk, prefix + ledgerName, new byte[0], Acl,
-                        CreateMode.PERSISTENT, createcb, null);
+                ZkUtils.asyncCreateFullPathOptimistic(zk, prefix + ledgerName, new byte[0], Acl, CreateMode.PERSISTENT,
+                        createcb, null);
             } else {
-                callback.operationFailed(
-                        new MetaStoreException(KeeperException.create(Code.get(rc))));
+                callback.operationFailed(new MetaStoreException(KeeperException.create(Code.get(rc))));
             }
         })), null);
     }
@@ -139,23 +146,28 @@ class MetaStoreImplZookeeper implements MetaStore {
             log.debug("[{}] Updating metadata version={} with content={}", ledgerName, zkVersion.version, mlInfo);
         }
 
-        zk.setData(prefix + ledgerName, mlInfo.toString().getBytes(Encoding), zkVersion.version, (rc, path, zkCtx, stat) -> executor.submit(safeRun(() -> {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] UpdateLedgersIdsCallback.processResult rc={} newVersion={}", ledgerName,
-                        Code.get(rc), stat != null ? stat.getVersion() : "null");
-            }
-            MetaStoreException status = null;
-            if (rc == Code.BADVERSION.intValue()) {
-                // Content has been modified on ZK since our last read
-                status = new BadVersionException(KeeperException.create(Code.get(rc)));
-                callback.operationFailed(status);
-            } else if (rc != Code.OK.intValue()) {
-                status = new MetaStoreException(KeeperException.create(Code.get(rc)));
-                callback.operationFailed(status);
-            } else {
-                callback.operationComplete(null, new ZKVersion(stat.getVersion()));
-            }
-        })), null);
+        byte[] serializedMlInfo = protobufFormat == ZNodeProtobufFormat.Text ? //
+                mlInfo.toString().getBytes(Encoding) : // Text format
+                mlInfo.toByteArray(); // Binary format
+
+        zk.setData(prefix + ledgerName, serializedMlInfo, zkVersion.version,
+                (rc, path, zkCtx, stat) -> executor.submit(safeRun(() -> {
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] UpdateLedgersIdsCallback.processResult rc={} newVersion={}", ledgerName,
+                                Code.get(rc), stat != null ? stat.getVersion() : "null");
+                    }
+                    MetaStoreException status = null;
+                    if (rc == Code.BADVERSION.intValue()) {
+                        // Content has been modified on ZK since our last read
+                        status = new BadVersionException(KeeperException.create(Code.get(rc)));
+                        callback.operationFailed(status);
+                    } else if (rc != Code.OK.intValue()) {
+                        status = new MetaStoreException(KeeperException.create(Code.get(rc)));
+                        callback.operationFailed(status);
+                    } else {
+                        callback.operationComplete(null, new ZKVersion(stat.getVersion()));
+                    }
+                })), null);
     }
 
     @Override
@@ -168,8 +180,7 @@ class MetaStoreImplZookeeper implements MetaStore {
                 log.debug("[{}] getConsumers complete rc={} children={}", ledgerName, Code.get(rc), children);
             }
             if (rc != Code.OK.intValue()) {
-                callback.operationFailed(
-                        new MetaStoreException(KeeperException.create(Code.get(rc))));
+                callback.operationFailed(new MetaStoreException(KeeperException.create(Code.get(rc))));
                 return;
             }
 
@@ -191,14 +202,12 @@ class MetaStoreImplZookeeper implements MetaStore {
 
         zk.getData(path, false, (rc, path1, ctx, data, stat) -> executor.submit(safeRun(() -> {
             if (rc != Code.OK.intValue()) {
-                callback.operationFailed(
-                        new MetaStoreException(KeeperException.create(Code.get(rc))));
+                callback.operationFailed(new MetaStoreException(KeeperException.create(Code.get(rc))));
             } else {
                 try {
-                    ManagedCursorInfo.Builder info = ManagedCursorInfo.newBuilder();
-                    TextFormat.merge(new String(data, Encoding), info);
-                    callback.operationComplete(info.build(), new ZKVersion(stat.getVersion()));
-                } catch (ParseException e) {
+                    ManagedCursorInfo info = parseManagedCursorInfo(data);
+                    callback.operationComplete(info, new ZKVersion(stat.getVersion()));
+                } catch (ParseException | InvalidProtocolBufferException e) {
                     callback.operationFailed(new MetaStoreException(e));
                 }
             }
@@ -216,26 +225,28 @@ class MetaStoreImplZookeeper implements MetaStore {
                 info.getCursorsLedgerId(), info.getMarkDeleteLedgerId(), info.getMarkDeleteEntryId());
 
         String path = prefix + ledgerName + "/" + cursorName;
-        byte[] content = info.toString().getBytes(Encoding);
+        byte[] content = protobufFormat == ZNodeProtobufFormat.Text ? //
+                info.toString().getBytes(Encoding) : // Text format
+                info.toByteArray(); // Binary format
 
         if (version == null) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Creating consumer {} on meta-data store with {}", ledgerName, cursorName, info);
             }
-            zk.create(path, content, Acl, CreateMode.PERSISTENT, (rc, path1, ctx, name) -> executor.submit(safeRun(() -> {
-                if (rc != Code.OK.intValue()) {
-                    log.warn("[{}] Error creating cosumer {} node on meta-data store with {}: ", ledgerName,
-                            cursorName, info, Code.get(rc));
-                    callback.operationFailed(
-                            new MetaStoreException(KeeperException.create(Code.get(rc))));
-                } else {
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] Created consumer {} on meta-data store with {}", ledgerName, cursorName,
-                                info);
-                    }
-                    callback.operationComplete(null, new ZKVersion(0));
-                }
-            })), null);
+            zk.create(path, content, Acl, CreateMode.PERSISTENT,
+                    (rc, path1, ctx, name) -> executor.submit(safeRun(() -> {
+                        if (rc != Code.OK.intValue()) {
+                            log.warn("[{}] Error creating cosumer {} node on meta-data store with {}: ", ledgerName,
+                                    cursorName, info, Code.get(rc));
+                            callback.operationFailed(new MetaStoreException(KeeperException.create(Code.get(rc))));
+                        } else {
+                            if (log.isDebugEnabled()) {
+                                log.debug("[{}] Created consumer {} on meta-data store with {}", ledgerName, cursorName,
+                                        info);
+                            }
+                            callback.operationComplete(null, new ZKVersion(0));
+                        }
+                    })), null);
         } else {
             ZKVersion zkVersion = (ZKVersion) version;
             if (log.isDebugEnabled()) {
@@ -243,11 +254,9 @@ class MetaStoreImplZookeeper implements MetaStore {
             }
             zk.setData(path, content, zkVersion.version, (rc, path1, ctx, stat) -> executor.submit(safeRun(() -> {
                 if (rc == Code.BADVERSION.intValue()) {
-                    callback.operationFailed(
-                            new BadVersionException(KeeperException.create(Code.get(rc))));
+                    callback.operationFailed(new BadVersionException(KeeperException.create(Code.get(rc))));
                 } else if (rc != Code.OK.intValue()) {
-                    callback.operationFailed(
-                            new MetaStoreException(KeeperException.create(Code.get(rc))));
+                    callback.operationFailed(new MetaStoreException(KeeperException.create(Code.get(rc))));
                 } else {
                     callback.operationComplete(null, new ZKVersion(stat.getVersion()));
                 }
@@ -266,8 +275,7 @@ class MetaStoreImplZookeeper implements MetaStore {
             if (rc == Code.OK.intValue()) {
                 callback.operationComplete(null, null);
             } else {
-                callback.operationFailed(
-                        new MetaStoreException(KeeperException.create(Code.get(rc))));
+                callback.operationFailed(new MetaStoreException(KeeperException.create(Code.get(rc))));
             }
         })), null);
     }
@@ -282,8 +290,7 @@ class MetaStoreImplZookeeper implements MetaStore {
             if (rc == Code.OK.intValue()) {
                 callback.operationComplete(null, null);
             } else {
-                callback.operationFailed(
-                        new MetaStoreException(KeeperException.create(Code.get(rc))));
+                callback.operationFailed(new MetaStoreException(KeeperException.create(Code.get(rc))));
             }
         })), null);
     }
@@ -295,6 +302,64 @@ class MetaStoreImplZookeeper implements MetaStore {
         } catch (Exception e) {
             throw new MetaStoreException(e);
         }
+    }
+
+    private ManagedLedgerInfo parseManagedLedgerInfo(byte[] data)
+            throws ParseException, InvalidProtocolBufferException {
+        if (protobufFormat == ZNodeProtobufFormat.Text) {
+            // First try text format, then fallback to binary
+            try {
+                return parseManagedLedgerInfoFromText(data);
+            } catch (ParseException e) {
+                return parseManagedLedgerInfoFromBinary(data);
+            }
+        } else {
+            // First try binary format, then fallback to text
+            try {
+                return parseManagedLedgerInfoFromBinary(data);
+            } catch (InvalidProtocolBufferException e) {
+                return parseManagedLedgerInfoFromText(data);
+            }
+        }
+    }
+
+    private ManagedLedgerInfo parseManagedLedgerInfoFromText(byte[] data) throws ParseException {
+        ManagedLedgerInfo.Builder builder = ManagedLedgerInfo.newBuilder();
+        TextFormat.merge(new String(data, Encoding), builder);
+        return builder.build();
+    }
+
+    private ManagedLedgerInfo parseManagedLedgerInfoFromBinary(byte[] data) throws InvalidProtocolBufferException {
+        return ManagedLedgerInfo.newBuilder().mergeFrom(data).build();
+    }
+
+    private ManagedCursorInfo parseManagedCursorInfo(byte[] data)
+            throws ParseException, InvalidProtocolBufferException {
+        if (protobufFormat == ZNodeProtobufFormat.Text) {
+            // First try text format, then fallback to binary
+            try {
+                return parseManagedCursorInfoFromText(data);
+            } catch (ParseException e) {
+                return parseManagedCursorInfoFromBinary(data);
+            }
+        } else {
+            // First try binary format, then fallback to text
+            try {
+                return parseManagedCursorInfoFromBinary(data);
+            } catch (InvalidProtocolBufferException e) {
+                return parseManagedCursorInfoFromText(data);
+            }
+        }
+    }
+
+    private ManagedCursorInfo parseManagedCursorInfoFromText(byte[] data) throws ParseException {
+        ManagedCursorInfo.Builder builder = ManagedCursorInfo.newBuilder();
+        TextFormat.merge(new String(data, Encoding), builder);
+        return builder.build();
+    }
+
+    private ManagedCursorInfo parseManagedCursorInfoFromBinary(byte[] data) throws InvalidProtocolBufferException {
+        return ManagedCursorInfo.newBuilder().mergeFrom(data).build();
     }
 
     private static final Logger log = LoggerFactory.getLogger(MetaStoreImplZookeeper.class);
