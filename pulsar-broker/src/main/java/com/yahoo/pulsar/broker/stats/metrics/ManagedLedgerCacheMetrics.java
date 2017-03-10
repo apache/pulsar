@@ -31,12 +31,14 @@ import io.netty.buffer.PooledByteBufAllocator;
 
 public class ManagedLedgerCacheMetrics extends AbstractMetrics {
 
+    private List<Metrics> metrics;
     public ManagedLedgerCacheMetrics(PulsarService pulsar) {
         super(pulsar);
+        this.metrics = Lists.newArrayList();
     }
 
     @Override
-    public List<Metrics> generate() {
+    public synchronized List<Metrics> generate() {
 
         // get the ML cache stats bean
 
@@ -87,7 +89,9 @@ public class ManagedLedgerCacheMetrics extends AbstractMetrics {
         m.put("brk_ml_cache_pool_active_allocations_normal", activeAllocationsNormal);
         m.put("brk_ml_cache_pool_active_allocations_huge", activeAllocationsHuge);
 
-        return Lists.newArrayList(m);
+        metrics.clear();
+        metrics.add(m);
+        return metrics;
 
     }
 

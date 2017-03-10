@@ -29,87 +29,87 @@ import com.yahoo.pulsar.broker.stats.Metrics;
 
 public class ManagedLedgerMetrics extends AbstractMetrics {
 
+    private List<Metrics> metricsCollection;
+    private Map<Metrics, List<ManagedLedgerImpl>> ledgersByDimensionMap;
+    // temp map to prepare aggregation metrics
+    private Map<String, Double> tempAggregatedMetricsMap;
+    
     public ManagedLedgerMetrics(PulsarService pulsar) {
         super(pulsar);
+        this.metricsCollection = Lists.newArrayList();
+        this.ledgersByDimensionMap = Maps.newHashMap();
+        this.tempAggregatedMetricsMap = Maps.newHashMap();
     }
 
     @Override
-    public List<Metrics> generate() {
+    public synchronized List<Metrics> generate() {
 
         // get the current snapshot of ledgers by NS dimension
-
-        Map<Metrics, List<ManagedLedgerImpl>> ledgersByDimension = groupLedgersByDimension();
-
-        return aggregate(ledgersByDimension);
+        return aggregate(groupLedgersByDimension());
 
     }
 
     /**
-     * Aggregation by namespace
+     * Aggregation by namespace (not thread-safe)
      * 
      * @param ledgersByDimension
      * @return
      */
     private List<Metrics> aggregate(Map<Metrics, List<ManagedLedgerImpl>> ledgersByDimension) {
 
-        List<Metrics> metricsCollection = Lists.newArrayList();
-
+        metricsCollection.clear();
+        
         for (Entry<Metrics, List<ManagedLedgerImpl>> e : ledgersByDimension.entrySet()) {
             Metrics metrics = e.getKey();
             List<ManagedLedgerImpl> ledgers = e.getValue();
 
             // prepare aggregation map
-
-            Map<String, List<Double>> aggregatedMetricsMap = Maps.newHashMap();
+            tempAggregatedMetricsMap.clear();
 
             // generate the collections by each metrics and then apply the aggregation
 
             for (ManagedLedgerImpl ledger : ledgers) {
                 ManagedLedgerMXBean lStats = ledger.getStats();
 
-                populateAggregationMap(aggregatedMetricsMap, "brk_ml_AddEntryBytesRate", lStats.getAddEntryBytesRate());
-                populateAggregationMap(aggregatedMetricsMap, "brk_ml_AddEntryErrors",
+                populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ml_AddEntryBytesRate", lStats.getAddEntryBytesRate());
+                populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ml_AddEntryErrors",
                         (double) lStats.getAddEntryErrors());
 
-                populateAggregationMap(aggregatedMetricsMap, "brk_ml_AddEntryMessagesRate",
+                populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ml_AddEntryMessagesRate",
                         lStats.getAddEntryMessagesRate());
-                populateAggregationMap(aggregatedMetricsMap, "brk_ml_AddEntrySucceed",
+                populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ml_AddEntrySucceed",
                         (double) lStats.getAddEntrySucceed());
 
-                populateAggregationMap(aggregatedMetricsMap, "brk_ml_NumberOfMessagesInBacklog",
+                populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ml_NumberOfMessagesInBacklog",
                         (double) lStats.getNumberOfMessagesInBacklog());
 
-                populateAggregationMap(aggregatedMetricsMap, "brk_ml_ReadEntriesBytesRate",
+                populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ml_ReadEntriesBytesRate",
                         lStats.getReadEntriesBytesRate());
-                populateAggregationMap(aggregatedMetricsMap, "brk_ml_ReadEntriesErrors",
+                populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ml_ReadEntriesErrors",
                         (double) lStats.getReadEntriesErrors());
-                populateAggregationMap(aggregatedMetricsMap, "brk_ml_ReadEntriesRate", lStats.getReadEntriesRate());
-                populateAggregationMap(aggregatedMetricsMap, "brk_ml_ReadEntriesSucceeded",
+                populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ml_ReadEntriesRate", lStats.getReadEntriesRate());
+                populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ml_ReadEntriesSucceeded",
                         (double) lStats.getReadEntriesSucceeded());
-                populateAggregationMap(aggregatedMetricsMap, "brk_ml_StoredMessagesSize",
+                populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ml_StoredMessagesSize",
                         (double) lStats.getStoredMessagesSize());
 
                 // handle bucket entries initialization here
-                populateBucketEntries(aggregatedMetricsMap, "brk_ml_AddEntryLatencyBuckets", ENTRY_LATENCY_BUCKETS_MS,
-                        lStats.getAddEntryLatencyBuckets());
+                populateBucketEntries(tempAggregatedMetricsMap, "brk_ml_AddEntryLatencyBuckets",
+                        ENTRY_LATENCY_BUCKETS_MS, lStats.getAddEntryLatencyBuckets());
 
-                populateBucketEntries(aggregatedMetricsMap, "brk_ml_LedgerSwitchLatencyBuckets",
+                populateBucketEntries(tempAggregatedMetricsMap, "brk_ml_LedgerSwitchLatencyBuckets",
                         ENTRY_LATENCY_BUCKETS_MS, lStats.getLedgerSwitchLatencyBuckets());
 
-                populateBucketEntries(aggregatedMetricsMap, "brk_ml_EntrySizeBuckets", ENTRY_SIZE_BUCKETS_BYTES,
+                populateBucketEntries(tempAggregatedMetricsMap, "brk_ml_EntrySizeBuckets", ENTRY_SIZE_BUCKETS_BYTES,
                         lStats.getEntrySizeBuckets());
-                populateAggregationMap(aggregatedMetricsMap, "brk_ml_MarkDeleteRate", lStats.getMarkDeleteRate());
+                populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ml_MarkDeleteRate", lStats.getMarkDeleteRate());
             }
 
             // SUM up collections of each metrics
 
-            for (Entry<String, List<Double>> ma : aggregatedMetricsMap.entrySet()) {
+            for (Entry<String, Double> ma : tempAggregatedMetricsMap.entrySet()) {
 
-                // sum
-                String metricsName = ma.getKey();
-                Double metricsValue = sum(ma.getValue());
-
-                metrics.put(metricsName, metricsValue);
+                metrics.put(ma.getKey(), ma.getValue());
             }
 
             metricsCollection.add(metrics);
@@ -119,21 +119,19 @@ public class ManagedLedgerMetrics extends AbstractMetrics {
     }
 
     /**
-     * Build a map of dimensions key to list of destination stats
+     * Build a map of dimensions key to list of destination stats (not thread-safe)
      * <p>
      * 
      * @return
      */
     private Map<Metrics, List<ManagedLedgerImpl>> groupLedgersByDimension() {
 
-        Map<Metrics, List<ManagedLedgerImpl>> ledgersByDimensionMap = Maps.newHashMap();
-
+        ledgersByDimensionMap.clear();
+        
         // get the current destinations statistics from StatsBrokerFilter
         // Map : destination-name->dest-stat
 
-        Map<String, ManagedLedgerImpl> ledgersMap = getManagedLedgers();
-
-        for (Entry<String, ManagedLedgerImpl> e : ledgersMap.entrySet()) {
+        for (Entry<String, ManagedLedgerImpl> e : getManagedLedgers().entrySet()) {
 
             String ledgerName = e.getKey();
             ManagedLedgerImpl ledger = e.getValue();
