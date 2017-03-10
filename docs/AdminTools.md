@@ -663,7 +663,7 @@ admin.clusters().deleteCluster(cluster)
 
 #### list all clusters
 
-It gives a list of call created clusters in Pulsar system.  
+It gives a list of all created clusters in Pulsar system.  
 
 ###### CLI
 
@@ -2387,20 +2387,12 @@ In your terminal, go to below directory to play with client tool.
       <td>```Comma separted string messages to send. Cannot be used with -f. Either -m or -f must be provided```</td>
     </tr>
     <tr>
-      <td>```-np, --non-persistent```</td>
-      <td>```Produce non-persistent message, Default: false```</td>
-    </tr>
-    <tr>
       <td>```-n, --num-produce```</td>
       <td>```Number of times to send message(s), Default: 1```</td>
     </tr>
     <tr>
       <td>```-r, --rate```</td>
       <td>```Rate (in msg/sec) at which to produce. Value of 0 will produce messages as fast as possible, Default: 0.0```</td>
-    </tr>
-    <tr>
-      <td>```--ttl```</td>
-      <td>```Time to live (in ms) for the messages. Value of 0 will result in unlimited TTL, Default: 3600000```</td>
     </tr>
 <table>
 
@@ -2415,10 +2407,6 @@ In your terminal, go to below directory to play with client tool.
       <th>description</th>   
     </tr>
     <tr>
-      <td>```-c, --client-id```</td>
-      <td>```Client ID for subscriber connection. Required if subscriber ID also specified```</td>
-    </tr>
-    <tr>
       <td>```--hex```</td>
       <td>```Display binary messages in hex, Default: false```</td>
     </tr>
@@ -2431,7 +2419,11 @@ In your terminal, go to below directory to play with client tool.
       <td>```Rate (in msg/sec) at which to consume. Value of 0 will consume messages as fast as possible, Default: 0.0```</td>
     </tr>
     <tr>
-      <td>```-s, --subscriber-id```</td>
-      <td>```Subscriber ID for a durable subscriber```</td>
+      <td>```-s, --subscription-name```</td>
+      <td>```Subscription name```</td>
+    </tr>
+    <tr>
+      <td>```-t, --subscription-type```</td>
+      <td>```Subscription type: Exclusive, Shared, Failover, Default: Exclusive```</td>
     </tr>
 <table>
