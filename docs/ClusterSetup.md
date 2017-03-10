@@ -190,7 +190,7 @@ zkServers=zk1.example.com:2181,zk2.example.com:2181,zk3.example.com:2181
 ledgerManagerType=hierarchical
 ```
 
-Please consult [http://bookkeeper.apache.org/]() for more extensive documentation
+Please consult http://bookkeeper.apache.org/ for more extensive documentation
 on Apache BookKeeper.
 
 ##### Starting the service
@@ -317,7 +317,7 @@ for messages:
 $ bin/pulsar-perf consume persistent://test/us-west/ns1/my-topic
 ```
 
-Start a produce that publishes messages at a fixed rate and report stats every
+Start a producer that publishes messages at a fixed rate and report stats every
 10 seconds:
 
 ```shell
