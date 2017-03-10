@@ -191,12 +191,8 @@ abstract class AbstractMetrics {
 
             value = (bucketValues == null) ? 0.0D : (double) bucketValues[i];
 
-            if (!map.containsKey(bucketKey)) {
-                map.put(bucketKey, value);
-            } else {
-                Double val = map.get(bucketKey);
-                map.put(bucketKey, val + value);
-            }
+            Double val = map.getOrDefault(bucketKey, 0.0);
+            map.put(bucketKey, val + value);
         }
     }
 
@@ -209,12 +205,8 @@ abstract class AbstractMetrics {
     }
 
     protected void populateAggregationMapWithSum(Map<String, Double> map, String mkey, double value) {
-        if (!map.containsKey(mkey)) {
-            map.put(mkey, value);
-        } else {
-            Double val = map.get(mkey);
-            map.put(mkey, val + value);
-        }
+        Double val = map.getOrDefault(mkey, 0.0);
+        map.put(mkey, val + value);
     }
     
     protected void populateMaxMap(Map<String, Long> map, String mkey, long value) {
