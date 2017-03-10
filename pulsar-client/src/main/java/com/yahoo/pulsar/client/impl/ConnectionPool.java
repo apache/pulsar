@@ -24,6 +24,9 @@ import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.lang3.SystemUtils;
 import org.slf4j.Logger;
@@ -55,6 +58,7 @@ public class ConnectionPool implements Closeable {
     private final Bootstrap bootstrap;
     private final EventLoopGroup eventLoopGroup;
     private final int maxConnectionsPerHosts;
+    private final ScheduledExecutorService scheduler;
 
     private static final int MaxMessageSize = 5 * 1024 * 1024;
     public static final String TLS_HANDLER = "tls";
@@ -62,6 +66,7 @@ public class ConnectionPool implements Closeable {
     public ConnectionPool(final PulsarClientImpl client, EventLoopGroup eventLoopGroup) {
         this.eventLoopGroup = eventLoopGroup;
         this.maxConnectionsPerHosts = client.getConfiguration().getConnectionsPerBroker();
+        this.scheduler = Executors.newScheduledThreadPool(1);
 
         pool = new ConcurrentHashMap<>();
         bootstrap = new Bootstrap();
@@ -111,22 +116,36 @@ public class ConnectionPool implements Closeable {
     private static final Random random = new Random();
 
     public CompletableFuture<ClientCnx> getConnection(final InetSocketAddress address) {
+        return getConnection(address, -1);
+    }
+
+    /**
+     * 
+     * @param address
+     *            remote client address 
+     * @param connectionLifetimeInSecond
+     *            connection lifetime (in second): if it's > 0 then created connection will be automatically closed
+     *            after given connectionLifetimeInSecond
+     * @return
+     */
+    public CompletableFuture<ClientCnx> getConnection(final InetSocketAddress address,
+            long connectionLifetimeInSecond) {
         if (maxConnectionsPerHosts == 0) {
             // Disable pooling
-            return createConnection(address, -1);
+            return createConnection(address, -1, connectionLifetimeInSecond);
         }
 
         final int randomKey = signSafeMod(random.nextInt(), maxConnectionsPerHosts);
 
         return pool.computeIfAbsent(address, a -> new ConcurrentHashMap<>()) //
-                .computeIfAbsent(randomKey, k -> createConnection(address, randomKey));
+                .computeIfAbsent(randomKey, k -> createConnection(address, randomKey, connectionLifetimeInSecond));
     }
 
-    private CompletableFuture<ClientCnx> createConnection(InetSocketAddress address, int connectionKey) {
+    private CompletableFuture<ClientCnx> createConnection(InetSocketAddress address, int connectionKey,
+            long connectionLifetimeInSecond) {
         if (log.isDebugEnabled()) {
             log.debug("Connection for {} not found in cache", address);
         }
-
         final CompletableFuture<ClientCnx> cnxFuture = new CompletableFuture<ClientCnx>();
 
         // Trigger async connect to broker
@@ -170,14 +189,35 @@ public class ConnectionPool implements Closeable {
                 cnx.ctx().close();
                 return null;
             });
+
+            // close the connection after connection-lifetime completes
+            if (connectionLifetimeInSecond > 0) {
+                scheduleCloseConnection(cnx, connectionLifetimeInSecond);
+            }
         });
 
         return cnxFuture;
     }
 
+    private void scheduleCloseConnection(ClientCnx cnx, long connectionLifetimeInSecond) {
+        scheduler.schedule(() -> {
+            if (cnx != null && cnx.channel().isActive()) {
+                if (System.nanoTime() - cnx.lastLookupRequestTime > TimeUnit.SECONDS
+                        .toNanos(connectionLifetimeInSecond)) {
+                    cnx.channel().disconnect();
+                } else {
+                    // connection is active as received lookup request in last connectionLifetimeInSecond, schedule
+                    // retry and check later again
+                    scheduleCloseConnection(cnx, connectionLifetimeInSecond);
+                }
+            }
+        }, connectionLifetimeInSecond, TimeUnit.SECONDS);
+    }
+
     @Override
     public void close() throws IOException {
         eventLoopGroup.shutdownGracefully();
+        scheduler.shutdown();
     }
 
     private void cleanupConnection(InetSocketAddress address, int connectionKey,

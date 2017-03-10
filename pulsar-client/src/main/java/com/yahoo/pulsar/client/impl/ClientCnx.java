@@ -61,6 +61,8 @@ public class ClientCnx extends PulsarHandler {
 
     private final CompletableFuture<Void> connectionFuture = new CompletableFuture<Void>();
     private final Semaphore pendingLookupRequestSemaphore;
+    // Timestamp of when this connection used for lookup
+    protected volatile long lastLookupRequestTime;
 
     enum State {
         None, SentConnectFrame, Ready
@@ -258,6 +260,7 @@ public class ClientCnx extends PulsarHandler {
     private boolean addPendingLookupRequests(long requestId, CompletableFuture<LookupDataResult> future) {
         if (pendingLookupRequestSemaphore.tryAcquire()) {
             pendingLookupRequests.put(requestId, future);
+            lastLookupRequestTime = System.nanoTime();
             return true;
         }
         return false;
@@ -338,6 +341,7 @@ public class ClientCnx extends PulsarHandler {
                 if (!writeFuture.isSuccess()) {
                     log.warn("{} Failed to send request {} to broker: {}", ctx.channel(), requestId,
                             writeFuture.cause().getMessage());
+                    getAndRemovePendingLookupRequest(requestId);
                     future.completeExceptionally(writeFuture.cause());
                 }
             });
@@ -377,6 +381,7 @@ public class ClientCnx extends PulsarHandler {
         ctx.writeAndFlush(cmd).addListener(writeFuture -> {
             if (!writeFuture.isSuccess()) {
                 log.warn("{} Failed to send request to broker: {}", ctx.channel(), writeFuture.cause().getMessage());
+                pendingRequests.remove(requestId);
                 future.completeExceptionally(writeFuture.cause());
             }
         });

@@ -21,10 +21,14 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 
 import java.lang.reflect.Field;
+import java.net.InetSocketAddress;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NavigableMap;
@@ -467,4 +471,55 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         }
     }
 
+    /**
+     * <pre>
+     * It verifies that client closes lookup connection after configured lifetime.
+     * 1. creates client with different lookup-url(pulsar://0.0.0.0:$port) than brokerServiceUrl(pulsar://localhost:$port)
+     * 2. verifies lookup-connection gets closed after configured lifetime
+     * 3. verifies created consumer's connection should not be affected and should be live
+     * </pre>
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testLookupConnectionLifeTime() throws Exception {
+        final String topicName = "persistent://prop/usw/my-ns/newTopic";
+        final long connectionLifeTimeInSecods = 1;
+        com.yahoo.pulsar.client.api.ClientConfiguration clientConf = new com.yahoo.pulsar.client.api.ClientConfiguration();
+        clientConf.setStatsInterval(0, TimeUnit.SECONDS);
+        clientConf.setLookupConnectionLifetimeInSecond(connectionLifeTimeInSecods);
+        // to specify two separate connection url => producer/consumer will be crreated on connection with
+        // brokerServiceUrl= "localhost:<port>" and lookup-connection will be created using "0.0.0.0:<port>"
+        final String lookupUrlStr = "pulsar://0.0.0.0:";
+        URI lookupUrl = new URI(lookupUrlStr + BROKER_PORT);
+        PulsarClientImpl pulsarClient = (PulsarClientImpl) PulsarClient.create(lookupUrl.toString(), clientConf);
+        boolean isLookupAndServiceUrlSame = false;
+        ConsumerImpl consumer = null;
+        try {
+            consumer = (ConsumerImpl) pulsarClient.subscribe(topicName, "mysub", new ConsumerConfiguration());
+        } catch (PulsarClientException connectionException) {
+            log.error("failed to lookup on {}. Now, connecting on {}", lookupUrlStr, pulsar.getBrokerServiceUrl());
+            // if routing failed on : 0.0.0.0 then create connection on the same brokerServiceUrl
+            pulsarClient = (PulsarClientImpl) PulsarClient.create(pulsar.getBrokerServiceUrl(), clientConf);
+            consumer = (ConsumerImpl) pulsarClient.subscribe(topicName, "mysub", new ConsumerConfiguration());
+            isLookupAndServiceUrlSame = true;
+        }
+        InetSocketAddress lookupConnectionAddress = new InetSocketAddress(lookupUrl.getHost(), lookupUrl.getPort());
+        ClientCnx lookupConnection = pulsarClient.getCnxPool().getConnection(lookupConnectionAddress).get();
+        ClientCnx consumerConnection = consumer.getClientCnx();
+        assertTrue(lookupConnection.channel().isActive());
+        if (!isLookupAndServiceUrlSame) {
+            assertNotEquals(lookupConnection, consumerConnection);
+            assertTrue(consumerConnection.channel().isActive());
+        }
+
+        // wait connection to be closed
+        Thread.sleep((connectionLifeTimeInSecods * 1000) + 1000);
+        // verify lookup-connection should be closed
+        assertFalse(lookupConnection.channel().isActive());
+        if (!isLookupAndServiceUrlSame) {
+            assertTrue(consumerConnection.channel().isActive());
+        }
+    }
+    
 }
