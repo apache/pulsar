@@ -6,7 +6,7 @@
 - [Replication model](#replication-model)
 - [Configuring replication](#configuring-replication)
 	- [Granting permissions to properties](#granting-permissions-to-properties)
-	- [Creating the namespace](#creating-the-namespace)
+	- [Creating global namespaces](#creating-global-namespaces)
 	- [Using global topics](#using-global-topics)
 
 <!-- /TOC -->

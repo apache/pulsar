@@ -121,7 +121,7 @@ http://{serviceUrl}:8080/ws/producer/persistent/{property}/{cluster}/{namespace}
 
 ### Consumer
 
-Open a WebSocket session to create a producer for a specific topic:
+Open a WebSocket session to create a consumer for a specific topic:
 
 ```perl
 http://{serviceUrl}:8080/ws/consumer/persistent/{property}/{cluster}/{namespace}/{topic}/{subscription}
