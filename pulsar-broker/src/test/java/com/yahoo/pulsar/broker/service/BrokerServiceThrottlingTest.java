@@ -247,7 +247,7 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
         latch.await();
 
         stopBroker();
-        conf.setMaxConcurrentLookupRequest(1);
+        conf.setMaxConcurrentLookupRequest(3);
         startBroker();
 
         // wait strategically for all consumers to reconnect

@@ -31,6 +31,8 @@ import org.eclipse.jetty.websocket.client.WebSocketClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
+import org.testng.IRetryAnalyzer;
+import org.testng.ITestResult;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -74,7 +76,7 @@ public class ProxyPublishConsumeWithoutZKTest extends ProducerConsumerBase {
         log.info("Finished Cleaning Up Test setup");
     }
 
-    @Test(timeOut=30000)
+    @Test(retryAnalyzer = RetryAnalyzer.class, timeOut = 5000)
     public void socketTest() throws Exception {
         URI consumeUri = URI.create(CONSUME_URI);
         URI produceUri = URI.create(PRODUCE_URI);
@@ -105,15 +107,17 @@ public class ProxyPublishConsumeWithoutZKTest extends ProducerConsumerBase {
         } finally {
             ExecutorService executor = newFixedThreadPool(1);
             try {
-                executor.submit(() -> {
-                    try {
-                        consumeClient.stop();
-                        produceClient.stop();
-                        log.info("proxy clients are stopped successfully");
-                    } catch (Exception e) {
-                        log.error(e.getMessage());
-                    }
-                }).get(2, TimeUnit.SECONDS);
+                executor.submit(new Runnable() {
+                    @Override
+                    public void run() {
+                        try {
+                            consumeClient.stop();
+                            produceClient.stop();
+                            log.info("proxy clients are stopped successfully");
+                        } catch (Exception e) {
+                            log.error(e.getMessage());
+                        }
+                    }}).get(2, TimeUnit.SECONDS);
             } catch (Exception e) {
                 log.error("failed to close clients ", e);
             }
@@ -121,5 +125,22 @@ public class ProxyPublishConsumeWithoutZKTest extends ProducerConsumerBase {
         }
     }
 
+    
+    public static class RetryAnalyzer implements IRetryAnalyzer {
+        int counter = 0;
+        int retryLimit = 3;
+
+        @Override
+        public boolean retry(ITestResult result) {
+            log.info("retry {} on test-failure", counter);
+            if (counter < retryLimit) {
+                counter++;
+                return true;
+            }
+            return false;
+        }
+    }
+
+    
     private static final Logger log = LoggerFactory.getLogger(ProxyPublishConsumeWithoutZKTest.class);
 }
