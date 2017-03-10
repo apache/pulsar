@@ -66,6 +66,7 @@ import com.yahoo.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.buffer.RecyclableDuplicateByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.buffer.UnpooledByteBufAllocator;
 import io.netty.buffer.UnpooledHeapByteBuf;
 import io.netty.util.Recycler;
@@ -531,18 +532,34 @@ public class Commands {
         return res;
     }
 
-    private final static ByteBuf cmdPing = serializeWithSize(
-            BaseCommand.newBuilder().setType(Type.PING).setPing(CommandPing.getDefaultInstance()));
+    private final static ByteBuf cmdPing;
 
-    static ByteBuf newPing() {
-        return RecyclableDuplicateByteBuf.create(cmdPing).retain();
+    static {
+        ByteBuf serializedCmdPing = serializeWithSize(
+                   BaseCommand.newBuilder()
+                       .setType(Type.PING)
+                       .setPing(CommandPing.getDefaultInstance()));
+        cmdPing = Unpooled.copiedBuffer(serializedCmdPing);
+        serializedCmdPing.release();
     }
 
-    private final static ByteBuf cmdPong = serializeWithSize(
-            BaseCommand.newBuilder().setType(Type.PONG).setPong(CommandPong.getDefaultInstance()));
+    static ByteBuf newPing() {
+    	return RecyclableDuplicateByteBuf.create(cmdPing);
+    }
+
+    private final static ByteBuf cmdPong;
+
+    static {
+        ByteBuf serializedCmdPong = serializeWithSize(
+                   BaseCommand.newBuilder()
+                       .setType(Type.PONG)
+                       .setPong(CommandPong.getDefaultInstance()));
+        cmdPong = Unpooled.copiedBuffer(serializedCmdPong);
+        serializedCmdPong.release();
+    }
 
     static ByteBuf newPong() {
-        return RecyclableDuplicateByteBuf.create(cmdPong).retain();
+    	return RecyclableDuplicateByteBuf.create(cmdPong);
     }
 
     private static ByteBuf serializeWithSize(BaseCommand.Builder cmdBuilder) {
