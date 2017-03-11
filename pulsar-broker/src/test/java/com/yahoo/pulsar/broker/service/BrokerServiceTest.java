@@ -728,5 +728,4 @@ public class BrokerServiceTest extends BrokerTestBase {
             // ok as throttling set to 0
         }
     }
-
 }

@@ -21,15 +21,20 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 import java.lang.reflect.Field;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NavigableMap;
 import java.util.Set;
 import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
@@ -43,6 +48,7 @@ import org.testng.annotations.Test;
 import com.google.common.collect.Sets;
 import com.yahoo.pulsar.broker.namespace.OwnershipCache;
 import com.yahoo.pulsar.broker.service.Topic;
+import com.yahoo.pulsar.client.api.ClientConfiguration;
 import com.yahoo.pulsar.client.api.Consumer;
 import com.yahoo.pulsar.client.api.ConsumerConfiguration;
 import com.yahoo.pulsar.client.api.Message;
@@ -75,23 +81,22 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
     protected void cleanup() throws Exception {
         super.internalCleanup();
     }
-    
+
     @DataProvider
     public Object[][] subType() {
-        return new Object[][] {{SubscriptionType.Shared}, {SubscriptionType.Failover}};
+        return new Object[][] { { SubscriptionType.Shared }, { SubscriptionType.Failover } };
     }
 
-    
     /**
      * Verifies unload namespace-bundle doesn't close shared connection used by other namespace-bundle.
-     * 
+     * <pre>
      * 1. after disabling broker fron loadbalancer
      * 2. unload namespace-bundle "my-ns1" which disconnects client (producer/consumer) connected on that namespacebundle
      * 3. but doesn't close the connection for namesapce-bundle "my-ns2" and clients are still connected
      * 4. verifies unloaded "my-ns1" should not connected again with the broker as broker is disabled
      * 5. unload "my-ns2" which closes the connection as broker doesn't have any more client connected on that connection
      * 6. all namespace-bundles are in "connecting" state and waiting for available broker
-     * 
+     * </pre>
      * 
      * @throws Exception
      */
@@ -105,7 +110,8 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
 
         final String dn1 = "persistent://" + ns1 + "/my-topic";
         final String dn2 = "persistent://" + ns2 + "/my-topic";
-        ConsumerImpl cons1 = (ConsumerImpl) pulsarClient.subscribe(dn1, "my-subscriber-name", new ConsumerConfiguration());
+        ConsumerImpl cons1 = (ConsumerImpl) pulsarClient.subscribe(dn1, "my-subscriber-name",
+                new ConsumerConfiguration());
         ProducerImpl prod1 = (ProducerImpl) pulsarClient.createProducer(dn1, new ProducerConfiguration());
         ProducerImpl prod2 = (ProducerImpl) pulsarClient.createProducer(dn2, new ProducerConfiguration());
         ConsumerImpl consumer1 = spy(cons1);
@@ -182,7 +188,6 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         assertTrue(prod2.getClientCnx() != null);
         assertTrue(prod2.getState().equals(State.Ready));
 
-        
         // unload ns-bundle2 as well
         pulsar.getNamespaceService().unloadNamespaceBundle((NamespaceBundle) bundle2);
         verify(producer2, atLeastOnce()).connectionClosed(anyObject());
@@ -208,10 +213,9 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
 
     }
 
-    
     /**
      * Verifies: 1. Closing of Broker service unloads all bundle gracefully and there must not be any connected bundles
-     * after closing broker service 
+     * after closing broker service
      * 
      * @throws Exception
      */
@@ -225,18 +229,19 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
 
         final String dn1 = "persistent://" + ns1 + "/my-topic";
         final String dn2 = "persistent://" + ns2 + "/my-topic";
-        
-        ConsumerImpl consumer1 = (ConsumerImpl) pulsarClient.subscribe(dn1, "my-subscriber-name", new ConsumerConfiguration());
+
+        ConsumerImpl consumer1 = (ConsumerImpl) pulsarClient.subscribe(dn1, "my-subscriber-name",
+                new ConsumerConfiguration());
         ProducerImpl producer1 = (ProducerImpl) pulsarClient.createProducer(dn1, new ProducerConfiguration());
         ProducerImpl producer2 = (ProducerImpl) pulsarClient.createProducer(dn2, new ProducerConfiguration());
 
-        //unload all other namespace
+        // unload all other namespace
         pulsar.getBrokerService().close();
 
         // [1] OwnershipCache should not contain any more namespaces
         OwnershipCache ownershipCache = pulsar.getNamespaceService().getOwnershipCache();
         assertTrue(ownershipCache.getOwnedBundles().keySet().isEmpty());
-        
+
         // [2] All clients must be disconnected and in connecting state
         // producer1 must not be able to connect again
         assertTrue(producer1.getClientCnx() == null);
@@ -247,11 +252,11 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         // producer2 must not be able to connect again
         assertTrue(producer2.getClientCnx() == null);
         assertTrue(producer2.getState().equals(State.Connecting));
-        
+
         producer1.close();
         producer2.close();
         consumer1.close();
-        
+
     }
 
     /**
@@ -447,6 +452,105 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
             totalReceived += tec.numMessages;
         }
         Assert.assertEquals(totalReceived, totalExpected, "did not receive all messages on replay after reset");
+    }
+
+    /**
+     * <pre>
+     * Verifies: that client-cnx gets closed when server gives TooManyRequestException in certain time frame
+     * 1. Client1: which has set MaxNumberOfRejectedRequestPerConnection=0
+     * 2. Client2: which has set MaxNumberOfRejectedRequestPerConnection=100
+     * 3. create multiple producer and make lookup-requests simultaneously
+     * 4. Client1 receives TooManyLookupException and should close connection
+     * </pre>
+     * 
+     * @throws Exception
+     */
+    @Test(timeOut = 5000)
+    public void testCloseConnectionOnBrokerRejectedRequest() throws Exception {
+
+        final PulsarClient pulsarClient;
+        final PulsarClient pulsarClient2;
+
+        final String topicName = "persistent://prop/usw/my-ns/newTopic";
+
+        final int concurrentLookupRequests = 20;
+        ClientConfiguration clientConf = new ClientConfiguration();
+        clientConf.setStatsInterval(0, TimeUnit.SECONDS);
+        clientConf.setMaxNumberOfRejectedRequestPerConnection(0);
+        stopBroker();
+        pulsar.getConfiguration().setMaxConcurrentLookupRequest(1);
+        startBroker();
+        String lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT).toString();
+        pulsarClient = PulsarClient.create(lookupUrl, clientConf);
+
+        ClientConfiguration clientConf2 = new ClientConfiguration();
+        clientConf2.setStatsInterval(0, TimeUnit.SECONDS);
+        clientConf2.setIoThreads(concurrentLookupRequests);
+        clientConf2.setConnectionsPerBroker(20);
+        pulsarClient2 = PulsarClient.create(lookupUrl, clientConf2);
+
+        ProducerImpl producer = (ProducerImpl) pulsarClient.createProducer(topicName);
+        ClientCnx cnx = producer.cnx();
+        assertTrue(cnx.channel().isActive());
+        ExecutorService executor = Executors.newFixedThreadPool(concurrentLookupRequests);
+        for (int i = 0; i < 100; i++) {
+            executor.submit(() -> {
+                pulsarClient2.createProducerAsync(topicName).handle((ok, e) -> {
+                    return null;
+                });
+                pulsarClient.createProducerAsync(topicName).handle((ok, e) -> {
+                    return null;
+                });
+
+            });
+            if (!cnx.channel().isActive()) {
+                break;
+            }
+            if (i % 10 == 0) {
+                Thread.sleep(100);
+            }
+        }
+        // connection must be closed
+        assertFalse(cnx.channel().isActive());
+        pulsarClient.close();
+        pulsarClient2.close();
+    }
+
+    /**
+     * It verifies that client closes the connection on internalSerevrError which is "ServiceNotReady" from Broker-side
+     * 
+     * @throws Exception
+     */
+    @Test(timeOut = 5000)
+    public void testCloseConnectionOnInternalServerError() throws Exception {
+
+        try {
+            final PulsarClient pulsarClient;
+
+            final String topicName = "persistent://prop/usw/my-ns/newTopic";
+
+            ClientConfiguration clientConf = new ClientConfiguration();
+            clientConf.setStatsInterval(0, TimeUnit.SECONDS);
+            String lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT).toString();
+            pulsarClient = PulsarClient.create(lookupUrl, clientConf);
+
+            ProducerImpl producer = (ProducerImpl) pulsarClient.createProducer(topicName);
+            ClientCnx cnx = producer.cnx();
+            assertTrue(cnx.channel().isActive());
+            // this will throw NPE at broker while authorizing and it will throw InternalServerError
+            pulsar.getConfiguration().setAuthorizationEnabled(true);
+            try {
+                pulsarClient.createProducer(topicName);
+                fail("it should have fail with lookup-exception:");
+            } catch (Exception e) {
+                // ok
+            }
+            // connection must be closed
+            assertFalse(cnx.channel().isActive());
+            pulsarClient.close();
+        } finally {
+            pulsar.getConfiguration().setAuthorizationEnabled(false);
+        }
     }
 
     private static class TimestampEntryCount {
