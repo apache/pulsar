@@ -18,7 +18,6 @@ package org.apache.bookkeeper.mledger.impl;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
-import static org.apache.bookkeeper.mledger.impl.MetaStoreImplZookeeper.ZNodeProtobufFormat;
 
 import java.util.ArrayDeque;
 import java.util.Collections;
@@ -56,7 +55,8 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.PositionBound;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
-import org.apache.bookkeeper.mledger.impl.MetaStore.Version;
+import org.apache.bookkeeper.mledger.impl.MetaStore.Stat;
+import org.apache.bookkeeper.mledger.impl.MetaStoreImplZookeeper.ZNodeProtobufFormat;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
@@ -105,8 +105,8 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     // Current ledger used to append the mark-delete position
     private volatile LedgerHandle cursorLedger;
-    // Version of the cursor z-node
-    private volatile Version cursorLedgerVersion;
+    // Stat of the cursor z-node
+    private volatile Stat cursorLedgerStat;
 
     private final RangeSet<PositionImpl> individualDeletedMessages = TreeRangeSet.create();
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
@@ -188,9 +188,9 @@ public class ManagedCursorImpl implements ManagedCursor {
         log.info("[{}] Recovering from bookkeeper ledger cursor: {}", ledger.getName(), name);
         ledger.getStore().asyncGetCursorInfo(ledger.getName(), name, new MetaStoreCallback<ManagedCursorInfo>() {
             @Override
-            public void operationComplete(ManagedCursorInfo info, Version version) {
+            public void operationComplete(ManagedCursorInfo info, Stat stat) {
 
-                cursorLedgerVersion = version;
+                cursorLedgerStat = stat;
 
                 if (info.getCursorsLedgerId() == -1L) {
                     // There is no cursor ledger to read the last position from. It means the cursor has been properly
@@ -765,10 +765,10 @@ public class ManagedCursorImpl implements ManagedCursor {
         if (cursorLedger == null) {
             persistPositionMetaStore(-1, newPosition, new MetaStoreCallback<Void>() {
                 @Override
-                public void operationComplete(Void result, Version version) {
+                public void operationComplete(Void result, Stat stat) {
                     log.info("[{}] Updated cursor {} with ledger id {} md-position={} rd-position={}",
                             ledger.getName(), name, -1, markDeletePosition, readPosition);
-                    cursorLedgerVersion = version;
+                    cursorLedgerStat = stat;
                     finalCallback.operationComplete();
                 }
 
@@ -1684,11 +1684,11 @@ public class ManagedCursorImpl implements ManagedCursor {
             log.debug("[{}][{}]  Closing cursor at md-position: {}", ledger.getName(), name, markDeletePosition);
         }
 
-        ledger.getStore().asyncUpdateCursorInfo(ledger.getName(), name, info.build(), cursorLedgerVersion,
+        ledger.getStore().asyncUpdateCursorInfo(ledger.getName(), name, info.build(), cursorLedgerStat,
                 new MetaStoreCallback<Void>() {
                     @Override
-                    public void operationComplete(Void result, Version version) {
-                        callback.operationComplete(result, version);
+                    public void operationComplete(Void result, Stat stat) {
+                        callback.operationComplete(result, stat);
                     }
 
                     @Override
@@ -1739,7 +1739,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
         persistPositionMetaStore(-1, markDeletePosition, new MetaStoreCallback<Void>() {
             @Override
-            public void operationComplete(Void result, Version version) {
+            public void operationComplete(Void result, Stat stat) {
                 log.info("[{}][{}] Closed cursor at md-position={}", ledger.getName(), name,
                         markDeletePosition);
 
@@ -1974,12 +1974,12 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
         persistPositionMetaStore(lh.getId(), markDeletePosition, new MetaStoreCallback<Void>() {
             @Override
-            public void operationComplete(Void result, Version version) {
+            public void operationComplete(Void result, Stat stat) {
                 log.info("[{}] Updated cursor {} with ledger id {} md-position={} rd-position={}",
                         ledger.getName(), name, lh.getId(), markDeletePosition, readPosition);
                 final LedgerHandle oldLedger = cursorLedger;
                 cursorLedger = lh;
-                cursorLedgerVersion = version;
+                cursorLedgerStat = stat;
 
                 // At this point the position had already been safely markdeleted
                 callback.operationComplete();
