@@ -95,7 +95,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     private final ConcurrentLongHashMap<CompletableFuture<LedgerHandle>> ledgerCache = new ConcurrentLongHashMap<>();
     private final NavigableMap<Long, LedgerInfo> ledgers = new ConcurrentSkipListMap<>();
-    private Stat ledgersStat;
+    private volatile Stat ledgersStat;
 
     private final ManagedCursorContainer cursors = new ManagedCursorContainer();
     private final ManagedCursorContainer activeCursors = new ManagedCursorContainer();
