@@ -38,7 +38,7 @@ using namespace boost::accumulators;
 #include <lib/Latch.h>
 
 #include <pulsar/Client.h>
-#include <pulsar/Auth.h>
+#include <pulsar/Authentication.h>
 using namespace pulsar;
 
 static int64_t currentTimeMillis() {
@@ -138,8 +138,8 @@ void startPerfConsumer(const Arguments& args) {
     conf.setIOThreads(args.ioThreads);
     conf.setMessageListenerThreads(args.listenerThreads);
     if(!args.authPlugin.empty()) {
-        AuthenticationPtr auth = Auth::create(args.authPlugin, args.authParams);
-        conf.setAuthentication(auth);
+        AuthenticationPtr auth = AuthFactory::create(args.authPlugin, args.authParams);
+        conf.setAuth(auth);
     }
 
     Client client(pulsar::PulsarFriend::getClient(args.serviceURL, conf, false));

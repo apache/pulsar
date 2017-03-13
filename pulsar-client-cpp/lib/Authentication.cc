@@ -16,7 +16,7 @@
 
 #include <stdio.h>
 
-#include <pulsar/Auth.h>
+#include <pulsar/Authentication.h>
 #include <lib/LogUtils.h>
 
 #include <string>
@@ -102,30 +102,30 @@ namespace pulsar {
     };
 
 
-    AuthenticationPtr Auth::Disabled() {
+    AuthenticationPtr AuthFactory::Disabled() {
         ParamMap params;
         return AuthDisabled::create(params);
     }
 
-    AuthenticationPtr Auth::create(const std::string& dynamicLibPath) {
+    AuthenticationPtr AuthFactory::create(const std::string& dynamicLibPath) {
         ParamMap params;
-        return Auth::create(dynamicLibPath, params);
+        return AuthFactory::create(dynamicLibPath, params);
     }
 
     boost::mutex mutex;
-    std::vector<void*> Auth::loadedLibrariesHandles_;
-    bool Auth::isShutdownHookRegistered_ = false;
+    std::vector<void*> AuthFactory::loadedLibrariesHandles_;
+    bool AuthFactory::isShutdownHookRegistered_ = false;
 
-    void Auth::release_handles() {
+    void AuthFactory::release_handles() {
         boost::lock_guard<boost::mutex> lock(mutex);
-        for (std::vector<void*>::iterator ite = Auth::loadedLibrariesHandles_.begin(); ite != Auth::loadedLibrariesHandles_.end();
+        for (std::vector<void*>::iterator ite = AuthFactory::loadedLibrariesHandles_.begin(); ite != AuthFactory::loadedLibrariesHandles_.end();
              ite++) {
             dlclose(*ite);
         }
         loadedLibrariesHandles_.clear();
     }
 
-    AuthenticationPtr Auth::create(const std::string& dynamicLibPath, const std::string& authParamsString) {
+    AuthenticationPtr AuthFactory::create(const std::string& dynamicLibPath, const std::string& authParamsString) {
         ParamMap paramMap;
         if(!authParamsString.empty()) {
             std::vector<std::string> params;
@@ -138,15 +138,15 @@ namespace pulsar {
                 }
             }
         }
-        return Auth::create(dynamicLibPath, paramMap);
+        return AuthFactory::create(dynamicLibPath, paramMap);
     }
 
-    AuthenticationPtr Auth::create(const std::string& dynamicLibPath, ParamMap& params) {
+    AuthenticationPtr AuthFactory::create(const std::string& dynamicLibPath, ParamMap& params) {
         {
             boost::lock_guard<boost::mutex> lock(mutex);
-            if (!Auth::isShutdownHookRegistered_) {
+            if (!AuthFactory::isShutdownHookRegistered_) {
                 atexit(release_handles);
-                Auth::isShutdownHookRegistered_ = true;
+                AuthFactory::isShutdownHookRegistered_ = true;
             }
         }
         Authentication *auth = NULL;
