@@ -26,15 +26,18 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo;
  */
 public interface MetaStore {
 
-    public static interface Version {
+    public static interface Stat {
+        int getVersion();
+        long getCreationTimestamp();
+        long getModificationTimestamp();
     }
 
     public static interface UpdateLedgersIdsCallback {
-        void updateLedgersIdsComplete(MetaStoreException status, Version version);
+        void updateLedgersIdsComplete(MetaStoreException status, Stat stat);
     }
 
     public static interface MetaStoreCallback<T> {
-        void operationComplete(T result, Version version);
+        void operationComplete(T result, Stat stat);
 
         void operationFailed(MetaStoreException e);
     }
@@ -63,7 +66,7 @@ public interface MetaStore {
      * @param ctx
      *            opaque context object
      */
-    void asyncUpdateLedgerIds(String ledgerName, ManagedLedgerInfo mlInfo, Version version,
+    void asyncUpdateLedgerIds(String ledgerName, ManagedLedgerInfo mlInfo, Stat version,
             MetaStoreCallback<Void> callback);
 
     /**
@@ -98,7 +101,7 @@ public interface MetaStore {
      *            the callback
      * @throws MetaStoreException
      */
-    void asyncUpdateCursorInfo(String ledgerName, String cursorName, ManagedCursorInfo info, Version version,
+    void asyncUpdateCursorInfo(String ledgerName, String cursorName, ManagedCursorInfo info, Stat version,
             MetaStoreCallback<Void> callback);
 
     /**
