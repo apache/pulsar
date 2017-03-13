@@ -799,7 +799,6 @@ admin.namespaces().getNamespaceReplicationClusters(namespace)
 
   3.  consumer_backlog_eviction: Brokerはバックログメッセージの破棄を開始します
 
-  Backlog quota restriction can be taken care by defining restriction of backlog-quota-type: destination_storage  
   バックログクォータ制限はバックログクォータタイプ: destination_storageを定義することによって考慮されるようになります。
 
 ###### CLI
