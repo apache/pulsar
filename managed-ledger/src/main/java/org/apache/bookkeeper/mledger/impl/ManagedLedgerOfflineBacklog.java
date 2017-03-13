@@ -144,7 +144,7 @@ public class ManagedLedgerOfflineBacklog {
         store.getManagedLedgerInfo(managedLedgerName,
                 new MetaStore.MetaStoreCallback<MLDataFormats.ManagedLedgerInfo>() {
                     @Override
-                    public void operationComplete(MLDataFormats.ManagedLedgerInfo mlInfo, MetaStore.Version version) {
+                    public void operationComplete(MLDataFormats.ManagedLedgerInfo mlInfo, MetaStore.Stat version) {
                         for (MLDataFormats.ManagedLedgerInfo.LedgerInfo ls : mlInfo.getLedgerInfoList()) {
                             ledgers.put(ls.getLedgerId(), ls);
                         }
@@ -227,7 +227,7 @@ public class ManagedLedgerOfflineBacklog {
 
         store.getCursors(managedLedgerName, new MetaStore.MetaStoreCallback<List<String>>() {
             @Override
-            public void operationComplete(List<String> cursors, MetaStore.Version v) {
+            public void operationComplete(List<String> cursors, MetaStore.Stat v) {
                 // Load existing cursors
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Found {} cursors", managedLedgerName, cursors.size());
@@ -333,7 +333,7 @@ public class ManagedLedgerOfflineBacklog {
                             new MetaStore.MetaStoreCallback<MLDataFormats.ManagedCursorInfo>() {
                                 @Override
                                 public void operationComplete(MLDataFormats.ManagedCursorInfo info,
-                                        MetaStore.Version version) {
+                                        MetaStore.Stat version) {
                                     long cursorLedgerId = info.getCursorsLedgerId();
                                     if (log.isDebugEnabled()) {
                                         log.debug("[{}] Cursor {} meta-data read ledger id {}", managedLedgerName,
