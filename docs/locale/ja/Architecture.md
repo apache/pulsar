@@ -43,7 +43,7 @@ Pulsarはマルチテナントで、ハイパフォーマンスなサーバ間�
 1つのPulsarクラスタはメッセージBroker, BookKeeperおよび (コンポーネント間の) 連携と構成管理のためのZooKeeperアンサンブルで構成されています。  
 そしてクライアントライブラリが使い勝手の良いAPIを提供します。
 
-![アーキテクチャ図](img/pulsar_system_architecture.png)
+![アーキテクチャ図](../../img/pulsar_system_architecture.png)
 
 
 ### メッセージBroker
@@ -112,7 +112,7 @@ ConsumerがこのSubscirptionに1つも接続していない場合、publishさ�
 
 SubscriptionモードはメッセージをConsumerにどのようにメッセージを配送するかを決定する設定です。
 
-![Subscriptionモード](img/pulsar_subscriptions.jpg)
+![Subscriptionモード](../../img/pulsar_subscriptions.jpg)
 
 **Exclusive**
 
@@ -177,7 +177,7 @@ ConsumerはSubscriptionに接続し、メッセージを受け取ります。
 
 パーティションドトピックは実際にはN (パーティションの数) 個の内部トピックとして実装されます。内部トピックと普通のトピックについて、Subscriptionモードの挙動に違いはありません。
 
-![パーティションドトピック](img/pulsar_partitioned_topic.jpg)
+![パーティションドトピック](../../img/pulsar_partitioned_topic.jpg)
 
 **ルーティングモード** - ルーティングモードはどのパーティション (内部トピック) にメッセージがpublishされるかを決定します:
 

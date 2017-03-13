@@ -23,7 +23,7 @@
 
 Subscriptionはそれが作成されたクラスタ内に閉じており、クラスタ間で転送されることはありません。
 
-![Replication Diagram](img/GeoReplication.png)
+![Replication Diagram](../../img/GeoReplication.png)
 
 上の例ではトピックは***Cluster-A***, ***Cluster-B***, ***Cluster-C***という3つのクラスタにレプリケートされます。
 

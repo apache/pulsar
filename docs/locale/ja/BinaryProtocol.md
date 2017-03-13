@@ -130,7 +130,7 @@ Pulsarのプロトコルには以下の2つのタイプのコマンドがあり�
 BrokerへのTCPコネクションの確立後、クライアントはセッションを開始しなければなりません。
 通常これには6650番のポートが利用されます。
 
-![Connect interaction](img/Binary Protocol - Connect.png)
+![Connect interaction](../../img/Binary Protocol - Connect.png)
 
 Brokerから`Connected`という応答を受け取ると、クライアントは
 接続準備完了とみなします。もしBrokerが
@@ -192,7 +192,7 @@ Producerを作成する時、Brokerは最初にそのクライアントがトピ
 クライアントがProducerの作成を完了すると、ネゴシエートされたProducer IDを参照して
 Brokerにメッセージをpublishできます。
 
-![Producer interaction](img/Binary Protocol - Producer.png)
+![Producer interaction](../../img/Binary Protocol - Producer.png)
 
 ##### Producerコマンド
 
@@ -296,7 +296,7 @@ ConsumerはSubscriptionへの接続とそこからのメッセージのconsume�
 接続後、クライアントはトピックをsubscribeする必要があります。
 もしSubscriptionがそのトピックになければ、新しく作成されます。
 
-![Consumer](img/Binary Protocol - Consumer.png)
+![Consumer](../../img/Binary Protocol - Consumer.png)
 
 #### フロー制御
 
@@ -437,7 +437,7 @@ Pulsar-1.16からは、バイナリプロトコルで行うことも可能です
 `LookupTopic`コマンドは`Connect` / `Connected`の最初のハンドシェイクを終えた
 接続で使用されなければなりません。
 
-![トピックのルックアップ](img/Binary Protocol - Topic lookup.png)
+![トピックのルックアップ](../../img/Binary Protocol - Topic lookup.png)
 
 ```json
 CommandLookupTopic {

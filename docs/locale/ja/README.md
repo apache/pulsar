@@ -1,6 +1,6 @@
 ***訳注: [v1.16のドキュメント](https://github.com/yahoo/pulsar/tree/v1.16/docs)を日本語訳したものです。***
 
-![logo](img/pulsar.png)
+![logo](../../img/pulsar.png)
 
 Pulsarは、非常に柔軟なメッセージングモデルと直感的なクライアントAPIを備えた分散pub-subメッセージングプラットフォームです。
 
