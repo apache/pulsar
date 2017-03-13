@@ -82,7 +82,7 @@ Pulsarのプロトコルには以下の2つのタイプのコマンドがあり�
 メッセージ・メタデータは、アプリケーションに指定されたペイロードとともに、
 シリアライズされたProtocol Buffersオブジェクトとして保存されます。
 
-メターデータはProducerに作成され、変更されることなくConsumerに渡されます。
+メタデータはProducerに作成され、変更されることなくConsumerに渡されます。
 
 フィールド:
  * `producer_name` → メッセージをpublishしたProducerの名前。
