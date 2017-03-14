@@ -69,8 +69,8 @@
 			- [全メッセージを有効期限切れにする](#全メッセージを有効期限切れにする)
 			- [カーソルのリセット](#カーソルのリセット)
 			- [トピックのルックアップ](#トピックのルックアップ)
-			- [Subscriptionリストの取得](#subscriptionリストの取得)
-			- [unsubscribe](#unsubscribe)
+			- [サブスクリプションリストの取得](#サブスクリプションリストの取得)
+			- [購読解除](#購読解除)
 		- [ネームスペースの隔離ポリシー](#ネームスペースの隔離ポリシー)
 			- [ネームスペースの隔離ポリシーの作成/更新](#ネームスペースの隔離ポリシーの作成更新)
 			- [ネームスペースの隔離ポリシーの取得](#ネームスペースの隔離ポリシーの取得)
@@ -739,7 +739,7 @@ admin.namespaces().revokePermissionsOnNamespace(namespace, role)
 
 #### レプリケーションクラスタの設定
 
-ネームスペースにレプリケーションクラスタを設定し、Pulsarが内部的にpublishされたメッセージを一つのコロケーションから別のコロケーションにレプリケートできるようにします。しかし、レプリケーションクラスタをセットするためにはネームスペースは*test-property/**global**/ns1.*のようにグローバルである必要があります。つまりクラスタ名は*“global”*でなければなりません。
+ネームスペースにレプリケーションクラスタを設定し、Pulsarが内部的に発行されたメッセージを一つのコロケーションから別のコロケーションにレプリケートできるようにします。しかし、レプリケーションクラスタをセットするためにはネームスペースは*test-property/**global**/ns1.*のようにグローバルである必要があります。つまりクラスタ名は*“global”*でなければなりません。
 
 ###### CLI
 
@@ -793,7 +793,7 @@ admin.namespaces().getNamespaceReplicationClusters(namespace)
 
 バックログクォータはBrokerが特定の閾値に達したとき、ネームスペースの帯域幅/ストレージを制限するのに役立ちます。管理者はこの制限と制限に達したときに行う下記のアクションの内一つを設定できます。
 
-  1.  producer_request_hold: Brokerはproduceされたリクエストペイロードをホールドし、永続化しないようになります
+  1.  producer_request_hold: Brokerはproduceリクエストのペイロードをホールドし、永続化しないようになります
 
   2.  producer_exception: Brokerは例外を発生させてクライアントとの接続を切断します
 
@@ -1061,7 +1061,7 @@ admin.namespaces().splitNamespaceBundle(namespace, bundle)
 
 #### バックログの削除
 
-指定したネームスペースに属するすべてのトピックのすべてのメッセージバックログを削除します。特定のSubscriptionのバックログのみを削除することも可能です。
+指定したネームスペースに属するすべてのトピックのすべてのメッセージバックログを削除します。特定のサブスクリプションのバックログのみを削除することも可能です。
 
 ###### CLI
 
@@ -1088,7 +1088,7 @@ admin.namespaces().clearNamespaceBacklogForSubscription(namespace, subscription)
 
 #### Bundleバックログの削除
 
-特定のネームスペースBundleに属するすべてのトピックのすべてのメッセージバックログを削除します。特定のSubscriptionのバックログのみを削除することも可能です。
+特定のネームスペースBundleに属するすべてのトピックのすべてのメッセージバックログを削除します。特定のサブスクリプションのバックログのみを削除することも可能です。
 
 ###### CLI
 
@@ -1173,8 +1173,8 @@ admin.namespaces().getRetention(namespace)
 
 ### Persistent
 
-persistentコマンドは、メッセージをpublish/consumeするための論理的なエンドポイントであるトピックにアクセスする際に役立ちます。  
-Producerはトピックにメッセージをpublishし、Consumerはトピックにpublishされたメッセージをconsumeするためにトピックをsubscribeします。
+persistentコマンドは、メッセージをproduce/consumeするための論理的なエンドポイントであるトピックにアクセスする際に役立ちます。  
+Producerはトピックにメッセージをproduceし、Consumerはトピックにproduceされたメッセージをconsumeするためにトピックを購読します。
 
 以降に説明とコマンドを記載します - パーシステントトピックのフォーマットは次の通りです:
 
@@ -1266,7 +1266,7 @@ admin.persistentTopics().deletePartitionedTopic(persistentTopic)
 
 #### トピックの削除
 
-トピックを削除します。ただしアクティブなSubscriptionまたはProducerの接続がある場合には、トピックを削除できません。
+トピックを削除します。ただしアクティブなサブスクリプションまたはProducerの接続がある場合には、トピックを削除できません。
 
 ###### CLI
 
@@ -1460,7 +1460,7 @@ admin.persistentTopics().getPartitionedStats(persistentTopic, perPartition)
 
 パーティションドトピックではないトピックの現在の統計情報を表示します。
 
-  -   **msgRateIn**: 全てのローカルとレプリケーション用のPublisherのpublishレートの合計で、1秒あたりのメッセージ数です。
+  -   **msgRateIn**: 全てのローカルとレプリケーション用のPublisherの発行レートの合計で、1秒あたりのメッセージ数です。
 
   -   **msgThroughputIn**: 上記と同様ですが、1秒あたりのバイト数です。
 
@@ -1468,7 +1468,7 @@ admin.persistentTopics().getPartitionedStats(persistentTopic, perPartition)
 
   -   **msgThroughputOut**: 上記と同様ですが、1秒あたりのバイト数です。
 
-  -   **averageMsgSize**: 直近のインターバル内でpublishされたメッセージの平均バイトサイズです。
+  -   **averageMsgSize**: 直近のインターバル内で発行されたメッセージの平均バイトサイズです。
 
   -   **storageSize**: このトピックのLedgerのストレージサイズの合計です。
 
@@ -1484,17 +1484,17 @@ admin.persistentTopics().getPartitionedStats(persistentTopic, perPartition)
 
   -   **connectedSince**: このProducerが作成または最後に再接続したタイムスタンプです。
 
-  -   **subscriptions**: トピックに対してのローカルの全Subscriptionリストです。
+  -   **subscriptions**: トピックに対してのローカルの全サブスクリプションリストです。
 
-  -   **my-subscription**: このSubscriptionの名前です (クライアントが定義します) 。
+  -   **my-subscription**: このサブスクリプションの名前です (クライアントが定義します) 。
 
-  -   **msgBacklog**: このSubscriptionのバックログ内のメッセージ数です。
+  -   **msgBacklog**: このサブスクリプションのバックログ内のメッセージ数です。
 
-  -   **type**: このSubscriptionのタイプです。
+  -   **type**: このサブスクリプションのタイプです。
 
-  -   **msgRateExpired**: TTLのためにこのSubscriptionから配送されずに破棄されたメッセージのレートです。
+  -   **msgRateExpired**: TTLのためにこのサブスクリプションから配送されずに破棄されたメッセージのレートです。
 
-  -   **consumers**: このSubscriptionに接続しているConsumerリストです。
+  -   **consumers**: このサブスクリプションに接続しているConsumerリストです。
 
   -   **consumerName**: クライアントライブラリによって生成されたこのConsumerの内部的な識別子です。
 
@@ -1510,7 +1510,7 @@ admin.persistentTopics().getPartitionedStats(persistentTopic, perPartition)
 
   -   **inboundConnection**: このBrokerに対しての、リモートクラスタのPublisher接続におけるそのBrokerのIPとポートです。
 
-  -   **inboundConnectedSince**: リモートクラスタにメッセージをpublishするためにTCP接続が使われます。もし接続しているローカルのPublisherがいない場合には、この接続は数分後に自動的に閉じられます。
+  -   **inboundConnectedSince**: リモートクラスタにメッセージを発行するためにTCP接続が使われます。もし接続しているローカルのPublisherがいない場合には、この接続は数分後に自動的に閉じられます。
 ###### CLI
 
 ```
@@ -1574,7 +1574,7 @@ admin.persistentTopics().getStats(persistentTopic)
 
 トピックの詳細な統計情報を表示します。
 
-  -   **entriesAddedCounter**: このBrokerがこのトピックを読み込んでからpublishされたメッセージ数です。
+  -   **entriesAddedCounter**: このBrokerがこのトピックを読み込んでから発行されたメッセージ数です。
 
   -   **numberOfEntries**: 書き込まれたメッセージの総数です。
 
@@ -1588,23 +1588,23 @@ admin.persistentTopics().getStats(persistentTopic)
 
   -   **lastLedgerCreationFailureTimestamp:** 最後のLedgerに障害が発生した時刻です。
 
-  -   **waitingCursorsCount**:"キャッチアップ状態"で新しいメッセージがpublishされるのを待っているカーソル数です。
+  -   **waitingCursorsCount**:"キャッチアップ状態"で新しいメッセージが発行されるのを待っているカーソル数です。
 
   -   **pendingAddEntriesCount**:  完了を待っている (非同期) 書き込みリクエストのメッセージ数です。
 
   -   **lastConfirmedEntry**: 書き込みに成功した最後のメッセージのledgerid:entryid。entryidが−1の場合、Ledgerがすでにオープンされているか現在オープンされていますが、まだ書き込まれたエントリがないことを意味します。
 
-  -   **state**: このLedgerの書き込みのための状態です。LedgerOpenedは、publishされたメッセージを保存するためのLedgerをオープンしていることを意味します。
+  -   **state**: このLedgerの書き込みのための状態です。LedgerOpenedは、発行されたメッセージを保存するためのLedgerをオープンしていることを意味します。
 
   -   **ledgers**:　このトピックのメッセージを保持している全てのLedgerの順序付きリストです。
 
-  -   **cursors**: このトピック上の全てのカーソルのリストです。トピックの統計情報上に表示されたSubscriptionごとに1つ表示されます。
+  -   **cursors**: このトピック上の全てのカーソルのリストです。トピックの統計情報上に表示されたサブスクリプションごとに1つ表示されます。
 
   -   **markDeletePosition**: Ackのポジション:SubscriberからAckが返された最後のメッセージです。
 
   -   **readPosition**: メッセージを読むためのSubscriberの最新のポジションです。
 
-  -   **waitingReadOp**: Subscriptionが最新のメッセージを読み込み、新しいメッセージがpublishされるのを待っている時に、これはtrueになります。
+  -   **waitingReadOp**: サブスクリプションが最新のメッセージを読み込み、新しいメッセージが発行されるのを待っている時に、これはtrueになります。
 
   -   **pendingReadOps**: 進行中のBookKeeperへの未解決の読み取りリクエスト数です。
 
@@ -1679,7 +1679,7 @@ admin.persistentTopics().getInternalStats(persistentTopic)
 
 #### メッセージを見る
 
-指定されたトピックの特定のSubscriptionのNつのメッセージを覗き見ます。
+指定されたトピックの特定のサブスクリプションのNつのメッセージを覗き見ます。
 
 ###### CLI
 
@@ -1709,7 +1709,7 @@ admin.persistentTopics().peekMessages(persistentTopic, subName, numMessages)
 
 #### メッセージのスキップ
 
-指定されたトピックの指定されたSubscriptionのNつのメッセージをスキップします。
+指定されたトピックの指定されたサブスクリプションのNつのメッセージをスキップします。
 
 ###### CLI
 
@@ -1735,7 +1735,7 @@ admin.persistentTopics().skipMessages(persistentTopic, subName, numMessages)
 
 #### 全メッセージのスキップ
 
-指定されたトピックの特定のSubscriptionの全ての古いメッセージをスキップします。
+指定されたトピックの特定のサブスクリプションの全ての古いメッセージをスキップします。
 
 ###### CLI
 
@@ -1761,7 +1761,7 @@ admin.persistentTopics().skipAllMessages(persistentTopic, subName)
 
 #### メッセージを有効期限切れにする
 
-指定された有効期限 (秒単位) よりも古い、指定されたトピック上の特定のSubscriptionのメッセージを有効期限切れにします。
+指定された有効期限 (秒単位) よりも古い、指定されたトピック上の特定のサブスクリプションのメッセージを有効期限切れにします。
 
 ###### CLI
 
@@ -1787,7 +1787,7 @@ admin.persistentTopics().expireMessages(persistentTopic, subName, expireTimeInSe
 
 #### 全メッセージを有効期限切れにする
 
-指定された有効期限 (秒単位) よりも古い、トピック上の全てのSubscriptionのメッセージを有効期限切れにします。
+指定された有効期限 (秒単位) よりも古い、トピック上の全てのサブスクリプションのメッセージを有効期限切れにします。
 
 ###### CLI
 
@@ -1815,7 +1815,7 @@ admin.persistentTopics().expireMessagesForAllSubscriptions(persistentTopic, expi
 
 #### カーソルのリセット
 
-Subscriptionのカーソル位置をX分前に記録された位置まで戻します。
+サブスクリプションのカーソル位置をX分前に記録された位置まで戻します。
 これは、X分前の時間とカーソル位置を計算し、その位置にリセットします。
 
 ###### CLI
@@ -1867,9 +1867,9 @@ GET http://<broker-url>:<port>/lookup/v2/destination/persistent/{property}/{clus
 admin.lookups().lookupDestination(destination)
 ```
 
-#### Subscriptionリストの取得
+#### サブスクリプションリストの取得
 
-指定されたトピックの全てのSubscription名を表示します。
+指定されたトピックの全てのサブスクリプション名を表示します。
 
 ###### CLI
 
@@ -1893,9 +1893,9 @@ GET /admin/persistent/{property}/{cluster}/{namespace}/{destination}/subscriptio
 admin.persistentTopics().getSubscriptions(persistentTopic)
 ```
 
-#### unsubscribe
+#### 購読解除
 
-これ以上メッセージを処理しないSubscriptionをunsubscribeする際にも役立ちます。
+これ以上メッセージを処理しないサブスクリプションを購読解除する際にも役立ちます。
 
 ###### CLI
 
@@ -2223,10 +2223,10 @@ Pulsarは任意のトピック上でメッセージのproduceとconsumeを行う
     </tr>
     <tr>
       <td>```-s, --subscription-name```</td>
-      <td>```Subscription名```</td>
+      <td>```サブスクリプション名```</td>
     </tr>
     <tr>
       <td>```-t, --subscription-type```</td>
-      <td>```Exclusive, Shared, Failoverの内どれか1つのSubscriptionタイプ (デフォルト：Exclusive) ```</td>
+      <td>```Exclusive, Shared, Failoverの内どれか1つのサブスクリプションタイプ (デフォルト：Exclusive) ```</td>
     </tr>
 <table>

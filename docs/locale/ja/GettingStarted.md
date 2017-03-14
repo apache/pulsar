@@ -5,7 +5,7 @@
 
 - [基本コンセプト](#基本コンセプト)
 	- [トピック名](#トピック名)
-	- [Subscriptionモード](#subscriptionモード)
+	- [サブスクリプションモード](#サブスクリプションモード)
 	- [ソフトウェアの入手](#ソフトウェアの入手)
 - [スタンドアローンなPulsarサーバの起動](#スタンドアローンなpulsarサーバの起動)
 - [PulsarのJavaクライアントAPIの使用](#pulsarのjavaクライアントapiの使用)
@@ -19,10 +19,10 @@
 Pulsarはpub-subパラダイムに基づいて構築されたメッセージングシステムです。
 **トピック**は**Producer**と**Consumer**を結びつける基本的なリソースです。
 
-Producerはトピックに接続してメッセージをpublishする事ができます。
-Consumerはトピックを**subscribe**してメッセージを受信する事ができます。
+Producerはトピックに接続してメッセージを発行する事ができます。
+Consumerはトピックを**購読**してメッセージを受信する事ができます。
 
-一度Subscriptionが作成されると、たとえConsumerが切断された場合でも、
+一度サブスクリプションが作成されると、たとえConsumerが切断された場合でも、
 Consumerから処理の成功を通知する**Ack (確認応答) **が返されるまで全てのメッセージは
 システムによって*保持*されます。
 
@@ -49,15 +49,15 @@ persistent://my-property/us-west/my-namespace/my-topic
  * `my-topic` →
     トピック名の最後の部分です。この部分は自由形式であり、システム上の特別な意味は持ちません。
 
-### Subscriptionモード
+### サブスクリプションモード
 
-各トピックは複数の**Subscription**を持つ事ができます。
-それぞれのSubscriptionは異なる名前を持ち、またSubscriptionごとに異なるタイプを指定できます:
+各トピックは複数の**サブスクリプション**を持つ事ができます。
+それぞれのサブスクリプションは異なる名前を持ち、またサブスクリプションごとに異なるタイプを指定できます:
 
  * **Exclusive** →
-   1つのConsumerだけがこのSubscriptionに所属する事を許されます。メッセージの順番は保証されます。
+   1つのConsumerだけがこのサブスクリプションに所属する事を許されます。メッセージの順番は保証されます。
  * **Shared** →
-   複数のConsumerが同じSubscriptionに接続し、メッセージは利用可能なConsumerの間でラウンドロビンで配信されます。
+   複数のConsumerが同じサブスクリプションに接続し、メッセージは利用可能なConsumerの間でラウンドロビンで配信されます。
    メッセージの順番は入れ替わる可能性があります。
  * **Failover** →
    1つのConsumerだけがアクティブにメッセージを受信し、他のConsumerはスタンバイ状態になります。
@@ -139,7 +139,7 @@ PulsarClient client = PulsarClient.create("http://localhost:8080");
 Producer producer = client.createProducer(
             "persistent://sample/standalone/ns1/my-topic");
 
-// 10のメッセージをトピックにpublish
+// 10のメッセージをトピックに発行
 for (int i = 0; i < 10; i++) {
     producer.send("my-message".getBytes());
 }

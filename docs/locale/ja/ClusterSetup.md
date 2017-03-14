@@ -289,13 +289,13 @@ $ bin/pulsar-admin namespaces create test/us-west/ns1
 persistent://test/us-west/ns1/my-topic
 ```
 
-トピック上にSubscriptionを作成し、メッセージを待ち受けるConsumerを起動します:
+トピック上にサブスクリプションを作成し、メッセージを待ち受けるConsumerを起動します:
 
 ```shell
 $ bin/pulsar-perf consume persistent://test/us-west/ns1/my-topic
 ```
 
-固定レートでメッセージをpublishし、10秒ごとに統計情報をレポートするProducerを起動します:
+固定レートでメッセージを発行し、10秒ごとに統計情報をレポートするProducerを起動します:
 
 ```shell
 $ bin/pulsar-perf produce persistent://test/us-west/ns1/my-topic

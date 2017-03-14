@@ -44,7 +44,7 @@ Protocol Buffersのデータの前に4バイトのフィールドを追加して
 
 Pulsarのプロトコルには以下の2つのタイプのコマンドがあります:
  1. ペイロードを持たないシンプルなコマンド。
- 2. メッセージの配送やpublishに使われるペイロードを持つコマンド。
+ 2. メッセージの配送や発行に使われるペイロードを持つコマンド。
     このケースではそのコマンドのデータの後に、他のProtocol Buffersのメタデータが追従します。
     効率的な理由からペイロードはProtocol Buffersの外側でRaw形式で渡されます。
 
@@ -85,9 +85,9 @@ Pulsarのプロトコルには以下の2つのタイプのコマンドがあり�
 メタデータはProducerに作成され、変更されることなくConsumerに渡されます。
 
 フィールド:
- * `producer_name` → メッセージをpublishしたProducerの名前。
+ * `producer_name` → メッセージを発行したProducerの名前。
  * `sequence_id` → Producerから割り当てられたメッセージのシーケンスID。
- * `publish_time` → publish時のタイムスタンプ (UTCで1970年1月1日からのミリ秒単位の経過時間) 。
+ * `publish_time` → 発行時のタイムスタンプ (UTCで1970年1月1日からのミリ秒単位の経過時間) 。
  * `properties` → アプリケーションに定義された`Pair<String, String>`形式のデータ (Pulsarの動作には影響を与えないKey-Value) 。
  * `replicated_from` → *(任意)* メッセージがレプリケートされたものかを表し、
     レプリケートされたものである場合レプリケート元のクラスタ名。
@@ -186,11 +186,11 @@ Pulsarクライアントの実装において、`Ping`の送信は必須では�
 ### Producer
 
 メッセージを送るために、クライアントはProducerを作成する必要があります。
-Producerを作成する時、Brokerは最初にそのクライアントがトピックへのpublishを
+Producerを作成する時、Brokerは最初にそのクライアントがトピックへの発行を
 認可されているかを検証します。
 
 クライアントがProducerの作成を完了すると、ネゴシエートされたProducer IDを参照して
-Brokerにメッセージをpublishできます。
+Brokerにメッセージを発行できます。
 
 ![Producer interaction](../../img/Binary Protocol - Producer.png)
 
@@ -233,7 +233,7 @@ CommandProducerSuccess {
 ##### Sendコマンド
 
 `Send`コマンドは既に存在するProducerのコンテキスト内で新しいメッセージを
-publishする時に使用されます。このコマンドはコマンドだけでなくペイロードを含むフレーム内で
+発行する時に使用されます。このコマンドはコマンドだけでなくペイロードを含むフレーム内で
 使用されます。ペイロードは[ペイロードコマンド](#ペイロードコマンド) セクションに記されている
 完全なフォーマットで記述されます。
 
@@ -248,9 +248,9 @@ CommandSend {
 パラメータ:
  * `producer_id` → ProducerのID。
  * `sequence_id` → 各メッセージは関連する0からカウントが始まるような
-    実装が期待されるシーケンスのIDを持ちます。メッセージの効果的なpublishを承認する。
+    実装が期待されるシーケンスのIDを持ちます。メッセージの効果的な発行を承認する。
 		`SendReceipt`は、シーケンスIDによってメッセージを参照します。
- * `num_messages` → *(任意)* バッチ・メッセージがpublishされる時に使用されます。
+ * `num_messages` → *(任意)* バッチ・メッセージが発行される時に使用されます。
 
 ##### SendReceiptコマンド
 
@@ -292,9 +292,9 @@ Producerを再作成することが期待されます。
 
 ### Consumer
 
-ConsumerはSubscriptionへの接続とそこからのメッセージのconsumeに利用されます。
-接続後、クライアントはトピックをsubscribeする必要があります。
-もしSubscriptionがそのトピックになければ、新しく作成されます。
+Consumerはサブスクリプションへの接続とそこからのメッセージのconsumeに利用されます。
+接続後、クライアントはトピックを購読する必要があります。
+もしサブスクリプションがそのトピックになければ、新しく作成されます。
 
 ![Consumer](../../img/Binary Protocol - Consumer.png)
 
@@ -324,13 +324,13 @@ CommandSubscribe {
 
 パラメータ:
  * `topic` → Consumerを作成したいトピックの完全な名前。
- * `subscription` → Subscription名。
- * `subType` → Subscriptionタイプ: Exclusive, Shared, Failover
+ * `subscription` → サブスクリプション名。
+ * `subType` → サブスクリプションタイプ: Exclusive, Shared, Failover
  * `consumer_id` → クライアントが生成した同一接続内で一意に定まるConsumerの識別子。
  * `request_id` → レスポンスのマッチングに用いる同一接続内で一意に定まるリクエストの識別子。
  * `consumer_name` → *(任意)* クライアントはConsumer名を指定できます。
     この名前は、ステータス上で特定のConsumerを追跡するのに利用されます。
-    また、SubscriptionタイプがFailoverの時、この名前はどのConsumerが *master* (メッセージを受け取るConsumer) となるかを
+    また、サブスクリプションタイプがFailoverの時、この名前はどのConsumerが *master* (メッセージを受け取るConsumer) となるかを
 		決めるのに使用されます。ConsumerはConsumer名によってソートされ、最初のものが
 		masterとして選ばれます。
 
@@ -409,7 +409,7 @@ ConsumerはBrokerに、特定のConsumerにプッシュしたがまだ`Ack`が�
 メッセージのIDのリストから構成されます。リストが空の場合は、
 Brokerはペンディング中の全てのメッセージを再送します。
 
-再配送において、メッセージは同一のConsumer、あるいはSubscriptionタイプがSharedの場合は
+再配送において、メッセージは同一のConsumer、あるいはサブスクリプションタイプがSharedの場合は
 全ての利用可能なConsumerに送信されます。
 
 ## サービスディスカバリ

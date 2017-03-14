@@ -11,8 +11,8 @@
 		- [メタデータストア](#メタデータストア)
 	- [デザイン](#デザイン)
 		- [トピック](#トピック)
-		- [Subscription](#subscription)
-		- [Subscriptionモード](#subscriptionモード)
+		- [サブスクリプション](#サブスクリプション)
+		- [サブスクリプションモード](#サブスクリプションモード)
 		- [プロパティとネームスペース](#プロパティとネームスペース)
 		- [Producer](#producer)
 		- [Consumer](#consumer)
@@ -32,9 +32,9 @@ Pulsarはマルチテナントで、ハイパフォーマンスなサーバ間�
 主な特徴は:
 
 - シンプルなAPIによるJavaバインディング
-- 複数のSubscriptionモード: pub/sub、ロードバランサ、フェイルオーバー
+- 複数のサブスクリプションモード: pub/sub、ロードバランサ、フェイルオーバー
 - シームレスなメッセージのジオレプリケーション
-- publish, end-to-endでの低レイテンシ
+- 発行、end-to-endでの低レイテンシ
 - 永続メッセージングによるメッセージ配信保証; 永続ストレージは複数ホスト間での複数コピーが設定可能な構成
 
 ## アーキテクチャ
@@ -54,7 +54,7 @@ PulsarのBrokerはステートレスなコンポーネントで、主に2つの�
 バックログがキャッシュサイズを超えない限り、メッセージは通常Managed Ledgerのキャッシュから送信され、超えた場合にはBrokerがBookKeeperからエントリの読み出しを始めます。
 
 グローバルトピックでのジオレプリケーションをサポートするためにBrokerはレプリケータを管理します。  
-このレプリケータはPulsarクライアントライブラリを利用し、ローカルクラスタ内でpublishされるエントリをtailしリモートクラスタにrepublishします。
+このレプリケータはPulsarクライアントライブラリを利用し、ローカルクラスタ内で発行されるエントリをtailしリモートクラスタに再発行します。
 
 
 ### 永続ストア
@@ -94,38 +94,38 @@ Pulsarはメタデータやクラスタの構成、 (コンポーネント間の
 
 ### トピック
 
-**トピック** はメッセージをpublish, subscribeするための論理的なエンドポイントです。
-Producerはトピックに対してメッセージをpublishし、Consumerはトピックに対してsubscribeします。
-Pulsarではトピックに対する複数のSubscriptionモードでpub/sub, ロードバランサー, フェイルオーバーのユースケースをサポートします。
+**トピック** はメッセージを発行、購読するするための論理的なエンドポイントです。
+Producerはトピックに対してメッセージを発行し、Consumerはトピックに対して購読します。
+Pulsarではトピックに対する複数のサブスクリプションモードでpub/sub、ロードバランサー、フェイルオーバーのユースケースをサポートします。
 
 通常のトピック (パーティションドトピックを除く) は明示的に作成される必要はなく、
 トピックに対してメッセージをproduce/consumeしようとした際に作成されます。
 
-### Subscription
+### サブスクリプション
 
-SubscriptionはConsumerが最初に接続した時に与えられたSubscription名によって作成される永続性のあるリソースです。
-Subscriptionは作成された後、トピックに対してpublishされた全てのメッセージを受け取ります。
-ConsumerがこのSubscirptionに1つも接続していない場合、publishされた全てのメッセージはバックログに保持されます。
-最終的に、トピックからSubscriptionを削除するために、Consumerはunsubscribeできます。
+サブスクリプションはConsumerが最初に接続した時に与えられたサブスクリプション名によって作成される永続性のあるリソースです。
+サブスクリプションは作成された後、トピックに対して発行された全てのメッセージを受け取ります。
+Consumerがこのサブスクリプションに1つも接続していない場合、発行された全てのメッセージはバックログに保持されます。
+最終的に、トピックからサブスクリプションを削除するために、Consumerは購読解除できます。
 
-### Subscriptionモード
+### サブスクリプションモード
 
-SubscriptionモードはメッセージをConsumerにどのようにメッセージを配送するかを決定する設定です。
+サブスクリプションモードはメッセージをConsumerにどのようにメッセージを配送するかを決定する設定です。
 
-![Subscriptionモード](../../img/pulsar_subscriptions.jpg)
+![サブスクリプションモード](../../img/pulsar_subscriptions.jpg)
 
 **Exclusive**
 
-- デフォルトのSubscriptionモードです。1つのSubscriptionに対して1つのConsumerのみが接続を許可されます。2つ以上のConsumerが同じSubscription名を用いてトピックに対してsubscribeを試みた場合、エラーが発生します。トピックに対するpublish/subscribeモデルをサポートするために、複数のConsumerは異なるSubscription名を利用します。トピックにpublishされたメッセージは全てのConsumerに配送されます。
+- デフォルトのサブスクリプションモードです。1つのサブスクリプションに対して1つのConsumerのみが接続を許可されます。2つ以上のConsumerが同じサブスクリプション名を用いてトピックに対して購読を試みた場合、エラーが発生します。トピックに対するpublish/subscribeモデルをサポートするために、複数のConsumerは異なるサブスクリプション名を利用します。トピックに発行されたメッセージは全てのConsumerに配送されます。
 
 **Shared**
 
-- 複数のConsumerが同じSubscriptionに接続できます。メッセージはラウンドロビンで複数のConsumerに配送され、各メッセージは1つのConsumerのみに配送されます。Consumerが切断するとき、送信されたがAck (確認応答) が返ってきていない全てのメッセージは、再送のためにリスケジュールされます。
+- 複数のConsumerが同じサブスクリプションに接続できます。メッセージはラウンドロビンで複数のConsumerに配送され、各メッセージは1つのConsumerのみに配送されます。Consumerが切断するとき、送信されたがAck (確認応答) が返ってきていない全てのメッセージは、再送のためにリスケジュールされます。
 - SharedのConsumerに対する配送の順序は保証されません。
 
 **Failover**
 
-- 複数のConsumerが同じSubscriptionに接続できます。ConsumerはConsumer名により辞書順にソートされ、辞書順で最初のConsumerがMaster Consumerとしてメッセージを受信します。このConsumerが切断された場合、Ackが返ってきていないものとその後に続く全てのメッセージは辞書順で次のConsumerに配送されます。
+- 複数のConsumerが同じサブスクリプションに接続できます。ConsumerはConsumer名により辞書順にソートされ、辞書順で最初のConsumerがMaster Consumerとしてメッセージを受信します。このConsumerが切断された場合、Ackが返ってきていないものとその後に続く全てのメッセージは辞書順で次のConsumerに配送されます。
 
 ### プロパティとネームスペース
 
@@ -158,15 +158,15 @@ Producerはトピックに接続し、メッセージを送信します。
 - LZ4
 - ZLIB
 
-**バッチ** - バッチ処理が可能な場合、Producerはメッセージを蓄積し、1つのリクエストでメッセージのバッチを送信しようとします。バッチサイズはメッセージの最大数と最大publishレイテンシで定義されます。
+**バッチ** - バッチ処理が可能な場合、Producerはメッセージを蓄積し、1つのリクエストでメッセージのバッチを送信しようとします。バッチサイズはメッセージの最大数と最大発行レイテンシで定義されます。
 
 ### Consumer
 
-ConsumerはSubscriptionに接続し、メッセージを受け取ります。
+Consumerはサブスクリプションに接続し、メッセージを受け取ります。
 
 **同期受信 vs. 非同期受信** - 同期受信はメッセージが利用可能になるまでブロックされます。同期受信ではCompletableFutureインスタンスとしてすぐに返却されます。CompletableFutureインスタンスは新しいメッセージが利用可能になった時、受信して完了します。
 
-**確認応答** - メッセージは1つ1つ個別に、あるいは累積的に確認応答が返されます。累積的な確認応答をするConsumerは、最後に受け取ったメッセージの確認応答を返します。その場合、確認応答を返したメッセージまでのストリーム内の全てのメッセージはそのConsumerに再送されません。SubscriptionモードがSharedの場合は、累積的な確認応答は使用できません。
+**確認応答** - メッセージは1つ1つ個別に、あるいは累積的に確認応答が返されます。累積的な確認応答をするConsumerは、最後に受け取ったメッセージの確認応答を返します。その場合、確認応答を返したメッセージまでのストリーム内の全てのメッセージはそのConsumerに再送されません。サブスクリプションモードがSharedの場合は、累積的な確認応答は使用できません。
 
 **リスナー** - カスタマイズされたMessageListenerの実装をConsumerに渡すことができます。クライアントライブラリは新しいメッセージを受け取るとリスナーを呼び出します (Consumer Receiveを呼び出す必要はありません) 。
 
@@ -175,11 +175,11 @@ ConsumerはSubscriptionに接続し、メッセージを受け取ります。
 
 通常のトピックは最大スループットを制限する1つのBrokerのみから提供されます。パーティションドトピックは高いスループットを達成するために複数のBrokerにまたがる特殊なトピックです。パーティションドトピックは管理API/CLIを通じて明示的に作成される必要があります。トピックを作成する際、パーティションの数を記述できます。
 
-パーティションドトピックは実際にはN (パーティションの数) 個の内部トピックとして実装されます。内部トピックと普通のトピックについて、Subscriptionモードの挙動に違いはありません。
+パーティションドトピックは実際にはN (パーティションの数) 個の内部トピックとして実装されます。内部トピックと普通のトピックについて、サブスクリプションモードの挙動に違いはありません。
 
 ![パーティションドトピック](../../img/pulsar_partitioned_topic.jpg)
 
-**ルーティングモード** - ルーティングモードはどのパーティション (内部トピック) にメッセージがpublishされるかを決定します:
+**ルーティングモード** - ルーティングモードはどのパーティション (内部トピック) にメッセージが発行されるかを決定します:
 
 - キーハッシュ: メッセージにキーが指定されていれば、Partitioned Producerはキーをハッシュ化し、キーバケットごとの順序を保証しながら、特定のパーティションに割り当てます。
 - Single Partition: キーが指定されない場合、各プロデューサのメッセージはプロデューサごとのメッセージの順序を保証するために、 (最初にランダムに選ばれた) 専用パーティションにルーティングされます。
@@ -214,7 +214,7 @@ public interface MessageRouter extends Serializable {
 
 ### レプリケーション
 
-Pulsarでは異なるジオロケーションでのメッセージのproduce, consumeが可能です。例えば、アプリケーションが1つのジオ/マーケットにデータをpublishし、異なるジオ/マーケットでそれをconsumeし処理したいとします。Global Replicationがそれを可能にします。
+Pulsarでは異なるジオロケーションでのメッセージのproduce, consumeが可能です。例えば、アプリケーションが1つのジオ/マーケットにデータを発行し、異なるジオ/マーケットでそれをconsumeし処理したいとします。Global Replicationがそれを可能にします。
 
 ### 認証と認可
 
@@ -306,7 +306,7 @@ Consumerに引数を渡すためにConsumerConfiguration (TODO javadocs) を使�
 ```java
 // Ackが返されていないメッセージのタイムアウト値をセット (最も近いミリ秒の値になるように切り捨て)
 public ConsumerConfiguration setAckTimeout(long ackTimeout, TimeUnit timeUnit);
-// トピックのsubscribe時に使用するSubscriptionタイプを選択
+// トピックの購読時に使用するサブスクリプションタイプを選択
 public ConsumerConfiguration setSubscriptionType(SubscriptionType subscriptionType);
 // ConsumerのMessageListenerをセット
 public ConsumerConfiguration setMessageListener(MessageListener messageListener);
@@ -317,12 +317,12 @@ public ConsumerConfiguration setReceiverQueueSize(int receiverQueueSize);
 
 ## Producer API
 
-PulsarClientを使用してProducer (TODO javadocs) を作成し、10のメッセージをpublishします。
+PulsarClientを使用してProducer (TODO javadocs) を作成し、10のメッセージを発行します。
 ```java
 ProducerConfiguration = config = new ProducerConfiguration();
 Producer producer = pulsarClient.createProducer(
            "persistent://my-property/us-w/my-ns/my-topic", config);
-// 10のメッセージをトピックにpublish
+// 10のメッセージをトピックに発行
 for (int i = 0; i < 10; i++) {
     producer.send("my-message".getBytes());
 }

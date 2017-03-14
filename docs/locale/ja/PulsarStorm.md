@@ -27,7 +27,7 @@ Pulsar Stormアダプタの依存をincludeします:
 ```
 
 ## Pulsar Spout
-Pulsar Spoutを使って、Storm Topologyは[Pulsarのトピック](Architecture.md#トピック)にpublishされたデータをconsumeできます。Pulsar Spoutは受信したメッセージとクライアントが提供するMessageToValuesMapperをもとにStorm Tupleを発行します。
+Pulsar Spoutを使って、Storm Topologyは[Pulsarのトピック](Architecture.md#トピック)に発行されたデータをconsumeできます。Pulsar Spoutは受信したメッセージとクライアントが提供するMessageToValuesMapperをもとにStorm Tupleを発行します。
 
 下流のBoltでの処理に失敗したTupleはSpoutから再注入されます。この再注入は指数バックオフアルゴリズムに従い、設定可能なタイムアウト (デフォルト: 60秒) または設定可能なリトライ回数のどちらかに達するまで行われます。その後、Consumerにより処理成功の応答が返されます。
 
@@ -65,9 +65,9 @@ PulsarSpout spout = new PulsarSpout(spoutConf, clientConf, consumerConf);
 ```
 
 ## Pulsar Bolt
-Pulsar Boltを使って、Storm Topology内のデータを[Pulsarのトピック](Architecture.md#トピック)にpublishできます。Pulsar Boltは受信したStorm Tupleとクライアントが提供するTupleToMessageMapperをもとにメッセージをpublishします。
+Pulsar Boltを使って、Storm Topology内のデータを[Pulsarのトピック](Architecture.md#トピック)に発行できます。Pulsar Boltは受信したStorm Tupleとクライアントが提供するTupleToMessageMapperをもとにメッセージを発行します。
 
-異なるトピックのメッセージをpublishするためにパーティションドトピックを利用できます。その場合TupleToMessageMapperの実装において、メッセージに「キー」を用意する必要があります。同じキーを持つメッセージは同じトピックに送信されるようになります。
+異なるトピックのメッセージを発行するためにパーティションドトピックを利用できます。その場合TupleToMessageMapperの実装において、メッセージに「キー」を用意する必要があります。同じキーを持つメッセージは同じトピックに送信されるようになります。
 
 ```java
 // Pulsarクライアントの設定
