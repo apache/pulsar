@@ -58,7 +58,8 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
-import org.apache.bookkeeper.mledger.impl.MetaStore.Version;
+import org.apache.bookkeeper.mledger.impl.MetaStore.Stat;
+import org.apache.bookkeeper.mledger.impl.MetaStoreImplZookeeper.ZNodeProtobufFormat;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.mledger.util.Pair;
@@ -69,6 +70,7 @@ import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.annotations.Factory;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Charsets;
@@ -86,6 +88,12 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     private static final Logger log = LoggerFactory.getLogger(ManagedLedgerTest.class);
 
     private static final Charset Encoding = Charsets.UTF_8;
+
+    @Factory(dataProvider = "protobufFormat")
+    public ManagedLedgerTest(ZNodeProtobufFormat protobufFormat) {
+        super();
+        this.protobufFormat = protobufFormat;
+    }
 
     @Test
     public void managedLedgerApi() throws Exception {
@@ -1465,7 +1473,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         final MetaStore store = factory.getMetaStore();
         store.getManagedLedgerInfo("my_test_ledger", new MetaStoreCallback<ManagedLedgerInfo>() {
             @Override
-            public void operationComplete(ManagedLedgerInfo result, Version version) {
+            public void operationComplete(ManagedLedgerInfo result, Stat version) {
                 // Update the list
                 ManagedLedgerInfo.Builder info = ManagedLedgerInfo.newBuilder(result);
                 info.clearLedgerInfo();
@@ -1474,7 +1482,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
                 store.asyncUpdateLedgerIds("my_test_ledger", info.build(), version, new MetaStoreCallback<Void>() {
                     @Override
-                    public void operationComplete(Void result, Version version) {
+                    public void operationComplete(Void result, Stat version) {
                         counter.countDown();
                     }
 
@@ -1717,7 +1725,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     @Test
     public void testBackwardCompatiblityForMeta() throws Exception {
         final ManagedLedgerInfo[] storedMLInfo = new ManagedLedgerInfo[3];
-        final Version[] versions = new Version[1];
+        final Stat[] versions = new Stat[1];
 
         ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
         ManagedLedgerConfig conf = new ManagedLedgerConfig();
@@ -1737,7 +1745,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         // obtain the ledger info
         store.getManagedLedgerInfo("backward_test_ledger", new MetaStoreCallback<ManagedLedgerInfo>() {
             @Override
-            public void operationComplete(ManagedLedgerInfo result, Version version) {
+            public void operationComplete(ManagedLedgerInfo result, Stat version) {
                 storedMLInfo[0] = result;
                 versions[0] = version;
                 l1.countDown();
@@ -1766,7 +1774,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         CountDownLatch l2 = new CountDownLatch(1);
         store.asyncUpdateLedgerIds("backward_test_ledger", storedMLInfo[1], versions[0], new MetaStoreCallback<Void>() {
             @Override
-            public void operationComplete(Void result, Version version) {
+            public void operationComplete(Void result, Stat version) {
                 l2.countDown();
             }
 

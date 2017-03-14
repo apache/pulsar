@@ -21,6 +21,7 @@ import java.net.SocketAddress;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,6 +50,7 @@ import com.yahoo.pulsar.common.util.collections.ConcurrentLongHashMap;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.Promise;
 
 public class ClientCnx extends PulsarHandler {
@@ -64,6 +66,12 @@ public class ClientCnx extends PulsarHandler {
 
     private final CompletableFuture<Void> connectionFuture = new CompletableFuture<Void>();
     private final Semaphore pendingLookupRequestSemaphore;
+    private final EventLoopGroup eventLoopGroup;
+    private static final AtomicIntegerFieldUpdater<ClientCnx> NUMBER_OF_REJECTED_REQUESTS_UPDATER = AtomicIntegerFieldUpdater
+            .newUpdater(ClientCnx.class, "numberOfRejectRequests");
+    private volatile int numberOfRejectRequests = 0;
+    private final int maxNumberOfRejectedRequestPerConnection;
+    private final int rejectedRequestResetTimeSec = 60;
 
     enum State {
         None, SentConnectFrame, Ready
@@ -73,8 +81,10 @@ public class ClientCnx extends PulsarHandler {
         super(30, TimeUnit.SECONDS);
         this.pendingLookupRequestSemaphore = new Semaphore(pulsarClient.getConfiguration().getConcurrentLookupRequest(),
                 true);
-        authentication = pulsarClient.getConfiguration().getAuthentication();
-        state = State.None;
+        this.authentication = pulsarClient.getConfiguration().getAuthentication();
+        this.eventLoopGroup = pulsarClient.eventLoopGroup();
+        this.maxNumberOfRejectedRequestPerConnection = pulsarClient.getConfiguration().getMaxNumberOfRejectedRequestPerConnection();
+        this.state = State.None;
     }
 
     @Override
@@ -112,9 +122,10 @@ public class ClientCnx extends PulsarHandler {
 
         // Fail out all the pending ops
         pendingRequests.forEach((key, future) -> future.completeExceptionally(e));
-        pendingLookupRequests.forEach((key, future) -> getAndRemovePendingLookupRequest(key).completeExceptionally(e));
         pendingConsumerStatsRequests.forEach((key, future) -> future.completeExceptionally(e));
         pendingConsumerStatsRequests.clear();
+        pendingLookupRequests.forEach((key, future) -> future.completeExceptionally(e));
+
         // Notify all attached producers/consumers so they have a chance to reconnect
         producers.forEach((id, producer) -> producer.connectionClosed(this));
         consumers.forEach((id, consumer) -> consumer.connectionClosed(this));
@@ -216,6 +227,7 @@ public class ClientCnx extends PulsarHandler {
             // Complete future with exception if : Result.response=fail/null
             if (!lookupResult.hasResponse() || CommandLookupTopicResponse.LookupType.Failed.equals(lookupResult.getResponse())) {
                 if (lookupResult.hasError()) {
+                    checkServerError(lookupResult.getError(), lookupResult.getMessage());
                     requestFuture.completeExceptionally(
                             getPulsarClientException(lookupResult.getError(), lookupResult.getMessage()));
                 } else {
@@ -264,6 +276,7 @@ public class ClientCnx extends PulsarHandler {
             // Complete future with exception if : Result.response=fail/null
             if (!lookupResult.hasResponse() || CommandPartitionedTopicMetadataResponse.LookupType.Failed.equals(lookupResult.getResponse())) {
                 if (lookupResult.hasError()) {
+                    checkServerError(lookupResult.getError(), lookupResult.getMessage());
                     requestFuture.completeExceptionally(
                             getPulsarClientException(lookupResult.getError(), lookupResult.getMessage()));
                 } else {
@@ -362,6 +375,7 @@ public class ClientCnx extends PulsarHandler {
                 if (!writeFuture.isSuccess()) {
                     log.warn("{} Failed to send request {} to broker: {}", ctx.channel(), requestId,
                             writeFuture.cause().getMessage());
+                    getAndRemovePendingLookupRequest(requestId);
                     future.completeExceptionally(writeFuture.cause());
                     getAndRemovePendingLookupRequest(requestId);
                 }
@@ -417,12 +431,42 @@ public class ClientCnx extends PulsarHandler {
         ctx.writeAndFlush(cmd).addListener(writeFuture -> {
             if (!writeFuture.isSuccess()) {
                 log.warn("{} Failed to send request to broker: {}", ctx.channel(), writeFuture.cause().getMessage());
+                pendingRequests.remove(requestId);
                 future.completeExceptionally(writeFuture.cause());
             }
         });
         return future;
     }
 
+    /**
+     * check serverError and take appropriate action
+     * <ul>
+     * <li>InternalServerError: close connection immediately</li>
+     * <li>TooManyRequest: received error count is more than maxNumberOfRejectedRequestPerConnection in
+     * #rejectedRequestResetTimeSec</li>
+     * </ul>
+     * 
+     * @param error
+     * @param errMsg
+     */
+    private void checkServerError(ServerError error, String errMsg) {
+        if (ServerError.ServiceNotReady.equals(error)) {
+            log.error("{} Close connection becaues received internal-server error {}", ctx.channel(), errMsg);
+            ctx.close();
+        } else if (ServerError.TooManyRequests.equals(error)) {
+            long rejectedRequests = NUMBER_OF_REJECTED_REQUESTS_UPDATER.getAndIncrement(this);
+            if (rejectedRequests == 0) {
+                // schedule timer
+                eventLoopGroup.schedule(() -> NUMBER_OF_REJECTED_REQUESTS_UPDATER.set(ClientCnx.this, 0),
+                        rejectedRequestResetTimeSec, TimeUnit.SECONDS);
+            } else if (rejectedRequests >= maxNumberOfRejectedRequestPerConnection) {
+                log.error("{} Close connection becaues received {} rejected request in {} seconds ", ctx.channel(),
+                        NUMBER_OF_REJECTED_REQUESTS_UPDATER.get(ClientCnx.this), rejectedRequestResetTimeSec);
+                ctx.close();
+            }
+        }
+    }
+    
     void registerConsumer(final long consumerId, final ConsumerImpl consumer) {
         consumers.put(consumerId, consumer);
     }

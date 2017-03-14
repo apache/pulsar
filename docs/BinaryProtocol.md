@@ -34,7 +34,7 @@ Commands for different producers and consumers can be interleaved and sent
 through the same connection without any restriction.
 
 All the commands are embedded in a
-[`BaseCommand`](https://github.com/yahoo/pulsar/blob/master/pulsar-common/src/main/proto/PulsarApi.proto#L283)
+[`BaseCommand`](https://github.com/yahoo/pulsar/blob/master/pulsar-common/src/main/proto/PulsarApi.proto#L335)
 protobuf object that includes a type enum and all the possible sub-commands as
 optional fields. At any time, one `BaseCommand` can only have set a single
 sub-command.

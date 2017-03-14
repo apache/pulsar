@@ -144,7 +144,8 @@ class BinaryProtoLookupService implements LookupService {
                                     lookupDataResult.redirect, lookupDataResult.partitions, e.getMessage())));
                 }
             }).exceptionally((e) -> {
-                log.warn("[{}] failed to get Partitioned metadata : {}", destination.toString(), e.getMessage(), e);
+                log.warn("[{}] failed to get Partitioned metadata : {}", destination.toString(),
+                        e.getCause().getMessage(), e);
                 partitionFuture.completeExceptionally(e);
                 return null;
             });

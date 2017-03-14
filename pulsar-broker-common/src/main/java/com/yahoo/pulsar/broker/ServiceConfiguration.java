@@ -182,6 +182,14 @@ public class ServiceConfiguration implements PulsarConfiguration{
     private int managedLedgerCursorMaxEntriesPerLedger = 50000;
     // Max time before triggering a rollover on a cursor ledger
     private int managedLedgerCursorRolloverTimeInSeconds = 14400;
+    // Max number of "acknowledgment holes" that are going to be persistently stored.
+    // When acknowledging out of order, a consumer will leave holes that are supposed
+    // to be quickly filled by acking all the messages. The information of which
+    // messages are acknowledged is persisted by compressing in "ranges" of messages
+    // that were acknowledged. After the max number of ranges is reached, the information
+    // will only be tracked in memory and messages will be redelivered in case of
+    // crashes.
+    private int managedLedgerMaxUnackedRangesToPersist = 1000;
 
     /*** --- Load balancer --- ****/
     // Enable load balancer
@@ -690,6 +698,14 @@ public class ServiceConfiguration implements PulsarConfiguration{
 
     public void setManagedLedgerCursorRolloverTimeInSeconds(int managedLedgerCursorRolloverTimeInSeconds) {
         this.managedLedgerCursorRolloverTimeInSeconds = managedLedgerCursorRolloverTimeInSeconds;
+    }
+
+    public int getManagedLedgerMaxUnackedRangesToPersist() {
+        return managedLedgerMaxUnackedRangesToPersist;
+    }
+
+    public void setManagedLedgerMaxUnackedRangesToPersist(int managedLedgerMaxUnackedRangesToPersist) {
+        this.managedLedgerMaxUnackedRangesToPersist = managedLedgerMaxUnackedRangesToPersist;
     }
 
     public boolean isLoadBalancerEnabled() {
