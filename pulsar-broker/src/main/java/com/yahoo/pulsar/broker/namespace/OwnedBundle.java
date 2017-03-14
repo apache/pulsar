@@ -40,6 +40,7 @@ public class OwnedBundle {
     private static final AtomicIntegerFieldUpdater<OwnedBundle> IS_ACTIVE_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(OwnedBundle.class, "isActive");
     private volatile int isActive = TRUE;
+    private volatile int version = -1;
 
     /**
      * constructor
@@ -147,5 +148,13 @@ public class OwnedBundle {
 
     public void setActive(boolean active) {
         IS_ACTIVE_UPDATER.set(this, active ? TRUE : FALSE);
+    }
+    
+    public int getVersion() {
+        return version;
+    }
+
+    public void setVersion(int version) {
+        this.version = version;
     }
 }

@@ -15,8 +15,6 @@
  */
 package com.yahoo.pulsar.broker.namespace;
 
-import static com.google.common.base.Preconditions.checkState;
-
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -27,6 +25,7 @@ import java.util.concurrent.Executor;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.KeeperException.Code;
 import org.apache.zookeeper.ZooDefs.Ids;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,8 +35,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.benmanes.caffeine.cache.AsyncCacheLoader;
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
-import com.github.benmanes.caffeine.cache.RemovalCause;
-import com.github.benmanes.caffeine.cache.RemovalListener;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.yahoo.pulsar.broker.PulsarService;
@@ -105,7 +102,7 @@ public class OwnershipCache {
      * The <code>NamespaceBundleFactory</code> to construct <code>NamespaceBundles</code>
      */
     private final NamespaceBundleFactory bundleFactory;
-
+    
     private class OwnedServiceUnitCacheLoader implements AsyncCacheLoader<String, OwnedBundle> {
 
         @SuppressWarnings("deprecation")
@@ -130,9 +127,16 @@ public class OwnershipCache {
                             if (LOG.isDebugEnabled()) {
                                 LOG.debug("Successfully acquired zk lock on {}", namespaceBundleZNode);
                             }
+                            final OwnedBundle bundle = new OwnedBundle(
+                                    ServiceUnitZkUtils.suBundleFromPath(namespaceBundleZNode, bundleFactory));
+                            // update the version
+                            localZkCache.getZooKeeper().exists(path, false, (rc1, path1, ctx1, stat) -> {
+                                if (rc == Code.OK.intValue()) {
+                                    bundle.setVersion(stat.getVersion());
+                                }
+                            }, null);
                             ownershipReadOnlyCache.invalidate(namespaceBundleZNode);
-                            future.complete(new OwnedBundle(
-                                    ServiceUnitZkUtils.suBundleFromPath(namespaceBundleZNode, bundleFactory)));
+                            future.complete(bundle);
                         } else {
                             // Failed to acquire lock
                             future.completeExceptionally(KeeperException.create(rc));
@@ -250,9 +254,15 @@ public class OwnershipCache {
      *
      */
     public CompletableFuture<Void> removeOwnership(NamespaceBundle bundle) {
+        final String key = ServiceUnitZkUtils.path(bundle);
+        final OwnedBundle ownedBundle = getOwnedBundle(bundle);
+        if (ownedBundle == null) {
+            return FutureUtil
+                    .failedFuture(new IllegalArgumentException(String.format("bundle %s is not owned by broker", key)));
+        }
         CompletableFuture<Void> result = new CompletableFuture<>();
-        String key = ServiceUnitZkUtils.path(bundle);
-        localZkCache.getZooKeeper().delete(key, -1, (rc, path, ctx) -> {
+
+        localZkCache.getZooKeeper().delete(key, ownedBundle.getVersion(), (rc, path, ctx) -> {
             if (rc == KeeperException.Code.OK.intValue() || rc == KeeperException.Code.NONODE.intValue()) {
                 LOG.info("[{}] Removed zk lock for service unit: {}", key, KeeperException.Code.get(rc));
                 ownedBundlesCache.synchronous().invalidate(key);
