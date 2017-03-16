@@ -172,7 +172,7 @@ entities.
 
 We can mainly access following broker’s entities using admin command
 line tool. If you are not already aware about any of following entity
-then you can read in details at *Getting-started-guide*. [TODO: add link]
+then you can read in details at [Getting-started-guide](GettingStarted.md).
 
 ### Brokers
 
