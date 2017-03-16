@@ -10,6 +10,7 @@
 		- [Configure broker](#configure-broker)
 		- [Configure discovery service](#configure-discovery-service)
 		- [Configure Java client](#configure-java-client)
+		- [Configure C++ client](#configure-c-client)
 		- [Configure CLI tools](#configure-cli-tools)
 
 <!-- /TOC -->
@@ -138,6 +139,25 @@ conf.setAuthentication(AuthenticationTls.class.getName(), authParams);
 PulsarClient client = PulsarClient.create(
                         "pulsar+ssl://my-broker.com:6651", conf);
 ```
+
+#### Configure C++ client
+
+```cpp
+ClientConfiguration config = ClientConfiguration();
+config.setUseTls(true);
+std::string certfile = "/path/to/cacert.pem";
+
+ParamMap params;
+params["tlsCertFile"] = "/path/to/client-cert.pem";
+params["tlsKeyFile"]  = "/path/to/client-key.pem";
+config.setTlsTrustCertsFilePath(certfile);
+config.setTlsAllowInsecureConnection(false);
+AuthenticationPtr auth = pulsar::Auth::create("/path/to/libauthtls.so", params);
+config.setAuthentication(auth);
+
+Client client("pulsar+ssl://my-broker.com:6651",config);
+```
+
 
 #### Configure CLI tools
 
