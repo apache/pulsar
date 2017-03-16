@@ -315,10 +315,7 @@ public class OwnershipCacheTest {
             cache.removeOwnership(bundle).get();
             fail("Should have failed");
         } catch (Exception e) {
-            // Ok
-            if (!(e.getCause() instanceof KeeperException.BadVersionException)) {
-                fail("Should have failed with BadVersionException instead " + e.getCause().getMessage());
-            }
+            assertEquals(e.getCause().getClass(), KeeperException.BadVersionException.class);
         }
     }
     

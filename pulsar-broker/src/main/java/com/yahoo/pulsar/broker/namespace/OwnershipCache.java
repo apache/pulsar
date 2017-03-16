@@ -102,7 +102,7 @@ public class OwnershipCache {
      * The <code>NamespaceBundleFactory</code> to construct <code>NamespaceBundles</code>
      */
     private final NamespaceBundleFactory bundleFactory;
-    
+
     private class OwnedServiceUnitCacheLoader implements AsyncCacheLoader<String, OwnedBundle> {
 
         @SuppressWarnings("deprecation")
