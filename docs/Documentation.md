@@ -14,3 +14,5 @@
   - [Apache Storm adaptor](PulsarStorm.md)
 * Internal Docs
   - [Binary protocol specification](BinaryProtocol.md)
+* Other Languages
+  - [Japanese](locale/ja/Documentation.md)
