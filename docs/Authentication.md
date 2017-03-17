@@ -133,7 +133,7 @@ conf.setTlsTrustCertsFilePath("/path/to/cacert.pem");
 
 Map<String, String> authParams = new HashMap<>();
 authParams.put("tlsCertFile", "/path/to/client-cert.pem");
-authParams.put("tlsKeyFile", "/path/to/client-cert.pem");
+authParams.put("tlsKeyFile", "/path/to/client-key.pem");
 conf.setAuthentication(AuthenticationTls.class.getName(), authParams);
 
 PulsarClient client = PulsarClient.create(
@@ -167,7 +167,7 @@ add there the authentication parameters:
 ```shell
 serviceUrl=https://broker.example.com:8443/
 authPlugin=com.yahoo.pulsar.client.impl.auth.AuthenticationTls
-authParams=tlsCertFile:/path/to/client-cert.pem,tlsKeyFile:/path/to/client-cert.pem
+authParams=tlsCertFile:/path/to/client-cert.pem,tlsKeyFile:/path/to/client-key.pem
 useTls=true
 tlsAllowInsecureConnection=false
 tlsTrustCertsFilePath=/path/to/cacert.pem
