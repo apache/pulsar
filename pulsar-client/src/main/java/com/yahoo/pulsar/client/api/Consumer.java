@@ -19,7 +19,7 @@ import java.io.Closeable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
-import com.yahoo.pulsar.client.impl.BrokerConsumerStats;
+import com.yahoo.pulsar.client.impl.BrokerConsumerStatsImpl;
 import com.yahoo.pulsar.client.impl.ConsumerStats;
 
 /**
@@ -232,12 +232,13 @@ public interface Consumer extends Closeable {
      * breaks, the messages are redelivered after reconnect.
      */
     void redeliverUnacknowledgedMessages();
-    
+
     /**
      * Gets Consumer Stats from broker. The stats are cached for
      * {@link ConsumerConfiguration.getBrokerConsumerStatsCacheTimeInMs()} milliseconds.
      * 
-     * @return a Completeable future for BrokerConsumerStats
+     * @return A Completeable future for BrokerConsumerStats. Cast the BrokerConsumerStats to
+     *         PartitionedBrokerConsumerStats in order to get Consumer Stats per partition.
      */
     CompletableFuture<BrokerConsumerStats> getBrokerConsumerStatsAsync();
 

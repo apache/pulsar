@@ -34,6 +34,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
+import com.yahoo.pulsar.client.api.BrokerConsumerStats;
 import com.yahoo.pulsar.client.api.Consumer;
 import com.yahoo.pulsar.client.api.ConsumerConfiguration;
 import com.yahoo.pulsar.client.api.Message;
@@ -129,7 +130,7 @@ public class PartitionedConsumerImpl extends ConsumerBase {
 
             if (incomingMessages.size() >= maxReceiverQueueSize
                     || (incomingMessages.size() > sharedQueueResumeThreshold && !pausedConsumers.isEmpty())) {
-                // mark this consumer to be resumed later: if No more space left in shared queue, 
+                // mark this consumer to be resumed later: if No more space left in shared queue,
                 // or if any consumer is already paused (to create fair chance for already paused consumers)
                 pausedConsumers.add(consumer);
             } else {
@@ -329,7 +330,8 @@ public class PartitionedConsumerImpl extends ConsumerBase {
         lock.readLock().lock();
         try {
             if (log.isDebugEnabled()) {
-                log.debug("[{}][{}] Received message from partitioned-consumer {}", topic, subscription, message.getMessageId());
+                log.debug("[{}][{}] Received message from partitioned-consumer {}", topic, subscription,
+                        message.getMessageId());
             }
             // if asyncReceive is waiting : return message to callback without adding to incomingMessages queue
             if (!pendingReceives.isEmpty()) {
@@ -360,7 +362,8 @@ public class PartitionedConsumerImpl extends ConsumerBase {
 
                 try {
                     if (log.isDebugEnabled()) {
-                        log.debug("[{}][{}] Calling message listener for message {}", topic, subscription, message.getMessageId());
+                        log.debug("[{}][{}] Calling message listener for message {}", topic, subscription,
+                                message.getMessageId());
                     }
                     listener.received(PartitionedConsumerImpl.this, msg);
                 } catch (Throwable t) {
@@ -453,11 +456,15 @@ public class PartitionedConsumerImpl extends ConsumerBase {
 
     @Override
     public CompletableFuture<BrokerConsumerStats> getBrokerConsumerStatsAsync() {
-        BrokerConsumerStats brokerConsumerStats = new BrokerConsumerStats();
+        PartitionedBrokerConsumerStatsImpl brokerConsumerStats = new PartitionedBrokerConsumerStatsImpl();
         List<CompletableFuture<Void>> futures = Lists.newArrayList();
         for (Consumer c : consumers) {
-            futures.add(c.getBrokerConsumerStatsAsync().thenAcceptAsync(stats -> {brokerConsumerStats.add(stats);}));
+            futures.add(c.getBrokerConsumerStatsAsync().thenAccept(stats -> {
+                brokerConsumerStats.add(stats);
+            }));
         }
-        return FutureUtil.waitForAll(futures).thenApplyAsync( r -> {return brokerConsumerStats;});
+        return FutureUtil.waitForAll(futures).thenApply(r -> {
+            return brokerConsumerStats;
+        });
     }
 }

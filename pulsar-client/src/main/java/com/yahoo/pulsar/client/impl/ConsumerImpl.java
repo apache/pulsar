@@ -37,6 +37,7 @@ import com.google.common.collect.Iterables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.yahoo.pulsar.client.api.BrokerConsumerStats;
 import com.yahoo.pulsar.client.api.Consumer;
 import com.yahoo.pulsar.client.api.ConsumerConfiguration;
 import com.yahoo.pulsar.client.api.Message;
@@ -92,7 +93,7 @@ public class ConsumerImpl extends ConsumerBase {
 
     private final ConsumerStats stats;
     private final int priorityLevel;
-    private volatile BrokerConsumerStats brokerConsumerStats = new BrokerConsumerStats();
+    private volatile BrokerConsumerStatsImpl brokerConsumerStats = new BrokerConsumerStatsImpl();
 
     ConsumerImpl(PulsarClientImpl client, String topic, String subscription, ConsumerConfiguration conf,
                  ExecutorService listenerExecutor, CompletableFuture<Consumer> subscribeFuture) {
@@ -1023,10 +1024,9 @@ public class ConsumerImpl extends ConsumerBase {
         }
 
         if (brokerConsumerStats.isValid()) {
-            CompletableFuture<BrokerConsumerStats> future = new CompletableFuture<BrokerConsumerStats>();
-            future.complete(brokerConsumerStats);
-            return future;
+            return CompletableFuture.completedFuture(brokerConsumerStats);
         }
+        
         long requestId = client.newRequestId();
         return cnx().newConsumerStats(topic, subscription, consumerId, requestId)
                 .thenApplyAsync(brokerConsumerStats -> {

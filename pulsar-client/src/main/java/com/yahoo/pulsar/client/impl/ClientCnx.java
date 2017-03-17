@@ -60,7 +60,7 @@ public class ClientCnx extends PulsarHandler {
 
     private final ConcurrentLongHashMap<CompletableFuture<String>> pendingRequests = new ConcurrentLongHashMap<>(16, 1);
     private final ConcurrentLongHashMap<CompletableFuture<LookupDataResult>> pendingLookupRequests = new ConcurrentLongHashMap<>(16, 1);
-    private final ConcurrentLongHashMap<CompletableFuture<BrokerConsumerStats>> pendingConsumerStatsRequests = new ConcurrentLongHashMap<>(16, 1);
+    private final ConcurrentLongHashMap<CompletableFuture<BrokerConsumerStatsImpl>> pendingConsumerStatsRequests = new ConcurrentLongHashMap<>(16, 1);
     private final ConcurrentLongHashMap<ProducerImpl> producers = new ConcurrentLongHashMap<>(16, 1);
     private final ConcurrentLongHashMap<ConsumerImpl> consumers = new ConcurrentLongHashMap<>(16, 1);
 
@@ -251,14 +251,14 @@ public class ClientCnx extends PulsarHandler {
             log.debug("Received Consumer Stats response for request id: {}", response.getRequestId());
         }
         long requestId = response.getRequestId();
-        CompletableFuture<BrokerConsumerStats> future = pendingConsumerStatsRequests.remove(requestId);
+        CompletableFuture<BrokerConsumerStatsImpl> future = pendingConsumerStatsRequests.remove(requestId);
 
         if (future != null) {
             if (response.hasErrorCode()) {
                 future.completeExceptionally(getPulsarClientException(response.getErrorCode(),
                         response.hasErrorMessage() ? response.getErrorMessage() : null));
             } else {
-                future.complete(new BrokerConsumerStats(response));
+                future.complete(new BrokerConsumerStatsImpl(response));
             }
         } else {
             log.warn("{} Received unknown request id from server: {}", ctx.channel(), requestId);
@@ -390,8 +390,8 @@ public class ClientCnx extends PulsarHandler {
         return future;
     }
     
-    CompletableFuture<BrokerConsumerStats> newConsumerStats(String topicName, String subscriptionName, long consumerId, long requestId) {
-        CompletableFuture<BrokerConsumerStats> future = new CompletableFuture<>();
+    CompletableFuture<BrokerConsumerStatsImpl> newConsumerStats(String topicName, String subscriptionName, long consumerId, long requestId) {
+        CompletableFuture<BrokerConsumerStatsImpl> future = new CompletableFuture<>();
         ByteBuf request = Commands.newConsumerStats(topicName, subscriptionName, consumerId, requestId);
         ctx.writeAndFlush(request).addListener(writeFuture -> {
             if (!writeFuture.isSuccess()) {

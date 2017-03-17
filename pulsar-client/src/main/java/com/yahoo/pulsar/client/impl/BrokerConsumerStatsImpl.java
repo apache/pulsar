@@ -15,10 +15,11 @@
  */
 package com.yahoo.pulsar.client.impl;
 
+import com.yahoo.pulsar.client.api.BrokerConsumerStats;
 import com.yahoo.pulsar.client.api.SubscriptionType;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse;
 
-public class BrokerConsumerStats {
+public class BrokerConsumerStatsImpl implements BrokerConsumerStats {
 
     private final String DELIMITER = ";";
 
@@ -61,7 +62,7 @@ public class BrokerConsumerStats {
     /** Number of messages in the subscription backlog */
     private long msgBacklog = 0;
 
-    public BrokerConsumerStats(CommandConsumerStatsResponse response) {
+    public BrokerConsumerStatsImpl(CommandConsumerStatsResponse response) {
         super();
         this.validTillInMs = System.currentTimeMillis();
         this.msgRateOut = response.getMsgRateOut();
@@ -78,7 +79,7 @@ public class BrokerConsumerStats {
         this.msgBacklog = response.getMsgBacklog();
     }
 
-    public BrokerConsumerStats() {
+    public BrokerConsumerStatsImpl() {
     }
 
     public void setCacheTime(long timeInMs) {
@@ -138,7 +139,7 @@ public class BrokerConsumerStats {
         return msgBacklog;
     }
 
-    public synchronized void add(BrokerConsumerStats stats) {
+    public synchronized void add(BrokerConsumerStatsImpl stats) {
         this.validTillInMs = (validTillInMs > stats.validTillInMs) ? validTillInMs : stats.validTillInMs;
         this.msgRateOut += stats.msgRateOut;
         this.msgThroughputOut += stats.msgThroughputOut;
