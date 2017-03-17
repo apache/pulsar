@@ -55,6 +55,7 @@
 			- [get retention](#get-retention)
 		- [Persistent](#persistent)
 			- [create partitioned topic](#create-partitioned-topic)
+			- [update partitioned topic](#update-partitioned-topic)
 			- [get partitioned topic](#get-partitioned-topic)
 			- [delete partitioned topic](#delete-partitioned-topic)
 			- [Delete topic](#delete-topic)
@@ -1405,6 +1406,36 @@ PUT /admin/persistent/{property}/{cluster}/{namespace}/{destination}/partitions
 admin.persistentTopics().createPartitionedTopic(persistentTopic, numPartitions)
 ```
 
+#### update partitioned topic
+
+
+It updates number of partitions of an existing non-global partitioned topic. It requires partitioned-topic to be already 
+exist and number of new partitions must be greater than existing number of partitions. Decrementing number of partitions
+requires deletion of topic which is not supported.  
+
+###### CLI
+
+
+```
+$ pulsar-admin persistent update-partitioned-topic --partitions 4 persistent://test-property/cl1/ns1/pt1
+```
+
+```
+N/A
+```
+
+###### REST
+
+```
+POST /admin/persistent/{property}/{cluster}/{namespace}/{destination}/partitions
+```
+
+###### Java
+
+```java
+admin.persistentTopics().updatePartitionedTopic(persistentTopic, numPartitions)
+```
+
 #### get partitioned topic
 
 It gives metadata of created partitioned topic.  
@@ -2401,27 +2432,27 @@ In your terminal, go to below directory to play with client tool.
 <table>
   <tbody>
   <tr>
-      <td colspan="2">```pulsar-client produce```</td>   
+      <td colspan="2">pulsar-client produce</td>   
     </tr>
     <tr>
       <th>options</th>
       <th>description</th>   
     </tr>
     <tr>
-      <td>```-f, --files```</td>
-      <td>```Comma separated file paths to send. Cannot be used with -m. Either -f or -m must be provided```</td>
+      <td>-f, --files</td>
+      <td>Comma separated file paths to send. Cannot be used with -m. Either -f or -m must be provided</td>
     </tr>
     <tr>
-      <td>```-m, --messages```</td>
-      <td>```Comma separted string messages to send. Cannot be used with -f. Either -m or -f must be provided```</td>
+      <td>-m, --message`</td>
+      <td>Comma separted string messages to send. Cannot be used with -f. Either -m or -f must be provided</td>
     </tr>
     <tr>
-      <td>```-n, --num-produce```</td>
-      <td>```Number of times to send message(s), Default: 1```</td>
+      <td>-n, --num-produce</td>
+      <td>Number of times to send message(s), Default: 1</td>
     </tr>
     <tr>
-      <td>```-r, --rate```</td>
-      <td>```Rate (in msg/sec) at which to produce. Value of 0 will produce messages as fast as possible, Default: 0.0```</td>
+      <td>-r, --rate</td>
+      <td>Rate (in msg/sec) at which to produce. Value of 0 will produce messages as fast as possible, Default: 0.0</td>
     </tr>
 <table>
 
@@ -2429,30 +2460,30 @@ In your terminal, go to below directory to play with client tool.
 <table>
   <tbody>
   <tr>
-      <td colspan="2">```pulsar-client consume```</td>   
+      <td colspan="2">pulsar-client consume</td>   
     </tr>
     <tr>
       <th>options</th>
       <th>description</th>   
     </tr>
     <tr>
-      <td>```--hex```</td>
-      <td>```Display binary messages in hex, Default: false```</td>
+      <td>--hex</td>
+      <td>Display binary messages in hex, Default: false</td>
     </tr>
     <tr>
-      <td>```-n, --num-messages```</td>
-      <td>```Number of messages to consume, Default: 1```</td>
+      <td>-n, --num-messages</td>
+      <td>Number of messages to consume, Default: 1</td>
     </tr>
     <tr>
-      <td>```-r, --rate```</td>
-      <td>```Rate (in msg/sec) at which to consume. Value of 0 will consume messages as fast as possible, Default: 0.0```</td>
+      <td>-r, --rate</td>
+      <td>Rate (in msg/sec) at which to consume. Value of 0 will consume messages as fast as possible, Default: 0.0</td>
     </tr>
     <tr>
-      <td>```-s, --subscription-name```</td>
-      <td>```Subscription name```</td>
+      <td>-s, --subscription-name</td>
+      <td>Subscription name</td>
     </tr>
     <tr>
-      <td>```-t, --subscription-type```</td>
-      <td>```Subscription type: Exclusive, Shared, Failover, Default: Exclusive```</td>
+      <td>-t, --subscription-type</td>
+      <td>Subscription type: Exclusive, Shared, Failover, Default: Exclusive</td>
     </tr>
 <table>

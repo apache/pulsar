@@ -146,6 +146,27 @@ public class PersistentTopicsImpl extends BaseResource implements PersistentTopi
     }
 
     @Override
+    public void updatePartitionedTopic(String destination, int numPartitions) throws PulsarAdminException {
+        try {
+            updatePartitionedTopicAsync(destination, numPartitions).get();
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e.getCause());
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> updatePartitionedTopicAsync(String destination, int numPartitions) {
+        checkArgument(numPartitions > 1, "Number of partitions must be more than 1");
+        DestinationName ds = validateTopic(destination);
+        return asyncPostRequest(
+                persistentTopics.path(ds.getNamespace()).path(ds.getEncodedLocalName()).path("partitions"),
+                Entity.entity(numPartitions, MediaType.APPLICATION_JSON));
+    }
+    
+    @Override
     public PartitionedTopicMetadata getPartitionedTopicMetadata(String destination) throws PulsarAdminException {
         try {
             return getPartitionedTopicMetadataAsync(destination).get();
