@@ -60,7 +60,7 @@ namespace pulsar {
         virtual void redeliverUnacknowledgedMessages();
         virtual const std::string& getName() const;
         virtual int getNumOfPrefetchedMessages() const ;
-        virtual void getConsumerStatsAsync(BrokerConsumerStatsCallback callback, int partitionIndex = -1);
+        virtual void getConsumerStatsAsync(BrokerConsumerStatsCallback callback);
 
     private:
         const ClientImplPtr client_;

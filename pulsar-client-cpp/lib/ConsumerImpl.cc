@@ -687,11 +687,7 @@ int ConsumerImpl::getNumOfPrefetchedMessages() const {
     return incomingMessages_.size();
 }
 
-void ConsumerImpl::getConsumerStatsAsync(BrokerConsumerStatsCallback callback, int partitionIndex) {
-    if (partitionIndex != -1) {
-        LOG_WARN(getName() << "Ignoring the partitionIndex since the topic is not partitioned")
-    }
-
+void ConsumerImpl::getConsumerStatsAsync(BrokerConsumerStatsCallback callback) {
     Lock lock(mutex_);
     if (state_ != Ready) {
         LOG_ERROR(getName() << "Client connection is not open, please try again later.")

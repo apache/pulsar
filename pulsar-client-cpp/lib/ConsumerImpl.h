@@ -91,7 +91,7 @@ enum ConsumerTopicType {
     virtual Result pauseMessageListener();
     virtual Result resumeMessageListener();
     virtual void redeliverUnacknowledgedMessages();
-    virtual void getConsumerStatsAsync(BrokerConsumerStatsCallback callback, int partitionIndex = -1);
+    virtual void getConsumerStatsAsync(BrokerConsumerStatsCallback callback);
  protected:
     void connectionOpened(const ClientConnectionPtr& cnx);
     void connectionFailed(Result result);

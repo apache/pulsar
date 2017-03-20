@@ -380,8 +380,10 @@ namespace pulsar {
         return messages_.size();
     }
 
-    void PartitionedConsumerImpl::getConsumerStatsAsync(BrokerConsumerStatsCallback callback, int partitionIndex) {
+    void PartitionedConsumerImpl::getConsumerStatsAsync(BrokerConsumerStatsCallback callback) {
         Lock lock(mutex_);
+        // TODO - think about this code change
+        /*
         if (partitionIndex >= numPartitions_ || partitionIndex < 0 || partitionIndex >= consumers_.size())
         {
             lock.unlock();
@@ -392,5 +394,6 @@ namespace pulsar {
         lock.unlock();
 
         return c->getConsumerStatsAsync(callback);
+         */
     }
 }

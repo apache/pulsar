@@ -350,11 +350,10 @@ class Consumer {
      * still valid.
      *
      * @param brokerConsumerStats - if the function returns ResultOk, this object will contain consumer stats
-     * @param partitionIndex - optional parameter which is to be populated only if the topic is partitioned.
      *
      * @note This is a blocking call with timeout of thirty seconds.
      */
-    Result getConsumerStats(BrokerConsumerStats& brokerConsumerStats, int partitionIndex = -1);
+    Result getConsumerStats(BrokerConsumerStats& brokerConsumerStats);
 
     /**
     * Asynchronous call to gets Consumer Stats from broker.
@@ -364,9 +363,8 @@ class Consumer {
     *
     * @param callback - callback function to get the brokerConsumerStats,
     *                   if result is ResultOk then the brokerConsumerStats will be populated
-    * @param partitionIndex - optional parameter which is to be populated only if the topic is partitioned.
     */
-    void getConsumerStatsAsync(BrokerConsumerStatsCallback callback, int partitionIndex = -1);
+    void getConsumerStatsAsync(BrokerConsumerStatsCallback callback);
 private:
     typedef boost::shared_ptr<ConsumerImplBase> ConsumerImplBasePtr;
     friend class PulsarFriend;
