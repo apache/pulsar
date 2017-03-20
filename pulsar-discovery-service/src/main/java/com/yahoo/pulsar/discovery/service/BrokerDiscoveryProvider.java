@@ -39,7 +39,6 @@ import com.yahoo.pulsar.common.policies.data.loadbalancer.LoadReport;
 import com.yahoo.pulsar.discovery.service.server.ServiceConfig;
 import com.yahoo.pulsar.discovery.service.web.ZookeeperCacheLoader;
 import com.yahoo.pulsar.zookeeper.GlobalZooKeeperCache;
-import com.yahoo.pulsar.zookeeper.ZooKeeperCache.Deserializer;
 import com.yahoo.pulsar.zookeeper.ZooKeeperClientFactory;
 
 /**
@@ -98,23 +97,21 @@ public class BrokerDiscoveryProvider implements Closeable {
             final String path = path(PARTITIONED_TOPIC_PATH_ZNODE, destination.getProperty(), destination.getCluster(),
                     destination.getNamespacePortion(), "persistent", destination.getEncodedLocalName());
             // gets the number of partitions from the zk cache
-            globalZkCache.getDataAsync(path, new Deserializer<PartitionedTopicMetadata>() {
-                @Override
-                public PartitionedTopicMetadata deserialize(String key, byte[] content) throws Exception {
-                    return getThreadLocal().readValue(content, PartitionedTopicMetadata.class);
-                }
-            }).thenAccept(metadata -> {
-                // if the partitioned topic is not found in zk, then the topic
-                // is not partitioned
-                if (metadata.isPresent()) {
-                    metadataFuture.complete(metadata.get());
-                } else {
-                    metadataFuture.complete(new PartitionedTopicMetadata());
-                }
-            }).exceptionally(ex -> {
-                metadataFuture.complete(new PartitionedTopicMetadata());
-                return null;
-            });
+            globalZkCache
+                    .getDataAsync(path,
+                            (key, content) -> getThreadLocal().readValue(content, PartitionedTopicMetadata.class))
+                    .thenAccept(metadata -> {
+                        // if the partitioned topic is not found in zk, then the topic
+                        // is not partitioned
+                        if (metadata.isPresent()) {
+                            metadataFuture.complete(metadata.get());
+                        } else {
+                            metadataFuture.complete(new PartitionedTopicMetadata());
+                        }
+                    }).exceptionally(ex -> {
+                        metadataFuture.completeExceptionally(ex);
+                        return null;
+                    });
         } catch (Exception e) {
             metadataFuture.completeExceptionally(e);
         }
@@ -122,7 +119,7 @@ public class BrokerDiscoveryProvider implements Closeable {
     }
 
     protected static void checkAuthorization(DiscoveryService service, DestinationName destination, String role)
-            throws IllegalAccessException {
+            throws Exception {
         if (!service.getConfiguration().isAuthorizationEnabled()
                 || service.getConfiguration().getSuperUserRoles().contains(role)) {
             // No enforcing of authorization policies

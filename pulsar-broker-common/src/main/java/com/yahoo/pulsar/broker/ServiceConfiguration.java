@@ -62,6 +62,7 @@ public class ServiceConfiguration implements PulsarConfiguration{
     private long zooKeeperSessionTimeoutMillis = 30000;
     // Time to wait for broker graceful shutdown. After this time elapses, the
     // process will be killed
+    @FieldContext(dynamic = true)
     private long brokerShutdownTimeoutMs = 3000;
     // Enable backlog quota check. Enforces action on topic when the quota is
     // reached
@@ -87,6 +88,9 @@ public class ServiceConfiguration implements PulsarConfiguration{
     // messages to consumer once, this limit reaches until consumer starts acknowledging messages back
     // Using a value of 0, is disabling unackedMessage-limit check and consumer can receive messages without any restriction
     private int maxUnackedMessagesPerConsumer = 50000;
+    // Max number of concurrent lookup request broker allows to throttle heavy incoming lookup traffic
+    @FieldContext(dynamic = true)
+    private int maxConcurrentLookupRequest = 10000;
 
     /***** --- TLS --- ****/
     // Enable TLS
@@ -178,6 +182,14 @@ public class ServiceConfiguration implements PulsarConfiguration{
     private int managedLedgerCursorMaxEntriesPerLedger = 50000;
     // Max time before triggering a rollover on a cursor ledger
     private int managedLedgerCursorRolloverTimeInSeconds = 14400;
+    // Max number of "acknowledgment holes" that are going to be persistently stored.
+    // When acknowledging out of order, a consumer will leave holes that are supposed
+    // to be quickly filled by acking all the messages. The information of which
+    // messages are acknowledged is persisted by compressing in "ranges" of messages
+    // that were acknowledged. After the max number of ranges is reached, the information
+    // will only be tracked in memory and messages will be redelivered in case of
+    // crashes.
+    private int managedLedgerMaxUnackedRangesToPersist = 1000;
 
     /*** --- Load balancer --- ****/
     // Enable load balancer
@@ -412,6 +424,14 @@ public class ServiceConfiguration implements PulsarConfiguration{
 
     public void setMaxUnackedMessagesPerConsumer(int maxUnackedMessagesPerConsumer) {
         this.maxUnackedMessagesPerConsumer = maxUnackedMessagesPerConsumer;
+    }
+
+    public int getMaxConcurrentLookupRequest() {
+        return maxConcurrentLookupRequest;
+    }
+
+    public void setMaxConcurrentLookupRequest(int maxConcurrentLookupRequest) {
+        this.maxConcurrentLookupRequest = maxConcurrentLookupRequest;
     }
 
     public boolean isTlsEnabled() {
@@ -678,6 +698,14 @@ public class ServiceConfiguration implements PulsarConfiguration{
 
     public void setManagedLedgerCursorRolloverTimeInSeconds(int managedLedgerCursorRolloverTimeInSeconds) {
         this.managedLedgerCursorRolloverTimeInSeconds = managedLedgerCursorRolloverTimeInSeconds;
+    }
+
+    public int getManagedLedgerMaxUnackedRangesToPersist() {
+        return managedLedgerMaxUnackedRangesToPersist;
+    }
+
+    public void setManagedLedgerMaxUnackedRangesToPersist(int managedLedgerMaxUnackedRangesToPersist) {
+        this.managedLedgerMaxUnackedRangesToPersist = managedLedgerMaxUnackedRangesToPersist;
     }
 
     public boolean isLoadBalancerEnabled() {

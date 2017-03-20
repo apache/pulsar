@@ -26,7 +26,6 @@ public class BackoffTest {
     @Test
     public void shouldBackoffTest() {
         long currentTimestamp = System.nanoTime();
-        System.out.println(currentTimestamp);
         Backoff testBackoff = new Backoff(currentTimestamp, TimeUnit.NANOSECONDS, 100, TimeUnit.MICROSECONDS);
         // gives false
         Assert.assertTrue(!testBackoff.shouldBackoff(0L, TimeUnit.NANOSECONDS, 0));

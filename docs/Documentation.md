@@ -4,6 +4,7 @@
 * [Architecture](Architecture.md)
 * Administration
   - [Cluster Setup](ClusterSetup.md)
+  - [Dashboard](Dashboard.md)
   - [Admin tools and APIs](AdminTools.md)
 * Features
   - [Authentication](Authentication.md)
@@ -13,3 +14,5 @@
   - [Apache Storm adaptor](PulsarStorm.md)
 * Internal Docs
   - [Binary protocol specification](BinaryProtocol.md)
+* Other Languages
+  - [Japanese](locale/ja/Documentation.md)

@@ -30,6 +30,17 @@ message ManagedLedgerInfo {
 message PositionInfo {
 	required int64 ledgerId = 1;
 	required int64 entryId  = 2;
+    repeated MessageRange individualDeletedMessages = 3;
+}
+
+message NestedPositionInfo {
+    required int64 ledgerId = 1;
+    required int64 entryId  = 2;
+}
+
+message MessageRange {
+    required NestedPositionInfo lowerEndpoint = 1;
+    required NestedPositionInfo upperEndpoint = 2;
 }
 
 message ManagedCursorInfo {
@@ -40,4 +51,5 @@ message ManagedCursorInfo {
 	// Last snapshot of the mark-delete position
 	optional int64 markDeleteLedgerId = 2;
 	optional int64 markDeleteEntryId  = 3;
+	repeated MessageRange individualDeletedMessages = 4;
 }

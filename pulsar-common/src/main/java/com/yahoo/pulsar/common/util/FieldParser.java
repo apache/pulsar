@@ -135,7 +135,7 @@ public final class FieldParser {
      *            : field of the attribute
      * @return
      */
-    private static Object value(String strValue, Field field) {
+    public static Object value(String strValue, Field field) {
         checkNotNull(field);
         // if field is not primitive type
         if (field.getGenericType() instanceof ParameterizedType) {

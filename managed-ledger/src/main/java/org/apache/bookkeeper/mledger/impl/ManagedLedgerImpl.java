@@ -56,7 +56,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerMXBean;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.VoidCallback;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
-import org.apache.bookkeeper.mledger.impl.MetaStore.Version;
+import org.apache.bookkeeper.mledger.impl.MetaStore.Stat;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.mledger.util.CallbackMutex;
@@ -95,7 +95,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     private final ConcurrentLongHashMap<CompletableFuture<LedgerHandle>> ledgerCache = new ConcurrentLongHashMap<>();
     private final NavigableMap<Long, LedgerInfo> ledgers = new ConcurrentSkipListMap<>();
-    private Version ledgersVersion;
+    private volatile Stat ledgersStat;
 
     private final ManagedCursorContainer cursors = new ManagedCursorContainer();
     private final ManagedCursorContainer activeCursors = new ManagedCursorContainer();
@@ -170,7 +170,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     private final ScheduledExecutorService scheduledExecutor;
     private final OrderedSafeExecutor executor;
-    private final ManagedLedgerFactoryImpl factory;
+    final ManagedLedgerFactoryImpl factory;
     protected final ManagedLedgerMBeanImpl mbean;
 
     /**
@@ -195,7 +195,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         NUMBER_OF_ENTRIES_UPDATER.set(this, 0);
         ENTRIES_ADDED_COUNTER_UPDATER.set(this, 0);
         STATE_UPDATER.set(this, State.None);
-        this.ledgersVersion = null;
+        this.ledgersStat = null;
         this.mbean = new ManagedLedgerMBeanImpl(this);
         this.entryCache = factory.getEntryCacheManager().getEntryCache(this);
         this.waitingCursors = Queues.newConcurrentLinkedQueue();
@@ -212,8 +212,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         // Fetch the list of existing ledgers in the managed ledger
         store.getManagedLedgerInfo(name, new MetaStoreCallback<ManagedLedgerInfo>() {
             @Override
-            public void operationComplete(ManagedLedgerInfo mlInfo, Version version) {
-                ledgersVersion = version;
+            public void operationComplete(ManagedLedgerInfo mlInfo, Stat stat) {
+                ledgersStat = stat;
                 for (LedgerInfo ls : mlInfo.getLedgerInfoList()) {
                     ledgers.put(ls.getLedgerId(), ls);
                 }
@@ -286,8 +286,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         final MetaStoreCallback<Void> storeLedgersCb = new MetaStoreCallback<Void>() {
             @Override
-            public void operationComplete(Void v, Version version) {
-                ledgersVersion = version;
+            public void operationComplete(Void v, Stat stat) {
+                ledgersStat = stat;
                 initializeCursors(callback);
             }
 
@@ -320,7 +320,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
                         ManagedLedgerInfo mlInfo = ManagedLedgerInfo.newBuilder().addAllLedgerInfo(ledgers.values())
                                 .build();
-                        store.asyncUpdateLedgerIds(name, mlInfo, ledgersVersion, storeLedgersCb);
+                        store.asyncUpdateLedgerIds(name, mlInfo, ledgersStat, storeLedgersCb);
                     }));
                 }, null);
     }
@@ -331,7 +331,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
         store.getCursors(name, new MetaStoreCallback<List<String>>() {
             @Override
-            public void operationComplete(List<String> consumers, Version v) {
+            public void operationComplete(List<String> consumers, Stat s) {
                 // Load existing cursors
                 final AtomicInteger cursorCount = new AtomicInteger(consumers.size());
                 if (log.isDebugEnabled()) {
@@ -366,7 +366,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
                         @Override
                         public void operationFailed(ManagedLedgerException exception) {
-                            log.warn("[{}] Recovery for cursor {} failed", name, cursorName);
+                            log.warn("[{}] Recovery for cursor {} failed", name, cursorName, exception);
                             cursorCount.set(-1);
                             callback.initializeFailed(exception);
                         }
@@ -621,7 +621,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         // ledger from BK) don't, we end up having a loose ledger leaked but the state will be consistent.
         store.asyncRemoveCursor(ManagedLedgerImpl.this.name, consumerName, new MetaStoreCallback<Void>() {
             @Override
-            public void operationComplete(Void result, Version version) {
+            public void operationComplete(Void result, Stat stat) {
                 cursor.asyncDeleteCursorLedger();
                 cursors.removeCursor(consumerName);
 
@@ -951,13 +951,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
             final MetaStoreCallback<Void> cb = new MetaStoreCallback<Void>() {
                 @Override
-                public void operationComplete(Void v, Version version) {
+                public void operationComplete(Void v, Stat stat) {
                     if (log.isDebugEnabled()) {
-                        log.debug("[{}] Updating of ledgers list after create complete. version={}", name, version);
+                        log.debug("[{}] Updating of ledgers list after create complete. version={}", name, stat);
                     }
-                    ledgersVersion = version;
+                    ledgersStat = stat;
                     ledgersListMutex.unlock();
-                    updateLedgersIdsComplete(version);
+                    updateLedgersIdsComplete(stat);
                     synchronized (ManagedLedgerImpl.this) {
                         mbean.addLedgerSwitchLatencySample(System.nanoTime() - lastLedgerCreationInitiationTimestamp,
                                 TimeUnit.NANOSECONDS);
@@ -1013,12 +1013,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         ManagedLedgerInfo mlInfo = ManagedLedgerInfo.newBuilder().addAllLedgerInfo(ledgers.values()).build();
         if (log.isDebugEnabled()) {
-            log.debug("[{}] Updating ledgers ids with new ledger. version={}", name, ledgersVersion);
+            log.debug("[{}] Updating ledgers ids with new ledger. version={}", name, ledgersStat);
         }
-        store.asyncUpdateLedgerIds(name, mlInfo, ledgersVersion, callback);
+        store.asyncUpdateLedgerIds(name, mlInfo, ledgersStat, callback);
     }
 
-    public synchronized void updateLedgersIdsComplete(Version version) {
+    public synchronized void updateLedgersIdsComplete(Stat stat) {
         STATE_UPDATER.set(this, State.LedgerOpened);
         lastLedgerCreatedTimestamp = System.currentTimeMillis();
 
@@ -1436,12 +1436,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 log.debug("[{}] Updating of ledgers list after trimming", name);
             }
             ManagedLedgerInfo mlInfo = ManagedLedgerInfo.newBuilder().addAllLedgerInfo(ledgers.values()).build();
-            store.asyncUpdateLedgerIds(name, mlInfo, ledgersVersion, new MetaStoreCallback<Void>() {
+            store.asyncUpdateLedgerIds(name, mlInfo, ledgersStat, new MetaStoreCallback<Void>() {
                 @Override
-                public void operationComplete(Void result, Version version) {
+                public void operationComplete(Void result, Stat stat) {
                     log.info("[{}] End TrimConsumedLedgers. ledgers={} totalSize={}", name, ledgers.size(),
                             TOTAL_SIZE_UPDATER.get(ManagedLedgerImpl.this));
-                    ledgersVersion = version;
+                    ledgersStat = stat;
                     ledgersListMutex.unlock();
                     trimmerMutex.unlock();
 
@@ -1593,7 +1593,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private void deleteMetadata(DeleteLedgerCallback callback, Object ctx) {
         store.removeManagedLedger(name, new MetaStoreCallback<Void>() {
             @Override
-            public void operationComplete(Void result, Version version) {
+            public void operationComplete(Void result, Stat stat) {
                 log.info("[{}] Successfully deleted managed ledger", name);
                 factory.close(ManagedLedgerImpl.this);
                 callback.deleteLedgerComplete(ctx);

@@ -42,6 +42,8 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.zookeeper.data.Stat;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -126,7 +128,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         Policies policies = ObjectMapperFactory.getThreadLocal().readValue(content, Policies.class);
         NamespaceBundles localZkBundles = bundleFactory.getBundles(nsname, policies.bundles);
         assertTrue(updatedNsBundles.equals(localZkBundles));
-        System.out.println(policies);
+        log.info("Policies: {}", policies);
 
         // (3) validate ownership of new split bundles by local owner
         bundleList.stream().forEach(b -> {
@@ -287,4 +289,6 @@ public class NamespaceServiceTest extends BrokerTestBase {
                 CompletableFuture.completedFuture(bundles));
         return utilityFactory.splitBundles(targetBundle, 2);
     }
+
+    private static final Logger log = LoggerFactory.getLogger(NamespaceServiceTest.class);
 }

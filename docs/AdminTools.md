@@ -14,6 +14,9 @@
 		- [Brokers](#brokers)
 			- [list of active brokers](#list-of-active-brokers)
 			- [list of namespaces owned by a given broker](#list-of-namespaces-owned-by-a-given-broker)
+			- [update dynamic configuration](#update-dynamic-configuration)
+			- [get list of dynamic configuration name](#get-list-of-dynamic-configuration-name)
+			- [get value of dynamic configurations](#get-value-of-dynamic-configurations)
 		- [Properties](#properties)
 			- [list existing properties](#list-existing-properties)
 			- [create property](#create-property)
@@ -169,7 +172,7 @@ entities.
 
 We can mainly access following broker’s entities using admin command
 line tool. If you are not already aware about any of following entity
-then you can read in details at *Getting-started-guide*. [TODO: add link]
+then you can read in details at [Getting-started-guide](GettingStarted.md).
 
 ### Brokers
 
@@ -232,6 +235,157 @@ GET /admin/brokers/{cluster}/{broker}/ownedNamespaces
 ```java
 admin.brokers().getOwnedNamespaces(cluster,brokerUrl)
 ```
+
+#### update dynamic configuration
+Broker can locally override value of updatable dynamic service-configurations that are stored into zookeeper. This interface allows to change the value of broker's dynamic-configuration into the zookeeper. Broker receives zookeeper-watch with new changed value and broker updates new value locally.
+
+###### CLI
+
+```
+$ pulsar-admin brokers update-dynamic-config brokerShutdownTimeoutMs 100
+```
+
+```
+N/A
+```
+
+###### REST
+
+```
+GET /admin/brokers/configuration/{configName}/{configValue}
+```
+
+###### Java
+
+```java
+admin.brokers().updateDynamicConfiguration(configName, configValue)
+```
+
+#### get list of dynamic configuration name
+It gives list of updatable dynamic service-configuration name.
+
+###### CLI
+
+```
+$ pulsar-admin brokers list-dynamic-config
+```
+
+```
+brokerShutdownTimeoutMs
+```
+
+###### REST
+
+```
+GET /admin/brokers/configuration
+```
+
+###### Java
+
+```java
+admin.brokers().getDynamicConfigurationNames()
+```
+
+#### get value of dynamic configurations
+It gives value of all dynamic configurations stored in zookeeper
+
+###### CLI
+
+```
+$ pulsar-admin brokers get-all-dynamic-config
+```
+
+```
+brokerShutdownTimeoutMs:100
+```
+
+###### REST
+
+```
+GET /admin/brokers/configuration/values
+```
+
+###### Java
+
+```java
+admin.brokers().getAllDynamicConfigurations()
+```
+
+#### Update dynamic configuration
+Broker can locally override value of updatable dynamic service-configurations that are stored into zookeeper. This interface allows to change the value of broker's dynamic-configuration into the zookeeper. Broker receives zookeeper-watch with new changed value and broker updates new value locally.
+
+###### CLI
+
+```
+$ pulsar-admin brokers update-dynamic-config brokerShutdownTimeoutMs 100
+```
+
+```
+N/A
+```
+
+###### REST
+
+```
+GET /admin/brokers/configuration/{configName}/{configValue}
+```
+
+###### Java
+
+```java
+admin.brokers().updateDynamicConfiguration(configName, configValue)
+```
+
+#### Get list of dynamic configuration name
+It gives list of updatable dynamic service-configuration name.
+
+###### CLI
+
+```
+$ pulsar-admin brokers list-dynamic-config
+```
+
+```
+brokerShutdownTimeoutMs
+```
+
+###### REST
+
+```
+GET /admin/brokers/configuration
+```
+
+###### Java
+
+```java
+admin.brokers().getDynamicConfigurationNames()
+```
+
+#### Get value of dynamic configurations
+It gives value of all dynamic configurations stored in zookeeper
+
+###### CLI
+
+```
+$ pulsar-admin brokers get-all-dynamic-config
+```
+
+```
+brokerShutdownTimeoutMs:100
+```
+
+###### REST
+
+```
+GET /admin/brokers/configuration/values
+```
+
+###### Java
+
+```java
+admin.brokers().getAllDynamicConfigurations()
+```
+
 
 
 ### Properties
@@ -509,7 +663,7 @@ admin.clusters().deleteCluster(cluster)
 
 #### list all clusters
 
-It gives a list of call created clusters in Pulsar system.  
+It gives a list of all created clusters in Pulsar system.  
 
 ###### CLI
 
@@ -2233,20 +2387,12 @@ In your terminal, go to below directory to play with client tool.
       <td>```Comma separted string messages to send. Cannot be used with -f. Either -m or -f must be provided```</td>
     </tr>
     <tr>
-      <td>```-np, --non-persistent```</td>
-      <td>```Produce non-persistent message, Default: false```</td>
-    </tr>
-    <tr>
       <td>```-n, --num-produce```</td>
       <td>```Number of times to send message(s), Default: 1```</td>
     </tr>
     <tr>
       <td>```-r, --rate```</td>
       <td>```Rate (in msg/sec) at which to produce. Value of 0 will produce messages as fast as possible, Default: 0.0```</td>
-    </tr>
-    <tr>
-      <td>```--ttl```</td>
-      <td>```Time to live (in ms) for the messages. Value of 0 will result in unlimited TTL, Default: 3600000```</td>
     </tr>
 <table>
 
@@ -2261,10 +2407,6 @@ In your terminal, go to below directory to play with client tool.
       <th>description</th>   
     </tr>
     <tr>
-      <td>```-c, --client-id```</td>
-      <td>```Client ID for subscriber connection. Required if subscriber ID also specified```</td>
-    </tr>
-    <tr>
       <td>```--hex```</td>
       <td>```Display binary messages in hex, Default: false```</td>
     </tr>
@@ -2277,7 +2419,11 @@ In your terminal, go to below directory to play with client tool.
       <td>```Rate (in msg/sec) at which to consume. Value of 0 will consume messages as fast as possible, Default: 0.0```</td>
     </tr>
     <tr>
-      <td>```-s, --subscriber-id```</td>
-      <td>```Subscriber ID for a durable subscriber```</td>
+      <td>```-s, --subscription-name```</td>
+      <td>```Subscription name```</td>
+    </tr>
+    <tr>
+      <td>```-t, --subscription-type```</td>
+      <td>```Subscription type: Exclusive, Shared, Failover, Default: Exclusive```</td>
     </tr>
 <table>

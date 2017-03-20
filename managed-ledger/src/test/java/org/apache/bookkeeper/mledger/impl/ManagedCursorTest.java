@@ -16,6 +16,7 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
@@ -36,6 +37,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -45,6 +47,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedCursor.IndividualDeletedEntries;
+import org.apache.bookkeeper.mledger.impl.MetaStoreImplZookeeper.ZNodeProtobufFormat;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -54,6 +57,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.annotations.Factory;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Charsets;
@@ -63,6 +67,12 @@ import com.google.common.collect.Sets;
 public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     private static final Charset Encoding = Charsets.UTF_8;
+    
+    @Factory(dataProvider = "protobufFormat")
+    public ManagedCursorTest(ZNodeProtobufFormat protobufFormat) {
+        super();
+        this.protobufFormat = protobufFormat;
+    }
 
     @Test(timeOut = 20000)
     void readFromEmptyLedger() throws Exception {
@@ -2276,6 +2286,94 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         ledger = factory.open("testReopenMultipleTimes");
         c1 = ledger.openCursor("c1");
+    }
+
+    @Test(timeOut = 20000)
+    public void testOutOfOrderDeletePersistenceWithClose() throws Exception {
+        ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig());
+
+        ManagedCursor c1 = ledger.openCursor("c1");
+        List<Position> addedPositions = new ArrayList<>();
+        for (int i = 0; i < 20; i++) {
+            Position p = ledger.addEntry(("dummy-entry-" + i).getBytes(Encoding));
+            addedPositions.add(p);
+        }
+
+        // Acknowledge few messages leaving holes
+        c1.delete(addedPositions.get(2));
+        c1.delete(addedPositions.get(5));
+        c1.delete(addedPositions.get(7));
+        c1.delete(addedPositions.get(8));
+        c1.delete(addedPositions.get(9));
+
+        assertEquals(c1.getNumberOfEntriesInBacklog(), 20 - 5);
+
+        ledger.close();
+        factory.shutdown();
+
+        // Re-Open
+        factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
+        ledger = factory.open("my_test_ledger", new ManagedLedgerConfig());
+        c1 = ledger.openCursor("c1");
+        assertEquals(c1.getNumberOfEntriesInBacklog(), 20 - 5);
+
+        List<Entry> entries = c1.readEntries(20);
+        assertEquals(entries.size(), 20 - 5);
+
+        List<String> entriesStr = entries.stream().map(e -> new String(e.getDataAndRelease(), Encoding))
+                .collect(Collectors.toList());
+        assertEquals(entriesStr.get(0), "dummy-entry-0");
+        assertEquals(entriesStr.get(1), "dummy-entry-1");
+        // Entry-2 was deleted
+        assertEquals(entriesStr.get(2), "dummy-entry-3");
+        assertEquals(entriesStr.get(3), "dummy-entry-4");
+        // Entry-6 was deleted
+        assertEquals(entriesStr.get(4), "dummy-entry-6");
+
+        assertFalse(c1.hasMoreEntries());
+    }
+
+    @Test(timeOut = 20000)
+    public void testOutOfOrderDeletePersistenceAfterCrash() throws Exception {
+        ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig());
+
+        ManagedCursor c1 = ledger.openCursor("c1");
+        List<Position> addedPositions = new ArrayList<>();
+        for (int i = 0; i < 20; i++) {
+            Position p = ledger.addEntry(("dummy-entry-" + i).getBytes(Encoding));
+            addedPositions.add(p);
+        }
+
+        // Acknowledge few messages leaving holes
+        c1.delete(addedPositions.get(2));
+        c1.delete(addedPositions.get(5));
+        c1.delete(addedPositions.get(7));
+        c1.delete(addedPositions.get(8));
+        c1.delete(addedPositions.get(9));
+
+        assertEquals(c1.getNumberOfEntriesInBacklog(), 20 - 5);
+
+        // Re-Open
+        ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
+        ledger = factory2.open("my_test_ledger", new ManagedLedgerConfig());
+        c1 = ledger.openCursor("c1");
+        assertEquals(c1.getNumberOfEntriesInBacklog(), 20 - 5);
+
+        List<Entry> entries = c1.readEntries(20);
+        assertEquals(entries.size(), 20 - 5);
+
+        List<String> entriesStr = entries.stream().map(e -> new String(e.getDataAndRelease(), Encoding))
+                .collect(Collectors.toList());
+        assertEquals(entriesStr.get(0), "dummy-entry-0");
+        assertEquals(entriesStr.get(1), "dummy-entry-1");
+        // Entry-2 was deleted
+        assertEquals(entriesStr.get(2), "dummy-entry-3");
+        assertEquals(entriesStr.get(3), "dummy-entry-4");
+        // Entry-6 was deleted
+        assertEquals(entriesStr.get(4), "dummy-entry-6");
+
+        assertFalse(c1.hasMoreEntries());
+        factory2.shutdown();
     }
 
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorTest.class);

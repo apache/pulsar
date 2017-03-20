@@ -49,6 +49,7 @@ public class ClientConfiguration implements Serializable {
     private String tlsTrustCertsFilePath = "";
     private boolean tlsAllowInsecureConnection = false;
     private int concurrentLookupRequest = 5000;
+    private int maxNumberOfRejectedRequestPerConnection = 50;
 
     /**
      * @return the authentication provider to be used
@@ -330,4 +331,25 @@ public class ClientConfiguration implements Serializable {
     public void setConcurrentLookupRequest(int concurrentLookupRequest) {
         this.concurrentLookupRequest = concurrentLookupRequest;
     }
+
+    /**
+     * Get configured max number of reject-request in a time-frame (30 seconds) after which connection will be closed
+     * 
+     * @return
+     */
+    public int getMaxNumberOfRejectedRequestPerConnection() {
+        return maxNumberOfRejectedRequestPerConnection;
+    }
+
+    /**
+     * Set max number of broker-rejected requests in a certain time-frame (30 seconds) after which current connection
+     * will be closed and client creates a new connection that give chance to connect a different broker <i>(default:
+     * 50)</i>
+     * 
+     * @param maxNumberOfRejectedRequestPerConnection
+     */
+    public void setMaxNumberOfRejectedRequestPerConnection(int maxNumberOfRejectedRequestPerConnection) {
+        this.maxNumberOfRejectedRequestPerConnection = maxNumberOfRejectedRequestPerConnection;
+    }
+
 }

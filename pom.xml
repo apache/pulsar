@@ -482,16 +482,26 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>**/*.versionsBackup</exclude>
             <exclude>**/circe/**</exclude>
             <exclude>pulsar-client-cpp/lib/checksum/int_types.h</exclude>
+            <exclude>pulsar-client-cpp/lib/checksum/gf2.hpp</exclude>
             <exclude>pulsar-client-cpp/lib/checksum/crc32c*</exclude>
             <exclude>pulsar-client-cpp/lib/lz4/lz4.*</exclude>
             <exclude>pulsar-client-cpp/.idea/*</exclude>
             <exclude>pulsar-client-cpp/lib/PulsarApi.pb.*</exclude>
             <exclude>pulsar-client-cpp/CMakeFiles/**</exclude>
-            <exclude>pulsar-client-cpp/travis-build.sh</exclude>
+            <exclude>pulsar-client-cpp/**/Makefile</exclude>
+            <exclude>pulsar-client-cpp/**/cmake_install.cmake</exclude>
+            <exclude>**/*.pyc</exclude>
+            <exclude>**/*.graffle</exclude>
+            <exclude>**/*.hgrm</exclude>
+            <exclude>**/CMakeFiles/**</exclude>
+            <exclude>dashboard/django/stats/migrations/*.py</exclude>
+            
           </excludes>
           <mapping>
             <proto>JAVADOC_STYLE</proto>
             <conf>SCRIPT_STYLE</conf>
+            <ini>SCRIPT_STYLE</ini>
+            <cc>JAVADOC_STYLE</cc>
           </mapping>
         </configuration>
         <executions>

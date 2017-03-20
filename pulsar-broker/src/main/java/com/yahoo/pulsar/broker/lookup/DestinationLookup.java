@@ -41,6 +41,8 @@ import com.yahoo.pulsar.broker.web.PulsarWebResource;
 import com.yahoo.pulsar.common.naming.DestinationName;
 import com.yahoo.pulsar.broker.PulsarService;
 import com.yahoo.pulsar.broker.web.RestException;
+import com.yahoo.pulsar.client.api.PulsarClientException;
+
 import static com.yahoo.pulsar.common.api.Commands.newLookupResponse;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse.LookupType;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.ServerError;
@@ -65,15 +67,26 @@ public class DestinationLookup extends PulsarWebResource {
             @Suspended AsyncResponse asyncResponse) {
         dest = Codec.decode(dest);
         DestinationName topic = DestinationName.get("persistent", property, cluster, namespace, dest);
+        
+        if (!pulsar().getBrokerService().getLookupRequestSemaphore().tryAcquire()) {
+            log.warn("No broker was found available for topic {}", topic);
+            asyncResponse.resume(new WebApplicationException(Response.Status.SERVICE_UNAVAILABLE));
+            return;
+        }
 
         try {
             validateClusterOwnership(topic.getCluster());
             checkConnect(topic);
             validateReplicationSettingsOnNamespace(pulsar(), topic.getNamespaceObject());
-        } catch (Throwable t) {
+        } catch (WebApplicationException we) {
             // Validation checks failed
-            log.error("Validation check failed: {}", t.getMessage());
-            asyncResponse.resume(t);
+            log.error("Validation check failed: {}", we.getMessage());
+            completeLookupResponseExceptionally(asyncResponse, we);
+            return;
+        } catch (Throwable t) {
+            // Validation checks failed with unknown error
+            log.error("Validation check failed: {}", t.getMessage(), t);
+            completeLookupResponseExceptionally(asyncResponse, new RestException(t));
             return;
         }
 
@@ -83,7 +96,7 @@ public class DestinationLookup extends PulsarWebResource {
         lookupFuture.thenAccept(result -> {
             if (result == null) {
                 log.warn("No broker was found available for topic {}", topic);
-                asyncResponse.resume(new WebApplicationException(Response.Status.SERVICE_UNAVAILABLE));
+                completeLookupResponseExceptionally(asyncResponse, new WebApplicationException(Response.Status.SERVICE_UNAVAILABLE));
                 return;
             }
 
@@ -98,24 +111,24 @@ public class DestinationLookup extends PulsarWebResource {
                             topic.getLookupName(), newAuthoritative));
                 } catch (URISyntaxException e) {
                     log.error("Error in preparing redirect url for {}: {}", topic, e.getMessage(), e);
-                    asyncResponse.resume(e);
+                    completeLookupResponseExceptionally(asyncResponse, e);
                     return;
                 }
                 if (log.isDebugEnabled()) {
                     log.debug("Redirect lookup for topic {} to {}", topic, redirect);
                 }
-                asyncResponse.resume(new WebApplicationException(Response.temporaryRedirect(redirect).build()));
+                completeLookupResponseExceptionally(asyncResponse, new WebApplicationException(Response.temporaryRedirect(redirect).build()));
 
             } else {
                 // Found broker owning the topic
                 if (log.isDebugEnabled()) {
                     log.debug("Lookup succeeded for topic {} -- broker: {}", topic, result.getLookupData());
                 }
-                asyncResponse.resume(result.getLookupData());
+                completeLookupResponseSuccessfully(asyncResponse, result.getLookupData());
             }
         }).exceptionally(exception -> {
             log.warn("Failed to lookup broker for topic {}: {}", topic, exception.getMessage(), exception);
-            asyncResponse.resume(exception);
+            completeLookupResponseExceptionally(asyncResponse, exception);
             return null;
         });
 
@@ -162,10 +175,14 @@ public class DestinationLookup extends PulsarWebResource {
                 // (2) authorize client
                 try {
                     checkAuthorization(pulsarService, fqdn, clientAppId);
-                } catch (Exception e) {
+                } catch (RestException authException) {
                     log.warn("Failed to authorized {} on cluster {}", clientAppId, fqdn.toString());
-                    validationFuture
-                            .complete(newLookupResponse(ServerError.AuthorizationError, e.getMessage(), requestId));
+                    validationFuture.complete(
+                            newLookupResponse(ServerError.AuthorizationError, authException.getMessage(), requestId));
+                    return;
+                } catch (Exception e) {
+                    log.warn("Unknown error while authorizing {} on cluster {}", clientAppId, fqdn.toString());
+                    validationFuture.completeExceptionally(e);
                     return;
                 }
                 // (3) validate global namespace
@@ -224,6 +241,16 @@ public class DestinationLookup extends PulsarWebResource {
         });
 
         return lookupfuture;
+    }
+
+    private void completeLookupResponseExceptionally(AsyncResponse asyncResponse, Throwable t) {
+        pulsar().getBrokerService().getLookupRequestSemaphore().release();
+        asyncResponse.resume(t);
+    }
+
+    private void completeLookupResponseSuccessfully(AsyncResponse asyncResponse, LookupData lookupData) {
+        pulsar().getBrokerService().getLookupRequestSemaphore().release();
+        asyncResponse.resume(lookupData);
     }
     
     private static final Logger log = LoggerFactory.getLogger(DestinationLookup.class);

@@ -154,10 +154,17 @@ public abstract class PulsarWebResource {
      *             if not authorized
      */
     protected void validateAdminAccessOnProperty(String property) {
-        validateAdminAccessOnProperty(pulsar(), clientAppId(), property);
+        try {
+            validateAdminAccessOnProperty(pulsar(), clientAppId(), property);
+        } catch (RestException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Failed to get property admin data for property");
+            throw new RestException(e);
+        }
     }
     
-    protected static void validateAdminAccessOnProperty(PulsarService pulsar, String clientAppId, String property) {
+    protected static void validateAdminAccessOnProperty(PulsarService pulsar, String clientAppId, String property) throws RestException, Exception{
         if (pulsar.getConfiguration().isAuthenticationEnabled() && pulsar.getConfiguration().isAuthorizationEnabled()) {
             log.debug("check admin access on property: {} - Authenticated: {} -- role: {}", property,
                     (isClientAuthenticated(clientAppId)), clientAppId);
@@ -178,9 +185,6 @@ public abstract class PulsarWebResource {
                 } catch (KeeperException.NoNodeException e) {
                     log.warn("Failed to get property admin data for non existing property {}", property);
                     throw new RestException(Status.UNAUTHORIZED, "Property does not exist");
-                } catch (Exception e) {
-                    log.error("Failed to get property admin data for property");
-                    throw new RestException(e);
                 }
 
                 if (!propertyAdmin.getAdminRoles().contains(clientAppId)) {
@@ -561,29 +565,20 @@ public abstract class PulsarWebResource {
         return validationFuture;
     }
 
-    protected void checkConnect(DestinationName destination) {
+    protected void checkConnect(DestinationName destination) throws RestException, Exception {
         checkAuthorization(pulsar(), destination, clientAppId());
     }
     
-    protected static void checkAuthorization(PulsarService pulsarService, DestinationName destination, String role) {
+    protected static void checkAuthorization(PulsarService pulsarService, DestinationName destination, String role)
+            throws RestException, Exception {
         if (!pulsarService.getConfiguration().isAuthorizationEnabled()) {
             // No enforcing of authorization policies
             return;
         }
-        try {
-            // get zk policy manager
-            if (!pulsarService.getBrokerService().getAuthorizationManager().canLookup(destination, role)) {
-                log.warn("[{}] Role {} is not allowed to lookup topic", destination, role);
-                throw new RestException(Status.UNAUTHORIZED, "Don't have permission to connect to this namespace");
-            }
-        } catch (RestException e) {
-            // Let it through
-            throw e;
-        } catch (Exception e) {
-            // unknown error marked as internal server error
-            log.warn("Error in authorizing lookup. destination={}, role={}. Error: {}", destination, role,
-                    e.getMessage(), e);
-            throw new RestException(e);
+        // get zk policy manager
+        if (!pulsarService.getBrokerService().getAuthorizationManager().canLookup(destination, role)) {
+            log.warn("[{}] Role {} is not allowed to lookup topic", destination, role);
+            throw new RestException(Status.UNAUTHORIZED, "Don't have permission to connect to this namespace");
         }
     }
 

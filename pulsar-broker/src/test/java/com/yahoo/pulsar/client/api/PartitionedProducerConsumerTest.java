@@ -377,7 +377,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
             producer.send(message.getBytes());
         }
 
-        System.out.println(" start receiving messages :");
+        log.info(" start receiving messages :");
 
         // receive messages
         CountDownLatch latch = new CountDownLatch(totalMsg);
@@ -428,7 +428,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
             producer.send(message.getBytes());
         }
 
-        System.out.println(" start receiving messages :");
+        log.info(" start receiving messages :");
 
         // receive messages
         CountDownLatch latch = new CountDownLatch(totalMsg);

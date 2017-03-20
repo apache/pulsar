@@ -168,7 +168,7 @@ abstract class AbstractMetrics {
         return createMetrics(dimensionMap);
     }
 
-    protected void populateBucketEntries(Map<String, List<Double>> map, String mkey, double[] boundaries,
+    protected void populateBucketEntries(Map<String, Double> map, String mkey, double[] boundaries,
             long[] bucketValues) {
 
         // bucket values should be one more that the boundaries to have the last element as OVERFLOW
@@ -191,11 +191,8 @@ abstract class AbstractMetrics {
 
             value = (bucketValues == null) ? 0.0D : (double) bucketValues[i];
 
-            if (!map.containsKey(bucketKey)) {
-                map.put(bucketKey, Lists.newArrayList(value));
-            } else {
-                map.get(bucketKey).add(value);
-            }
+            Double val = map.getOrDefault(bucketKey, 0.0);
+            map.put(bucketKey, val + value);
         }
     }
 
@@ -207,6 +204,11 @@ abstract class AbstractMetrics {
         }
     }
 
+    protected void populateAggregationMapWithSum(Map<String, Double> map, String mkey, double value) {
+        Double val = map.getOrDefault(mkey, 0.0);
+        map.put(mkey, val + value);
+    }
+    
     protected void populateMaxMap(Map<String, Long> map, String mkey, long value) {
         Long existingValue = map.get(mkey);
         if (existingValue == null || value > existingValue) {

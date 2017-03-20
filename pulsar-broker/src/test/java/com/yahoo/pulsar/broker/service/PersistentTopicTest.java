@@ -33,6 +33,7 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.InetSocketAddress;
 import java.net.URL;
@@ -67,8 +68,11 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
+import org.mockito.verification.VerificationMode;
+import org.powermock.api.mockito.PowerMockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -83,7 +87,9 @@ import com.yahoo.pulsar.broker.service.persistent.PersistentDispatcherSingleActi
 import com.yahoo.pulsar.broker.service.persistent.PersistentReplicator;
 import com.yahoo.pulsar.broker.service.persistent.PersistentSubscription;
 import com.yahoo.pulsar.broker.service.persistent.PersistentTopic;
+import com.yahoo.pulsar.client.api.ProducerConfiguration;
 import com.yahoo.pulsar.client.api.PulsarClient;
+import com.yahoo.pulsar.client.impl.PulsarClientImpl;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSubscribe;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.MessageMetadata;
@@ -535,7 +541,7 @@ public class PersistentTopicTest {
                     barrier.await();
                     // assertTrue(topic.unsubscribe(successSubName).isDone());
                     Thread.sleep(5, 0);
-                    System.out.println("deleter outcome is " + topic.delete().get());
+                    log.info("deleter outcome is {}", topic.delete().get());
                 } catch (Exception e) {
                     e.printStackTrace();
                     gotException.set(true);
@@ -554,7 +560,7 @@ public class PersistentTopicTest {
                     ConcurrentOpenHashMap<String, PersistentSubscription> subscriptions = topic.getSubscriptions();
                     PersistentSubscription ps = subscriptions.get(successSubName);
                     // Thread.sleep(5,0);
-                    System.out.println("unsubscriber outcome is " + ps.doUnsubscribe(ps.getConsumers().get(0)).get());
+                    log.info("unsubscriber outcome is {}", ps.doUnsubscribe(ps.getConsumers().get(0)).get());
                     // assertFalse(ps.delete().isCompletedExceptionally());
                 } catch (Exception e) {
                     e.printStackTrace();
@@ -863,7 +869,7 @@ public class PersistentTopicTest {
         PersistentTopic topic = new PersistentTopic(globalTopicName, ledgerMock, brokerService);
         String remoteReplicatorName = topic.replicatorPrefix + "." + remoteCluster;
         ConcurrentOpenHashMap<String, PersistentReplicator> replicatorMap = topic.getReplicators();
-        ;
+        
         final URL brokerUrl = new URL(
                 "http://" + pulsar.getAdvertisedAddress() + ":" + pulsar.getConfiguration().getBrokerServicePort());
         PulsarClient client = PulsarClient.create(brokerUrl.toString());
@@ -895,4 +901,42 @@ public class PersistentTopicTest {
         DeleteCursorCallback callback = captor.getValue();
         callback.deleteCursorComplete(null);
     }
+
+    @Test
+    public void testClosingReplicationProducerTwice() throws Exception {
+        final String globalTopicName = "persistent://prop/global/ns/testClosingReplicationProducerTwice";
+        String localCluster = "local";
+        String remoteCluster = "remote";
+        final ManagedLedger ledgerMock = mock(ManagedLedger.class);
+        doNothing().when(ledgerMock).asyncDeleteCursor(anyObject(), anyObject(), anyObject());
+        doReturn(new ArrayList<Object>()).when(ledgerMock).getCursors();
+
+        PersistentTopic topic = new PersistentTopic(globalTopicName, ledgerMock, brokerService);
+        String remoteReplicatorName = topic.replicatorPrefix + "." + localCluster;
+        
+        final URL brokerUrl = new URL(
+                "http://" + pulsar.getAdvertisedAddress() + ":" + pulsar.getConfiguration().getBrokerServicePort());
+        PulsarClient client =  spy( PulsarClient.create(brokerUrl.toString()) );
+        PulsarClientImpl clientImpl = (PulsarClientImpl) client;
+        Field conf = PersistentReplicator.class.getDeclaredField("producerConfiguration");
+        conf.setAccessible(true);
+        
+        ManagedCursor cursor = mock(ManagedCursorImpl.class);
+        doReturn(remoteCluster).when(cursor).getName();
+        brokerService.getReplicationClients().put(remoteCluster, client);
+        PersistentReplicator replicator = new PersistentReplicator(topic, cursor, localCluster, remoteCluster, brokerService);
+
+        doReturn(new CompletableFuture<Producer>()).when(clientImpl).createProducerAsync(globalTopicName, (ProducerConfiguration) conf.get(replicator), remoteReplicatorName);
+    
+        replicator.startProducer();
+        verify(clientImpl).createProducerAsync(globalTopicName, (ProducerConfiguration) conf.get(replicator), remoteReplicatorName);
+        
+        replicator.disconnect(false);
+        replicator.disconnect(false);
+        
+        replicator.startProducer();
+
+        verify(clientImpl, Mockito.times(2)).createProducerAsync(globalTopicName, (ProducerConfiguration) conf.get(replicator), remoteReplicatorName);       
+    }
+
 }

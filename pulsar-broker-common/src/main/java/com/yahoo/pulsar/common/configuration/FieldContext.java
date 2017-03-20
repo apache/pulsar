@@ -56,4 +56,11 @@ public @interface FieldContext {
      * @return character length of field
      */
     public int maxCharLength() default Integer.MAX_VALUE;
+    
+    /**
+     * allow field to be updated dynamically
+     * 
+     * @return
+     */
+    public boolean dynamic() default false;
 }

@@ -23,6 +23,8 @@ import java.net.URL;
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.ServerErrorException;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
 
 import com.yahoo.pulsar.client.admin.PulsarAdmin;
@@ -40,7 +42,8 @@ public class PulsarBrokerStatsClientTest {
     @Test
     public void testServiceException() throws Exception {
         URL url = new URL("http://localhost:15000");
-        BrokerStatsImpl client = (BrokerStatsImpl) spy(new PulsarAdmin(url, (Authentication) null).brokerStats());
+		PulsarAdmin admin = new PulsarAdmin(url, (Authentication) null);
+		BrokerStatsImpl client = (BrokerStatsImpl) spy(admin.brokerStats());
         try {
             client.getLoadReport();
         } catch (PulsarAdminException e) {
@@ -64,7 +67,10 @@ public class PulsarBrokerStatsClientTest {
         assertTrue(client.getApiException(new ServerErrorException(500)) instanceof ServerSideErrorException);
         assertTrue(client.getApiException(new ServerErrorException(503)) instanceof PulsarAdminException);
 
-        System.out.println(client);
+        log.info("Client: ", client);
+
+        admin.close();
     }
 
+    private static final Logger log = LoggerFactory.getLogger(PulsarBrokerStatsClientTest.class);
 }

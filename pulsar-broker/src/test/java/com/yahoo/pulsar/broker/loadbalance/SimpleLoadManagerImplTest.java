@@ -280,18 +280,18 @@ public class SimpleLoadManagerImplTest {
 
         LocalZooKeeperCache originalLZK1 = (LocalZooKeeperCache) zkCacheField.get(pulsar1);
         LocalZooKeeperCache originalLZK2 = (LocalZooKeeperCache) zkCacheField.get(pulsar2);
-        System.out.println("lzk are " + originalLZK1.getChildren(SimpleLoadManagerImpl.LOADBALANCE_BROKERS_ROOT)
-                + " 2: " + originalLZK2.getChildren(SimpleLoadManagerImpl.LOADBALANCE_BROKERS_ROOT));
+		log.info("lzk are {} 2: {}", originalLZK1.getChildren(SimpleLoadManagerImpl.LOADBALANCE_BROKERS_ROOT),
+				originalLZK2.getChildren(SimpleLoadManagerImpl.LOADBALANCE_BROKERS_ROOT));
         zkCacheField.set(pulsar1, mockCache);
 
         LocalZooKeeperCache newZk = (LocalZooKeeperCache) pulsar1.getLocalZkCache();
-        System.out.println("lzk mocked are " + newZk.getChildren(SimpleLoadManagerImpl.LOADBALANCE_BROKERS_ROOT));
+        log.info("lzk mocked are {}", newZk.getChildren(SimpleLoadManagerImpl.LOADBALANCE_BROKERS_ROOT));
 
         ZooKeeperChildrenCache availableActiveBrokers = new ZooKeeperChildrenCache(pulsar1.getLocalZkCache(),
                 SimpleLoadManagerImpl.LOADBALANCE_BROKERS_ROOT);
 
-        System.out.println("lzk mocked active brokers are "
-                + availableActiveBrokers.get(SimpleLoadManagerImpl.LOADBALANCE_BROKERS_ROOT));
+		log.info("lzk mocked active brokers are {}",
+				availableActiveBrokers.get(SimpleLoadManagerImpl.LOADBALANCE_BROKERS_ROOT));
 
         LoadManager loadManager = new SimpleLoadManagerImpl(pulsar1);
 
