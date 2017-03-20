@@ -23,6 +23,8 @@
 #include <pulsar/Result.h>
 #include <boost/date_time/posix_time/ptime.hpp>
 #include <iostream>
+#include <pulsar/ConsumerType.h>
+
 #pragma GCC visibility push(default)
 
 class PulsarFriend;
@@ -36,25 +38,6 @@ typedef boost::function<void(Result result)> ResultCallback;
 
 /// Callback definition for MessageListener
 typedef boost::function<void(Consumer consumer, const Message& msg)> MessageListener;
-
-enum ConsumerType {
-    /**
-     * There can be only 1 consumer on the same topic with the same consumerName
-     */
-    ConsumerExclusive,
-
-    /**
-     * Multiple consumers will be able to use the same consumerName and the messages
-     *  will be dispatched according to a round-robin rotation between the connected consumers
-     */
-    ConsumerShared,
-
-    /** Only one consumer is active on the subscription; Subscription can have N consumers
-     *  connected one of which will get promoted to master if the current master becomes inactive
-     */
-
-    ConsumerFailover
-};
 
 class BrokerConsumerStats {
  private:
