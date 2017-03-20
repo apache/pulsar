@@ -291,6 +291,16 @@ public abstract class ConsumerBase extends HandlerBase implements Consumer {
         return null;
     }
 
+    protected CompletableFuture<Message> getPendingReceive() {
+        while (!pendingReceives.isEmpty()) {
+            CompletableFuture<Message> f = pendingReceives.poll();
+            if (f != null && !f.isDone()) {
+                return f;
+            }
+        }
+        return null;
+    }
+
     abstract public boolean isConnected();
 
     abstract public int getAvailablePermits();

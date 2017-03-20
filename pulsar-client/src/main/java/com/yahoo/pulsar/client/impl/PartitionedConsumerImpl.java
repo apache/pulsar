@@ -20,6 +20,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
@@ -183,12 +184,17 @@ public class PartitionedConsumerImpl extends ConsumerBase {
     @Override
     protected CompletableFuture<Message> internalReceiveAsync() {
 
-        CompletableFuture<Message> result = new CompletableFuture<Message>();
+        final CompletableFuture<Message> result = new CompletableFuture<Message>();
         Message message;
         try {
             lock.writeLock().lock();
             message = incomingMessages.poll(0, TimeUnit.SECONDS);
             if (message == null) {
+                result.whenComplete((message1, throwable) -> {
+                    if (throwable != null && throwable instanceof CancellationException) {
+                        pendingReceives.remove(result);
+                    }
+                });
                 pendingReceives.add(result);
             } else {
                 resumeReceivingFromPausedConsumersIfNeeded();
@@ -331,8 +337,8 @@ public class PartitionedConsumerImpl extends ConsumerBase {
                 log.debug("[{}][{}] Received message from partitioned-consumer {}", topic, subscription, message.getMessageId());
             }
             // if asyncReceive is waiting : return message to callback without adding to incomingMessages queue
-            if (!pendingReceives.isEmpty()) {
-                CompletableFuture<Message> receivedFuture = pendingReceives.poll();
+            CompletableFuture<Message> receivedFuture = getPendingReceive();
+            if (receivedFuture != null) {
                 listenerExecutor.execute(() -> receivedFuture.complete(message));
             } else {
                 // Enqueue the message so that it can be retrieved when application calls receive()

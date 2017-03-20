@@ -24,6 +24,7 @@ import java.util.BitSet;
 import java.util.List;
 import java.util.NavigableMap;
 import java.util.Set;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutorService;
@@ -197,6 +198,11 @@ public class ConsumerImpl extends ConsumerBase {
             lock.writeLock().lock();
             message = incomingMessages.poll(0, TimeUnit.MILLISECONDS);
             if (message == null) {
+                result.whenComplete((message1, throwable) -> {
+                    if (throwable != null && throwable instanceof CancellationException) {
+                        pendingReceives.remove(result);
+                    }
+                });
                 pendingReceives.add(result);
             }
         } catch (InterruptedException e) {
@@ -708,7 +714,7 @@ public class ConsumerImpl extends ConsumerBase {
     void notifyPendingReceivedCallback(final MessageImpl message, Exception exception) {
         if (!pendingReceives.isEmpty()) {
             // fetch receivedCallback from queue
-            CompletableFuture<Message> receivedFuture = pendingReceives.poll();
+            CompletableFuture<Message> receivedFuture = getPendingReceive();
             if (exception == null) {
                 checkNotNull(message, "received message can't be null");
                 if (receivedFuture != null) {
