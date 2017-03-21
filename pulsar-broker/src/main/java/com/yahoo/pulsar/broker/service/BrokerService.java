@@ -60,6 +60,7 @@ import com.yahoo.pulsar.broker.authorization.AuthorizationManager;
 import com.yahoo.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import com.yahoo.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import com.yahoo.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
+import com.yahoo.pulsar.broker.service.BrokerServiceException.TooManyRequestsException;
 import com.yahoo.pulsar.broker.service.persistent.PersistentReplicator;
 import com.yahoo.pulsar.broker.service.persistent.PersistentTopic;
 import com.yahoo.pulsar.broker.stats.ClusterReplicationMetrics;
@@ -132,6 +133,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     private final ScheduledExecutorService backlogQuotaChecker;
     
     protected final AtomicReference<Semaphore> lookupRequestSemaphore;
+    
+    protected final AtomicReference<Semaphore> topicLoadRequestSemaphore;
 
     private final ScheduledExecutorService inactivityMonitor;
     private final ScheduledExecutorService messageExpiryMonitor;
@@ -213,6 +216,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         updateConfigurationAndRegisterListeners();
         this.lookupRequestSemaphore = new AtomicReference<Semaphore>(
                 new Semaphore(pulsar.getConfiguration().getMaxConcurrentLookupRequest(), true));
+        this.topicLoadRequestSemaphore = new AtomicReference<Semaphore>(
+                new Semaphore(pulsar.getConfiguration().getMaxConcurrentTopicLoadRequest(), true));
 
         PersistentReplicator.setReplicatorQueueSize(pulsar.getConfiguration().getReplicationProducerQueueSize());
     }
@@ -429,6 +434,10 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             throw new RuntimeException(new ServiceUnitNotReadyException(msg));
         }
 
+        if (!topicLoadRequestSemaphore.get().tryAcquire()) {
+            return FutureUtil.failedFuture(new TooManyRequestsException("Too many concurrent topics are loading"));
+        }
+        
         final CompletableFuture<Topic> topicFuture = new CompletableFuture<>();
 
         getManagedLedgerConfig(destinationName).thenAccept(config -> {
@@ -458,6 +467,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
                                 return null;
                             });
+                            topicLoadRequestSemaphore.get().release();
                         }
 
                         @Override
@@ -465,6 +475,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                             log.warn("Failed to create topic {}", topic, exception);
                             topics.remove(topic, topicFuture);
                             topicFuture.completeExceptionally(new PersistenceException(exception));
+                            topicLoadRequestSemaphore.get().release();
                         }
                     }, null);
 
@@ -472,6 +483,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             log.warn("[{}] Failed to get topic configuration: {}", topic, exception.getMessage(), exception);
             topics.remove(topic, topicFuture);
             topicFuture.completeExceptionally(exception);
+            topicLoadRequestSemaphore.get().release();
             return null;
         });
 
@@ -870,7 +882,10 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         updateDynamicServiceConfiguration();
         // add listener on "maxConcurrentLookupRequest" value change
         registerConfigurationListener("maxConcurrentLookupRequest",
-                (pendingLookupRequest) -> lookupRequestSemaphore.set(new Semaphore((int) pendingLookupRequest, true)));
+                (maxConcurrentLookupRequest) -> lookupRequestSemaphore.set(new Semaphore((int) maxConcurrentLookupRequest, true)));
+        // add listener on "maxConcurrentLookupRequest" value change
+        registerConfigurationListener("maxConcurrentTopicLoadRequest",
+                (maxConcurrentTopicLoadRequest) -> topicLoadRequestSemaphore.set(new Semaphore((int) maxConcurrentTopicLoadRequest, true)));
         // add more listeners here
     }
 

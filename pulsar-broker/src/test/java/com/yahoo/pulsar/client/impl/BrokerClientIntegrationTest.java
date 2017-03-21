@@ -32,7 +32,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.NavigableMap;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -60,11 +62,14 @@ import com.yahoo.pulsar.client.api.PulsarClient;
 import com.yahoo.pulsar.client.api.PulsarClientException;
 import com.yahoo.pulsar.client.api.SubscriptionType;
 import com.yahoo.pulsar.client.impl.HandlerBase.State;
+import com.yahoo.pulsar.client.util.FutureUtil;
 import com.yahoo.pulsar.common.api.PulsarHandler;
 import com.yahoo.pulsar.common.naming.DestinationName;
 import com.yahoo.pulsar.common.naming.NamespaceBundle;
 import com.yahoo.pulsar.common.policies.data.RetentionPolicies;
 import com.yahoo.pulsar.common.util.collections.ConcurrentLongHashMap;
+
+import jersey.repackaged.com.google.common.collect.Lists;
 
 public class BrokerClientIntegrationTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(BrokerClientIntegrationTest.class);
@@ -516,6 +521,70 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         pulsarClient2.close();
     }
 
+    /**
+     * It verifies that broker throttles down configured concurrent topic loading requests
+     * 
+     * <pre>
+     * 1. Start broker with N maxConcurrentTopicLoadRequest 
+     * 2. create concurrent producers on different topics which makes broker to load topics concurrently
+     * 3. Producer operationtimeout = 1 ms so, if producers creation will fail for throttled topics
+     * 4. verify failed producers
+     * </pre>
+     * 
+     * @throws Exception
+     */
+    @Test(timeOut = 5000)
+    public void testMaxConcurrentTopicLoading() throws Exception {
+
+        final PulsarClient pulsarClient;
+        final PulsarClient pulsarClient2;
+
+        final String topicName = "persistent://prop/usw/my-ns/newTopic";
+
+        final int concurrentLookupRequests = 20;
+        ClientConfiguration clientConf = new ClientConfiguration();
+        clientConf.setMaxNumberOfRejectedRequestPerConnection(0);
+        clientConf.setOperationTimeout(1, TimeUnit.MILLISECONDS);
+        clientConf.setStatsInterval(0, TimeUnit.SECONDS);
+        stopBroker();
+        pulsar.getConfiguration().setMaxConcurrentTopicLoadRequest(1);
+        startBroker();
+        String lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT).toString();
+        pulsarClient = PulsarClient.create(lookupUrl, clientConf);
+
+        ClientConfiguration clientConf2 = new ClientConfiguration();
+        clientConf2.setStatsInterval(0, TimeUnit.SECONDS);
+        clientConf2.setIoThreads(concurrentLookupRequests);
+        clientConf2.setConnectionsPerBroker(20);
+        clientConf2.setOperationTimeout(1, TimeUnit.MILLISECONDS);
+        pulsarClient2 = PulsarClient.create(lookupUrl, clientConf2);
+
+        ProducerImpl producer = (ProducerImpl) pulsarClient.createProducer(topicName);
+        ClientCnx cnx = producer.cnx();
+        assertTrue(cnx.channel().isActive());
+        ExecutorService executor = Executors.newFixedThreadPool(concurrentLookupRequests);
+        List<CompletableFuture<Producer>> futures = Lists.newArrayList();
+        final int totalProducers = 20;
+        CountDownLatch latch = new CountDownLatch(totalProducers);
+        for (int i = 0; i < totalProducers; i++) {
+            final int j = i;
+            executor.submit(() -> {
+                futures.add(pulsarClient2.createProducerAsync(topicName + j));
+                futures.add(pulsarClient.createProducerAsync(topicName + j + 1));
+                latch.countDown();
+            });
+        }
+        try {
+            latch.await();
+            FutureUtil.waitForAll(futures).get();
+            fail("should have failed with concurrent topic loading requests");
+        } catch (Exception e) {
+            // ok
+        }
+
+        pulsarClient.close();
+        pulsarClient2.close();
+    }
     /**
      * It verifies that client closes the connection on internalSerevrError which is "ServiceNotReady" from Broker-side
      * 
