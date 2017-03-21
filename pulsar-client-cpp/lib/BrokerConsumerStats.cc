@@ -8,8 +8,9 @@ namespace pulsar {
         return false;
     }
 
-    std::ostream &operator<<(std::ostream &os, const BrokerConsumerStats& obj) {
+    std::ostream& operator<<(std::ostream &os, const BrokerConsumerStats& obj) {
         os << "\nBrokerConsumerStats ["
+           << "validTill_ = " << obj.isValid()
            << ", msgRateOut_ = " << obj.getMsgRateOut()
            << ", msgThroughputOut_ = " << obj.getMsgThroughputOut()
            << ", msgRateRedeliver_ = " << obj.getMsgRateRedeliver()
@@ -38,7 +39,7 @@ namespace pulsar {
         return 0;
     }
 
-    const std::string& BrokerConsumerStats::getConsumerName() const {
+    const std::string BrokerConsumerStats::getConsumerName() const {
         return "";
     }
 
@@ -54,15 +55,15 @@ namespace pulsar {
         return false;
     }
 
-    const std::string& BrokerConsumerStats::getAddress() const {
+    const std::string BrokerConsumerStats::getAddress() const {
         return "";
     }
 
-    const std::string& BrokerConsumerStats::getConnectedSince() const {
+    const std::string BrokerConsumerStats::getConnectedSince() const {
         return "";
     }
 
-    const ConsumerType& BrokerConsumerStats::getType() const {
+    const ConsumerType BrokerConsumerStats::getType() const {
         return ConsumerExclusive;
     }
 

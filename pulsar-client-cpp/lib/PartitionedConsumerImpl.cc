@@ -15,11 +15,7 @@
  */
 
 #include "PartitionedConsumerImpl.h"
-#include "LogUtils.h"
-#include <boost/bind.hpp>
-#include "pulsar/Result.h"
-#include "MessageImpl.h"
-#include "Utils.h"
+#include <lib/PartitionedBrokerConsumerStatsImpl.h>
 
 DECLARE_LOG_OBJECT()
 
@@ -382,6 +378,7 @@ namespace pulsar {
 
     void PartitionedConsumerImpl::getConsumerStatsAsync(BrokerConsumerStatsCallback callback) {
         Lock lock(mutex_);
+        PartitionedBrokerConsumerStatsImpl stats;
         // TODO - think about this code change
         /*
         if (partitionIndex >= numPartitions_ || partitionIndex < 0 || partitionIndex >= consumers_.size())

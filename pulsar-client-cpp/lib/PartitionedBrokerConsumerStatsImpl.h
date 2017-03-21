@@ -2,19 +2,26 @@
 // Created by Jai Asher on 3/20/17.
 //
 
-#ifndef PULSAR_CPP_BROKERCONSUMERSTATS_H
-#define PULSAR_CPP_BROKERCONSUMERSTATS_H
+#ifndef PULSAR_CPP_PARTITIONEDBROKERCONSUMERSTATSIMPL_H
+#define PULSAR_CPP_PARTITIONEDBROKERCONSUMERSTATSIMPL_H
 
-#include <boost/date_time/posix_time/ptime.hpp>
 #include <string.h>
 #include <iostream>
+#include <vector>
 #include <pulsar/Result.h>
 #include <boost/function.hpp>
-#include <pulsar/ConsumerType.h>
+#include <boost/date_time/microsec_time_clock.hpp>
+#include <lib/BrokerConsumerStatsImpl.h>
 
 namespace pulsar {
-class BrokerConsumerStats {
+class PartitionedBrokerConsumerStatsImpl : public BrokerConsumerStats {
+ private:
+    std::vector<BrokerConsumerStatsImpl> statsList_;
+    static const std::string DELIMITER;
  public:
+
+    PartitionedBrokerConsumerStatsImpl(size_t size);
+
     /** Returns true if the Message is Expired **/
     virtual bool isValid() const;
 
@@ -54,9 +61,14 @@ class BrokerConsumerStats {
     /** Returns the Number of messages in the subscription backlog */
     virtual uint64_t getMsgBacklog() const;
 
-    friend std::ostream& operator<<(std::ostream &os, const BrokerConsumerStats &obj);
-};
-typedef boost::function<void(Result result, BrokerConsumerStats& brokerConsumerStats)> BrokerConsumerStatsCallback;
+    /** Returns the BrokerConsumerStatsImpl at of ith partition */
+    BrokerConsumerStatsImpl getBrokerConsumerStats(int index);
 
+    void add(BrokerConsumerStatsImpl stats, int index);
+
+    void clear();
+
+    friend std::ostream& operator<<(std::ostream &os, const PartitionedBrokerConsumerStatsImpl &obj);
+};
 }
-#endif //PULSAR_CPP_BROKERCONSUMERSTATS_H
+#endif //PULSAR_CPP_BROKERCONSUMERSTATSIMPL_H

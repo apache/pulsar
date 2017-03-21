@@ -5,9 +5,6 @@
 #include <boost/date_time/local_time/local_time.hpp>
 
 namespace pulsar {
-
-    const std::string BrokerConsumerStatsImpl::DELIMITER = ";";
-
     BrokerConsumerStatsImpl::BrokerConsumerStatsImpl() : validTill_(boost::posix_time::microsec_clock::universal_time()) {};
 
     BrokerConsumerStatsImpl::BrokerConsumerStatsImpl(double msgRateOut, double msgThroughputOut,
@@ -34,9 +31,9 @@ namespace pulsar {
         return boost::posix_time::microsec_clock::universal_time() <= validTill_;
     }
 
-    std::ostream &operator<<(std::ostream &os, const BrokerConsumerStatsImpl& obj) {
+    std::ostream& operator<<(std::ostream &os, const BrokerConsumerStatsImpl& obj) {
         os << "\nBrokerConsumerStatsImpl ["
-           << "validTill_ = " << obj.validTill_
+           << "validTill_ = " << obj.isValid()
            << ", msgRateOut_ = " << obj.getMsgRateOut()
            << ", msgThroughputOut_ = " << obj.getMsgThroughputOut()
            << ", msgRateRedeliver_ = " << obj.getMsgRateRedeliver()
@@ -65,7 +62,7 @@ namespace pulsar {
         return msgRateRedeliver_;
     }
 
-    const std::string& BrokerConsumerStatsImpl::getConsumerName() const {
+    const std::string BrokerConsumerStatsImpl::getConsumerName() const {
         return consumerName_;
     }
 
@@ -81,15 +78,15 @@ namespace pulsar {
         return blockedConsumerOnUnackedMsgs_;
     }
 
-    const std::string& BrokerConsumerStatsImpl::getAddress() const {
+    const std::string BrokerConsumerStatsImpl::getAddress() const {
         return address_;
     }
 
-    const std::string& BrokerConsumerStatsImpl::getConnectedSince() const {
+    const std::string BrokerConsumerStatsImpl::getConnectedSince() const {
         return connectedSince_;
     }
 
-    const ConsumerType& BrokerConsumerStatsImpl::getType() const {
+    const ConsumerType BrokerConsumerStatsImpl::getType() const {
         return type_;
     }
 

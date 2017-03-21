@@ -15,8 +15,6 @@
 namespace pulsar {
 class BrokerConsumerStatsImpl : public BrokerConsumerStats {
  private:
-    static const std::string DELIMITER;
-
     /** validTill_ - Stats will be valid till this time.*/
     boost::posix_time::ptime validTill_;
 
@@ -79,7 +77,7 @@ public:
     virtual double getMsgRateRedeliver() const;
 
     /** Returns the Name of the consumer */
-    virtual const std::string &getConsumerName() const;
+    virtual const std::string getConsumerName() const;
 
     /** Returns the Number of available message permits for the consumer */
     virtual uint64_t getAvailablePermits() const;
@@ -91,13 +89,13 @@ public:
     virtual bool isBlockedConsumerOnUnackedMsgs() const;
 
     /** Returns the Address of this consumer */
-    virtual const std::string &getAddress() const;
+    virtual const std::string getAddress() const;
 
     /** Returns the Timestamp of connection */
-    virtual const std::string &getConnectedSince() const;
+    virtual const std::string getConnectedSince() const;
 
     /** Returns Whether this subscription is Exclusive or Shared or Failover */
-    virtual const ConsumerType &getType() const;
+    virtual const ConsumerType getType() const;
 
     /** Returns the rate of messages expired on this subscription. msg/s */
     virtual double getMsgRateExpired() const;
@@ -107,7 +105,7 @@ public:
 
     void setCacheTime(uint64_t cacehTimeInMs);
 
-    friend std::ostream &operator<<(std::ostream &os, const BrokerConsumerStatsImpl &obj);
+    friend std::ostream& operator<<(std::ostream &os, const BrokerConsumerStatsImpl &obj);
 
     static ConsumerType convertStringToConsumerType(const std::string& str);
 };
