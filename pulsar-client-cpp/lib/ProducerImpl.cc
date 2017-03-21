@@ -281,7 +281,7 @@ void ProducerImpl::sendAsync(const Message& msg, SendCallback callback) {
     // reserving a spot and going forward - not blocking
     if (!conf_.getBlockIfQueueFull() && !pendingMessagesQueue_.tryReserve(1)) {
         LOG_DEBUG(getName() << " - Producer Queue is full");
-        // If queue is full sending the batch immediately, no point waiting till batchMessageimeout
+        // If queue is full sending the batch immediately, no point waiting till batchMessagetimeout
         if (batchMessageContainer) {
             LOG_DEBUG(getName() << " - sending batch message immediately");
             batchMessageContainer->sendMessage();

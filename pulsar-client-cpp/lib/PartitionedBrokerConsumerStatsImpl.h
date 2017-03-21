@@ -12,6 +12,8 @@
 #include <boost/function.hpp>
 #include <boost/date_time/microsec_time_clock.hpp>
 #include <lib/BrokerConsumerStatsImpl.h>
+#include <boost/shared_ptr.hpp>
+#include <boost/make_shared.hpp>
 
 namespace pulsar {
 class PartitionedBrokerConsumerStatsImpl : public BrokerConsumerStats {
@@ -70,5 +72,7 @@ class PartitionedBrokerConsumerStatsImpl : public BrokerConsumerStats {
 
     friend std::ostream& operator<<(std::ostream &os, const PartitionedBrokerConsumerStatsImpl &obj);
 };
+typedef boost::shared_ptr<PartitionedBrokerConsumerStatsImpl> PartitionedBrokerConsumerStatsPtr;
+
 }
 #endif //PULSAR_CPP_BROKERCONSUMERSTATSIMPL_H

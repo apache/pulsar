@@ -56,6 +56,7 @@ class BrokerConsumerStats {
 
     friend std::ostream& operator<<(std::ostream &os, const BrokerConsumerStats &obj);
 };
+typedef boost::shared_ptr<BrokerConsumerStats> BrokerConsumerStatsPtr;
 typedef boost::function<void(Result result, BrokerConsumerStats& brokerConsumerStats)> BrokerConsumerStatsCallback;
 
 }

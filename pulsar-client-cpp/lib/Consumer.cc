@@ -19,6 +19,7 @@
 #include "ConsumerImpl.h"
 #include "Utils.h"
 #include <lib/BrokerConsumerStatsImpl.h>
+#include <lib/Latch.h>
 
 namespace pulsar {
 
@@ -261,13 +262,31 @@ void Consumer::redeliverUnacknowledgedMessages() {
     }
 }
 
+static void listener(Result result, BrokerConsumerStats& brokerConsumerStats,
+                     BrokerConsumerStats* stats, Result &res, LatchPtr latchPtr) {
+    std::cout<<"JAI 1: "<<*stats;
+    std::cout<<"JAI 2: "<<brokerConsumerStats;
+
+    stats = &brokerConsumerStats;
+
+    std::cout<<"JAI 4: "<<*stats;
+    std::cout<<"JAI 5: "<<brokerConsumerStats;
+
+    res = result;
+    latchPtr->countdown();
+}
+
 Result Consumer::getConsumerStats(BrokerConsumerStats& brokerConsumerStats) {
     if (!impl_) {
         return ResultConsumerNotInitialized;
     }
-    Promise<Result, BrokerConsumerStats> promise;
-    impl_->getConsumerStatsAsync(WaitForCallbackValue<BrokerConsumerStats>(promise));
-    return promise.getFuture().get(brokerConsumerStats);
+    // Can't use promises or future here since it leads to data being copied which leads to object splicing
+    Result res;
+    LatchPtr latchPtr = boost::make_shared<Latch>(1);
+    getConsumerStatsAsync(boost::bind(listener, _1, _2, &brokerConsumerStats, boost::ref(res), latchPtr));
+    latchPtr->wait();
+    std::cout<<"JAI 2: "<<brokerConsumerStats;
+    return res;
 }
 
 void Consumer::getConsumerStatsAsync(BrokerConsumerStatsCallback callback) {

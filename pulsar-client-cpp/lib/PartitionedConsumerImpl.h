@@ -25,6 +25,9 @@
 #include "boost/enable_shared_from_this.hpp"
 #include "ConsumerImplBase.h"
 #include "lib/UnAckedMessageTrackerDisabled.h"
+#include <lib/Latch.h>
+#include <lib/PartitionedBrokerConsumerStatsImpl.h>
+
 namespace pulsar {
     class PartitionedConsumerImpl;
     class PartitionedConsumerImpl: public ConsumerImplBase, public boost::enable_shared_from_this<PartitionedConsumerImpl> {
@@ -61,6 +64,8 @@ namespace pulsar {
         virtual const std::string& getName() const;
         virtual int getNumOfPrefetchedMessages() const ;
         virtual void getConsumerStatsAsync(BrokerConsumerStatsCallback callback);
+        void handleGetConsumerStats(Result , BrokerConsumerStats&, LatchPtr,
+                                    PartitionedBrokerConsumerStatsPtr, size_t, BrokerConsumerStatsCallback);
 
     private:
         const ClientImplPtr client_;

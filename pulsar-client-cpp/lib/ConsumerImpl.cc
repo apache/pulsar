@@ -697,7 +697,7 @@ void ConsumerImpl::getConsumerStatsAsync(BrokerConsumerStatsCallback callback) {
 
     if (brokerConsumerStats_.isValid()) {
         LOG_DEBUG(getName() << "Serving data from cache");
-        BrokerConsumerStats brokerConsumerStats = brokerConsumerStats_;
+        BrokerConsumerStatsImpl brokerConsumerStats = brokerConsumerStats_;
         lock.unlock();
         return callback(ResultOk, brokerConsumerStats);
     }
@@ -728,12 +728,13 @@ void ConsumerImpl::brokerConsumerStatsListener(Result res, BrokerConsumerStatsIm
 
     if (res == ResultOk) {
         Lock lock(mutex_);
+        LOG_ERROR("JAI: RECEIVED "<<brokerConsumerStats);
         brokerConsumerStats_ = brokerConsumerStats;
         // TODO - add logic to set expiry time
     }
 
     if (!callback.empty()) {
-        callback(res, brokerConsumerStats_);
+        callback(res, (BrokerConsumerStatsImpl&) brokerConsumerStats_);
     }
 }
 
