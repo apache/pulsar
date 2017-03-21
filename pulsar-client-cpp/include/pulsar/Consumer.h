@@ -24,7 +24,7 @@
 #include <boost/date_time/posix_time/ptime.hpp>
 #include <iostream>
 #include <pulsar/ConsumerType.h>
-
+#include <pulsar/BrokerConsumerStats.h>
 #pragma GCC visibility push(default)
 
 class PulsarFriend;
@@ -39,65 +39,7 @@ typedef boost::function<void(Result result)> ResultCallback;
 /// Callback definition for MessageListener
 typedef boost::function<void(Consumer consumer, const Message& msg)> MessageListener;
 
-class BrokerConsumerStats {
- private:
-    static const long CONSUMER_STATS_TTL_IN_MS = 30 * 1000; // 30 seconds
-
-    /** validTill_ - Stats will be valid till this time.*/
-    boost::posix_time::ptime validTill_;
- public:
-    BrokerConsumerStats();
-    BrokerConsumerStats(double msgRateOut, double msgThroughputOut,
-                            double msgRateRedeliver, std::string consumerName, uint64_t availablePermits,
-                            uint64_t unackedMessages, bool blockedConsumerOnUnackedMsgs, std::string address,
-                            std::string connectedSince, std::string type, double msgRateExpired, uint64_t msgBacklog);
-
-    /** Returns true if the Message is Expired **/
-    bool isValid() const;
-
-    /** Total rate of messages delivered to the consumer. msg/s */
-    double msgRateOut_;
-
-    /** Total throughput delivered to the consumer. bytes/s */
-    double msgThroughputOut_;
-
-    /** Total rate of messages redelivered by this consumer. msg/s */
-    double msgRateRedeliver_;
-
-    /** Name of the consumer */
-    std::string consumerName_;
-
-    /** Number of available message permits for the consumer */
-    uint64_t availablePermits_;
-
-    /** Number of unacknowledged messages for the consumer */
-    uint64_t unackedMessages_;
-
-    /** Flag to verify if consumer is blocked due to reaching threshold of unacked messages */
-    bool blockedConsumerOnUnackedMsgs_;
-
-    /** Address of this consumer */
-    std::string address_;
-
-    /** Timestamp of connection */
-    std::string connectedSince_;
-
-    /** Whether this subscription is Exclusive or Shared or Failover */
-    std::string type_;
-
-    /** Total rate of messages expired on this subscription. msg/s */
-    double msgRateExpired_;
-
-    /** Number of messages in the subscription backlog */
-    uint64_t msgBacklog_;
-
-    friend std::ostream& operator<<(std::ostream& os, const BrokerConsumerStats& obj);
-};
-
-/// Callback definition for BrokerConsumerStats
-typedef boost::function<void(Result result, const BrokerConsumerStats brokerConsumerStat)> BrokerConsumerStatsCallback;
-
-    /**
+/**
  * Class specifying the configuration of a consumer.
  */
 class ConsumerConfiguration {

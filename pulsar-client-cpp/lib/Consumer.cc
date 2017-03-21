@@ -18,55 +18,11 @@
 #include <pulsar/MessageBuilder.h>
 #include "ConsumerImpl.h"
 #include "Utils.h"
-#include <boost/date_time/local_time/local_time.hpp>
+#include <lib/BrokerConsumerStatsImpl.h>
 
 namespace pulsar {
 
 const std::string EMPTY_STRING;
-
-BrokerConsumerStats::BrokerConsumerStats():validTill_(now()) {};
-
-BrokerConsumerStats::BrokerConsumerStats(double msgRateOut, double msgThroughputOut,
-                                             double msgRateRedeliver, std::string consumerName, uint64_t availablePermits,
-                                             uint64_t unackedMessages, bool blockedConsumerOnUnackedMsgs, std::string address,
-                                             std::string connectedSince, std::string type, double msgRateExpired, uint64_t msgBacklog):
-    validTill_(microsec_clock::universal_time() + milliseconds(CONSUMER_STATS_TTL_IN_MS)),
-    msgRateOut_(msgRateOut),
-    msgThroughputOut_(msgThroughputOut),
-    msgRateRedeliver_(msgRateRedeliver),
-    consumerName_(consumerName),
-    availablePermits_(availablePermits),
-    unackedMessages_(unackedMessages),
-    blockedConsumerOnUnackedMsgs_(blockedConsumerOnUnackedMsgs),
-    address_(address),
-    connectedSince_(connectedSince),
-    type_(type),
-    msgRateExpired_(msgRateExpired),
-    msgBacklog_(msgBacklog)
-{}
-
-bool BrokerConsumerStats::isValid() const {
-    return now() <= validTill_;
-}
-
-std::ostream& operator<<(std::ostream& os, const BrokerConsumerStats& obj) {
-    os << "\nBrokerConsumerStats ["
-       << "validTill_ = " << obj.validTill_
-       << ", msgRateOut_ = " << obj.msgRateOut_
-       << ", msgThroughputOut_ = " << obj.msgThroughputOut_
-       << ", msgRateRedeliver_ = " << obj.msgRateRedeliver_
-       << ", consumerName_ = " << obj.consumerName_
-       << ", availablePermits_ = " << obj.availablePermits_
-       << ", unackedMessages_ = " << obj.unackedMessages_
-       << ", blockedConsumerOnUnackedMsgs_ = " << obj.blockedConsumerOnUnackedMsgs_
-       << ", address_ = " << obj.address_
-       << ", connectedSince_ = " << obj.connectedSince_
-       << ", type_ = " << obj.type_
-       << ", msgRateExpired_ = " << obj.msgRateExpired_
-       << ", msgBacklog_ = " << obj.msgBacklog_
-       << "]";
-    return os;
-}
 
 struct ConsumerConfiguration::Impl {
     long unAckedMessagesTimeoutMs;
@@ -311,12 +267,13 @@ Result Consumer::getConsumerStats(BrokerConsumerStats& brokerConsumerStats) {
     }
     Promise<Result, BrokerConsumerStats> promise;
     impl_->getConsumerStatsAsync(WaitForCallbackValue<BrokerConsumerStats>(promise));
-    return promise.getFuture().get(brokerConsumerStats);;
+    return promise.getFuture().get(brokerConsumerStats);
 }
 
 void Consumer::getConsumerStatsAsync(BrokerConsumerStatsCallback callback) {
     if (!impl_) {
-        return callback(ResultConsumerNotInitialized, BrokerConsumerStats());
+        BrokerConsumerStatsImpl impl;
+        return callback(ResultConsumerNotInitialized, impl);
     }
     return impl_->getConsumerStatsAsync(callback);
 }

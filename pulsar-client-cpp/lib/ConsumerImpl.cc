@@ -692,7 +692,7 @@ void ConsumerImpl::getConsumerStatsAsync(BrokerConsumerStatsCallback callback) {
     if (state_ != Ready) {
         LOG_ERROR(getName() << "Client connection is not open, please try again later.")
         lock.unlock();
-        return callback(ResultConsumerNotInitialized, BrokerConsumerStats());
+        return callback(ResultConsumerNotInitialized, brokerConsumerStats_);
     }
 
     if (brokerConsumerStats_.isValid()) {
@@ -716,21 +716,25 @@ void ConsumerImpl::getConsumerStatsAsync(BrokerConsumerStatsCallback callback) {
             return;
         } else {
             LOG_ERROR(getName() << " Operation not supported since server protobuf version " << cnx->getServerProtocolVersion() << " is older than proto::v7");
-            return callback(ResultUnsupportedVersionError, BrokerConsumerStats());
+            return callback(ResultUnsupportedVersionError, brokerConsumerStats_);
         }
     }
     LOG_ERROR(getName() << " Client Connection not ready for Consumer");
-    return callback(ResultNotConnected, BrokerConsumerStats());
+    return callback(ResultNotConnected, brokerConsumerStats_);
 }
 
-void ConsumerImpl::brokerConsumerStatsListener(Result res, const BrokerConsumerStats brokerConsumerStats
+void ConsumerImpl::brokerConsumerStatsListener(Result res, BrokerConsumerStatsImpl brokerConsumerStats
         , BrokerConsumerStatsCallback callback) {
 
     if (res == ResultOk) {
         Lock lock(mutex_);
         brokerConsumerStats_ = brokerConsumerStats;
+        // TODO - add logic to set expiry time
     }
-    callback(res, brokerConsumerStats);
+
+    if (!callback.empty()) {
+        callback(res, brokerConsumerStats_);
+    }
 }
 
 } /* namespace pulsar */

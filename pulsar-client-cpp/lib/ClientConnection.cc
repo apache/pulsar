@@ -204,7 +204,7 @@ void ClientConnection::handlePulsarConnected(const CommandConnected& cmdConnecte
 }
 
 void ClientConnection::startConsumerStatsTimer(std::vector<uint64_t> consumerStatsRequests) {
-    std::vector<Promise<Result, BrokerConsumerStats> > consumerStatsPromises;
+    std::vector<Promise<Result, BrokerConsumerStatsImpl> > consumerStatsPromises;
     Lock lock(mutex_);
 
     for (int i = 0; i < consumerStatsRequests.size(); i++) {
@@ -714,7 +714,7 @@ void ClientConnection::handleIncomingCommand() {
                     PendingConsumerStatsMap::iterator it = pendingConsumerStatsMap_.find(
                             consumerStatsResponse.request_id());
                     if (it != pendingConsumerStatsMap_.end()) {
-                        Promise<Result, BrokerConsumerStats> consumerStatsPromise = it->second;
+                        Promise<Result, BrokerConsumerStatsImpl> consumerStatsPromise = it->second;
                         pendingConsumerStatsMap_.erase(it);
                         lock.unlock();
 
@@ -729,8 +729,7 @@ void ClientConnection::handleIncomingCommand() {
                                     cnxString_
                                             << "ConsumerStatsResponse command - Received consumer stats response from server. req_id: "
                                             << consumerStatsResponse.request_id() << " Stats: ");
-                            BrokerConsumerStats brokerStats =
-                                    BrokerConsumerStats(consumerStatsResponse.msgrateout(),
+                            BrokerConsumerStatsImpl brokerStats(consumerStatsResponse.msgrateout(),
                                                             consumerStatsResponse.msgthroughputout(),
                                                             consumerStatsResponse.msgrateredeliver(),
                                                             consumerStatsResponse.consumername(),
@@ -920,11 +919,11 @@ void ClientConnection::handleIncomingCommand() {
     }
 }
 
-Future<Result, BrokerConsumerStats>
+Future<Result, BrokerConsumerStatsImpl>
 ClientConnection::newConsumerStats(const std::string topicName, const std::string subscriptionName,
                                    uint64_t consumerId, uint64_t requestId) {
     Lock lock(mutex_);
-    Promise<Result, BrokerConsumerStats> promise;
+    Promise<Result, BrokerConsumerStatsImpl> promise;
     if (isClosed()) {
         lock.unlock();
         LOG_ERROR(cnxString_ << " Client is not connected to the broker");

@@ -36,6 +36,7 @@
 #include <map>
 #include "BatchAcknowledgementTracker.h"
 #include <limits>
+#include <lib/BrokerConsumerStatsImpl.h>
 
 using namespace pulsar;
 
@@ -114,7 +115,7 @@ private:
     void increaseAvailablePermits(const ClientConnectionPtr& currentCnx);
     void drainIncomingMessageQueue(size_t count);
     unsigned int receiveIndividualMessagesFromBatch(Message &batchedMessage);
-    void brokerConsumerStatsListener(Result, const BrokerConsumerStats, BrokerConsumerStatsCallback);
+    void brokerConsumerStatsListener(Result, BrokerConsumerStatsImpl, BrokerConsumerStatsCallback);
 
     boost::mutex mutexForReceiveWithZeroQueueSize;
     const ConsumerConfiguration config_;
@@ -135,7 +136,7 @@ private:
     CompressionCodecProvider compressionCodecProvider_;
     UnAckedMessageTrackerScopedPtr unAckedMessageTrackerPtr_;
     BatchAcknowledgementTracker batchAcknowledgementTracker_;
-    BrokerConsumerStats brokerConsumerStats_;
+    BrokerConsumerStatsImpl brokerConsumerStats_;
 };
 
 } /* namespace pulsar */

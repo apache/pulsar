@@ -40,6 +40,7 @@
 #include "UtilAllocator.h"
 #include <pulsar/Client.h>
 #include <set>
+#include <lib/BrokerConsumerStatsImpl.h>
 
 using namespace pulsar;
 
@@ -132,7 +133,7 @@ class ClientConnection : public boost::enable_shared_from_this<ClientConnection>
 
     Commands::ChecksumType getChecksumType() const;
 
-    Future<Result, BrokerConsumerStats> newConsumerStats(const std::string topicName, const std::string subscriptionName,
+    Future<Result, BrokerConsumerStatsImpl> newConsumerStats(const std::string topicName, const std::string subscriptionName,
                                                                                uint64_t consumerId, uint64_t requestId) ;
  private:
     struct PendingRequestData {
@@ -252,7 +253,7 @@ class ClientConnection : public boost::enable_shared_from_this<ClientConnection>
     typedef std::map<long, ConsumerImplWeakPtr> ConsumersMap;
     ConsumersMap consumers_;
 
-    typedef std::map<uint64_t, Promise<Result, BrokerConsumerStats> > PendingConsumerStatsMap;
+    typedef std::map<uint64_t, Promise<Result, BrokerConsumerStatsImpl> > PendingConsumerStatsMap;
     PendingConsumerStatsMap pendingConsumerStatsMap_;
 
 
