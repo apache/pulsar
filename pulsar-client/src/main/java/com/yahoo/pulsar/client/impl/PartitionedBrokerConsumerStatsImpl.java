@@ -29,8 +29,8 @@ public class PartitionedBrokerConsumerStatsImpl implements BrokerConsumerStats {
 
     List<BrokerConsumerStats> brokerConsumerStatsList;
 
-    PartitionedBrokerConsumerStatsImpl() {
-        brokerConsumerStatsList = Lists.newArrayList();
+    PartitionedBrokerConsumerStatsImpl(int initialArraySize) {
+        brokerConsumerStatsList = Lists.newArrayListWithCapacity(initialArraySize);
     }
 
     public synchronized boolean isValid() {
@@ -65,6 +65,10 @@ public class PartitionedBrokerConsumerStatsImpl implements BrokerConsumerStats {
     }
 
     public boolean isBlockedConsumerOnUnackedMsgs() {
+        if (brokerConsumerStatsList.size() == 0) {
+            return false;
+        }
+        
         return brokerConsumerStatsList.stream().reduce(true,
                 (accumulated, stats) -> accumulated & stats.isBlockedConsumerOnUnackedMsgs(),
                 (accumulated1, accumulated2) -> accumulated1 & accumulated2);
@@ -97,8 +101,12 @@ public class PartitionedBrokerConsumerStatsImpl implements BrokerConsumerStats {
         return brokerConsumerStatsList.stream().mapToLong(stats -> stats.getMsgBacklog()).sum();
     }
 
-    public synchronized void add(BrokerConsumerStats stats) {
-        brokerConsumerStatsList.add(stats);
+    public synchronized void add(int index, BrokerConsumerStats stats) {
+        brokerConsumerStatsList.add(index, stats);
+    }
+    
+    public synchronized void clear() {
+        brokerConsumerStatsList.clear();
     }
 
     public synchronized BrokerConsumerStats get(int partitionIndex) throws InvalidConfigurationException {

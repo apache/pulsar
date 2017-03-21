@@ -456,15 +456,24 @@ public class PartitionedConsumerImpl extends ConsumerBase {
 
     @Override
     public CompletableFuture<BrokerConsumerStats> getBrokerConsumerStatsAsync() {
-        PartitionedBrokerConsumerStatsImpl brokerConsumerStats = new PartitionedBrokerConsumerStatsImpl();
+        PartitionedBrokerConsumerStatsImpl brokerConsumerStats = new PartitionedBrokerConsumerStatsImpl(consumers.size());
         List<CompletableFuture<Void>> futures = Lists.newArrayList();
-        for (Consumer c : consumers) {
-            futures.add(c.getBrokerConsumerStatsAsync().thenAccept(stats -> {
-                brokerConsumerStats.add(stats);
+        for (int i = 0; i < consumers.size(); i++) {
+            final int index = i; // need effectively final variable to use in thenAccept(...)
+            futures.add(consumers.get(index).getBrokerConsumerStatsAsync()
+                    .thenAccept(stats -> {
+                brokerConsumerStats.add(index, stats);
             }));
         }
-        return FutureUtil.waitForAll(futures).thenApply(r -> {
+        
+        CompletableFuture<BrokerConsumerStats> future = FutureUtil.waitForAll(futures).thenApply(r -> {
             return brokerConsumerStats;
         });
+        
+        if (future.isCompletedExceptionally()) {
+            brokerConsumerStats.clear();
+        }
+        
+        return future;
     }
 }
