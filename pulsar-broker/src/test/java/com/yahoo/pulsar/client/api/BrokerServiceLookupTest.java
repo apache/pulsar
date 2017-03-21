@@ -115,12 +115,12 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         conf2.setAdvertisedAddress("localhost");
         conf2.setClusterName(conf.getClusterName());
         PulsarService pulsar2 = startBroker(conf2);
-        pulsar.getLoadManager().writeLoadReportOnZookeeper();
-        pulsar2.getLoadManager().writeLoadReportOnZookeeper();
+        pulsar.getLoadManager().get().writeLoadReportOnZookeeper();
+        pulsar2.getLoadManager().get().writeLoadReportOnZookeeper();
         
         
-        LoadManager loadManager1 = spy(pulsar.getLoadManager());
-        LoadManager loadManager2 = spy(pulsar2.getLoadManager());
+        LoadManager loadManager1 = spy(pulsar.getLoadManager().get());
+        LoadManager loadManager2 = spy(pulsar2.getLoadManager().get());
         Field loadManagerField = NamespaceService.class.getDeclaredField("loadManager");
         loadManagerField.setAccessible(true);
 
@@ -202,8 +202,8 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         
         
         PulsarService pulsar2 = startBroker(conf2);
-        pulsar.getLoadManager().writeLoadReportOnZookeeper();
-        pulsar2.getLoadManager().writeLoadReportOnZookeeper();
+        pulsar.getLoadManager().get().writeLoadReportOnZookeeper();
+        pulsar2.getLoadManager().get().writeLoadReportOnZookeeper();
         
         URI brokerServiceUrl = new URI(broker2ServiceUrl);
         PulsarClient pulsarClient2 = PulsarClient.create(brokerServiceUrl.toString(), new ClientConfiguration());
@@ -214,7 +214,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         stopBroker();
         startBroker();
         
-        LoadManager loadManager2 = spy(pulsar2.getLoadManager());
+        LoadManager loadManager2 = spy(pulsar2.getLoadManager().get());
         Field loadManagerField = NamespaceService.class.getDeclaredField("loadManager");
         loadManagerField.setAccessible(true);
         
@@ -286,12 +286,12 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         conf2.setAdvertisedAddress("localhost");
         conf2.setClusterName(pulsar.getConfiguration().getClusterName());
         PulsarService pulsar2 = startBroker(conf2);
-        pulsar.getLoadManager().writeLoadReportOnZookeeper();
-        pulsar2.getLoadManager().writeLoadReportOnZookeeper();
+        pulsar.getLoadManager().get().writeLoadReportOnZookeeper();
+        pulsar2.getLoadManager().get().writeLoadReportOnZookeeper();
         
         
-        LoadManager loadManager1 = spy(pulsar.getLoadManager());
-        LoadManager loadManager2 = spy(pulsar2.getLoadManager());
+        LoadManager loadManager1 = spy(pulsar.getLoadManager().get());
+        LoadManager loadManager2 = spy(pulsar2.getLoadManager().get());
         Field loadManagerField = NamespaceService.class.getDeclaredField("loadManager");
         loadManagerField.setAccessible(true);
         
@@ -372,11 +372,11 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
 		conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
 		stopBroker();
 		startBroker();
-		pulsar.getLoadManager().writeLoadReportOnZookeeper();
-		pulsar2.getLoadManager().writeLoadReportOnZookeeper();
+		pulsar.getLoadManager().get().writeLoadReportOnZookeeper();
+		pulsar2.getLoadManager().get().writeLoadReportOnZookeeper();
 
-		LoadManager loadManager1 = spy(pulsar.getLoadManager());
-		LoadManager loadManager2 = spy(pulsar2.getLoadManager());
+		LoadManager loadManager1 = spy(pulsar.getLoadManager().get());
+		LoadManager loadManager2 = spy(pulsar2.getLoadManager().get());
 		Field loadManagerField = NamespaceService.class.getDeclaredField("loadManager");
 		loadManagerField.setAccessible(true);
 

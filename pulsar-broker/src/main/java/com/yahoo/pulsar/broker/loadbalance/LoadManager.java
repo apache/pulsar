@@ -18,6 +18,11 @@ package com.yahoo.pulsar.broker.loadbalance;
 import java.util.List;
 
 import com.yahoo.pulsar.broker.PulsarServerException;
+import com.yahoo.pulsar.broker.PulsarService;
+import com.yahoo.pulsar.broker.ServiceConfiguration;
+import com.yahoo.pulsar.broker.loadbalance.impl.NewLoadManagerImpl;
+import com.yahoo.pulsar.broker.loadbalance.impl.NewLoadManagerWrapper;
+import com.yahoo.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import com.yahoo.pulsar.broker.stats.Metrics;
 import com.yahoo.pulsar.common.naming.ServiceUnitId;
 import com.yahoo.pulsar.common.policies.data.loadbalancer.LoadReport;
@@ -79,6 +84,11 @@ public interface LoadManager {
     void doNamespaceBundleSplit() throws Exception;
 
     /**
+     * Determine the broker root.
+     */
+    String getBrokerRoot();
+
+    /**
      * Removes visibility of current broker from loadbalancer list so, other brokers can't redirect any request to this
      * broker and this broker won't accept new connection requests.
      *
@@ -87,4 +97,14 @@ public interface LoadManager {
     public void disableBroker() throws Exception;
 
     public void stop() throws PulsarServerException;
+
+    static LoadManager create(final ServiceConfiguration conf, final PulsarService pulsar) {
+        switch (conf.getLoadManagerName()) {
+            case "NewLoadManager":
+                return new NewLoadManagerWrapper(new NewLoadManagerImpl(pulsar));
+            case "SimpleLoadManager":
+            default:
+                return new SimpleLoadManagerImpl(pulsar);
+        }
+    }
 }

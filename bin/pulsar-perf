@@ -137,6 +137,14 @@ if [ "$COMMAND" == "produce" ]; then
     exec $JAVA $OPTS com.yahoo.pulsar.testclient.PerformanceProducer --conf-file $PULSAR_PERFTEST_CONF "$@"
 elif [ "$COMMAND" == "consume" ]; then
     exec $JAVA $OPTS com.yahoo.pulsar.testclient.PerformanceConsumer --conf-file $PULSAR_PERFTEST_CONF "$@"
+elif [ "$COMMAND" == "monitor" ]; then
+    exec $JAVA $OPTS com.yahoo.pulsar.testclient.BrokerMonitor "$@"
+elif [ "$COMMAND" == "new-monitor" ]; then
+    exec $JAVA $OPTS com.yahoo.pulsar.testclient.NewBrokerMonitor "$@"
+elif [ "$COMMAND" == "simulation-server" ]; then
+    exec $JAVA $OPTS com.yahoo.pulsar.testclient.LoadSimulationServer "$@"
+elif [ "$COMMAND" == "simulation-controller" ]; then
+    exec $JAVA $OPTS com.yahoo.pulsar.testclient.LoadSimulationController "$@"
 elif [ "$COMMAND" == "help" ]; then
     pulsar_help;
 else

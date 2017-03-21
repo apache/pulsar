@@ -334,7 +334,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         try {
             // make broker-node unavailable from the cluster
             if (pulsar.getLoadManager() != null) {
-                pulsar.getLoadManager().disableBroker();
+                pulsar.getLoadManager().get().disableBroker();
             }
 
             // unload all namespace-bundles gracefully

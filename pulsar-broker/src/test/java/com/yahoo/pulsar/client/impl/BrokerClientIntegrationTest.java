@@ -158,7 +158,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         consumers.put(0, consumer1);
 
         // disable this broker to avoid any new requests
-        pulsar.getLoadManager().disableBroker();
+        pulsar.getLoadManager().get().disableBroker();
 
         NamespaceBundle bundle1 = pulsar.getNamespaceService().getBundle(DestinationName.get(dn1));
         NamespaceBundle bundle2 = pulsar.getNamespaceService().getBundle(DestinationName.get(dn2));

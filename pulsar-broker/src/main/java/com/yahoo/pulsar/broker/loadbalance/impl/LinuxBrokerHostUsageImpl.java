@@ -72,6 +72,7 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
         double totalNicUsageRx = getTotalNicUsageRxKb(nics);
         double totalCpuLimit = getTotalCpuLimit();
         CpuStat cpuStat = getTotalCpuUsage();
+
         SystemResourceUsage usage = new SystemResourceUsage();
         long now = System.currentTimeMillis();
 
@@ -159,8 +160,7 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
     }
 
     private boolean isPhysicalNic(Path path) {
-        try {
-            path = Files.isSymbolicLink(path) ? Files.readSymbolicLink(path) : path;
+            path = Files.isSymbolicLink(path) ? path.toAbsolutePath() : path;
             if (!path.toString().contains("/virtual/")) {
                 try {
                     Files.readAllBytes(path.resolve("speed"));
@@ -171,10 +171,6 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
                 }
             }
             return false;
-        } catch (IOException e) {
-            LOG.error("Failed to read link target for NIC " + path, e);
-            return false;
-        }
     }
 
     private Path getNicSpeedPath(String nic) {

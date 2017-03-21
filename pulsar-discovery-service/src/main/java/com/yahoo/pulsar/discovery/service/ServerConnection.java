@@ -129,7 +129,7 @@ public class ServerConnection extends PulsarHandler {
         try {
             LoadReport availableBroker = service.getDiscoveryProvider().nextBroker();
             ctx.writeAndFlush(Commands.newLookupResponse(availableBroker.getPulsarServiceUrl(),
-                    availableBroker.getPulsarServieUrlTls(), false, Redirect, requestId));
+                    availableBroker.getPulsarServiceUrlTls(), false, Redirect, requestId));
         } catch (PulsarServerException e) {
             LOG.warn("[{}] Failed to get next active broker {}", remoteAddress, e.getMessage(), e);
             ctx.writeAndFlush(

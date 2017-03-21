@@ -39,8 +39,23 @@
 			<scope>test</scope>
 		</dependency>
 		<dependency>
+			<groupId>org.apache.zookeeper</groupId>
+			<artifactId>zookeeper</artifactId>
+			<version>3.4.8</version>
+		</dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>pulsar-client-admin</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+		<dependency>
 			<groupId>${project.groupId}</groupId>
 			<artifactId>pulsar-client</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>${project.groupId}</groupId>
+			<artifactId>pulsar-broker</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 		<dependency>

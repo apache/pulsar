@@ -152,7 +152,7 @@ public class BrokerStats extends AdminResource {
         // Ensure super user access only
         validateSuperUserAccess();
         try {
-            return ((SimpleLoadManagerImpl) pulsar().getLoadManager()).generateLoadReport();
+            return ((SimpleLoadManagerImpl) pulsar().getLoadManager().get()).generateLoadReport();
         } catch (Exception e) {
             log.error("[{}] Failed to generate LoadReport for broker, reason [{}]", clientAppId(), e.getMessage(), e);
             throw new RestException(e);
@@ -169,7 +169,7 @@ public class BrokerStats extends AdminResource {
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace) throws Exception {
         try {
             NamespaceName ns = new NamespaceName(property, cluster, namespace);
-            SimpleLoadManagerImpl lm = (SimpleLoadManagerImpl) (pulsar().getLoadManager());
+            SimpleLoadManagerImpl lm = (SimpleLoadManagerImpl) (pulsar().getLoadManager().get());
             return lm.getResourceAvailabilityFor(ns).asMap();
         } catch (Exception e) {
             log.error("Unable to get Resource Availability - [{}]", e);

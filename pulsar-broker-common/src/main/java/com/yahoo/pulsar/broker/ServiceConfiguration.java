@@ -30,7 +30,7 @@ import com.yahoo.pulsar.common.configuration.PulsarConfiguration;
  * Pulsar service configuration object.
  *
  */
-public class ServiceConfiguration implements PulsarConfiguration{
+public class ServiceConfiguration implements PulsarConfiguration {
 
     /***** --- pulsar configuration --- ****/
     // Zookeeper quorum connection string
@@ -196,10 +196,14 @@ public class ServiceConfiguration implements PulsarConfiguration{
     private boolean loadBalancerEnabled = false;
     // load placement strategy
     private String loadBalancerPlacementStrategy = "weightedRandomSelection"; // weighted random selection
+    // load placement secondary strategy (used to silently test an alternate strategy)
+    private String loadBalancerSecondaryStrategy = null;
+    // are all bundle placement operations forwarded to a lead broker
+    private boolean loadBalancerIsCentralized = false;
     // Percentage of change to trigger load report update
     private int loadBalancerReportUpdateThresholdPercentage = 10;
     // maximum interval to update load report
-    private int loadBalancerReportUpdateMaxIntervalMinutes = 15;
+    private int loadBalancerReportUpdateMaxIntervalMinutes = 1;
     // Frequency of report to collect
     private int loadBalancerHostUsageCheckIntervalMinutes = 1;
     // Load shedding interval. Broker periodically checks whether some traffic
@@ -724,6 +728,22 @@ public class ServiceConfiguration implements PulsarConfiguration{
         return this.loadBalancerPlacementStrategy;
     }
 
+    public void setLoadBalancerSecondaryStrategy(String secondaryStrategy) {
+        this.loadBalancerSecondaryStrategy = secondaryStrategy;
+    }
+
+    public String getLoadBalancerSecondaryStrategy() {
+        return this.loadBalancerSecondaryStrategy;
+    }
+
+    public void setLoadBalancerIsCentralized(boolean isCentralized) {
+        this.loadBalancerIsCentralized = isCentralized;
+    }
+
+    public boolean getLoadBalancerIsCentralized() {
+        return this.loadBalancerIsCentralized;
+    }
+
     public int getLoadBalancerReportUpdateThresholdPercentage() {
         return loadBalancerReportUpdateThresholdPercentage;
     }
@@ -940,5 +960,118 @@ public class ServiceConfiguration implements PulsarConfiguration{
 
     public void setReplicatorPrefix(String replicatorPrefix) {
         this.replicatorPrefix = replicatorPrefix;
+    }
+
+
+    // Configurations for new load manager API
+
+    // Number of samples to use for short term time window
+    private int numShortSamples = 50;
+
+    // Number of samples to use for long term time window
+    private int numLongSamples = 1000;
+
+    // How often in seconds to update the broker data
+    private long brokerDataUpdateIntervalSeconds = 60;
+
+    // How often in seconds to update the bundle data
+    private long bundleDataUpdateIntervalSeconds = 60;
+
+    // Default throughput in to assume for new bundles
+    private double defaultMsgThroughputIn = 50000;
+
+    // Default throughput out to assume for new bundles
+    private double defaultMsgThroughputOut = 50000;
+
+    // Default message rate in to assume for new bundles
+    private double defaultMsgRateIn = 50;
+
+    // Default message rate out to assume for new bundles
+    private double defaultMsgRateOut = 50;
+
+    // Name of load manager to use
+    private String loadManagerName = "SimpleLoadManager";
+
+    // Name of placement strategy to use for new loadbalancer API.
+    private String newPlacementStrategyName = "LeastLongTermMessageRate";
+
+    public int getNumShortSamples() {
+        return numShortSamples;
+    }
+
+    public void setNumShortSamples(int numShortSamples) {
+        this.numShortSamples = numShortSamples;
+    }
+
+    public int getNumLongSamples() {
+        return numLongSamples;
+    }
+
+    public void setNumLongSamples(int numLongSamples) {
+        this.numLongSamples = numLongSamples;
+    }
+
+    public long getBrokerDataUpdateIntervalSeconds() {
+        return brokerDataUpdateIntervalSeconds;
+    }
+
+    public void setBrokerDataUpdateIntervalSeconds(long brokerDataUpdateIntervalSeconds) {
+        this.brokerDataUpdateIntervalSeconds = brokerDataUpdateIntervalSeconds;
+    }
+
+    public long getBundleDataUpdateIntervalSeconds() {
+        return bundleDataUpdateIntervalSeconds;
+    }
+
+    public void setBundleDataUpdateIntervalSeconds(long bundleDataUpdateIntervalSeconds) {
+        this.bundleDataUpdateIntervalSeconds = bundleDataUpdateIntervalSeconds;
+    }
+
+    public double getDefaultMsgThroughputIn() {
+        return defaultMsgThroughputIn;
+    }
+
+    public void setDefaultMsgThroughputIn(double defaultMsgThroughputIn) {
+        this.defaultMsgThroughputIn = defaultMsgThroughputIn;
+    }
+
+    public double getDefaultMsgThroughputOut() {
+        return defaultMsgThroughputOut;
+    }
+
+    public void setDefaultMsgThroughputOut(double defaultMsgThroughputOut) {
+        this.defaultMsgThroughputOut = defaultMsgThroughputOut;
+    }
+
+    public double getDefaultMsgRateIn() {
+        return defaultMsgRateIn;
+    }
+
+    public void setDefaultMsgRateIn(double defaultMsgRateIn) {
+        this.defaultMsgRateIn = defaultMsgRateIn;
+    }
+
+    public double getDefaultMsgRateOut() {
+        return defaultMsgRateOut;
+    }
+
+    public void setDefaultMsgRateOut(double defaultMsgRateOut) {
+        this.defaultMsgRateOut = defaultMsgRateOut;
+    }
+
+    public String getLoadManagerName() {
+        return loadManagerName;
+    }
+
+    public void setLoadManagerName(String loadManagerName) {
+        this.loadManagerName = loadManagerName;
+    }
+
+    public String getNewPlacementStrategyName() {
+        return newPlacementStrategyName;
+    }
+
+    public void setNewPlacementStrategyName(String newPlacementStrategyName) {
+        this.newPlacementStrategyName = newPlacementStrategyName;
     }
 }

@@ -452,11 +452,13 @@ public class SimpleLoadManagerImplTest {
     @Test
     public void testTask() throws Exception {
         LoadManager loadManager = mock(LoadManager.class);
-        LoadResourceQuotaUpdaterTask task1 = new LoadResourceQuotaUpdaterTask(loadManager);
+        AtomicReference<LoadManager> atomicLoadManager = new AtomicReference<>(loadManager);
+        LoadResourceQuotaUpdaterTask task1 = new LoadResourceQuotaUpdaterTask(atomicLoadManager);
         task1.run();
         verify(loadManager, times(1)).writeResourceQuotasToZooKeeper();
 
-        LoadSheddingTask task2 = new LoadSheddingTask(loadManager);
+
+        LoadSheddingTask task2 = new LoadSheddingTask(atomicLoadManager);
         task2.run();
         verify(loadManager, times(1)).doLoadShedding();
     }
