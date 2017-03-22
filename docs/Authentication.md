@@ -152,8 +152,8 @@ params["tlsCertFile"] = "/path/to/client-cert.pem";
 params["tlsKeyFile"]  = "/path/to/client-key.pem";
 config.setTlsTrustCertsFilePath(certfile);
 config.setTlsAllowInsecureConnection(false);
-AuthenticationPtr auth = pulsar::Auth::create("/path/to/libauthtls.so", params);
-config.setAuthentication(auth);
+AuthenticationPtr auth = pulsar::AuthFactory::create("/path/to/libauthtls.so", params);
+config.setAuth(auth);
 
 Client client("pulsar+ssl://my-broker.com:6651",config);
 ```
