@@ -272,19 +272,19 @@ void Consumer::redeliverUnacknowledgedMessages() {
     }
 }
 
-Result Consumer::getConsumerStats(BrokerConsumerStats& brokerConsumerStats) {
+Result Consumer::getBrokerConsumerStats(BrokerConsumerStats& brokerConsumerStats) {
     if (!impl_) {
         return ResultConsumerNotInitialized;
     }
     Promise<Result, BrokerConsumerStats> promise;
-    getConsumerStatsAsync(WaitForCallbackValue<BrokerConsumerStats>(promise));
+    getBrokerConsumerStatsAsync(WaitForCallbackValue<BrokerConsumerStats>(promise));
     return promise.getFuture().get(brokerConsumerStats);
 }
 
-void Consumer::getConsumerStatsAsync(BrokerConsumerStatsCallback callback) {
+void Consumer::getBrokerConsumerStatsAsync(BrokerConsumerStatsCallback callback) {
     if (!impl_) {
         return callback(ResultConsumerNotInitialized, BrokerConsumerStats());
     }
-    return impl_->getConsumerStatsAsync(callback);
+    return impl_->getBrokerConsumerStatsAsync(callback);
 }
 }

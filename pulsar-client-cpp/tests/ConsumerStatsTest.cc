@@ -87,8 +87,8 @@ TEST(ConsumerStatsTest, testBacklogInfo) {
         producer.send(msg);
     }
 
-    LOG_DEBUG("Calling consumer.getConsumerStats");
-    consumer.getConsumerStatsAsync(boost::bind(simpleCallbackFunction, _1, _2, ResultOk, numOfMessages, ConsumerExclusive));
+    LOG_DEBUG("Calling consumer.getBrokerConsumerStats");
+    consumer.getBrokerConsumerStatsAsync(boost::bind(simpleCallbackFunction, _1, _2, ResultOk, numOfMessages, ConsumerExclusive));
 
     for (int i = numOfMessages; i<(numOfMessages*2); i++) {
         std::string messageContent = prefix + boost::lexical_cast<std::string>(i);
@@ -98,7 +98,7 @@ TEST(ConsumerStatsTest, testBacklogInfo) {
 
     usleep(3.5 * 1000 * 1000);
     BrokerConsumerStats consumerStats;
-    Result res = consumer.getConsumerStats(consumerStats);
+    Result res = consumer.getBrokerConsumerStats(consumerStats);
     ASSERT_EQ(res, ResultOk);
     LOG_DEBUG(consumerStats);
     ASSERT_EQ(consumerStats.getMsgBacklog(), 2 * numOfMessages);
@@ -116,14 +116,14 @@ TEST(ConsumerStatsTest, testFailure) {
     Promise<Result, Consumer> consumerPromise;
     BrokerConsumerStats consumerStats;
     client.subscribeAsync(topicName, subName, WaitForCallbackValue<Consumer>(consumerPromise));
-    ASSERT_NE(ResultOk, consumer.getConsumerStats(consumerStats));
+    ASSERT_NE(ResultOk, consumer.getBrokerConsumerStats(consumerStats));
     Future<Result, Consumer> consumerFuture = consumerPromise.getFuture();
     Result result = consumerFuture.get(consumer);
     ASSERT_EQ(ResultOk, result);
 
     // handling dangling subscriptions
     consumer.unsubscribe();
-    ASSERT_NE(ResultOk, consumer.getConsumerStats(consumerStats));
+    ASSERT_NE(ResultOk, consumer.getBrokerConsumerStats(consumerStats));
     client.subscribe(topicName, subName, consumer);
 
     // Producing messages
@@ -142,13 +142,13 @@ TEST(ConsumerStatsTest, testFailure) {
         producer.send(msg);
     }
 
-    ASSERT_EQ(ResultOk, consumer.getConsumerStats(consumerStats));
+    ASSERT_EQ(ResultOk, consumer.getBrokerConsumerStats(consumerStats));
 
     LOG_DEBUG(consumerStats);
     ASSERT_EQ(consumerStats.getMsgBacklog(), numOfMessages);
 
     consumer.unsubscribe();
-    ASSERT_NE(ResultOk, consumer.getConsumerStats(consumerStats));
+    ASSERT_NE(ResultOk, consumer.getBrokerConsumerStats(consumerStats));
 }
 
 TEST(ConsumerStatsTest, testCachingMechanism) {
@@ -163,14 +163,14 @@ TEST(ConsumerStatsTest, testCachingMechanism) {
     Promise<Result, Consumer> consumerPromise;
     BrokerConsumerStats consumerStats;
     client.subscribeAsync(topicName, subName, conf, WaitForCallbackValue<Consumer>(consumerPromise));
-    ASSERT_NE(ResultOk, consumer.getConsumerStats(consumerStats));
+    ASSERT_NE(ResultOk, consumer.getBrokerConsumerStats(consumerStats));
     Future<Result, Consumer> consumerFuture = consumerPromise.getFuture();
     Result result = consumerFuture.get(consumer);
     ASSERT_EQ(ResultOk, result);
 
     // handling dangling subscriptions
     consumer.unsubscribe();
-    ASSERT_NE(ResultOk, consumer.getConsumerStats(consumerStats));
+    ASSERT_NE(ResultOk, consumer.getBrokerConsumerStats(consumerStats));
     client.subscribe(topicName, subName, conf, consumer);
 
     // Producing messages
@@ -189,7 +189,7 @@ TEST(ConsumerStatsTest, testCachingMechanism) {
         producer.send(msg);
     }
 
-    ASSERT_EQ(ResultOk, consumer.getConsumerStats(consumerStats));
+    ASSERT_EQ(ResultOk, consumer.getBrokerConsumerStats(consumerStats));
 
     LOG_DEBUG(consumerStats);
     ASSERT_EQ(consumerStats.getMsgBacklog(), numOfMessages);
@@ -202,14 +202,14 @@ TEST(ConsumerStatsTest, testCachingMechanism) {
 
     LOG_DEBUG("Expecting cached results");
     ASSERT_TRUE(consumerStats.isValid());
-    ASSERT_EQ(ResultOk, consumer.getConsumerStats(consumerStats));
+    ASSERT_EQ(ResultOk, consumer.getBrokerConsumerStats(consumerStats));
     LOG_DEBUG(consumerStats);
     ASSERT_EQ(consumerStats.getMsgBacklog(), numOfMessages);
 
     LOG_DEBUG("Still Expecting cached results");
     usleep(1 * 1000 * 1000);
     ASSERT_TRUE(consumerStats.isValid());
-    ASSERT_EQ(ResultOk, consumer.getConsumerStats(consumerStats));
+    ASSERT_EQ(ResultOk, consumer.getBrokerConsumerStats(consumerStats));
 
     LOG_DEBUG(consumerStats);
     ASSERT_EQ(consumerStats.getMsgBacklog(), numOfMessages);
@@ -217,13 +217,13 @@ TEST(ConsumerStatsTest, testCachingMechanism) {
     LOG_DEBUG("Now expecting new results");
     usleep(3 * 1000 * 1000);
     ASSERT_FALSE(consumerStats.isValid());
-    ASSERT_EQ(ResultOk, consumer.getConsumerStats(consumerStats));
+    ASSERT_EQ(ResultOk, consumer.getBrokerConsumerStats(consumerStats));
 
     LOG_DEBUG(consumerStats);
     ASSERT_EQ(consumerStats.getMsgBacklog(), numOfMessages * 2);
 
     consumer.unsubscribe();
-    ASSERT_NE(ResultOk, consumer.getConsumerStats(consumerStats));
+    ASSERT_NE(ResultOk, consumer.getBrokerConsumerStats(consumerStats));
 }
 
 
@@ -247,14 +247,14 @@ TEST(ConsumerStatsTest, testAsyncCallOnPartitionedTopic) {
     Promise<Result, Consumer> consumerPromise;
     BrokerConsumerStats consumerStats;
     client.subscribeAsync(topicName, subName, conf, WaitForCallbackValue<Consumer>(consumerPromise));
-    ASSERT_NE(ResultOk, consumer.getConsumerStats(consumerStats));
+    ASSERT_NE(ResultOk, consumer.getBrokerConsumerStats(consumerStats));
     Future<Result, Consumer> consumerFuture = consumerPromise.getFuture();
     Result result = consumerFuture.get(consumer);
     ASSERT_EQ(ResultOk, result);
 
     // handling dangling subscriptions
     consumer.unsubscribe();
-    ASSERT_NE(ResultOk, consumer.getConsumerStats(consumerStats));
+    ASSERT_NE(ResultOk, consumer.getBrokerConsumerStats(consumerStats));
     client.subscribe(topicName, subName, conf, consumer);
 
     // Producing messages
@@ -277,7 +277,7 @@ TEST(ConsumerStatsTest, testAsyncCallOnPartitionedTopic) {
 
     // Expecting return from 4 callbacks
     Latch latch(4);
-    consumer.getConsumerStatsAsync(boost::bind(partitionedCallbackFunction, _1, _2, 5, latch, 0));
+    consumer.getBrokerConsumerStatsAsync(boost::bind(partitionedCallbackFunction, _1, _2, 5, latch, 0));
 
     // Now we have 10 messages per partition
     for (int i = numOfMessages; i<(numOfMessages*2); i++) {
@@ -287,11 +287,11 @@ TEST(ConsumerStatsTest, testAsyncCallOnPartitionedTopic) {
     }
 
     // Expecting cached result
-    consumer.getConsumerStatsAsync(boost::bind(partitionedCallbackFunction, _1, _2, 5, latch, 0));
+    consumer.getBrokerConsumerStatsAsync(boost::bind(partitionedCallbackFunction, _1, _2, 5, latch, 0));
 
     usleep(4.5 * 1000 * 1000);
     // Expecting fresh results
-    consumer.getConsumerStatsAsync(boost::bind(partitionedCallbackFunction, _1, _2, 10, latch, 2));
+    consumer.getBrokerConsumerStatsAsync(boost::bind(partitionedCallbackFunction, _1, _2, 10, latch, 2));
 
     Message msg;
     while (consumer.receive(msg)) {
@@ -299,7 +299,7 @@ TEST(ConsumerStatsTest, testAsyncCallOnPartitionedTopic) {
     }
 
     // Expecting the backlog to be the same since we didn't acknowledge the messages
-    consumer.getConsumerStatsAsync(boost::bind(partitionedCallbackFunction, _1, _2, 10, latch, 3));
+    consumer.getBrokerConsumerStatsAsync(boost::bind(partitionedCallbackFunction, _1, _2, 10, latch, 3));
 
     // Wait for ten seconds only
     ASSERT_TRUE(latch.wait(milliseconds(10 * 1000)));

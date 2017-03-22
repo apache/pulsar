@@ -376,7 +376,7 @@ namespace pulsar {
         return messages_.size();
     }
 
-    void PartitionedConsumerImpl::getConsumerStatsAsync(BrokerConsumerStatsCallback callback) {
+    void PartitionedConsumerImpl::getBrokerConsumerStatsAsync(BrokerConsumerStatsCallback callback) {
         Lock lock(mutex_);
         if (state_ != Ready) {
             lock.unlock();
@@ -387,7 +387,7 @@ namespace pulsar {
         ConsumerList consumerList = consumers_;
         lock.unlock();
         for (int i = 0; i<consumerList.size(); i++) {
-            consumerList[i]->getConsumerStatsAsync(boost::bind(&PartitionedConsumerImpl::handleGetConsumerStats,
+            consumerList[i]->getBrokerConsumerStatsAsync(boost::bind(&PartitionedConsumerImpl::handleGetConsumerStats,
                                                                shared_from_this(), _1, _2, latchPtr,
                                                                statsPtr, i, callback));
         }

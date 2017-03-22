@@ -687,7 +687,7 @@ int ConsumerImpl::getNumOfPrefetchedMessages() const {
     return incomingMessages_.size();
 }
 
-void ConsumerImpl::getConsumerStatsAsync(BrokerConsumerStatsCallback callback) {
+void ConsumerImpl::getBrokerConsumerStatsAsync(BrokerConsumerStatsCallback callback) {
     Lock lock(mutex_);
     if (state_ != Ready) {
         LOG_ERROR(getName() << "Client connection is not open, please try again later.")

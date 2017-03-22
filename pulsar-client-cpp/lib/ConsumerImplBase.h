@@ -47,7 +47,7 @@ public:
     virtual void redeliverUnacknowledgedMessages() = 0;
     virtual const std::string& getName() const = 0;
     virtual int getNumOfPrefetchedMessages() const = 0;
-    virtual void getConsumerStatsAsync(BrokerConsumerStatsCallback callback) = 0;
+    virtual void getBrokerConsumerStatsAsync(BrokerConsumerStatsCallback callback) = 0;
 };
 }
 #endif //PULSAR_CONSUMER_IMPL_BASE_HEADER

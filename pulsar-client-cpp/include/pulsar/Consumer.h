@@ -290,7 +290,7 @@ class Consumer {
      *
      * @note This is a blocking call with timeout of thirty seconds.
      */
-    Result getConsumerStats(BrokerConsumerStats& brokerConsumerStats);
+    Result getBrokerConsumerStats(BrokerConsumerStats& brokerConsumerStats);
 
     /**
     * Asynchronous call to gets Consumer Stats from broker.
@@ -301,7 +301,7 @@ class Consumer {
     * @param callback - callback function to get the brokerConsumerStats,
     *                   if result is ResultOk then the brokerConsumerStats will be populated
     */
-    void getConsumerStatsAsync(BrokerConsumerStatsCallback callback);
+    void getBrokerConsumerStatsAsync(BrokerConsumerStatsCallback callback);
 private:
     typedef boost::shared_ptr<ConsumerImplBase> ConsumerImplBasePtr;
     friend class PulsarFriend;
