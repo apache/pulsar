@@ -290,7 +290,7 @@ public ConsumerConfiguration setReceiverQueueSize(int receiverQueueSize);
 
 Creates a Producer (TODO javadocs) with PulsarClient and publish 10 messages.
 ```java
-ProducerConfiguration = config = new ProducerConfiguration();
+ProducerConfiguration config = new ProducerConfiguration();
 Producer producer = pulsarClient.createProducer(
            "persistent://my-property/us-w/my-ns/my-topic", config);
 // publish 10 messages to the topic
