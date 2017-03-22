@@ -38,6 +38,7 @@ import org.testng.annotations.Test;
 
 import com.yahoo.pulsar.client.api.ProducerConsumerBase;
 import com.yahoo.pulsar.websocket.WebSocketService;
+import com.yahoo.pulsar.websocket.proxy.ProxyPublishConsumeWithoutZKTest.RetryAnalyzer;
 import com.yahoo.pulsar.websocket.service.ProxyServer;
 import com.yahoo.pulsar.websocket.service.WebSocketProxyConfiguration;
 import com.yahoo.pulsar.websocket.service.WebSocketServiceStarter;
@@ -75,7 +76,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         log.info("Finished Cleaning Up Test setup");
     }
 
-    @Test(timeOut=10000)
+    @Test(retryAnalyzer = RetryAnalyzer.class, timeOut = 5000)
     public void socketTest() throws Exception {
         URI consumeUri = URI.create(CONSUME_URI);
         URI produceUri = URI.create(PRODUCE_URI);
@@ -107,15 +108,17 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         } finally {
             ExecutorService executor = newFixedThreadPool(1);
             try {
-                executor.submit(() -> {
-                    try {
-                        consumeClient.stop();
-                        produceClient.stop();
-                        log.info("proxy clients are stopped successfully");
-                    } catch (Exception e) {
-                        log.error(e.getMessage());
-                    }
-                }).get(2, TimeUnit.SECONDS);
+                executor.submit(new Runnable() {
+                    @Override
+                    public void run() {
+                        try {
+                            consumeClient.stop();
+                            produceClient.stop();
+                            log.info("proxy clients are stopped successfully");
+                        } catch (Exception e) {
+                            log.error(e.getMessage());
+                        }
+                    }}).get(2, TimeUnit.SECONDS);
             } catch (Exception e) {
                 log.error("failed to close clients ", e);
             }
