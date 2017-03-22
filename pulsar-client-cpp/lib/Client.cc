@@ -31,7 +31,8 @@ DECLARE_LOG_OBJECT()
 namespace pulsar {
 
 struct ClientConfiguration::Impl {
-    AuthenticationPtr authData;
+    AuthenticationPtr authenticationPtr;
+    AuthDataPtr authDataPtr;
     int ioThreads;
     int operationTimeoutSeconds;
     int messageListenerThreads;
@@ -40,7 +41,7 @@ struct ClientConfiguration::Impl {
     bool useTls;
     std::string tlsTrustCertsFilePath;
     bool tlsAllowInsecureConnection;
-    Impl() : authData(Auth::Disabled()),
+    Impl() : authenticationPtr(AuthFactory::Disabled()),
              ioThreads(1),
              operationTimeoutSeconds(30),
              messageListenerThreads(1),
@@ -66,17 +67,28 @@ ClientConfiguration& ClientConfiguration::operator=(const ClientConfiguration& x
     return *this;
 }
 
-ClientConfiguration& ClientConfiguration::setAuthentication(const AuthenticationPtr& authentication) {
-    impl_->authData = authentication;
+ClientConfiguration& ClientConfiguration::setAuth(const AuthenticationPtr& authentication) {
+    impl_->authenticationPtr = authentication;
     return *this;
 }
 
-const Authentication& ClientConfiguration::getAuthentication() const {
-    return *impl_->authData;
+const Authentication& ClientConfiguration::getAuth() const {
+    return *impl_->authenticationPtr;
 }
 
+ClientConfiguration& ClientConfiguration::setAuthentication(const AuthDataPtr& authentication) {
+    impl_->authDataPtr = authentication;
+    impl_->authenticationPtr = AuthData::getAuthenticationPtr(authentication);
+    return *this;
+}
+
+const AuthData& ClientConfiguration::getAuthentication() const {
+    return *(impl_->authDataPtr);
+}
+
+
 const AuthenticationPtr& ClientConfiguration::getAuthenticationPtr() const {
-    return impl_->authData;
+    return impl_->authenticationPtr;
 }
 
 ClientConfiguration& ClientConfiguration::setOperationTimeoutSeconds(int timeout) {

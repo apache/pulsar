@@ -17,15 +17,30 @@
 #ifndef PULSAR_CLIENT_HPP_
 #define PULSAR_CLIENT_HPP_
 
-#include <pulsar/Auth.h>
+#include <pulsar/Authentication.h>
 #include <pulsar/Consumer.h>
 #include <pulsar/Producer.h>
 #include <pulsar/Result.h>
 #include <pulsar/Message.h>
 #include <pulsar/MessageBuilder.h>
-
 #include <string>
 
+#ifdef PULSAR_ENABLE_DEPRECATED_METHOD
+    #include<pulsar/Auth.h>
+#else
+    // Deprecated
+    namespace pulsar {
+        class AuthData;
+        typedef boost::shared_ptr<AuthData> AuthDataPtr;
+        class AuthData {
+            public:
+            static AuthenticationPtr getAuthenticationPtr(const AuthDataPtr& authentication) {
+                AuthenticationPtr ptr;
+                return ptr;
+            }
+        };
+    }
+#endif
 #pragma GCC visibility push(default)
 
 class PulsarFriend;
@@ -45,16 +60,30 @@ class ClientConfiguration {
     ClientConfiguration& operator=(const ClientConfiguration&);
 
     /**
+     * @deprecated
      * Set the authentication method to be used with the broker
      *
      * @param authentication the authentication data to use
      */
-    ClientConfiguration& setAuthentication(const AuthenticationPtr& authentication);
+    ClientConfiguration& setAuthentication(const AuthDataPtr& authentication);
+
+    /**
+     * @deprecated
+     * @return the authentication data
+     */
+    const AuthData& getAuthentication() const;
+
+    /**
+     * Set the authentication method to be used with the broker
+     *
+     * @param authentication the authentication data to use
+     */
+    ClientConfiguration& setAuth(const AuthenticationPtr& authentication);
 
     /**
      * @return the authentication data
      */
-    const Authentication& getAuthentication() const;
+    const Authentication& getAuth() const;
 
     /**
      * Set timeout on client operations (subscribe, create producer, close, unsubscribe)

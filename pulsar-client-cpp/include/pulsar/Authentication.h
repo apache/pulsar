@@ -14,39 +14,22 @@
  * limitations under the License.
  */
 
-#ifndef PULSAR_AUTH_H_
-#define PULSAR_AUTH_H_
+#ifndef PULSAR_AUTHENTICATION_H_
+#define PULSAR_AUTHENTICATION_H_
 
 #include <vector>
 #include <string>
 #include <map>
 #include <boost/shared_ptr.hpp>
 #include <pulsar/Result.h>
+#include <boost/make_shared.hpp>
 
 #pragma GCC visibility push(default)
 
 namespace pulsar {
 
-#ifdef PULSAR_ENABLE_DEPRECATED_METHOD
-    // This is deprecated.
-    enum AuthType {
-        AuthNone,
-        AuthYcaV1
-    };
-    // This is deprecated.
-    class AuthData {
-       public:
-          virtual ~AuthData();
-
-          virtual AuthType getType() const = 0;
-
-          virtual Result getAuthData(std::string& authDataContent) const = 0;
-
-       protected:
-          AuthData();
-    };
-    typedef boost::shared_ptr<AuthData> AuthDataPtr;
-#endif
+    class ClientConfiguration;
+    class Authentication;
 
     class AuthenticationDataProvider {
     public:
@@ -64,6 +47,8 @@ namespace pulsar {
     };
 
     typedef boost::shared_ptr<AuthenticationDataProvider> AuthenticationDataPtr;
+    typedef boost::shared_ptr<Authentication> AuthenticationPtr;
+    typedef std::map<std::string, std::string> ParamMap;
 
     class Authentication {
     public:
@@ -73,30 +58,15 @@ namespace pulsar {
             authDataContent = authData_;
             return ResultOk;
         }
-#ifdef PULSAR_ENABLE_DEPRECATED_METHOD
-        // This is deprecated.
-        virtual Result getAuthData(std::string& authDataContent) const {
-            return ResultOk;
-        }
-#endif
     protected:
         Authentication();
         AuthenticationDataPtr authData_;
+        friend class ClientConfiguration;
     };
 
-    typedef boost::shared_ptr<Authentication> AuthenticationPtr;
-    typedef std::map<std::string, std::string> ParamMap;
-
-    class Auth {
+    class AuthFactory {
     public:
-#ifdef PULSAR_ENABLE_DEPRECATED_METHOD
-        // This is deprecated.
-        static AuthDataPtr Disabled();
-        // This is deprecated.
-        static AuthDataPtr YcaV1(const std::string& ycaAppId);
-#else
         static AuthenticationPtr Disabled();
-#endif
         static AuthenticationPtr create(const std::string& dynamicLibPath);
         static AuthenticationPtr create(const std::string& dynamicLibPath, const std::string& authParamsString);
         static AuthenticationPtr create(const std::string& dynamicLibPath, ParamMap& params);
@@ -106,10 +76,9 @@ namespace pulsar {
         static std::vector<void *> loadedLibrariesHandles_;
         static void release_handles();
     };
-
 }
 // namespace pulsar
 
 #pragma GCC visibility pop
 
-#endif /* PULSAR_AUTH_H_ */
+#endif /* PULSAR_AUTHENTICATION_H_ */

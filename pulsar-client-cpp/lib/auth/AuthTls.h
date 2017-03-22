@@ -17,7 +17,7 @@
 #ifndef PULSAR_AUTH_TLS_H_
 #define PULSAR_AUTH_TLS_H_
 
-#include <pulsar/Auth.h>
+#include <pulsar/Authentication.h>
 #include <lib/LogUtils.h>
 #include <iostream>
 #include <string>
