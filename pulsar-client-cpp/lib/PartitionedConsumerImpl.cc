@@ -378,21 +378,19 @@ namespace pulsar {
 
     void PartitionedConsumerImpl::getConsumerStatsAsync(BrokerConsumerStatsCallback callback) {
         Lock lock(mutex_);
-        PartitionedBrokerConsumerStatsPtr statsPtr = boost::make_shared<PartitionedBrokerConsumerStatsImpl>(numPartitions_);
-        if (numPartitions_ != consumers_.size()) {
+        if (state_ != Ready) {
             lock.unlock();
             return callback(ResultConsumerNotInitialized, BrokerConsumerStats());
         }
+        PartitionedBrokerConsumerStatsPtr statsPtr = boost::make_shared<PartitionedBrokerConsumerStatsImpl>(numPartitions_);
         LatchPtr latchPtr = boost::make_shared<Latch>(numPartitions_);
         ConsumerList consumerList = consumers_;
         lock.unlock();
-
         for (int i = 0; i<consumerList.size(); i++) {
             consumerList[i]->getConsumerStatsAsync(boost::bind(&PartitionedConsumerImpl::handleGetConsumerStats,
                                                                shared_from_this(), _1, _2, latchPtr,
                                                                statsPtr, i, callback));
         }
-
     }
 
     void PartitionedConsumerImpl::handleGetConsumerStats(Result res, BrokerConsumerStats brokerConsumerStats,
