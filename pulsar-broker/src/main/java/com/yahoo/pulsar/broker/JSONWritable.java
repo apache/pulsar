@@ -9,23 +9,25 @@ import com.yahoo.pulsar.common.util.ObjectMapperFactory;
  */
 public class JSONWritable {
 
-    /**
-     * Get the JSON of this object as a byte[].
-     * @return A byte[] of this object's JSON.
-     * @throws JsonProcessingException
-     */
-    @JsonIgnore
-    public byte[] getJsonBytes() throws JsonProcessingException {
-        return ObjectMapperFactory.getThreadLocal().writeValueAsBytes(this);
-    }
+	/**
+	 * Get the JSON of this object as a byte[].
+	 * 
+	 * @return A byte[] of this object's JSON.
+	 * @throws JsonProcessingException
+	 */
+	@JsonIgnore
+	public byte[] getJsonBytes() throws JsonProcessingException {
+		return ObjectMapperFactory.getThreadLocal().writeValueAsBytes(this);
+	}
 
-    /**
-     * Get the JSON of this object as a String.
-     * @return A String of this object's JSON.
-     * @throws JsonProcessingException
-     */
-    @JsonIgnore
-    public String getJsonString() throws JsonProcessingException {
-        return ObjectMapperFactory.getThreadLocal().writeValueAsString(this);
-    }
+	/**
+	 * Get the JSON of this object as a String.
+	 * 
+	 * @return A String of this object's JSON.
+	 * @throws JsonProcessingException
+	 */
+	@JsonIgnore
+	public String getJsonString() throws JsonProcessingException {
+		return ObjectMapperFactory.getThreadLocal().writeValueAsString(this);
+	}
 }

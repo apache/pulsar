@@ -17,6 +17,7 @@ package com.yahoo.pulsar.broker.admin;
 
 import java.io.OutputStream;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Map;
 
 import javax.ws.rs.GET;
@@ -28,6 +29,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.StreamingOutput;
 
+import com.yahoo.pulsar.broker.loadbalance.LoadManager;
 import org.apache.bookkeeper.mledger.proto.PendingBookieOpsStats;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -152,7 +154,7 @@ public class BrokerStats extends AdminResource {
         // Ensure super user access only
         validateSuperUserAccess();
         try {
-            return ((SimpleLoadManagerImpl) pulsar().getLoadManager().get()).generateLoadReport();
+            return (pulsar().getLoadManager().get()).generateLoadReport();
         } catch (Exception e) {
             log.error("[{}] Failed to generate LoadReport for broker, reason [{}]", clientAppId(), e.getMessage(), e);
             throw new RestException(e);
@@ -169,8 +171,12 @@ public class BrokerStats extends AdminResource {
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace) throws Exception {
         try {
             NamespaceName ns = new NamespaceName(property, cluster, namespace);
-            SimpleLoadManagerImpl lm = (SimpleLoadManagerImpl) (pulsar().getLoadManager().get());
-            return lm.getResourceAvailabilityFor(ns).asMap();
+            LoadManager lm = pulsar().getLoadManager().get();
+            if (lm instanceof SimpleLoadManagerImpl) {
+                return ((SimpleLoadManagerImpl) lm).getResourceAvailabilityFor(ns).asMap();
+            } else {
+                return Collections.emptyMap();
+            }
         } catch (Exception e) {
             log.error("Unable to get Resource Availability - [{}]", e);
             throw new RestException(e);

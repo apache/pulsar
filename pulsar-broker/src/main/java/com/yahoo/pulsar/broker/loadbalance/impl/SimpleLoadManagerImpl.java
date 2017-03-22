@@ -259,11 +259,9 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
                     // ignore the exception, node might be present already
                 }
             }
-            Thread.sleep(5000);
             String lookupServiceAddress = pulsar.getAdvertisedAddress() + ":" + conf.getWebServicePort();
             brokerZnodePath = brokerRoot + "/" + lookupServiceAddress;
             LoadReport loadReport = null;
-            Thread.sleep(5000);
             try {
                 loadReport = generateLoadReport();
                 this.lastResourceUsageTimestamp = loadReport.getTimestamp();

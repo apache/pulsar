@@ -203,7 +203,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // Percentage of change to trigger load report update
     private int loadBalancerReportUpdateThresholdPercentage = 10;
     // maximum interval to update load report
-    private int loadBalancerReportUpdateMaxIntervalMinutes = 1;
+    private int loadBalancerReportUpdateMaxIntervalMinutes = 15;
     // Frequency of report to collect
     private int loadBalancerHostUsageCheckIntervalMinutes = 1;
     // Load shedding interval. Broker periodically checks whether some traffic
@@ -966,112 +966,113 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // Configurations for new load manager API
 
     // Number of samples to use for short term time window
-    private int numShortSamples = 50;
+    private int loadManagerNumberOfSamplesShortTermWindow = 50;
 
     // Number of samples to use for long term time window
-    private int numLongSamples = 1000;
+    private int loadManagerNumberOfSamplesLongTermWindow = 1000;
 
     // How often in seconds to update the broker data
-    private long brokerDataUpdateIntervalSeconds = 60;
+    private long loadManagerBrokerDataUpdateIntervalInSeconds = 60;
 
     // How often in seconds to update the bundle data
-    private long bundleDataUpdateIntervalSeconds = 60;
+    private long loadManagerBundleDataUpdateIntervalInSeconds = 60;
 
     // Default throughput in to assume for new bundles
-    private double defaultMsgThroughputIn = 50000;
+    private double loadManagerDefaultMessageThroughputIn = 50000;
 
     // Default throughput out to assume for new bundles
-    private double defaultMsgThroughputOut = 50000;
+    private double loadManagerDefaultMessageThroughputOut = 50000;
 
     // Default message rate in to assume for new bundles
-    private double defaultMsgRateIn = 50;
+    private double loadManagerDefaultMessageRateIn = 50;
 
     // Default message rate out to assume for new bundles
-    private double defaultMsgRateOut = 50;
+    private double loadManagerDefaultMessageRateOut = 50;
 
     // Name of load manager to use
-    private String loadManagerName = "SimpleLoadManager";
+    private String loadManagerClassName = "com.yahoo.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl";
 
     // Name of placement strategy to use for new loadbalancer API.
-    private String newPlacementStrategyName = "LeastLongTermMessageRate";
+    private String modularPlacementStrategyClassName =
+            "com.yahoo.pulsar.broker.loadbalance.impl.LeastLongTermMessageRate";
 
-    public int getNumShortSamples() {
-        return numShortSamples;
+    public int getLoadManagerNumberOfSamplesShortTermWindow() {
+        return loadManagerNumberOfSamplesShortTermWindow;
     }
 
-    public void setNumShortSamples(int numShortSamples) {
-        this.numShortSamples = numShortSamples;
+    public void setLoadManagerNumberOfSamplesShortTermWindow(int loadManagerNumberOfSamplesShortTermWindow) {
+        this.loadManagerNumberOfSamplesShortTermWindow = loadManagerNumberOfSamplesShortTermWindow;
     }
 
-    public int getNumLongSamples() {
-        return numLongSamples;
+    public int getLoadManagerNumberOfSamplesLongTermWindow() {
+        return loadManagerNumberOfSamplesLongTermWindow;
     }
 
-    public void setNumLongSamples(int numLongSamples) {
-        this.numLongSamples = numLongSamples;
+    public void setLoadManagerNumberOfSamplesLongTermWindow(int loadManagerNumberOfSamplesLongTermWindow) {
+        this.loadManagerNumberOfSamplesLongTermWindow = loadManagerNumberOfSamplesLongTermWindow;
     }
 
-    public long getBrokerDataUpdateIntervalSeconds() {
-        return brokerDataUpdateIntervalSeconds;
+    public long getLoadManagerBrokerDataUpdateIntervalInSeconds() {
+        return loadManagerBrokerDataUpdateIntervalInSeconds;
     }
 
-    public void setBrokerDataUpdateIntervalSeconds(long brokerDataUpdateIntervalSeconds) {
-        this.brokerDataUpdateIntervalSeconds = brokerDataUpdateIntervalSeconds;
+    public void setLoadManagerBrokerDataUpdateIntervalInSeconds(long loadManagerBrokerDataUpdateIntervalInSeconds) {
+        this.loadManagerBrokerDataUpdateIntervalInSeconds = loadManagerBrokerDataUpdateIntervalInSeconds;
     }
 
-    public long getBundleDataUpdateIntervalSeconds() {
-        return bundleDataUpdateIntervalSeconds;
+    public long getLoadManagerBundleDataUpdateIntervalInSeconds() {
+        return loadManagerBundleDataUpdateIntervalInSeconds;
     }
 
-    public void setBundleDataUpdateIntervalSeconds(long bundleDataUpdateIntervalSeconds) {
-        this.bundleDataUpdateIntervalSeconds = bundleDataUpdateIntervalSeconds;
+    public void setLoadManagerBundleDataUpdateIntervalInSeconds(long loadManagerBundleDataUpdateIntervalInSeconds) {
+        this.loadManagerBundleDataUpdateIntervalInSeconds = loadManagerBundleDataUpdateIntervalInSeconds;
     }
 
-    public double getDefaultMsgThroughputIn() {
-        return defaultMsgThroughputIn;
+    public double getLoadManagerDefaultMessageThroughputIn() {
+        return loadManagerDefaultMessageThroughputIn;
     }
 
-    public void setDefaultMsgThroughputIn(double defaultMsgThroughputIn) {
-        this.defaultMsgThroughputIn = defaultMsgThroughputIn;
+    public void setLoadManagerDefaultMessageThroughputIn(double loadManagerDefaultMessageThroughputIn) {
+        this.loadManagerDefaultMessageThroughputIn = loadManagerDefaultMessageThroughputIn;
     }
 
-    public double getDefaultMsgThroughputOut() {
-        return defaultMsgThroughputOut;
+    public double getLoadManagerDefaultMessageThroughputOut() {
+        return loadManagerDefaultMessageThroughputOut;
     }
 
-    public void setDefaultMsgThroughputOut(double defaultMsgThroughputOut) {
-        this.defaultMsgThroughputOut = defaultMsgThroughputOut;
+    public void setLoadManagerDefaultMessageThroughputOut(double loadManagerDefaultMessageThroughputOut) {
+        this.loadManagerDefaultMessageThroughputOut = loadManagerDefaultMessageThroughputOut;
     }
 
-    public double getDefaultMsgRateIn() {
-        return defaultMsgRateIn;
+    public double getLoadManagerDefaultMessageRateIn() {
+        return loadManagerDefaultMessageRateIn;
     }
 
-    public void setDefaultMsgRateIn(double defaultMsgRateIn) {
-        this.defaultMsgRateIn = defaultMsgRateIn;
+    public void setLoadManagerDefaultMessageRateIn(double loadManagerDefaultMessageRateIn) {
+        this.loadManagerDefaultMessageRateIn = loadManagerDefaultMessageRateIn;
     }
 
-    public double getDefaultMsgRateOut() {
-        return defaultMsgRateOut;
+    public double getLoadManagerDefaultMessageRateOut() {
+        return loadManagerDefaultMessageRateOut;
     }
 
-    public void setDefaultMsgRateOut(double defaultMsgRateOut) {
-        this.defaultMsgRateOut = defaultMsgRateOut;
+    public void setLoadManagerDefaultMessageRateOut(double loadManagerDefaultMessageRateOut) {
+        this.loadManagerDefaultMessageRateOut = loadManagerDefaultMessageRateOut;
     }
 
-    public String getLoadManagerName() {
-        return loadManagerName;
+    public String getLoadManagerClassName() {
+        return loadManagerClassName;
     }
 
-    public void setLoadManagerName(String loadManagerName) {
-        this.loadManagerName = loadManagerName;
+    public void setLoadManagerClassName(String loadManagerClassName) {
+        this.loadManagerClassName = loadManagerClassName;
     }
 
-    public String getNewPlacementStrategyName() {
-        return newPlacementStrategyName;
+    public String getModularPlacementStrategyClassName() {
+        return modularPlacementStrategyClassName;
     }
 
-    public void setNewPlacementStrategyName(String newPlacementStrategyName) {
-        this.newPlacementStrategyName = newPlacementStrategyName;
+    public void setModularPlacementStrategyClassName(String modularPlacementStrategyClassName) {
+        this.modularPlacementStrategyClassName = modularPlacementStrategyClassName;
     }
 }

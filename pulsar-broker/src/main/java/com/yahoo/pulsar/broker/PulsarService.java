@@ -19,7 +19,6 @@ import java.io.IOException;
 import java.net.URL;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -212,8 +211,8 @@ public class PulsarService implements AutoCloseable {
                     final String newLoadManagerName =
                             new String(getZkClient().getData(DYNAMIC_LOAD_MANAGER_ZPATH, this, null));
 
-                    config.setLoadManagerName(newLoadManagerName);
-                    final LoadManager newLoadManager = LoadManager.create(config, PulsarService.this);
+                    config.setLoadManagerClassName(newLoadManagerName);
+                    final LoadManager newLoadManager = LoadManager.create(PulsarService.this);
                     LOG.info("Created load manager: {}", newLoadManagerName);
                     loadManager.get().disableBroker();
                     newLoadManager.start();
@@ -261,9 +260,9 @@ public class PulsarService implements AutoCloseable {
 
             // Start load management service (even if load balancing is disabled)
             if (getZkClient().exists(DYNAMIC_LOAD_MANAGER_ZPATH, false) != null) {
-                config.setLoadManagerName(new String(getZkClient().getData(DYNAMIC_LOAD_MANAGER_ZPATH, false, null)));
+                config.setLoadManagerClassName(new String(getZkClient().getData(DYNAMIC_LOAD_MANAGER_ZPATH, false, null)));
             }
-            this.loadManager = new AtomicReference<>(LoadManager.create(config, this));
+            this.loadManager = new AtomicReference<>(LoadManager.create(this));
 
             this.startLoadManagementService();
 
@@ -339,7 +338,7 @@ public class PulsarService implements AutoCloseable {
 
             try {
                 ZkUtils.createFullPathOptimistic(getZkClient(), DYNAMIC_LOAD_MANAGER_ZPATH,
-                        config.getLoadManagerName().getBytes(), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+                        config.getLoadManagerClassName().getBytes(), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
             } catch (KeeperException.NodeExistsException e) {
                 // Ignore
             }
