@@ -19,10 +19,6 @@ import com.yahoo.pulsar.common.policies.data.loadbalancer.LoadReport;
 public class ModularLoadManagerWrapper implements LoadManager {
 	private ModularLoadManager loadManager;
 
-	public ModularLoadManagerWrapper(final PulsarService pulsar) {
-		this(new ModularLoadManagerImpl(pulsar));
-	}
-
 	public ModularLoadManagerWrapper(final ModularLoadManager loadManager) {
 		this.loadManager = loadManager;
 	}
@@ -55,8 +51,7 @@ public class ModularLoadManagerWrapper implements LoadManager {
 
 	@Override
 	public ResourceUnit getLeastLoaded(final ServiceUnitId serviceUnit) {
-		return new SimpleResourceUnit(
-				String.format("http://%s", loadManager.selectBrokerForAssignment(serviceUnit.toString())),
+		return new SimpleResourceUnit(String.format("http://%s", loadManager.selectBrokerForAssignment(serviceUnit)),
 				new PulsarResourceDescription());
 	}
 

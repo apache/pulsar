@@ -1,6 +1,7 @@
 package com.yahoo.pulsar.broker.loadbalance;
 
 import com.yahoo.pulsar.broker.PulsarServerException;
+import com.yahoo.pulsar.common.naming.ServiceUnitId;
 
 /**
  * New proposal for a load manager interface which attempts to use more
@@ -38,11 +39,11 @@ public interface ModularLoadManager {
 	 * As the leader broker, find a suitable broker for the assignment of the
 	 * given bundle.
 	 * 
-	 * @param bundleToAssign
-	 *            Full name of the bundle to assign.
+	 * @param serviceUnit
+	 *            ServiceUnitId for the bundle.
 	 * @return The name of the selected broker, as it appears on ZooKeeper.
 	 */
-	String selectBrokerForAssignment(String bundleToAssign);
+	String selectBrokerForAssignment(ServiceUnitId serviceUnit);
 
 	/**
 	 * As any broker, retrieve the namespace bundle stats and system resource

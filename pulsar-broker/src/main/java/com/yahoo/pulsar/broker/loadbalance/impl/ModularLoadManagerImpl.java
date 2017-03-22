@@ -3,6 +3,7 @@ package com.yahoo.pulsar.broker.loadbalance.impl;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -45,6 +46,8 @@ import com.yahoo.pulsar.broker.loadbalance.LoadSheddingStrategy;
 import com.yahoo.pulsar.broker.loadbalance.ModularLoadManager;
 import com.yahoo.pulsar.broker.loadbalance.ModularLoadManagerStrategy;
 import com.yahoo.pulsar.client.admin.PulsarAdmin;
+import com.yahoo.pulsar.common.naming.NamespaceName;
+import com.yahoo.pulsar.common.naming.ServiceUnitId;
 import com.yahoo.pulsar.common.policies.data.loadbalancer.NamespaceBundleStats;
 import com.yahoo.pulsar.common.policies.data.loadbalancer.SystemResourceUsage;
 import com.yahoo.pulsar.common.util.ObjectMapperFactory;
@@ -68,6 +71,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
 
 	// Set of broker candidates to reuse so that object creation is avoided.
 	private final Set<String> brokerCandidateCache;
+	private final Set<String> primariesCache;
+	private final Set<String> sharedCache;
 
 	// Used to filter brokers from being selected for assignment.
 	private final List<BrokerFilter> filterPipeline;
@@ -124,6 +129,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
 		loadData = new LoadData();
 		preallocatedBundleToBroker = new ConcurrentHashMap<>();
 		brokerCandidateCache = new HashSet<>();
+		primariesCache = new HashSet<>();
+		sharedCache = new HashSet<>();
 		filterPipeline = new ArrayList<>();
 		loadSheddingPipeline = new ArrayList<>();
 		localData = new LocalBrokerData(pulsar.getWebServiceAddress(), pulsar.getWebServiceAddressTls(),
@@ -434,15 +441,17 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
 	 * As the leader broker, find a suitable broker for the assignment of the
 	 * given bundle.
 	 * 
-	 * @param bundle
-	 *            Full name of the bundle to assign.
+	 * @param serviceUnit
+	 *            ServiceUnitId for the bundle.
 	 * @return The name of the selected broker, as it appears on ZooKeeper.
 	 */
 	@Override
-	public synchronized String selectBrokerForAssignment(final String bundle) {
+	public synchronized String selectBrokerForAssignment(final ServiceUnitId serviceUnit) {
 		// ?: Is it too inefficient to make this synchronized? If so, it may be
 		// a good idea to use weighted random
 		// or atomic data.
+
+		final String bundle = serviceUnit.toString();
 		if (preallocatedBundleToBroker.containsKey(bundle)) {
 			// If the given bundle is already in preallocated, return the
 			// selected broker.
@@ -451,6 +460,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
 		final BundleData data = loadData.getBundleData().computeIfAbsent(bundle, key -> getBundleDataOrDefault(bundle));
 		brokerCandidateCache.clear();
 		brokerCandidateCache.addAll(loadData.getBrokerData().keySet());
+		policyFilter(serviceUnit);
 
 		// Use the filter pipeline to finalize broker candidates.
 		for (BrokerFilter filter : filterPipeline) {
@@ -462,6 +472,76 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
 		loadData.getBrokerData().get(broker).getPreallocatedBundleData().put(bundle, data);
 		preallocatedBundleToBroker.put(bundle, broker);
 		return broker;
+	}
+
+	private void policyFilter(final ServiceUnitId serviceUnit) {
+		// need multimap or at least set of RUs
+		primariesCache.clear();
+		sharedCache.clear();
+		NamespaceName namespace = serviceUnit.getNamespaceObject();
+		boolean isIsolationPoliciesPresent = policies.IsIsolationPoliciesPresent(namespace);
+		if (isIsolationPoliciesPresent) {
+			log.debug("Isolation Policies Present for namespace - [{}]", namespace.toString());
+		}
+		for (final String broker : brokerCandidateCache) {
+			final String brokerUrlString = String.format("http://%s", broker);
+			URL brokerUrl = null;
+			try {
+				brokerUrl = new URL(brokerUrlString);
+			} catch (MalformedURLException e) {
+				log.error("Unable to parse brokerUrl from ResourceUnitId - [{}]", e);
+				continue;
+			}
+			// todo: in future check if the resource unit has resources to take
+			// the namespace
+			if (isIsolationPoliciesPresent) {
+				// note: serviceUnitID is namespace name and ResourceID is
+				// brokerName
+				if (policies.isPrimaryBroker(namespace, brokerUrl.getHost())) {
+					primariesCache.add(broker);
+					if (log.isDebugEnabled()) {
+						log.debug("Added Primary Broker - [{}] as possible Candidates for"
+								+ " namespace - [{}] with policies", brokerUrl.getHost(), namespace.toString());
+					}
+				} else if (policies.isSharedBroker(brokerUrl.getHost())) {
+					sharedCache.add(broker);
+					if (log.isDebugEnabled()) {
+						log.debug(
+								"Added Shared Broker - [{}] as possible "
+										+ "Candidates for namespace - [{}] with policies",
+								brokerUrl.getHost(), namespace.toString());
+					}
+				} else {
+					if (log.isDebugEnabled()) {
+						log.debug("Skipping Broker - [{}] not primary broker and not shared" + " for namespace - [{}] ",
+								brokerUrl.getHost(), namespace.toString());
+					}
+
+				}
+			} else {
+				if (policies.isSharedBroker(brokerUrl.getHost())) {
+					sharedCache.add(broker);
+					log.debug("Added Shared Broker - [{}] as possible Candidates for namespace - [{}]",
+							brokerUrl.getHost(), namespace.toString());
+				}
+			}
+		}
+		if (isIsolationPoliciesPresent) {
+			brokerCandidateCache.addAll(primariesCache);
+			if (policies.shouldFailoverToSecondaries(namespace, primariesCache.size())) {
+				log.debug(
+						"Not enough of primaries [{}] available for namespace - [{}], "
+								+ "adding shared [{}] as possible candidate owners",
+						primariesCache.size(), namespace.toString(), sharedCache.size());
+				brokerCandidateCache.addAll(sharedCache);
+			}
+		} else {
+			log.debug(
+					"Policies not present for namespace - [{}] so only "
+							+ "considering shared [{}] brokers for possible owner",
+					namespace.toString(), sharedCache.size());
+			brokerCandidateCache.addAll(sharedCache);
+		}
 	}
 
 	/**
