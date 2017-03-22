@@ -26,16 +26,11 @@
 #pragma GCC visibility push(default)
 
 namespace pulsar {
-namespace proto {
-class CommandMessage;
-class MessageMetadata;
-class SingleMessageMetadata;
-}
-}
-
-using namespace pulsar;
-
-namespace pulsar {
+    namespace proto {
+        class CommandMessage;
+        class MessageMetadata;
+        class SingleMessageMetadata;
+    }
 
 class SharedBuffer;
 class MessageBuilder;
