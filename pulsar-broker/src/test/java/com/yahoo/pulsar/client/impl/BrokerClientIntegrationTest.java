@@ -32,6 +32,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.NavigableMap;
 import java.util.Set;
+import static java.util.UUID.randomUUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CountDownLatch;
@@ -528,7 +529,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
      * 1. Start broker with N maxConcurrentTopicLoadRequest 
      * 2. create concurrent producers on different topics which makes broker to load topics concurrently
      * 3. Producer operationtimeout = 1 ms so, if producers creation will fail for throttled topics
-     * 4. verify failed producers
+     * 4. verify all producers should have connected
      * </pre>
      * 
      * @throws Exception
@@ -564,23 +565,18 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         assertTrue(cnx.channel().isActive());
         ExecutorService executor = Executors.newFixedThreadPool(concurrentLookupRequests);
         List<CompletableFuture<Producer>> futures = Lists.newArrayList();
-        final int totalProducers = 20;
+        final int totalProducers = 10;
         CountDownLatch latch = new CountDownLatch(totalProducers);
         for (int i = 0; i < totalProducers; i++) {
-            final int j = i;
             executor.submit(() -> {
-                futures.add(pulsarClient2.createProducerAsync(topicName + j));
-                futures.add(pulsarClient.createProducerAsync(topicName + j + 1));
+                futures.add(pulsarClient2.createProducerAsync(topicName + randomUUID().toString()));
+                futures.add(pulsarClient.createProducerAsync(topicName + randomUUID().toString()));
                 latch.countDown();
             });
         }
-        try {
-            latch.await();
-            FutureUtil.waitForAll(futures).get();
-            fail("should have failed with concurrent topic loading requests");
-        } catch (Exception e) {
-            // ok
-        }
+
+        latch.await();
+        FutureUtil.waitForAll(futures).get();
 
         pulsarClient.close();
         pulsarClient2.close();
