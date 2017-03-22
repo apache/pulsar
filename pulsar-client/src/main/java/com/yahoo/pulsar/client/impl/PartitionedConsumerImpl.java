@@ -17,7 +17,6 @@ package com.yahoo.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -266,7 +265,6 @@ public class PartitionedConsumerImpl extends ConsumerBase {
 
     @Override
     public CompletableFuture<Void> closeAsync() {
-
         if (getState() == State.Closing || getState() == State.Closed) {
             return CompletableFuture.completedFuture(null);
         }
@@ -455,7 +453,10 @@ public class PartitionedConsumerImpl extends ConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(PartitionedConsumerImpl.class);
 
     @Override
-    public CompletableFuture<BrokerConsumerStats> getBrokerConsumerStatsAsync() {
+    public synchronized CompletableFuture<BrokerConsumerStats> getBrokerConsumerStatsAsync() {
+        if (getState() != State.Ready) {
+            return FutureUtil.failedFuture(new PulsarClientException.NotConnectedException());
+        }
         PartitionedBrokerConsumerStatsImpl brokerConsumerStats = new PartitionedBrokerConsumerStatsImpl(consumers.size());
         List<CompletableFuture<Void>> futures = Lists.newArrayList();
         for (int i = 0; i < consumers.size(); i++) {
