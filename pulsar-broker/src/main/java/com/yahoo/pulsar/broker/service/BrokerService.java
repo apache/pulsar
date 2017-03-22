@@ -434,7 +434,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             throw new RuntimeException(new ServiceUnitNotReadyException(msg));
         }
 
-        if (!topicLoadRequestSemaphore.get().tryAcquire()) {
+        final Semaphore topicLoadSemaphore = topicLoadRequestSemaphore.get();
+        if (!topicLoadSemaphore.tryAcquire()) {
             return FutureUtil.failedFuture(new TooManyRequestsException("Too many concurrent topics are loading"));
         }
         
@@ -467,7 +468,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
                                 return null;
                             });
-                            topicLoadRequestSemaphore.get().release();
+                            topicLoadSemaphore.release();
                         }
 
                         @Override
@@ -475,7 +476,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                             log.warn("Failed to create topic {}", topic, exception);
                             topics.remove(topic, topicFuture);
                             topicFuture.completeExceptionally(new PersistenceException(exception));
-                            topicLoadRequestSemaphore.get().release();
+                            topicLoadSemaphore.release();
                         }
                     }, null);
 
@@ -483,7 +484,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             log.warn("[{}] Failed to get topic configuration: {}", topic, exception.getMessage(), exception);
             topics.remove(topic, topicFuture);
             topicFuture.completeExceptionally(exception);
-            topicLoadRequestSemaphore.get().release();
+            topicLoadSemaphore.release();
             return null;
         });
 
@@ -883,7 +884,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         // add listener on "maxConcurrentLookupRequest" value change
         registerConfigurationListener("maxConcurrentLookupRequest",
                 (maxConcurrentLookupRequest) -> lookupRequestSemaphore.set(new Semaphore((int) maxConcurrentLookupRequest, true)));
-        // add listener on "maxConcurrentLookupRequest" value change
+        // add listener on "maxConcurrentTopicLoadRequest" value change
         registerConfigurationListener("maxConcurrentTopicLoadRequest",
                 (maxConcurrentTopicLoadRequest) -> topicLoadRequestSemaphore.set(new Semaphore((int) maxConcurrentTopicLoadRequest, true)));
         // add more listeners here
