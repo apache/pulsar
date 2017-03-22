@@ -110,6 +110,18 @@ class ConsumerConfiguration {
      * @return the configured timeout in milliseconds for unacked messages.
      */
     long getUnAckedMessagesTimeoutMs() const;
+
+    /**
+     * Set the time duration for which the broker side consumer stats will be cached in the client.
+     * @param cacheTimeInMs in milliseconds
+     */
+    void setBrokerConsumerStatsCacheTimeInMs(const long cacheTimeInMs);
+
+    /**
+     * @return the configured timeout in milliseconds caching BrokerConsumerStats.
+     */
+    long getBrokerConsumerStatsCacheTimeInMs() const;
+
  private:
     struct Impl;
     boost::shared_ptr<Impl> impl_;

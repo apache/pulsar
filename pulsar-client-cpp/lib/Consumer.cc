@@ -32,11 +32,13 @@ struct ConsumerConfiguration::Impl {
     bool hasMessageListener;
     int receiverQueueSize;
     std::string consumerName;
+    long brokerConsumerStatsCacheTimeInMs;
     Impl()
             : unAckedMessagesTimeoutMs(0),
               consumerType(ConsumerExclusive),
               messageListener(),
               hasMessageListener(false),
+              brokerConsumerStatsCacheTimeInMs(30 * 1000), // 30 seconds
               receiverQueueSize(1000) {
     }
 };
@@ -55,6 +57,14 @@ ConsumerConfiguration::ConsumerConfiguration(const ConsumerConfiguration& x)
 ConsumerConfiguration& ConsumerConfiguration::operator=(const ConsumerConfiguration& x) {
     impl_ = x.impl_;
     return *this;
+}
+
+long ConsumerConfiguration::getBrokerConsumerStatsCacheTimeInMs() const {
+    return impl_->brokerConsumerStatsCacheTimeInMs;
+}
+
+void ConsumerConfiguration::setBrokerConsumerStatsCacheTimeInMs(const long cacheTimeInMs) {
+    impl_->brokerConsumerStatsCacheTimeInMs = cacheTimeInMs;
 }
 
 ConsumerConfiguration& ConsumerConfiguration::setConsumerType(ConsumerType consumerType) {
@@ -262,37 +272,18 @@ void Consumer::redeliverUnacknowledgedMessages() {
     }
 }
 
-static void listener(Result result, BrokerConsumerStats& brokerConsumerStats,
-                     BrokerConsumerStats* stats, Result &res, LatchPtr latchPtr) {
-    std::cout<<"JAI 1: "<<*stats;
-    std::cout<<"JAI 2: "<<brokerConsumerStats;
-
-    stats = &brokerConsumerStats;
-
-    std::cout<<"JAI 4: "<<*stats;
-    std::cout<<"JAI 5: "<<brokerConsumerStats;
-
-    res = result;
-    latchPtr->countdown();
-}
-
 Result Consumer::getConsumerStats(BrokerConsumerStats& brokerConsumerStats) {
     if (!impl_) {
         return ResultConsumerNotInitialized;
     }
-    // Can't use promises or future here since it leads to data being copied which leads to object splicing
-    Result res;
-    LatchPtr latchPtr = boost::make_shared<Latch>(1);
-    getConsumerStatsAsync(boost::bind(listener, _1, _2, &brokerConsumerStats, boost::ref(res), latchPtr));
-    latchPtr->wait();
-    std::cout<<"JAI 2: "<<brokerConsumerStats;
-    return res;
+    Promise<Result, BrokerConsumerStats> promise;
+    getConsumerStatsAsync(WaitForCallbackValue<BrokerConsumerStats>(promise));
+    return promise.getFuture().get(brokerConsumerStats);
 }
 
 void Consumer::getConsumerStatsAsync(BrokerConsumerStatsCallback callback) {
     if (!impl_) {
-        BrokerConsumerStatsImpl impl;
-        return callback(ResultConsumerNotInitialized, impl);
+        return callback(ResultConsumerNotInitialized, BrokerConsumerStats());
     }
     return impl_->getConsumerStatsAsync(callback);
 }

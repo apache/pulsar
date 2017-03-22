@@ -171,6 +171,7 @@ namespace pulsar {
         // all the partitioned-consumer belonging to one partitioned topic should have same name
         config.setConsumerName(conf_.getConsumerName());
         config.setConsumerType(conf_.getConsumerType());
+        config.setBrokerConsumerStatsCacheTimeInMs(conf_.getBrokerConsumerStatsCacheTimeInMs());
         config.setMessageListener(boost::bind(&PartitionedConsumerImpl::messageReceived, shared_from_this(), _1, _2));
         // create consumer on each partition
         for (unsigned int i = 0; i < numPartitions_; i++ ) {
@@ -380,7 +381,7 @@ namespace pulsar {
         PartitionedBrokerConsumerStatsPtr statsPtr = boost::make_shared<PartitionedBrokerConsumerStatsImpl>(numPartitions_);
         if (numPartitions_ != consumers_.size()) {
             lock.unlock();
-            return callback(ResultConsumerNotInitialized, *statsPtr);
+            return callback(ResultConsumerNotInitialized, BrokerConsumerStats());
         }
         LatchPtr latchPtr = boost::make_shared<Latch>(numPartitions_);
         ConsumerList consumerList = consumers_;
@@ -394,20 +395,20 @@ namespace pulsar {
 
     }
 
-    void PartitionedConsumerImpl::handleGetConsumerStats(Result res, BrokerConsumerStats& brokerConsumerStats,
+    void PartitionedConsumerImpl::handleGetConsumerStats(Result res, BrokerConsumerStats brokerConsumerStats,
                                                          LatchPtr latchPtr, PartitionedBrokerConsumerStatsPtr statsPtr,
                                                          size_t index, BrokerConsumerStatsCallback callback) {
         Lock lock(mutex_);
         if (res == ResultOk) {
             latchPtr->countdown();
-            statsPtr->add((BrokerConsumerStatsImpl&)brokerConsumerStats, index);
+            statsPtr->add(brokerConsumerStats, index);
         } else {
             lock.unlock();
-            return callback(res, *statsPtr);
+            return callback(res, BrokerConsumerStats());
         }
         if (latchPtr->getCount() == 0) {
             lock.unlock();
-            callback(ResultOk, *statsPtr);
+            callback(ResultOk, BrokerConsumerStats(statsPtr));
         }
     }
 }

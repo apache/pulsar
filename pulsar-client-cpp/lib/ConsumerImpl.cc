@@ -692,14 +692,14 @@ void ConsumerImpl::getConsumerStatsAsync(BrokerConsumerStatsCallback callback) {
     if (state_ != Ready) {
         LOG_ERROR(getName() << "Client connection is not open, please try again later.")
         lock.unlock();
-        return callback(ResultConsumerNotInitialized, brokerConsumerStats_);
+        return callback(ResultConsumerNotInitialized, BrokerConsumerStats());
     }
 
     if (brokerConsumerStats_.isValid()) {
         LOG_DEBUG(getName() << "Serving data from cache");
         BrokerConsumerStatsImpl brokerConsumerStats = brokerConsumerStats_;
         lock.unlock();
-        return callback(ResultOk, brokerConsumerStats);
+        return callback(ResultOk, BrokerConsumerStats(boost::make_shared<BrokerConsumerStatsImpl>(brokerConsumerStats_)));
     }
     lock.unlock();
 
@@ -716,11 +716,11 @@ void ConsumerImpl::getConsumerStatsAsync(BrokerConsumerStatsCallback callback) {
             return;
         } else {
             LOG_ERROR(getName() << " Operation not supported since server protobuf version " << cnx->getServerProtocolVersion() << " is older than proto::v7");
-            return callback(ResultUnsupportedVersionError, brokerConsumerStats_);
+            return callback(ResultUnsupportedVersionError, BrokerConsumerStats());
         }
     }
     LOG_ERROR(getName() << " Client Connection not ready for Consumer");
-    return callback(ResultNotConnected, brokerConsumerStats_);
+    return callback(ResultNotConnected, BrokerConsumerStats());
 }
 
 void ConsumerImpl::brokerConsumerStatsListener(Result res, BrokerConsumerStatsImpl brokerConsumerStats
@@ -728,13 +728,12 @@ void ConsumerImpl::brokerConsumerStatsListener(Result res, BrokerConsumerStatsIm
 
     if (res == ResultOk) {
         Lock lock(mutex_);
-        LOG_ERROR("JAI: RECEIVED "<<brokerConsumerStats);
+        brokerConsumerStats.setCacheTime(config_.getBrokerConsumerStatsCacheTimeInMs());
         brokerConsumerStats_ = brokerConsumerStats;
-        // TODO - add logic to set expiry time
     }
 
     if (!callback.empty()) {
-        callback(res, (BrokerConsumerStatsImpl&) brokerConsumerStats_);
+        callback(res, BrokerConsumerStats(boost::make_shared<BrokerConsumerStatsImpl>(brokerConsumerStats)));
     }
 }
 

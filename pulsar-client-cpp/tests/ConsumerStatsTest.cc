@@ -37,10 +37,11 @@ using namespace pulsar;
 static std::string lookupUrl = "pulsar://localhost:8885";
 static std::string adminUrl = "http://localhost:8765/";
 
-void callbackFunction(Result result, BrokerConsumerStats& brokerConsumerStats, long expectedBacklog, Latch& latch, int index) {
-    PartitionedBrokerConsumerStatsImpl stats = (PartitionedBrokerConsumerStatsImpl&) brokerConsumerStats;
-    LOG_DEBUG(stats);
-    ASSERT_EQ(expectedBacklog, stats.getBrokerConsumerStats(index).getMsgBacklog());
+void partitionedCallbackFunction(Result result, BrokerConsumerStats brokerConsumerStats, long expectedBacklog, Latch& latch, int index) {
+    ASSERT_EQ(result, ResultOk);
+    PartitionedBrokerConsumerStatsImpl* statsPtr = (PartitionedBrokerConsumerStatsImpl*)(brokerConsumerStats.getImpl().get());
+    LOG_DEBUG(statsPtr);
+    ASSERT_EQ(expectedBacklog, statsPtr->getBrokerConsumerStats(index).getMsgBacklog());
     latch.countdown();
 }
 
@@ -57,16 +58,18 @@ TEST(ConsumerStatsTest, testBacklogInfo) {
 	Client client(lookupUrl);
 	std::string topicName = "persistent://property/cluster/namespace/" + testName;
     std::string subName = "subscription-name";
+    ConsumerConfiguration conf;
+    conf.setBrokerConsumerStatsCacheTimeInMs(3 * 1000);
     Consumer consumer;
     Promise<Result, Consumer> consumerPromise;
-    client.subscribeAsync(topicName, subName, WaitForCallbackValue<Consumer>(consumerPromise));
+    client.subscribeAsync(topicName, subName, conf, WaitForCallbackValue<Consumer>(consumerPromise));
     Future<Result, Consumer> consumerFuture = consumerPromise.getFuture();
     Result result = consumerFuture.get(consumer);
     ASSERT_EQ(ResultOk, result);
 
     // handling dangling subscriptions
     consumer.unsubscribe();
-    client.subscribe(topicName, subName, consumer);
+    client.subscribe(topicName, subName, conf, consumer);
 
     // Producing messages
     Producer producer;
@@ -85,7 +88,6 @@ TEST(ConsumerStatsTest, testBacklogInfo) {
     }
 
     LOG_DEBUG("Calling consumer.getConsumerStats");
-    BrokerConsumerStats consumerStats;
     consumer.getConsumerStatsAsync(boost::bind(simpleCallbackFunction, _1, _2, ResultOk, numOfMessages, ConsumerExclusive));
 
     for (int i = numOfMessages; i<(numOfMessages*2); i++) {
@@ -94,10 +96,10 @@ TEST(ConsumerStatsTest, testBacklogInfo) {
         producer.send(msg);
     }
 
-    usleep(35 * 1000 * 1000);
+    usleep(3.5 * 1000 * 1000);
+    BrokerConsumerStats consumerStats;
     Result res = consumer.getConsumerStats(consumerStats);
     ASSERT_EQ(res, ResultOk);
-
     LOG_DEBUG(consumerStats);
     ASSERT_EQ(consumerStats.getMsgBacklog(), 2 * numOfMessages);
     ASSERT_EQ(consumerStats.getType(), ConsumerExclusive);
@@ -155,10 +157,12 @@ TEST(ConsumerStatsTest, testCachingMechanism) {
     Client client(lookupUrl);
     std::string topicName = "persistent://property/cluster/namespace/" + testName;
     std::string subName = "subscription-name";
+    ConsumerConfiguration conf;
+    conf.setBrokerConsumerStatsCacheTimeInMs(3.5 * 1000);
     Consumer consumer;
     Promise<Result, Consumer> consumerPromise;
     BrokerConsumerStats consumerStats;
-    client.subscribeAsync(topicName, subName, WaitForCallbackValue<Consumer>(consumerPromise));
+    client.subscribeAsync(topicName, subName, conf, WaitForCallbackValue<Consumer>(consumerPromise));
     ASSERT_NE(ResultOk, consumer.getConsumerStats(consumerStats));
     Future<Result, Consumer> consumerFuture = consumerPromise.getFuture();
     Result result = consumerFuture.get(consumer);
@@ -167,7 +171,7 @@ TEST(ConsumerStatsTest, testCachingMechanism) {
     // handling dangling subscriptions
     consumer.unsubscribe();
     ASSERT_NE(ResultOk, consumer.getConsumerStats(consumerStats));
-    client.subscribe(topicName, subName, consumer);
+    client.subscribe(topicName, subName, conf, consumer);
 
     // Producing messages
     Producer producer;
@@ -203,7 +207,7 @@ TEST(ConsumerStatsTest, testCachingMechanism) {
     ASSERT_EQ(consumerStats.getMsgBacklog(), numOfMessages);
 
     LOG_DEBUG("Still Expecting cached results");
-    usleep(10 * 1000 * 1000);
+    usleep(1 * 1000 * 1000);
     ASSERT_TRUE(consumerStats.isValid());
     ASSERT_EQ(ResultOk, consumer.getConsumerStats(consumerStats));
 
@@ -211,7 +215,7 @@ TEST(ConsumerStatsTest, testCachingMechanism) {
     ASSERT_EQ(consumerStats.getMsgBacklog(), numOfMessages);
 
     LOG_DEBUG("Now expecting new results");
-    usleep(25 * 1000 * 1000);
+    usleep(3 * 1000 * 1000);
     ASSERT_FALSE(consumerStats.isValid());
     ASSERT_EQ(ResultOk, consumer.getConsumerStats(consumerStats));
 
@@ -237,10 +241,12 @@ TEST(ConsumerStatsTest, testAsyncCallOnPartitionedTopic) {
     LOG_INFO("res = "<<res);
     ASSERT_FALSE(res != 204 && res != 409);
 
+    ConsumerConfiguration conf;
+    conf.setBrokerConsumerStatsCacheTimeInMs(3.5 * 1000);
     Consumer consumer;
     Promise<Result, Consumer> consumerPromise;
     BrokerConsumerStats consumerStats;
-    client.subscribeAsync(topicName, subName, WaitForCallbackValue<Consumer>(consumerPromise));
+    client.subscribeAsync(topicName, subName, conf, WaitForCallbackValue<Consumer>(consumerPromise));
     ASSERT_NE(ResultOk, consumer.getConsumerStats(consumerStats));
     Future<Result, Consumer> consumerFuture = consumerPromise.getFuture();
     Result result = consumerFuture.get(consumer);
@@ -249,7 +255,7 @@ TEST(ConsumerStatsTest, testAsyncCallOnPartitionedTopic) {
     // handling dangling subscriptions
     consumer.unsubscribe();
     ASSERT_NE(ResultOk, consumer.getConsumerStats(consumerStats));
-    client.subscribe(topicName, subName, consumer);
+    client.subscribe(topicName, subName, conf, consumer);
 
     // Producing messages
     Producer producer;
@@ -271,7 +277,7 @@ TEST(ConsumerStatsTest, testAsyncCallOnPartitionedTopic) {
 
     // Expecting return from 4 callbacks
     Latch latch(4);
-    consumer.getConsumerStatsAsync(boost::bind(callbackFunction, _1, _2, 5, latch, 0));
+    consumer.getConsumerStatsAsync(boost::bind(partitionedCallbackFunction, _1, _2, 5, latch, 0));
 
     // Now we have 10 messages per partition
     for (int i = numOfMessages; i<(numOfMessages*2); i++) {
@@ -281,10 +287,11 @@ TEST(ConsumerStatsTest, testAsyncCallOnPartitionedTopic) {
     }
 
     // Expecting cached result
-    consumer.getConsumerStatsAsync(boost::bind(callbackFunction, _1, _2, 5, latch, 0));
+    consumer.getConsumerStatsAsync(boost::bind(partitionedCallbackFunction, _1, _2, 5, latch, 0));
 
-    // Expecting fresh results since the partition index is different
-    consumer.getConsumerStatsAsync(boost::bind(callbackFunction, _1, _2, 10, latch, 2));
+    usleep(4.5 * 1000 * 1000);
+    // Expecting fresh results
+    consumer.getConsumerStatsAsync(boost::bind(partitionedCallbackFunction, _1, _2, 10, latch, 2));
 
     Message msg;
     while (consumer.receive(msg)) {
@@ -292,7 +299,7 @@ TEST(ConsumerStatsTest, testAsyncCallOnPartitionedTopic) {
     }
 
     // Expecting the backlog to be the same since we didn't acknowledge the messages
-    consumer.getConsumerStatsAsync(boost::bind(callbackFunction, _1, _2, 10, latch, 3));
+    consumer.getConsumerStatsAsync(boost::bind(partitionedCallbackFunction, _1, _2, 10, latch, 3));
 
     // Wait for ten seconds only
     ASSERT_TRUE(latch.wait(milliseconds(10 * 1000)));
