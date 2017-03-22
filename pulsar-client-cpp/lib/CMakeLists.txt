@@ -21,7 +21,7 @@ execute_process(COMMAND cat ../pom.xml COMMAND xmllint --format - COMMAND sed "s
 set (CMAKE_CXX_FLAGS " ${CMAKE_CXX_FLAGS} -msse4.2 -mpclmul -D_PULSAR_VERSION_=\\\"${PV}\\\"")
 
 add_library(pulsarStatic STATIC ${PULSAR_SOURCES})
-add_library(pulsarShared SHARED ${PULSAR_SOURCES} BrokerConsumerStatsImplBase.h)
+add_library(pulsarShared SHARED ${PULSAR_SOURCES})
 
 set_target_properties(pulsarStatic PROPERTIES OUTPUT_NAME pulsar VERSION ${PV})
 set_target_properties(pulsarShared PROPERTIES OUTPUT_NAME pulsar VERSION ${PV})

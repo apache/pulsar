@@ -34,7 +34,7 @@ class BrokerConsumerStats {
 
     BrokerConsumerStats();
 
-    /** Returns true if the Stats are no longer valid **/
+    /** Returns true if the Stats are still valid **/
     virtual bool isValid() const;
 
     /** Returns the rate of messages delivered to the consumer. msg/s */

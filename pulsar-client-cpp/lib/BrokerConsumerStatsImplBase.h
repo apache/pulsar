@@ -22,7 +22,7 @@
 namespace pulsar {
     class BrokerConsumerStatsImplBase {
     public:
-        /** Returns true if the Message is Expired **/
+        /** Returns true if the Stats are still valid **/
         virtual bool isValid() const = 0;
 
         /** Returns the rate of messages delivered to the consumer. msg/s */

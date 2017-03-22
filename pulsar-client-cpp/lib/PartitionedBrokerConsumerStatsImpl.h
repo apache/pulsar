@@ -36,7 +36,7 @@ class PartitionedBrokerConsumerStatsImpl : public BrokerConsumerStatsImplBase {
 
     PartitionedBrokerConsumerStatsImpl(size_t size);
 
-    /** Returns true if the Message is Expired **/
+    /** Returns true if the Stats are still valid **/
     virtual bool isValid() const;
 
     /** Returns the rate of messages delivered to the consumer. msg/s */
