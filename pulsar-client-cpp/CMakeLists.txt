@@ -33,6 +33,8 @@ find_library(CURL_LIBRARY_PATH curl)
 find_path(LOG4CXX_INCLUDE_PATH log4cxx/logger.h)
 find_path(GTEST_INCLUDE_PATH gtest/gtest.h)
 
+set(ADDITIONAL_LIBRARIES $ENV{PULSAR_ADDITIONAL_LIBRARIES})
+link_directories( $ENV{PULSAR_ADDITIONAL_LIBRARY_PATH} )
 
 include_directories(
   ${CMAKE_SOURCE_DIR}
@@ -53,13 +55,19 @@ set(COMMON_LIBS
   ${PROTOBUF_LIBRARIES}
   ${LOG4CXX_LIBRARY_PATH}
   ${CURL_LIBRARY_PATH}
+  ${ADDITIONAL_LIBRARIES}
 )
 
 link_directories(${CMAKE_BINARY_DIR}/lib)
 
+set(LIB_NAME $ENV{PULSAR_LIBRARY_NAME})
+if (NOT LIB_NAME)
+    set(LIB_NAME pulsar)
+endif(NOT LIB_NAME)
+
 set(CLIENT_LIBS
   ${COMMON_LIBS}
-  pulsar
+  ${LIB_NAME}
 )
 
 add_subdirectory(lib)

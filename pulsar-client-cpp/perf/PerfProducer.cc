@@ -36,7 +36,7 @@ namespace po = boost::program_options;
 #include <pulsar/Client.h>
 #include "RateLimiter.h"
 #include <pulsar/MessageBuilder.h>
-#include <pulsar/Auth.h>
+#include <pulsar/Authentication.h>
 typedef boost::shared_ptr<pulsar::RateLimiter> RateLimiterPtr;
 
 struct Arguments {
@@ -296,8 +296,8 @@ int main(int argc, char** argv) {
     conf.setIOThreads(args.ioThreads);
     conf.setMessageListenerThreads(args.listenerThreads);
     if(!args.authPlugin.empty()) {
-        AuthenticationPtr auth = Auth::create(args.authPlugin, args.authParams);
-        conf.setAuthentication(auth);
+        pulsar::AuthenticationPtr auth = pulsar::AuthFactory::create(args.authPlugin, args.authParams);
+        conf.setAuth(auth);
     }
 
     pulsar::Client client(pulsar::PulsarFriend::getClient(args.serviceURL, conf, false));

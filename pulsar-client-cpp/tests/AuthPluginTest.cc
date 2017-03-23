@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "pulsar/Auth.h"
+#include "pulsar/Authentication.h"
 #include <gtest/gtest.h>
 #include <pulsar/Client.h>
 #include <boost/lexical_cast.hpp>
@@ -40,7 +40,7 @@ static void sendCallBackTls(Result r, const Message& msg) {
 TEST(AuthPluginTest, testCreate) {
     pulsar::AuthenticationDataPtr data;
 
-    pulsar::AuthenticationPtr auth = pulsar::Auth::create("../lib/auth/libauthtls.so");
+    pulsar::AuthenticationPtr auth = pulsar::AuthFactory::create("../lib/auth/libauthtls.so");
     ASSERT_TRUE(auth != NULL);
     ASSERT_EQ(auth->getAuthMethodName(), "tls");
     ASSERT_EQ(auth->getAuthData(data), pulsar::ResultOk);
@@ -56,8 +56,8 @@ TEST(AuthPluginTest, testTls) {
     std::string params =  "tlsCertFile:../../pulsar-broker/src/test/resources/authentication/tls/client-cert.pem,tlsKeyFile:../../pulsar-broker/src/test/resources/authentication/tls/client-key.pem";
     config.setTlsTrustCertsFilePath(certfile);
     config.setTlsAllowInsecureConnection(false);
-    AuthenticationPtr auth = pulsar::Auth::create("../lib/auth/libauthtls.so", params);
-    config.setAuthentication(auth);
+    AuthenticationPtr auth = pulsar::AuthFactory::create("../lib/auth/libauthtls.so", params);
+    config.setAuth(auth);
     Client client(lookupUrlTls,config);
 
     std::string topicName = "persistent://property/cluster/namespace/test-tls";
@@ -116,7 +116,7 @@ TEST(AuthPluginTest, testTls) {
 TEST(AuthPluginTest, testDisable) {
     pulsar::AuthenticationDataPtr data;
 
-    pulsar::AuthenticationPtr auth = pulsar::Auth::Disabled();
+    pulsar::AuthenticationPtr auth = pulsar::AuthFactory::Disabled();
     ASSERT_TRUE(auth != NULL);
     ASSERT_EQ(auth->getAuthMethodName(), "none");
     ASSERT_EQ(auth->getAuthData(data), pulsar::ResultOk);
