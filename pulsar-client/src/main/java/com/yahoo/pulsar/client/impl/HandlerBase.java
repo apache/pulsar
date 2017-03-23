@@ -17,6 +17,7 @@ package com.yahoo.pulsar.client.impl;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import java.util.function.UnaryOperator;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -143,6 +144,10 @@ abstract class HandlerBase {
 
     protected void setState(State s) {
         STATE_UPDATER.set(this, s);
+    }
+
+    protected State getAndUpdateState(final UnaryOperator<State> updater) {
+        return STATE_UPDATER.getAndUpdate(this, updater);
     }
 
     protected ClientCnx getClientCnx() {

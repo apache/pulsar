@@ -384,7 +384,14 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
 
     @Override
     public CompletableFuture<Void> closeAsync() {
-        if (getState() == State.Closing || getState() == State.Closed) {
+        final State currentState = getAndUpdateState(state -> {
+            if (state == State.Closed) {
+                return state;
+            }
+            return State.Closing;
+        });
+
+        if (currentState == State.Closed || currentState == State.Closing) {
             return CompletableFuture.completedFuture(null);
         }
 
