@@ -108,7 +108,7 @@ class ClientImpl : public boost::enable_shared_from_this<ClientImpl> {
     ExecutorServiceProviderPtr listenerExecutorProvider_;
     ExecutorServiceProviderPtr partitionListenerExecutorProvider_;
 
-    BinaryProtoLookupService lookup_;
+    LookupServicePtr lookupServicePtr_;
     ConnectionPool pool_;
 
     uint64_t producerIdGenerator_;
