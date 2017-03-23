@@ -10,6 +10,9 @@
 - [Using the Pulsar Java client API](#using-the-pulsar-java-client-api)
 	- [Consumer](#consumer)
 	- [Producer](#producer)
+- [Using the Pulsar C++ client API](#using-the-pulsar-c-client-api)
+	- [Consumer](#consumer)
+	- [Producer](#producer)
 
 <!-- /TOC -->
 
@@ -142,5 +145,55 @@ for (int i = 0; i < 10; i++) {
     producer.send("my-message".getBytes());
 }
 
+client.close();
+```
+
+## Using the Pulsar C++ client API
+
+Build instructions are in [pulsar-client-cpp/README.md](../pulsar-client-cpp/README.md).
+
+### Consumer
+
+```cpp
+Client client("pulsar://localhost:6650");
+
+Consumer consumer;
+Result result = client.subscribe("persistent://sample/standalone/ns1/my-topic", "my-subscribtion-name", consumer);
+if (result != ResultOk) {
+    LOG_ERROR("Failed to subscribe: " << result);
+    return -1;
+}
+
+Message msg;
+
+while (true) {
+    consumer.receive(msg);
+    LOG_INFO("Received: " << msg << "  with payload '" << msg.getDataAsString() << "'");
+
+    consumer.acknowledge(msg);
+}
+
+client.close();
+```
+
+
+### Producer
+
+```cpp
+Client client("pulsar://localhost:6650");
+
+Producer producer;
+Result result = client.createProducer("persistent://sample/standalone/ns1/my-topic", producer);
+if (result != ResultOk) {
+    LOG_ERROR("Error creating producer: " << result);
+    return -1;
+}
+
+// Publish 10 messages to the topic
+for(int i=0;i<10;i++){
+    Message msg = MessageBuilder().setContent("my-message").build();
+    Result res = producer.send(msg);
+    LOG_INFO("Message sent: " << res);
+}
 client.close();
 ```
