@@ -132,7 +132,7 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         c1.markDelete(entries.get(2).getPosition());
         c1.close();
         ledger.close();
-        entries.forEach(e -> e.release());
+        entries.forEach(e -> e.releaseAndRecycle());
         // give timed ledger trimming a chance to run
         Thread.sleep(1000);
 

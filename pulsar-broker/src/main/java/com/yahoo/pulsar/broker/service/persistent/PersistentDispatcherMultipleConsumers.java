@@ -21,6 +21,7 @@ import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.stream.Collectors;
 
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
@@ -36,6 +37,7 @@ import com.carrotsearch.hppc.ObjectHashSet;
 import com.carrotsearch.hppc.ObjectSet;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.yahoo.pulsar.broker.service.BrokerServiceException;
 import com.yahoo.pulsar.broker.service.Consumer;
@@ -274,7 +276,7 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
 
         if (shouldRewindBeforeReadingOrReplaying && readType == ReadType.Normal) {
             // All consumers got disconnected before the completion of the read operation
-            entries.forEach(Entry::release);
+            entries.forEach(Entry::releaseAndRecycle);
             cursor.rewind();
             shouldRewindBeforeReadingOrReplaying = false;
             readMoreEntries();
@@ -289,7 +291,7 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
             Consumer c = getNextConsumer();
             if (c == null) {
                 // Do nothing, cursor will be rewind at reconnection
-                entries.subList(start, entries.size()).forEach(Entry::release);
+                entries.subList(start, entries.size()).forEach(Entry::releaseAndRecycle);
                 cursor.rewind();
                 return;
             }
@@ -298,13 +300,16 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
             int messagesForC = Math.min(Math.min(entriesToDispatch, c.getAvailablePermits()), MaxRoundRobinBatchSize);
 
             if (messagesForC > 0) {
-                int msgSent = c.sendMessages(entries.subList(start, start + messagesForC)).getRight();
-
+                
+                // remove positions first from replay list first : sendMessages recycles entries
                 if (readType == ReadType.Replay) {
                     entries.subList(start, start + messagesForC).forEach(entry -> {
                         messagesToReplay.remove((PositionImpl) entry.getPosition());
                     });
                 }
+                
+                int msgSent = c.sendMessages(entries.subList(start, start + messagesForC)).getRight();
+                
                 start += messagesForC;
                 entriesToDispatch -= messagesForC;
                 totalAvailablePermits -= msgSent;
@@ -318,7 +323,7 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
             }
             entries.subList(start, entries.size()).forEach(entry -> {
                 messagesToReplay.add((PositionImpl) entry.getPosition());
-                entry.release();
+                entry.releaseAndRecycle();
             });
         }
 

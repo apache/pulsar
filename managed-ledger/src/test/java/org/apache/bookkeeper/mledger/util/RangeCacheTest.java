@@ -39,8 +39,13 @@ public class RangeCacheTest {
             ++count;
         }
 
-        @Override
+        /*@Override
         public void release() {
+            --count;
+        }*/
+
+        @Override
+        public void releaseAndRecycle() {
             --count;
         }
 
@@ -73,14 +78,14 @@ public class RangeCacheTest {
         RefString s = cache.get(0);
         assertEquals(s.s, "0");
         assertEquals(s.count, 2);
-        s.release();
+        s.releaseAndRecycle();
 
         RefString s1 = cache.get(0);
         RefString s2 = cache.get(0);
         assertEquals(s1, s2);
         assertEquals(s1.count, 3);
-        s1.release();
-        s2.release();
+        s1.releaseAndRecycle();
+        s2.releaseAndRecycle();
 
         assertEquals(cache.get(2), null);
 
@@ -140,7 +145,7 @@ public class RangeCacheTest {
         assertEquals(s1.count, 1);
         assertEquals(cache.put(1, s1), false);
         assertEquals(s1.count, 1);
-        s1.release();
+        s1.releaseAndRecycle();
 
         // Should not have been overridden in cache
         assertEquals(cache.getSize(), 2);

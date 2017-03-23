@@ -17,6 +17,8 @@ package org.apache.bookkeeper.mledger;
 
 import io.netty.buffer.ByteBuf;
 
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
+
 import com.google.common.annotations.Beta;
 
 /**
@@ -47,8 +49,14 @@ public interface Entry {
      */
     Position getPosition();
 
+    void retain();
+    
     /**
      * Release the resources allocated for this entry
      */
-    void release();
+    void release1();
+
+    void recycle();
+
+    void releaseAndRecycle();
 }

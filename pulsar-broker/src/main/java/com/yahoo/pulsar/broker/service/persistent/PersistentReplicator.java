@@ -296,14 +296,14 @@ public class PersistentReplicator implements ReadEntriesCallback, DeleteCallback
                     log.error("[{}][{} -> {}] Failed to deserialize message at {} (buffer size: {}): {}", topicName,
                             localCluster, remoteCluster, entry.getPosition(), length, t.getMessage(), t);
                     cursor.asyncDelete(entry.getPosition(), this, entry.getPosition());
-                    entry.release();
+                    entry.releaseAndRecycle();
                     continue;
                 }
 
                 if (msg.isReplicated()) {
                     // Discard messages that were already replicated into this region
                     cursor.asyncDelete(entry.getPosition(), this, entry.getPosition());
-                    entry.release();
+                    entry.releaseAndRecycle();
                     msg.recycle();
                     continue;
                 }
@@ -315,7 +315,7 @@ public class PersistentReplicator implements ReadEntriesCallback, DeleteCallback
                                 msg.getReplicateTo());
                     }
                     cursor.asyncDelete(entry.getPosition(), this, entry.getPosition());
-                    entry.release();
+                    entry.releaseAndRecycle();
                     msg.recycle();
                     continue;
                 }
@@ -327,7 +327,7 @@ public class PersistentReplicator implements ReadEntriesCallback, DeleteCallback
                                 localCluster, remoteCluster, entry.getPosition(), msg.getMessageId());
                     }
                     cursor.asyncDelete(entry.getPosition(), this, entry.getPosition());
-                    entry.release();
+                    entry.releaseAndRecycle();
                     msg.recycle();
                     continue;
                 }
@@ -340,7 +340,7 @@ public class PersistentReplicator implements ReadEntriesCallback, DeleteCallback
                                 localCluster, remoteCluster, entry.getPosition());
                     }
                     isLocalMessageSkippedOnce = true;
-                    entry.release();
+                    entry.releaseAndRecycle();
                     msg.recycle();
                     continue;
                 }
@@ -402,7 +402,7 @@ public class PersistentReplicator implements ReadEntriesCallback, DeleteCallback
                 }
                 replicator.cursor.asyncDelete(entry.getPosition(), replicator, entry.getPosition());
             }
-            entry.release();
+            entry.releaseAndRecycle();
 
             int pending = PENDING_MESSAGES_UPDATER.decrementAndGet(replicator);
 
@@ -444,7 +444,7 @@ public class PersistentReplicator implements ReadEntriesCallback, DeleteCallback
 
         private void recycle() {
             replicator = null;
-            entry = null;
+            entry = null; //already recycled
             if (msg != null) {
                 msg.recycle();
                 msg = null;

@@ -65,11 +65,11 @@ public class ManagedLedgerSingleBookieTest extends MockedBookKeeperTestCase {
 
         List<Entry> entries = cursor.readEntries(100);
         assertEquals(entries.size(), 1);
-        entries.forEach(e -> e.release());
+        entries.forEach(e -> e.releaseAndRecycle());
 
         entries = cursor.readEntries(100);
         assertEquals(entries.size(), 0);
-        entries.forEach(e -> e.release());
+        entries.forEach(e -> e.releaseAndRecycle());
 
         ledger.close();
     }

@@ -18,5 +18,7 @@ package org.apache.bookkeeper.mledger.util;
 public interface ReferenceCounted {
     void retain();
 
-    void release();
+    //void release();
+    
+    void releaseAndRecycle();
 }

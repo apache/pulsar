@@ -773,7 +773,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                 if (msgMetadata != null) {
                                     msgMetadata.recycle();
                                 }
-                                entry.release();
+                                entry.releaseAndRecycle();
                             }
 
                         }

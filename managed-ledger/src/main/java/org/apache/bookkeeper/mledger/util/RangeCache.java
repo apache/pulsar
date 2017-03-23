@@ -135,7 +135,7 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ReferenceCoun
             }
 
             removedSize += weighter.getSize(value);
-            value.release();
+            value.releaseAndRecycle();
             ++removedEntries;
         }
 
@@ -164,7 +164,7 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ReferenceCoun
             Value value = entry.getValue();
             ++removedEntries;
             removedSize += weighter.getSize(value);
-            value.release();
+            value.releaseAndRecycle();
         }
 
         size.addAndGet(-removedSize);
@@ -197,7 +197,7 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ReferenceCoun
             }
             Value value = entry.getValue();
             removedSize += weighter.getSize(value);
-            value.release();
+            value.releaseAndRecycle();
         }
 
         entries.clear();

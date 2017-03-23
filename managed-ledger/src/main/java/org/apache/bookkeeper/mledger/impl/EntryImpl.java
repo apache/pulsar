@@ -22,36 +22,92 @@ import org.apache.bookkeeper.mledger.util.ReferenceCounted;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.RecyclableDuplicateByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.util.Recycler;
+import io.netty.util.Recycler.Handle;
 
 final class EntryImpl implements Entry, Comparable<EntryImpl>, ReferenceCounted {
 
-    private final PositionImpl position;
-    private final ByteBuf data;
+    private static final Recycler<EntryImpl> RECYCLER = new Recycler<EntryImpl>() {
+        @Override
+        protected EntryImpl newObject(Handle handle) {
+            return new EntryImpl(handle);
+        }
+    };
+    
+    private final Handle recyclerHandle;
+    private PositionImpl position;
+    private ByteBuf data;
 
-    EntryImpl(LedgerEntry ledgerEntry) {
-        this.position = new PositionImpl(ledgerEntry.getLedgerId(), ledgerEntry.getEntryId());
-        this.data = ledgerEntry.getEntryBuffer();
+    public static EntryImpl create(LedgerEntry ledgerEntry) {
+        EntryImpl entry = RECYCLER.get();
+        entry.position = new PositionImpl(ledgerEntry.getLedgerId(), ledgerEntry.getEntryId());
+        entry.data = ledgerEntry.getEntryBuffer();
+        return entry;
     }
 
     // Used just for tests
-    EntryImpl(long ledgerId, long entryId, byte[] data) {
+    public static EntryImpl create(long ledgerId, long entryId, byte[] data) {
+        EntryImpl entry = RECYCLER.get();
+        entry.position = new PositionImpl(ledgerId, entryId);
+        entry.data = Unpooled.wrappedBuffer(data);
+        return entry;
+    }
+
+    public static EntryImpl create(long ledgerId, long entryId, ByteBuf data) {
+        EntryImpl entry = RECYCLER.get();
+        entry.position = new PositionImpl(ledgerId, entryId);
+        entry.data = data;
+        return entry;
+    }
+
+    public static EntryImpl create(PositionImpl position, ByteBuf data) {
+        EntryImpl entry = RECYCLER.get();
+        entry.position = position;
+        entry.data = data;
+        return entry;
+    }
+
+    public static EntryImpl create(EntryImpl other) {
+        EntryImpl entry = RECYCLER.get();
+        entry.position = new PositionImpl(other.position);
+        entry.data = RecyclableDuplicateByteBuf.create(other.data);
+        return entry;
+    }
+
+    // constructors
+    private EntryImpl(LedgerEntry ledgerEntry) {
+        this.position = new PositionImpl(ledgerEntry.getLedgerId(), ledgerEntry.getEntryId());
+        this.data = ledgerEntry.getEntryBuffer();
+        this.recyclerHandle = null;
+    }
+
+    // Used just for tests
+    private EntryImpl(long ledgerId, long entryId, byte[] data) {
         this.position = new PositionImpl(ledgerId, entryId);
         this.data = Unpooled.wrappedBuffer(data);
+        this.recyclerHandle = null;
     }
 
-    EntryImpl(long ledgerId, long entryId, ByteBuf data) {
+    private EntryImpl(long ledgerId, long entryId, ByteBuf data) {
         this.position = new PositionImpl(ledgerId, entryId);
         this.data = data;
+        this.recyclerHandle = null;
     }
 
-    EntryImpl(PositionImpl position, ByteBuf data) {
+    private EntryImpl(PositionImpl position, ByteBuf data) {
         this.position = position;
         this.data = data;
+        this.recyclerHandle = null;
     }
 
-    EntryImpl(EntryImpl other) {
+    private EntryImpl(EntryImpl other) {
         this.position = new PositionImpl(other.position);
         this.data = RecyclableDuplicateByteBuf.create(other.data);
+        this.recyclerHandle = null;
+    }
+
+    private EntryImpl(Recycler.Handle recyclerHandle) {
+        this.recyclerHandle = recyclerHandle;
     }
 
     @Override
@@ -66,10 +122,11 @@ final class EntryImpl implements Entry, Comparable<EntryImpl>, ReferenceCounted 
         return array;
     }
 
+    // Only for test
     @Override
     public byte[] getDataAndRelease() {
         byte[] array = getData();
-        release();
+        release1();
         return array;
     }
 
@@ -88,16 +145,30 @@ final class EntryImpl implements Entry, Comparable<EntryImpl>, ReferenceCounted 
         return position.compareTo(other.getPosition());
     }
 
+    @Override
     public void retain() {
         data.retain();
     }
 
     @Override
-    public void release() {
+    public void release1() {
         data.release();
     }
 
-    public int refCnt() {
-        return data.refCnt();
+    @Override
+    public void releaseAndRecycle() {
+        if(data.release()) {
+            // recycle only if data buf is released and no other object will use the data 
+            recycle();    
+        }
+    }
+
+    @Override
+    public void recycle() {
+        this.data = null;
+        this.position = null;
+        if (recyclerHandle != null) {
+            RECYCLER.recycle(this, recyclerHandle);
+        }
     }
 }

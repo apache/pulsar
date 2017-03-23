@@ -67,7 +67,7 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
                 } catch (Exception e) {
                     log.error("[{}][{}] Error deserializing message for message position find", topicName, subName, e);
                 } finally {
-                    entry.release();
+                    entry.releaseAndRecycle();
                     if (msg != null) {
                         msg.recycle();
                     }

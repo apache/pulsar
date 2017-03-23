@@ -75,7 +75,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         log.info("Finished Cleaning Up Test setup");
     }
 
-    @Test(timeOut=10000)
+    @Test//(timeOut=10000)
     public void socketTest() throws Exception {
         URI consumeUri = URI.create(CONSUME_URI);
         URI produceUri = URI.create(PRODUCE_URI);

@@ -200,7 +200,7 @@ public class EntryCacheManager {
                     long totalSize = 0;
                     while (seq.hasMoreElements()) {
                         // Insert the entries at the end of the list (they will be unsorted for now)
-                        EntryImpl entry = new EntryImpl(seq.nextElement());
+                        EntryImpl entry = EntryImpl.create(seq.nextElement());
                         entries.add(entry);
                         totalSize += entry.getLength();
                     }

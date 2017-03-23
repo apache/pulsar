@@ -118,12 +118,13 @@ public class EntryCacheImpl implements EntryCache {
             entryBuf.readerIndex(readerIdx);
         }
 
-        if (entries.put(entry.getPosition(), new EntryImpl(entry.getPosition(), cachedData))) {
+        EntryImpl cacheEntry = EntryImpl.create(entry.getPosition(), cachedData);
+        if (entries.put(entry.getPosition(),cacheEntry)) {
             manager.entryAdded(entry.getLength());
             return true;
         } else {
-            // Buffer was not inserted into cache, we need to discard it
-            cachedData.release();
+            // entry was not inserted into cache, we need to discard it
+            cacheEntry.releaseAndRecycle();
             return false;
         }
     }
@@ -170,8 +171,8 @@ public class EntryCacheImpl implements EntryCache {
         }
         EntryImpl entry = entries.get(position);
         if (entry != null) {
-            EntryImpl cachedEntry = new EntryImpl(entry);
-            entry.release();
+            EntryImpl cachedEntry = EntryImpl.create(entry);
+            entry.releaseAndRecycle();
             manager.mlFactoryMBean.recordCacheHit(cachedEntry.getLength());
             callback.readEntryComplete(cachedEntry, ctx);
         } else {
@@ -183,7 +184,7 @@ public class EntryCacheImpl implements EntryCache {
                 }
 
                 if (sequence.hasMoreElements()) {
-                    EntryImpl returnEntry = new EntryImpl(sequence.nextElement());
+                    EntryImpl returnEntry = EntryImpl.create(sequence.nextElement());
 
                     manager.mlFactoryMBean.recordCacheMiss(1, returnEntry.getLength());
                     ml.mbean.addReadEntriesSample(1, returnEntry.getLength());
@@ -221,9 +222,9 @@ public class EntryCacheImpl implements EntryCache {
 
             // All entries found in cache
             for (EntryImpl entry : cachedEntries) {
-                entriesToReturn.add(new EntryImpl(entry));
+                entriesToReturn.add(EntryImpl.create(entry));
                 totalCachedSize += entry.getLength();
-                entry.release();
+                entry.releaseAndRecycle();
             }
 
             manager.mlFactoryMBean.recordCacheHits(entriesToReturn.size(), totalCachedSize);
@@ -236,7 +237,7 @@ public class EntryCacheImpl implements EntryCache {
 
         } else {
             if (!cachedEntries.isEmpty()) {
-                cachedEntries.forEach(entry -> entry.release());
+                cachedEntries.forEach(entry -> entry.releaseAndRecycle());
             }
 
             // Read all the entries from bookkeeper
@@ -261,7 +262,7 @@ public class EntryCacheImpl implements EntryCache {
                     final List<EntryImpl> entriesToReturn = Lists.newArrayListWithExpectedSize(entriesToRead);
                     while (sequence.hasMoreElements()) {
                         // Insert the entries at the end of the list (they will be unsorted for now)
-                        EntryImpl entry = new EntryImpl(sequence.nextElement());
+                        EntryImpl entry = EntryImpl.create(sequence.nextElement());
                         entriesToReturn.add(entry);
 
                         totalSize += entry.getLength();
