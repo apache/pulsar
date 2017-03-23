@@ -39,22 +39,27 @@ TEST(UrlTest, testUrl) {
     ASSERT_EQ(8080, url.port());
 
     ASSERT_TRUE(Url::parse("http://example.com", url));
+    ASSERT_EQ("example.com", url.host());
     ASSERT_EQ("http", url.protocol());
     ASSERT_EQ(80, url.port());
 
     ASSERT_TRUE(Url::parse("http://example.com:8080/test/my/path", url));
+    ASSERT_EQ("example.com", url.host());
     ASSERT_EQ("http", url.protocol());
     ASSERT_EQ(8080, url.port());
 
     ASSERT_TRUE(Url::parse("http://example.com:8080/test/my/path?key=value#adsasda", url));
+    ASSERT_EQ("example.com", url.host());
     ASSERT_EQ("http", url.protocol());
     ASSERT_EQ(8080, url.port());
 
     ASSERT_TRUE(Url::parse("pulsar://example.com:8080", url));
+    ASSERT_EQ("example.com", url.host());
     ASSERT_EQ("pulsar", url.protocol());
     ASSERT_EQ(8080, url.port());
 
     ASSERT_TRUE(Url::parse("pulsar://example.com", url));
+    ASSERT_EQ("example.com", url.host());
     ASSERT_EQ("pulsar", url.protocol());
     ASSERT_EQ(6650, url.port());
 }
