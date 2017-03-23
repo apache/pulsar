@@ -43,4 +43,6 @@ int main() {
 
         consumer.acknowledge(msg);
     }
+
+    client.close();
 }
