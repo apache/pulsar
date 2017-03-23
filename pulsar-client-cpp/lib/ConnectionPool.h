@@ -19,7 +19,7 @@
 
 #include <pulsar/Result.h>
 
-#include "ClientConnection.h"
+#include<lib/ClientConnectionContainer.h>
 
 #include <string>
 #include <map>
@@ -32,7 +32,7 @@ class ExecutorService;
 class ConnectionPool {
  public:
     ConnectionPool(const ClientConfiguration& conf, ExecutorServiceProviderPtr executorProvider,
-                   const AuthenticationPtr& authentication, bool poolConnections = true);
+                   const AuthenticationPtr& authentication, bool poolConnections = true, size_t connectionsPerBroker = 1);
 
     Future<Result, ClientConnectionWeakPtr> getConnectionAsync(const std::string& endpoint);
 
@@ -40,9 +40,10 @@ class ConnectionPool {
     ClientConfiguration clientConfiguration_;
     ExecutorServiceProviderPtr executorProvider_;
     AuthenticationPtr authentication_;
-    typedef std::map<std::string, ClientConnectionWeakPtr> PoolMap;
+    typedef std::map<std::string, ClientConnectionContainerPtr> PoolMap;
     PoolMap pool_;
     bool poolConnections_;
+    size_t connectionsPerBroker;
     boost::mutex mutex_;
 
     friend class ConnectionPoolTest;

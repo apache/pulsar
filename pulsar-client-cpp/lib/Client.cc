@@ -41,6 +41,7 @@ struct ClientConfiguration::Impl {
     bool useTls;
     std::string tlsTrustCertsFilePath;
     bool tlsAllowInsecureConnection;
+    long connectionsPerBroker;
     Impl() : authenticationPtr(AuthFactory::Disabled()),
              ioThreads(1),
              operationTimeoutSeconds(30),
@@ -48,6 +49,7 @@ struct ClientConfiguration::Impl {
              concurrentLookupRequest(5000),
              logConfFilePath(),
              useTls(false),
+             connectionsPerBroker(1),
              tlsAllowInsecureConnection(true) {}
 };
 
@@ -161,6 +163,18 @@ ClientConfiguration& ClientConfiguration::setLogConfFilePath(const std::string& 
 
 const std::string& ClientConfiguration::getLogConfFilePath() const {
     return impl_->logConfFilePath;
+}
+
+ClientConfiguration& ClientConfiguration::setConnectionsPerBroker(size_t connectionsPerBroker) {
+    if (connectionsPerBroker < 1) {
+        throw "Client Config Exception: connectionsPerBroker need to be greater than or equal to 1.";
+    }
+    impl_->connectionsPerBroker = connectionsPerBroker;
+    return *this;
+}
+
+size_t ClientConfiguration::getConnectionsPerBroker() const {
+    return impl_->connectionsPerBroker;
 }
 
 /////////////////////////////////////////////////////////////////
