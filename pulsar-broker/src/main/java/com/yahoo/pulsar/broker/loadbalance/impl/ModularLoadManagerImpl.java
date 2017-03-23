@@ -198,7 +198,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
 
 					if (brokerDataMap.containsKey(broker)) {
 						// Replace previous local broker data.
-						loadData.getBrokerData().get(broker).setLocalData(localData);
+						brokerDataMap.get(broker).setLocalData(localData);
 					} else {
 						// Initialize BrokerData object for previously unseen
 						// brokers.
@@ -485,7 +485,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
 		}
 		for (final String broker : brokerCandidateCache) {
 			final String brokerUrlString = String.format("http://%s", broker);
-			URL brokerUrl = null;
+			URL brokerUrl;
 			try {
 				brokerUrl = new URL(brokerUrlString);
 			} catch (MalformedURLException e) {

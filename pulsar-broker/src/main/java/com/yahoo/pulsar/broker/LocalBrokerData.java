@@ -27,6 +27,9 @@ public class LocalBrokerData extends JSONWritable implements ServiceLookupData {
 	private ResourceUsage memory;
 	private ResourceUsage directMemory;
 
+	private ResourceUsage bandwidthIn;
+	private ResourceUsage bandwidthOut;
+
 	// Message data from the most recent namespace bundle stats.
 	private double msgThroughputIn;
 	private double msgThroughputOut;
@@ -73,6 +76,8 @@ public class LocalBrokerData extends JSONWritable implements ServiceLookupData {
 		cpu = new ResourceUsage();
 		memory = new ResourceUsage();
 		directMemory = new ResourceUsage();
+		bandwidthIn = new ResourceUsage();
+		bandwidthOut = new ResourceUsage();
 		bundles = new HashSet<>();
 		lastBundleGains = new HashSet<>();
 		lastBundleLosses = new HashSet<>();
@@ -101,6 +106,8 @@ public class LocalBrokerData extends JSONWritable implements ServiceLookupData {
 		this.cpu = systemResourceUsage.cpu;
 		this.memory = systemResourceUsage.memory;
 		this.directMemory = systemResourceUsage.directMemory;
+		this.bandwidthIn = systemResourceUsage.bandwidthIn;
+		this.bandwidthOut = systemResourceUsage.bandwidthOut;
 	}
 
 	// Aggregate all message, throughput, topic count, bundle count, consumer
@@ -149,7 +156,13 @@ public class LocalBrokerData extends JSONWritable implements ServiceLookupData {
 		numBundles = totalNumBundles;
 		numConsumers = totalNumConsumers;
 		numProducers = totalNumProducers;
+	}
 
+	public double getMaxResourceUsage() {
+		return Math
+				.max(Math.max(Math.max(cpu.percentUsage(), memory.percentUsage()),
+						Math.max(directMemory.percentUsage(), bandwidthIn.percentUsage())), bandwidthOut.percentUsage())
+				/ 100;
 	}
 
 	public ResourceUsage getCpu() {
@@ -174,6 +187,22 @@ public class LocalBrokerData extends JSONWritable implements ServiceLookupData {
 
 	public void setDirectMemory(ResourceUsage directMemory) {
 		this.directMemory = directMemory;
+	}
+
+	public ResourceUsage getBandwidthIn() {
+		return bandwidthIn;
+	}
+
+	public void setBandwidthIn(ResourceUsage bandwidthIn) {
+		this.bandwidthIn = bandwidthIn;
+	}
+
+	public ResourceUsage getBandwidthOut() {
+		return bandwidthOut;
+	}
+
+	public void setBandwidthOut(ResourceUsage bandwidthOut) {
+		this.bandwidthOut = bandwidthOut;
 	}
 
 	public Set<String> getLastBundleGains() {
@@ -299,4 +328,5 @@ public class LocalBrokerData extends JSONWritable implements ServiceLookupData {
 	public String getPulsarServiceUrlTls() {
 		return pulsarServiceUrlTls;
 	}
+
 }

@@ -31,14 +31,29 @@ public class LeastLongTermMessageRate implements ModularLoadManagerStrategy {
 
 	// Form a score for a broker using its preallocated bundle data and time
 	// average data.
-	private static double getScore(final BrokerData brokerData) {
+	private static double getScore(final BrokerData brokerData, final ServiceConfiguration conf) {
+		final double overloadThreshold = conf.getLoadBalancerBrokerOverloadedThresholdPercentage() / 100;
 		double totalMessageRate = 0;
 		for (BundleData bundleData : brokerData.getPreallocatedBundleData().values()) {
 			final TimeAverageMessageData longTermData = bundleData.getLongTermData();
 			totalMessageRate += longTermData.getMsgRateIn() + longTermData.getMsgRateOut();
 		}
 		final TimeAverageBrokerData timeAverageData = brokerData.getTimeAverageData();
-		return totalMessageRate + timeAverageData.getLongTermMsgRateIn() + timeAverageData.getLongTermMsgRateOut();
+		final double maxUsage = brokerData.getLocalData().getMaxResourceUsage();
+		if (maxUsage > overloadThreshold) {
+			return Double.POSITIVE_INFINITY;
+		}
+		// 1 / weight is the proportion of load this machine should receive in
+		// proportion to a machine with no system resource burden.
+		// This attempts to spread out the load in such a way that
+		// machines only become overloaded if there is too much
+		// load for the system to handle (e.g., all machines are
+		// at least nearly overloaded).
+		final double weight = maxUsage < overloadThreshold ? 1 / (overloadThreshold - maxUsage)
+				: Double.POSITIVE_INFINITY;
+		final double totalMessageRateEstimate = totalMessageRate + timeAverageData.getLongTermMsgRateIn()
+				+ timeAverageData.getLongTermMsgRateOut();
+		return weight * totalMessageRateEstimate;
 	}
 
 	/**
@@ -62,7 +77,7 @@ public class LeastLongTermMessageRate implements ModularLoadManagerStrategy {
 		// Maintain of list of all the best scoring brokers and then randomly
 		// select one of them at the end.
 		for (String broker : candidates) {
-			final double score = getScore(loadData.getBrokerData().get(broker));
+			final double score = getScore(loadData.getBrokerData().get(broker), conf);
 			log.info("{} got score {}", broker, score);
 			if (score < minScore) {
 				// Clear best brokers since this score beats the other brokers.

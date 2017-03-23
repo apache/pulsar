@@ -267,6 +267,14 @@ public class PulsarService implements AutoCloseable {
             if (getZkClient().exists(DYNAMIC_LOAD_MANAGER_ZPATH, false) != null) {
                 config.setLoadManagerClassName(new String(getZkClient().getData(DYNAMIC_LOAD_MANAGER_ZPATH, false, null)));
             }
+
+            try {
+                ZkUtils.createFullPathOptimistic(getZkClient(), DYNAMIC_LOAD_MANAGER_ZPATH,
+                        config.getLoadManagerClassName().getBytes(), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+            } catch (KeeperException.NodeExistsException e) {
+                // Ignore
+            }
+
             this.loadManager = new AtomicReference<>(LoadManager.create(this));
 
             this.startLoadManagementService();
@@ -340,13 +348,6 @@ public class PulsarService implements AutoCloseable {
             state = State.Started;
 
             acquireSLANamespace();
-
-            try {
-                ZkUtils.createFullPathOptimistic(getZkClient(), DYNAMIC_LOAD_MANAGER_ZPATH,
-                        config.getLoadManagerClassName().getBytes(), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
-            } catch (KeeperException.NodeExistsException e) {
-                // Ignore
-            }
 
             getZkClient().getData(DYNAMIC_LOAD_MANAGER_ZPATH, new LoadManagerWatcher(), null);
 
