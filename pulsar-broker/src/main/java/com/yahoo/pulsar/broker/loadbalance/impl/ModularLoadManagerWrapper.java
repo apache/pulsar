@@ -13,80 +13,79 @@ import com.yahoo.pulsar.common.naming.ServiceUnitId;
 import com.yahoo.pulsar.common.policies.data.loadbalancer.LoadReport;
 
 /**
- * Wrapper class allowing classes of instance ModularLoadManager to be
- * compatible with the interface LoadManager.
+ * Wrapper class allowing classes of instance ModularLoadManager to be compatible with the interface LoadManager.
  */
 public class ModularLoadManagerWrapper implements LoadManager {
-	private ModularLoadManager loadManager;
+    private ModularLoadManager loadManager;
 
-	public ModularLoadManagerWrapper(final ModularLoadManager loadManager) {
-		this.loadManager = loadManager;
-	}
+    public ModularLoadManagerWrapper(final ModularLoadManager loadManager) {
+        this.loadManager = loadManager;
+    }
 
-	@Override
-	public void disableBroker() throws Exception {
-		loadManager.disableBroker();
-	}
+    @Override
+    public void disableBroker() throws Exception {
+        loadManager.disableBroker();
+    }
 
-	@Override
-	public void doLoadShedding() {
-		loadManager.doLoadShedding();
-	}
+    @Override
+    public void doLoadShedding() {
+        loadManager.doLoadShedding();
+    }
 
-	@Override
-	public void doNamespaceBundleSplit() {
-		loadManager.doNamespaceBundleSplit();
-	}
+    @Override
+    public void doNamespaceBundleSplit() {
+        loadManager.doNamespaceBundleSplit();
+    }
 
-	@Override
-	public LoadReport generateLoadReport() {
-		loadManager.updateLocalBrokerData();
-		return null;
-	}
+    @Override
+    public LoadReport generateLoadReport() {
+        loadManager.updateLocalBrokerData();
+        return null;
+    }
 
-	@Override
-	public String getBrokerRoot() {
-		return loadManager.getBrokerRoot();
-	}
+    @Override
+    public String getBrokerRoot() {
+        return loadManager.getBrokerRoot();
+    }
 
-	@Override
-	public ResourceUnit getLeastLoaded(final ServiceUnitId serviceUnit) {
-		return new SimpleResourceUnit(String.format("http://%s", loadManager.selectBrokerForAssignment(serviceUnit)),
-				new PulsarResourceDescription());
-	}
+    @Override
+    public ResourceUnit getLeastLoaded(final ServiceUnitId serviceUnit) {
+        return new SimpleResourceUnit(String.format("http://%s", loadManager.selectBrokerForAssignment(serviceUnit)),
+                new PulsarResourceDescription());
+    }
 
-	@Override
-	public List<Metrics> getLoadBalancingMetrics() {
-		return Collections.emptyList();
-	}
+    @Override
+    public List<Metrics> getLoadBalancingMetrics() {
+        return Collections.emptyList();
+    }
 
-	@Override
-	public boolean isCentralized() {
-		return true;
-	}
+    @Override
+    public boolean isCentralized() {
+        return true;
+    }
 
-	@Override
-	public void setLoadReportForceUpdateFlag() {
+    @Override
+    public void setLoadReportForceUpdateFlag() {
 
-	}
+    }
 
-	@Override
-	public void start() throws PulsarServerException {
-		loadManager.start();
-	}
+    @Override
+    public void start() throws PulsarServerException {
+        loadManager.start();
+    }
 
-	@Override
-	public void stop() throws PulsarServerException {
-		loadManager.stop();
-	}
+    @Override
+    public void stop() throws PulsarServerException {
+        loadManager.stop();
+    }
 
-	@Override
-	public void writeLoadReportOnZookeeper() {
-		loadManager.writeBrokerDataOnZooKeeper();
-	}
+    @Override
+    public void writeLoadReportOnZookeeper() {
+        loadManager.writeBrokerDataOnZooKeeper();
+    }
 
-	@Override
-	public void writeResourceQuotasToZooKeeper() {
-		loadManager.writeBundleDataOnZooKeeper();
-	}
+    @Override
+    public void writeResourceQuotasToZooKeeper() {
+        loadManager.writeBundleDataOnZooKeeper();
+    }
 }

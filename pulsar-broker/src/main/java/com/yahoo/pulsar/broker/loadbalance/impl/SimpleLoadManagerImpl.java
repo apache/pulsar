@@ -221,12 +221,12 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
         });
         int entryExpiryTime = (int) pulsar.getConfiguration().getLoadBalancerSheddingGracePeriodMinutes();
         unloadedHotNamespaceCache = CacheBuilder.newBuilder().expireAfterWrite(entryExpiryTime, TimeUnit.MINUTES)
-            .build(new CacheLoader<String, Long>() {
-                @Override
-                public Long load(String key) throws Exception {
-                    return System.currentTimeMillis();
-                }
-            });
+                .build(new CacheLoader<String, Long>() {
+                    @Override
+                    public Long load(String key) throws Exception {
+                        return System.currentTimeMillis();
+                    }
+                });
         availableActiveBrokers = new ZooKeeperChildrenCache(pulsar.getLocalZkCache(), brokerRoot);
         availableActiveBrokers.registerListener(new ZooKeeperCacheListener<Set<String>>() {
             @Override
@@ -253,8 +253,8 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
             ServiceConfiguration conf = pulsar.getConfiguration();
             if (pulsar.getZkClient().exists(brokerRoot, false) == null) {
                 try {
-                    ZkUtils.createFullPathOptimistic(pulsar.getZkClient(), brokerRoot, new byte[0],
-                            Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+                    ZkUtils.createFullPathOptimistic(pulsar.getZkClient(), brokerRoot, new byte[0], Ids.OPEN_ACL_UNSAFE,
+                            CreateMode.PERSISTENT);
                 } catch (KeeperException.NodeExistsException e) {
                     // ignore the exception, node might be present already
                 }
@@ -387,13 +387,12 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
     @Override
     public boolean isCentralized() {
         String strategy = this.getLoadBalancerPlacementStrategy();
-        if ( strategy.equals(LOADBALANCER_STRATEGY_LLS) || strategy.equals(LOADBALANCER_STRATEGY_LEAST_MSG) ) {
+        if (strategy.equals(LOADBALANCER_STRATEGY_LLS) || strategy.equals(LOADBALANCER_STRATEGY_LEAST_MSG)) {
             return true;
         }
 
         return this.getDynamicConfigurationBoolean(LOADBALANCER_DYNAMIC_SETTING_CENTRALIZED_ZPATH,
-                SETTING_NAME_IS_CENTRALIZED,
-                pulsar.getConfiguration().getLoadBalancerIsCentralized());
+                SETTING_NAME_IS_CENTRALIZED, pulsar.getConfiguration().getLoadBalancerIsCentralized());
     }
 
     private long getLoadBalancerBrokerUnderloadedThresholdPercentage() {
@@ -419,7 +418,6 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
                 SETTING_NAME_AUTO_BUNDLE_SPLIT_ENABLED,
                 pulsar.getConfiguration().getLoadBalancerAutoBundleSplitEnabled());
     }
-
 
     /*
      * temp method, remove it in future, in-place to make this glue code to make load balancing work
@@ -479,7 +477,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
     }
 
     private ResourceQuota timeSmoothQuota(ResourceQuota oldQuota, double msgRateIn, double msgRateOut,
-                                          double bandwidthIn, double bandwidthOut, double memory, long timePast) {
+            double bandwidthIn, double bandwidthOut, double memory, long timePast) {
         if (oldQuota.getDynamic()) {
             ResourceQuota newQuota = new ResourceQuota();
             newQuota.setMsgRateIn(timeSmoothValue(oldQuota.getMsgRateIn(), msgRateIn, RESOURCE_QUOTA_MIN_MSGRATE_IN,
@@ -762,7 +760,8 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
      * preAllocatedQuota into calculation; 3) Everything (preAllocatedBundles and preAllocatedQuotas) will get reset in
      * load ranking.
      */
-    private synchronized ResourceUnit findBrokerForPlacement(Multimap<Long, ResourceUnit> candidates, ServiceUnitId serviceUnit) {
+    private synchronized ResourceUnit findBrokerForPlacement(Multimap<Long, ResourceUnit> candidates,
+            ServiceUnitId serviceUnit) {
         long underloadThreshold = this.getLoadBalancerBrokerUnderloadedThresholdPercentage();
         long overloadThreshold = this.getLoadBalancerBrokerOverloadedThresholdPercentage();
         ResourceQuota defaultQuota = pulsar.getLocalZkCacheService().getResourceQuotaCache().getDefaultQuota();
@@ -831,7 +830,8 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
                         selectedRanking = ranking;
                         minLoadPercentage = loadPercentage;
                     } else {
-                        if ((unboundedRanks ? ranking.compareMessageRateTo(selectedRanking) : ranking.compareTo(selectedRanking)) < 0) {
+                        if ((unboundedRanks ? ranking.compareMessageRateTo(selectedRanking)
+                                : ranking.compareTo(selectedRanking)) < 0) {
                             minLoadPercentage = loadPercentage;
                             selectedRU = candidate;
                             selectedRanking = ranking;
@@ -869,7 +869,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
     }
 
     private Multimap<Long, ResourceUnit> getFinalCandidatesWithPolicy(NamespaceName namespace,
-                                                                      Multimap<Long, ResourceUnit> primaries, Multimap<Long, ResourceUnit> shared) {
+            Multimap<Long, ResourceUnit> primaries, Multimap<Long, ResourceUnit> shared) {
         Multimap<Long, ResourceUnit> finalCandidates = TreeMultimap.create();
         // if not enough primary then it should be union of primaries and secondaries
         finalCandidates.putAll(primaries);
@@ -891,7 +891,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
     }
 
     private Multimap<Long, ResourceUnit> getFinalCandidates(ServiceUnitId serviceUnit,
-                                                            Map<Long, Set<ResourceUnit>> availableBrokers) {
+            Map<Long, Set<ResourceUnit>> availableBrokers) {
         // need multimap or at least set of RUs
         Multimap<Long, ResourceUnit> matchedPrimaries = TreeMultimap.create();
         Multimap<Long, ResourceUnit> matchedShared = TreeMultimap.create();
@@ -990,7 +990,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
     }
 
     private ResourceUnit getLeastLoadedBroker(ServiceUnitId serviceUnit,
-                                              Map<Long, Set<ResourceUnit>> availableBrokers) {
+            Map<Long, Set<ResourceUnit>> availableBrokers) {
         ResourceUnit selectedBroker = null;
         Multimap<Long, ResourceUnit> finalCandidates = getFinalCandidates(serviceUnit, availableBrokers);
         // Remove candidates that point to inactive brokers
@@ -1011,8 +1011,8 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
         }
 
         if (finalCandidates.size() > 0) {
-            if (this.getLoadBalancerPlacementStrategy().equals(LOADBALANCER_STRATEGY_LLS) ||
-                    this.getLoadBalancerPlacementStrategy().equals(LOADBALANCER_STRATEGY_LEAST_MSG)) {
+            if (this.getLoadBalancerPlacementStrategy().equals(LOADBALANCER_STRATEGY_LLS)
+                    || this.getLoadBalancerPlacementStrategy().equals(LOADBALANCER_STRATEGY_LEAST_MSG)) {
                 selectedBroker = findBrokerForPlacement(finalCandidates, serviceUnit);
             } else {
                 selectedBroker = placementStrategy.findBrokerForPlacement(finalCandidates);
@@ -1121,7 +1121,8 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
         try {
             LoadReport loadReport = new LoadReport(pulsar.getWebServiceAddress(), pulsar.getWebServiceAddressTls(),
                     pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
-            loadReport.setName(String.format("%s:%s", pulsar.getAdvertisedAddress(), pulsar.getConfiguration().getWebServicePort()));
+            loadReport.setName(String.format("%s:%s", pulsar.getAdvertisedAddress(),
+                    pulsar.getConfiguration().getWebServicePort()));
             SystemResourceUsage systemResourceUsage = this.getSystemResourceUsage();
             loadReport.setOverLoaded(
                     isAboveLoadLevel(systemResourceUsage, this.getLoadBalancerBrokerOverloadedThresholdPercentage()));
@@ -1137,13 +1138,13 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
             final Set<String> bundleGains = new HashSet<>();
             final Set<String> bundleLosses = new HashSet<>();
 
-            for (String oldBundle: oldBundles) {
+            for (String oldBundle : oldBundles) {
                 if (!newBundles.contains(oldBundle)) {
                     bundleLosses.add(oldBundle);
                 }
             }
 
-            for (String newBundle: newBundles) {
+            for (String newBundle : newBundles) {
                 if (!oldBundles.contains(newBundle)) {
                     bundleGains.add(newBundle);
                 }
@@ -1152,8 +1153,8 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
             loadReport.setBundleLosses(bundleLosses);
 
             final ResourceQuota allocatedQuota = getTotalAllocatedQuota(newBundles);
-            loadReport.setAllocatedCPU((allocatedQuota.getMsgRateIn() + allocatedQuota.getMsgRateOut())
-                    * realtimeCpuLoadFactor);
+            loadReport.setAllocatedCPU(
+                    (allocatedQuota.getMsgRateIn() + allocatedQuota.getMsgRateOut()) * realtimeCpuLoadFactor);
             loadReport.setAllocatedMemory(allocatedQuota.getMemory());
             loadReport.setAllocatedBandwidthIn(allocatedQuota.getBandwidthIn());
             loadReport.setAllocatedBandwidthOut(allocatedQuota.getBandwidthOut());
@@ -1172,8 +1173,8 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
 
             final ResourceQuota preAllocatedQuota = getTotalAllocatedQuota(preAllocatedBundles);
 
-            loadReport.setPreAllocatedCPU((preAllocatedQuota.getMsgRateIn() + preAllocatedQuota.getMsgRateOut())
-                    * realtimeCpuLoadFactor);
+            loadReport.setPreAllocatedCPU(
+                    (preAllocatedQuota.getMsgRateIn() + preAllocatedQuota.getMsgRateOut()) * realtimeCpuLoadFactor);
             loadReport.setPreAllocatedMemory(preAllocatedQuota.getMemory());
             loadReport.setPreAllocatedBandwidthIn(preAllocatedQuota.getBandwidthIn());
             loadReport.setPreAllocatedBandwidthOut(preAllocatedQuota.getBandwidthOut());
@@ -1226,7 +1227,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
                         lastLoadReport.getSystemResourceUsage(),
                         pulsar.getLocalZkCacheService().getResourceQuotaCache().getDefaultQuota());
                 double bundlePercentageChange = (maxCapacity > 0) ? (bundleCountChange * 100 / maxCapacity) : 0;
-                if (newBundleCount != oldBundleCount ) {
+                if (newBundleCount != oldBundleCount) {
                     needUpdate = true;
                 }
 
@@ -1244,15 +1245,15 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
                             ? ((newUsage.memory.usage - oldUsage.memory.usage) * 100 / newUsage.memory.limit) : 0;
                     double directMemChange = (newUsage.directMemory.limit > 0)
                             ? ((newUsage.directMemory.usage - oldUsage.directMemory.usage) * 100
-                            / newUsage.directMemory.limit)
+                                    / newUsage.directMemory.limit)
                             : 0;
                     double bandwidthOutChange = (newUsage.bandwidthOut.limit > 0)
                             ? ((newUsage.bandwidthOut.usage - oldUsage.bandwidthOut.usage) * 100
-                            / newUsage.bandwidthOut.limit)
+                                    / newUsage.bandwidthOut.limit)
                             : 0;
                     double bandwidthInChange = (newUsage.bandwidthIn.limit > 0)
                             ? ((newUsage.bandwidthIn.usage - oldUsage.bandwidthIn.usage) * 100
-                            / newUsage.bandwidthIn.limit)
+                                    / newUsage.bandwidthIn.limit)
                             : 0;
                     long resourceChange = (long) Math.min(100.0,
                             Math.max(Math.abs(cpuChange),
