@@ -410,8 +410,6 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
             return CompletableFuture.completedFuture(null);
         }
 
-        setState(State.Closing);
-
         Timeout timeout = sendTimeout;
         if (timeout != null) {
             timeout.cancel();
