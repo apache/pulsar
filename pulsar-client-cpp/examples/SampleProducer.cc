@@ -40,4 +40,6 @@ int main() {
     Message msg = MessageBuilder().setContent("content").build();
     Result res = producer.send(msg);
     LOG_INFO("Message sent: " << res);
+
+    client.close();
 }

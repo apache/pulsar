@@ -20,7 +20,7 @@
 #include <iostream>
 
 #include <boost/shared_ptr.hpp>
-#include <pulsar/Auth.h>
+#include <pulsar/Authentication.h>
 #include <pulsar/Result.h>
 #include "ConnectionPool.h"
 #include "DestinationName.h"

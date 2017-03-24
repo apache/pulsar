@@ -45,4 +45,6 @@ int main() {
     // Wait
     int n;
     std::cin >> n;
+
+    client.close();
 }
