@@ -38,8 +38,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
@@ -66,7 +64,6 @@ import com.yahoo.pulsar.broker.authorization.AuthorizationManager;
 import com.yahoo.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import com.yahoo.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import com.yahoo.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
-import com.yahoo.pulsar.broker.service.BrokerServiceException.TooManyRequestsException;
 import com.yahoo.pulsar.broker.service.persistent.PersistentReplicator;
 import com.yahoo.pulsar.broker.service.persistent.PersistentTopic;
 import com.yahoo.pulsar.broker.stats.ClusterReplicationMetrics;
@@ -134,7 +131,6 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     private final ConcurrentOpenHashMap<String, Consumer> configRegisteredListeners;
 
     private final ConcurrentLinkedQueue<Pair<String, CompletableFuture<Topic>>> pendingTopicLoadingQueue;
-    private final Lock lock = new ReentrantLock();
 
     private AuthorizationManager authorizationManager = null;
     private final ScheduledExecutorService statsUpdater;
@@ -223,9 +219,9 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         // update dynamic configuration and register-listener
         updateConfigurationAndRegisterListeners();
         this.lookupRequestSemaphore = new AtomicReference<Semaphore>(
-                new Semaphore(pulsar.getConfiguration().getMaxConcurrentLookupRequest(), true));
+                new Semaphore(pulsar.getConfiguration().getMaxConcurrentLookupRequest(), false));
         this.topicLoadRequestSemaphore = new AtomicReference<Semaphore>(
-                new Semaphore(pulsar.getConfiguration().getMaxConcurrentTopicLoadRequest(), true));
+                new Semaphore(pulsar.getConfiguration().getMaxConcurrentTopicLoadRequest(), false));
 
         PersistentReplicator.setReplicatorQueueSize(pulsar.getConfiguration().getReplicationProducerQueueSize());
     }
@@ -430,17 +426,39 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         });
     }
 
+    /**
+     * It creates a topic async and returns CompletableFuture. It also throttles down configured max-concurrent topic
+     * loading and puts them into queue once in-process topics are created.
+     * 
+     * @param topic persistent-topic name
+     * @return CompletableFuture<Topic>
+     * @throws RuntimeException
+     */
     private CompletableFuture<Topic> createPersistentTopic(final String topic) throws RuntimeException {
-        try {
-            return createPersistentTopic(topic, false);
-        } catch (TooManyRequestsException e) {
-            return FutureUtil.failedFuture(e);
+        checkTopicNsOwnership(topic);
+
+        final CompletableFuture<Topic> topicFuture = new CompletableFuture<>();
+
+        final Semaphore topicLoadSemaphore = topicLoadRequestSemaphore.get();
+
+        if (topicLoadSemaphore.tryAcquire()) {
+            createPersistentTopic(topic, topicFuture);
+            topicFuture.handle((persistentTopic, ex) -> {
+                // release permit and process pending topic
+                topicLoadSemaphore.release();
+                createPendingLoadTopic();
+                return null;
+            });
+        } else {
+            pendingTopicLoadingQueue.add(new ImmutablePair<String, CompletableFuture<Topic>>(topic, topicFuture));
+            if (log.isDebugEnabled()) {
+                log.debug("topic-loading for {} added into pending queue", topic);
+            }
         }
+        return topicFuture;
     }
 
-    private CompletableFuture<Topic> createPersistentTopic(final String topic, boolean failOnTooManyConcurrentTopics)
-            throws RuntimeException, TooManyRequestsException {
-        checkTopicNsOwnership(topic);
+    private void createPersistentTopic(final String topic, CompletableFuture<Topic> topicFuture) {
 
         final long topicCreateTimeMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
         DestinationName destinationName = DestinationName.get(topic);
@@ -448,21 +466,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             // namespace is being unloaded
             String msg = String.format("Namespace is being unloaded, cannot add topic %s", topic);
             log.warn(msg);
-            throw new RuntimeException(new ServiceUnitNotReadyException(msg));
-        }
-
-        final CompletableFuture<Topic> topicFuture = new CompletableFuture<>();
-        final Semaphore topicLoadSemaphore = topicLoadRequestSemaphore.get();
-
-        if (!topicLoadSemaphore.tryAcquire()) {
-            if (failOnTooManyConcurrentTopics) {
-                throw new TooManyRequestsException("Too many concurrent topic load exception");
-            } else {
-                pendingTopicLoadingQueue.add(new ImmutablePair<String, CompletableFuture<Topic>>(topic, topicFuture));
-                if (log.isDebugEnabled()) {
-                    log.debug("topic-loading for {} added into pending queue", topic);
-                }
-            }
+            topicFuture.completeExceptionally(new ServiceUnitNotReadyException(msg));
         }
 
         getManagedLedgerConfig(destinationName).thenAccept(config -> {
@@ -492,9 +496,6 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
                                 return null;
                             });
-                            // release permit and process pendingLoadTopic-async
-                            topicLoadSemaphore.release();
-                            processPendingLoadTopic();
                         }
 
                         @Override
@@ -502,9 +503,6 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                             log.warn("Failed to create topic {}", topic, exception);
                             topics.remove(topic, topicFuture);
                             topicFuture.completeExceptionally(new PersistenceException(exception));
-                            // release permit and process pendingLoadTopic-async
-                            topicLoadSemaphore.release();
-                            processPendingLoadTopic();
                         }
                     }, null);
 
@@ -512,13 +510,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             log.warn("[{}] Failed to get topic configuration: {}", topic, exception.getMessage(), exception);
             topics.remove(topic, topicFuture);
             topicFuture.completeExceptionally(exception);
-            // release permit and process pendingLoadTopic-async
-            topicLoadSemaphore.release();
-            processPendingLoadTopic();
             return null;
         });
-
-        return topicFuture;
     }
 
     public CompletableFuture<ManagedLedgerConfig> getManagedLedgerConfig(DestinationName topicName) {
@@ -913,10 +906,10 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         updateDynamicServiceConfiguration();
         // add listener on "maxConcurrentLookupRequest" value change
         registerConfigurationListener("maxConcurrentLookupRequest",
-                (maxConcurrentLookupRequest) -> lookupRequestSemaphore.set(new Semaphore((int) maxConcurrentLookupRequest, true)));
+                (maxConcurrentLookupRequest) -> lookupRequestSemaphore.set(new Semaphore((int) maxConcurrentLookupRequest, false)));
         // add listener on "maxConcurrentTopicLoadRequest" value change
         registerConfigurationListener("maxConcurrentTopicLoadRequest",
-                (maxConcurrentTopicLoadRequest) -> topicLoadRequestSemaphore.set(new Semaphore((int) maxConcurrentTopicLoadRequest, true)));
+                (maxConcurrentTopicLoadRequest) -> topicLoadRequestSemaphore.set(new Semaphore((int) maxConcurrentTopicLoadRequest, false)));
         // add more listeners here
     }
 
@@ -1018,31 +1011,39 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         return dynamicConfigurationMap;
     }
 
-    private void processPendingLoadTopic() {
-        lock.lock();
-        try {
-            Pair<String, CompletableFuture<Topic>> pendingTopic = pendingTopicLoadingQueue.poll();
-            if (pendingTopic != null) {
-                try {
-                    createPersistentTopic(pendingTopic.getLeft(), true).handle((topic, ex) -> {
-                        if (ex != null) {
-                            pendingTopic.getRight().completeExceptionally(ex);
-                        } else {
-                            pendingTopic.getRight().complete(topic);
-                        }
-                        return null;
-                    });
-                } catch (TooManyRequestsException te) {
-                    // Queue is still full
-                    pendingTopicLoadingQueue.add(pendingTopic);
-                } catch (Exception e) {
-                    pendingTopic.getRight().completeExceptionally(e);
-                    log.error("Failed to load pending topic {} {}", pendingTopic.getLeft(), e.getMessage(), e);
-                }
-            }
-        } finally {
-            lock.unlock();
+    /**
+     * Create pending topic and on completion it picks the next one until processes all topics in
+     * {@link #pendingTopicLoadingQueue}.<br/>
+     * It also tries to acquire {@link #topicLoadRequestSemaphore} so throttle down newly incoming topics and release
+     * permit if it was successful to acquire it.
+     */
+    private void createPendingLoadTopic() {
+        Pair<String, CompletableFuture<Topic>> pendingTopic = pendingTopicLoadingQueue.poll();
+        if (pendingTopic == null) {
+            return;
         }
-    }
 
+        final String topic = pendingTopic.getLeft();
+        try {
+            checkTopicNsOwnership(topic);
+            CompletableFuture<Topic> pendingFuture = pendingTopic.getRight();
+            final Semaphore topicLoadSemaphore = topicLoadRequestSemaphore.get();
+            final boolean acquiredPermit = topicLoadSemaphore.tryAcquire();
+            createPersistentTopic(topic, pendingFuture);
+            pendingFuture.handle((persistentTopic, ex) -> {
+                // release permit and process next pending topic
+                if (acquiredPermit) {
+                    topicLoadSemaphore.release();
+                }
+                createPendingLoadTopic();
+                return null;
+            });
+        } catch (RuntimeException re) {
+            log.error("Failed to create pending topic {} {}", topic, re);
+            pendingTopic.getRight().completeExceptionally(re.getCause());
+            // schedule to process next pending topic
+            inactivityMonitor.schedule(() -> createPendingLoadTopic(), 100, TimeUnit.MILLISECONDS);
+        }
+
+    }
 }

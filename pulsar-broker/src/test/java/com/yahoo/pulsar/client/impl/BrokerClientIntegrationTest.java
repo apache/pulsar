@@ -484,6 +484,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         clientConf.setStatsInterval(0, TimeUnit.SECONDS);
         clientConf.setMaxNumberOfRejectedRequestPerConnection(0);
         stopBroker();
+        final int maxConccurentLookupRequest = pulsar.getConfiguration().getMaxConcurrentLookupRequest();
         pulsar.getConfiguration().setMaxConcurrentLookupRequest(1);
         startBroker();
         String lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT).toString();
@@ -518,6 +519,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         }
         // connection must be closed
         assertFalse(cnx.channel().isActive());
+        pulsar.getConfiguration().setMaxConcurrentLookupRequest(maxConccurentLookupRequest);
         pulsarClient.close();
         pulsarClient2.close();
     }
