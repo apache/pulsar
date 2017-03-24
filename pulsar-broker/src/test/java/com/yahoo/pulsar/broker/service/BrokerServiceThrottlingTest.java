@@ -123,7 +123,7 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
             consumer = pulsarClient.subscribe(topicName, "mysub", consumerConfig);
             consumer.close();
             fail("It should fail as throttling should not receive any request");
-        } catch (com.yahoo.pulsar.client.api.PulsarClientException.TooManyLookupRequestException e) {
+        } catch (com.yahoo.pulsar.client.api.PulsarClientException.TooManyRequestsException e) {
             // ok as throttling set to 0
         }
     }
@@ -178,7 +178,7 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
             executor.execute(() -> {
                 try {
                     successfulConsumers.add(pulsarClient.subscribe(topicName, "mysub", consumerConfig));
-                } catch (PulsarClientException.TooManyLookupRequestException e) {
+                } catch (PulsarClientException.TooManyRequestsException e) {
                     // ok
                 } catch (Exception e) {
                     fail("it shouldn't failed");
@@ -236,7 +236,7 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
             executor.execute(() -> {
                 try {
                     consumers.add(pulsarClient.subscribe(topicName, "mysub", consumerConfig));
-                } catch (PulsarClientException.TooManyLookupRequestException e) {
+                } catch (PulsarClientException.TooManyRequestsException e) {
                     // ok
                 } catch (Exception e) {
                     fail("it shouldn't failed");

@@ -23,6 +23,7 @@ import static com.yahoo.pulsar.common.api.proto.PulsarApi.ProtocolVersion.v5;
 
 import java.net.SocketAddress;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
 import javax.naming.AuthenticationException;
@@ -159,7 +160,8 @@ public class ServerCnx extends PulsarHandler {
         }
         final long requestId = lookup.getRequestId();
         final String topic = lookup.getTopic();
-        if (service.getLookupRequestSemaphore().tryAcquire()) {
+        final Semaphore lookupSemaphore = service.getLookupRequestSemaphore();
+        if (lookupSemaphore.tryAcquire()) {
             lookupDestinationAsync(getBrokerService().pulsar(), DestinationName.get(topic), lookup.getAuthoritative(),
                     getRole(), lookup.getRequestId()).handle((lookupResponse, ex) -> {
                         if (ex == null) {
@@ -170,7 +172,7 @@ public class ServerCnx extends PulsarHandler {
                             ctx.writeAndFlush(
                                     newLookupResponse(ServerError.ServiceNotReady, ex.getMessage(), requestId));
                         }
-                        service.getLookupRequestSemaphore().release();
+                        lookupSemaphore.release();
                         return null;
                     });
         } else {
@@ -190,7 +192,8 @@ public class ServerCnx extends PulsarHandler {
         }
         final long requestId = partitionMetadata.getRequestId();
         final String topic = partitionMetadata.getTopic();
-        if (service.getLookupRequestSemaphore().tryAcquire()) {
+        final Semaphore lookupSemaphore = service.getLookupRequestSemaphore();
+        if (lookupSemaphore.tryAcquire()) {
             getPartitionedTopicMetadata(getBrokerService().pulsar(), getRole(), DestinationName.get(topic))
                     .handle((metadata, ex) -> {
                         if (ex == null) {
@@ -209,7 +212,7 @@ public class ServerCnx extends PulsarHandler {
                                         ex.getMessage(), requestId));
                             }
                         }
-                        service.getLookupRequestSemaphore().release();
+                        lookupSemaphore.release();
                         return null;
                     });
         } else {

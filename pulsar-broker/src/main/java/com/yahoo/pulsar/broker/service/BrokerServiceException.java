@@ -108,6 +108,12 @@ public class BrokerServiceException extends Exception {
         }
     }
 
+    public static class TooManyRequestsException extends BrokerServiceException {
+        public TooManyRequestsException(String msg) {
+            super(msg);
+        }
+    }
+
     public static PulsarApi.ServerError getClientErrorCode(Throwable t) {
         if (t instanceof ServerMetadataException) {
             return PulsarApi.ServerError.MetadataError;
@@ -117,6 +123,8 @@ public class BrokerServiceException extends Exception {
             return PulsarApi.ServerError.ConsumerBusy;
         } else if (t instanceof UnsupportedVersionException) {
             return PulsarApi.ServerError.UnsupportedVersionError;
+        } else if (t instanceof TooManyRequestsException) {
+            return PulsarApi.ServerError.TooManyRequests;
         } else if (t instanceof ServiceUnitNotReadyException || t instanceof TopicFencedException
                 || t instanceof SubscriptionFencedException) {
             return PulsarApi.ServerError.ServiceNotReady;
