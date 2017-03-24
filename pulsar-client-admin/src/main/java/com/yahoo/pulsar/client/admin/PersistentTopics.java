@@ -22,6 +22,7 @@ import java.util.concurrent.CompletableFuture;
 
 import org.omg.CosNaming.NamingContextPackage.NotFound;
 
+import com.google.gson.JsonObject;
 import com.yahoo.pulsar.client.admin.PulsarAdminException.ConflictException;
 import com.yahoo.pulsar.client.admin.PulsarAdminException.NotAllowedException;
 import com.yahoo.pulsar.client.admin.PulsarAdminException.NotAuthorizedException;
@@ -398,6 +399,36 @@ public interface PersistentTopics {
      * @return a future that can be used to track when the internal topic statistics are returned
      */
     CompletableFuture<PersistentTopicInternalStats> getInternalStatsAsync(String destination);
+
+    /**
+     * Get a JSON representation of the topic metadata stored in ZooKeeper
+     *
+     * @param destination
+     *            Destination name
+     * @return the topic internal metadata
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Topic does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    JsonObject getInternalInfo(String destination) throws PulsarAdminException;
+
+    /**
+     * Get a JSON representation of the topic metadata stored in ZooKeeper
+     *
+     * @param destination
+     *            Destination name
+     * @return a future to receive the topic internal metadata
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Topic does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    CompletableFuture<JsonObject> getInternalInfoAsync(String destination);
 
     /**
      * Get the stats for the partitioned topic
