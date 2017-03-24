@@ -1,6 +1,7 @@
 package com.yahoo.pulsar.broker.loadbalance;
 
 import com.yahoo.pulsar.broker.PulsarServerException;
+import com.yahoo.pulsar.broker.PulsarService;
 import com.yahoo.pulsar.common.naming.ServiceUnitId;
 
 /**
@@ -34,6 +35,11 @@ public interface ModularLoadManager {
     String getBrokerRoot();
 
     /**
+     * Initialize this load manager using the given pulsar service.
+     */
+    void initialize(PulsarService pulsar);
+
+    /**
      * As the leader broker, find a suitable broker for the assignment of the given bundle.
      * 
      * @param serviceUnit
@@ -41,11 +47,6 @@ public interface ModularLoadManager {
      * @return The name of the selected broker, as it appears on ZooKeeper.
      */
     String selectBrokerForAssignment(ServiceUnitId serviceUnit);
-
-    /**
-     * As any broker, retrieve the namespace bundle stats and system resource usage to update data local to this broker.
-     */
-    void updateLocalBrokerData();
 
     /**
      * As any broker, start the load manager.
@@ -62,6 +63,11 @@ public interface ModularLoadManager {
      *             If an unexpected error occurred when attempting to stop the load manager.
      */
     void stop() throws PulsarServerException;
+
+    /**
+     * As any broker, retrieve the namespace bundle stats and system resource usage to update data local to this broker.
+     */
+    void updateLocalBrokerData();
 
     /**
      * As any broker, write the local broker data to ZooKeeper.

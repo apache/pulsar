@@ -63,7 +63,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
     private static final int MIBI = 1024 * 1024;
     private static final Logger log = LoggerFactory.getLogger(ModularLoadManagerImpl.class);
 
-    private final LocalBrokerData localData;
+    private LocalBrokerData localData;
     private final LoadData loadData;
 
     // Used to determine whether a bundle is preallocated.
@@ -81,18 +81,18 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
     private final List<LoadSheddingStrategy> loadSheddingPipeline;
 
     // Strategy used to determine where new topics should be placed.
-    private final ModularLoadManagerStrategy placementStrategy;
+    private ModularLoadManagerStrategy placementStrategy;
 
-    private final SimpleResourceAllocationPolicies policies;
+    private SimpleResourceAllocationPolicies policies;
 
-    private final PulsarService pulsar;
-    private final ZooKeeper zkClient;
-    private final ServiceConfiguration conf;
-    private final BrokerHostUsage brokerHostUsage;
-    private final ZooKeeperDataCache<LocalBrokerData> brokerDataCache;
-    private final ZooKeeperChildrenCache availableActiveBrokers;
+    private PulsarService pulsar;
+    private ZooKeeper zkClient;
+    private ServiceConfiguration conf;
+    private BrokerHostUsage brokerHostUsage;
+    private ZooKeeperDataCache<LocalBrokerData> brokerDataCache;
+    private ZooKeeperChildrenCache availableActiveBrokers;
     private final ScheduledExecutorService scheduler;
-    private final LoadingCache<String, PulsarAdmin> adminCache;
+    private LoadingCache<String, PulsarAdmin> adminCache;
 
     // The default bundle stats which are used to initialize historic data.
     // This data is overriden after the bundle receives its first sample.
@@ -102,29 +102,12 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
     private long lastBundleDataUpdate;
 
     private String brokerZnodePath;
-    private final String brokerRoot;
 
     // System resource usage directly after starting.
     private SystemResourceUsage baselineSystemResourceUsage;
 
-    public ModularLoadManagerImpl(final PulsarService pulsar) {
-        this(pulsar, LOADBALANCE_BROKERS_ROOT);
-    }
-
-    /**
-     * Initialize this load manager.
-     * 
-     * @param pulsar
-     *            Client to construct this manager from.
-     * @param brokerRoot
-     *            ZooKeeper path containing some data implementing ServiceLookup.
-     */
-    public ModularLoadManagerImpl(final PulsarService pulsar, final String brokerRoot) {
-        this.brokerRoot = brokerRoot;
-        this.pulsar = pulsar;
-        zkClient = pulsar.getZkClient();
-        conf = pulsar.getConfiguration();
-        policies = new SimpleResourceAllocationPolicies(pulsar);
+    // Initialize fields when they do not depend on PulsarService.
+    public ModularLoadManagerImpl() {
         loadData = new LoadData();
         preallocatedBundleToBroker = new ConcurrentHashMap<>();
         brokerCandidateCache = new HashSet<>();
@@ -132,6 +115,26 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
         sharedCache = new HashSet<>();
         filterPipeline = new ArrayList<>();
         loadSheddingPipeline = new ArrayList<>();
+        defaultStats = new NamespaceBundleStats();
+        scheduler = Executors.newScheduledThreadPool(1);
+    }
+
+    /**
+     * Initialize this load manager using the given PulsarService.
+     * 
+     * @param pulsar
+     *            The service to initialize with.
+     */
+    public void initialize(final PulsarService pulsar) {
+        if (SystemUtils.IS_OS_LINUX) {
+            brokerHostUsage = new LinuxBrokerHostUsageImpl(pulsar);
+        } else {
+            brokerHostUsage = new GenericBrokerHostUsageImpl(pulsar);
+        }
+        this.pulsar = pulsar;
+        zkClient = pulsar.getZkClient();
+        conf = pulsar.getConfiguration();
+        policies = new SimpleResourceAllocationPolicies(pulsar);
         localData = new LocalBrokerData(pulsar.getWebServiceAddress(), pulsar.getWebServiceAddressTls(),
                 pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
         placementStrategy = ModularLoadManagerStrategy.create(conf);
@@ -148,17 +151,11 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
             }
         });
 
-        // Initialize the default
-        defaultStats = new NamespaceBundleStats();
+        // Initialize the default stats to assume for unseen bundles.
         defaultStats.msgThroughputIn = conf.getLoadManagerDefaultMessageThroughputIn();
         defaultStats.msgThroughputOut = conf.getLoadManagerDefaultMessageThroughputOut();
         defaultStats.msgRateIn = conf.getLoadManagerDefaultMessageRateIn();
         defaultStats.msgRateOut = conf.getLoadManagerDefaultMessageRateOut();
-        if (SystemUtils.IS_OS_LINUX) {
-            brokerHostUsage = new LinuxBrokerHostUsageImpl(pulsar);
-        } else {
-            brokerHostUsage = new GenericBrokerHostUsageImpl(pulsar);
-        }
 
         brokerDataCache = new ZooKeeperDataCache<LocalBrokerData>(pulsar.getLocalZkCache()) {
             @Override
@@ -167,7 +164,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
             }
         };
         brokerDataCache.registerListener(this);
-        availableActiveBrokers = new ZooKeeperChildrenCache(pulsar.getLocalZkCache(), brokerRoot);
+        availableActiveBrokers = new ZooKeeperChildrenCache(pulsar.getLocalZkCache(), LOADBALANCE_BROKERS_ROOT);
         availableActiveBrokers.registerListener(new ZooKeeperCacheListener<Set<String>>() {
             @Override
             public void onUpdate(String path, Set<String> data, Stat stat) {
@@ -177,7 +174,17 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
                 scheduler.submit(ModularLoadManagerImpl.this::updateAll);
             }
         });
-        scheduler = Executors.newScheduledThreadPool(1);
+    }
+
+    /**
+     * Initialize this load manager.
+     * 
+     * @param pulsar
+     *            Client to construct this manager from.
+     */
+    public ModularLoadManagerImpl(final PulsarService pulsar) {
+        this();
+        initialize(pulsar);
     }
 
     /*
@@ -190,7 +197,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
             final Map<String, BrokerData> brokerDataMap = loadData.getBrokerData();
             for (String broker : activeBrokers) {
                 try {
-                    String key = String.format("%s/%s", brokerRoot, broker);
+                    String key = String.format("%s/%s", LOADBALANCE_BROKERS_ROOT, broker);
                     final LocalBrokerData localData = brokerDataCache.get(key)
                             .orElseThrow(KeeperException.NoNodeException::new);
 
@@ -421,7 +428,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
 
     @Override
     public String getBrokerRoot() {
-        return brokerRoot;
+        return LOADBALANCE_BROKERS_ROOT;
     }
 
     /**
@@ -548,10 +555,10 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
     public void start() throws PulsarServerException {
         try {
             // Register the brokers in zk list
-            createZPathIfNotExists(zkClient, brokerRoot);
+            createZPathIfNotExists(zkClient, LOADBALANCE_BROKERS_ROOT);
 
             String lookupServiceAddress = pulsar.getAdvertisedAddress() + ":" + conf.getWebServicePort();
-            brokerZnodePath = brokerRoot + "/" + lookupServiceAddress;
+            brokerZnodePath = LOADBALANCE_BROKERS_ROOT + "/" + lookupServiceAddress;
             final String timeAverageZPath = TIME_AVERAGE_BROKER_ZPATH + "/" + lookupServiceAddress;
             updateLocalBrokerData();
             try {

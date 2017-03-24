@@ -60,6 +60,11 @@ public class ModularLoadManagerWrapper implements LoadManager {
     }
 
     @Override
+    public void initialize(final PulsarService pulsar) {
+        loadManager.initialize(pulsar);
+    }
+
+    @Override
     public boolean isCentralized() {
         return true;
     }

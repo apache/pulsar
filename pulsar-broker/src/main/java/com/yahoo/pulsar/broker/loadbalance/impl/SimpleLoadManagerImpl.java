@@ -82,7 +82,7 @@ import com.yahoo.pulsar.zookeeper.ZooKeeperDataCache;
 public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListener<LoadReport> {
 
     private static final Logger log = LoggerFactory.getLogger(SimpleLoadManagerImpl.class);
-    private final SimpleResourceAllocationPolicies policies;
+    private SimpleResourceAllocationPolicies policies;
     private PulsarService pulsar;
 
     // average JVM heap usage for
@@ -128,11 +128,11 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
 
     private final PlacementStrategy placementStrategy;
 
-    private final ZooKeeperDataCache<LoadReport> loadReportCacheZk;
-    private final ZooKeeperDataCache<Map<String, String>> dynamicConfigurationCache;
-    private final BrokerHostUsage brokerHostUsage;
-    private final LoadingCache<String, PulsarAdmin> adminCache;
-    private final LoadingCache<String, Long> unloadedHotNamespaceCache;
+    private ZooKeeperDataCache<LoadReport> loadReportCacheZk;
+    private ZooKeeperDataCache<Map<String, String>> dynamicConfigurationCache;
+    private BrokerHostUsage brokerHostUsage;
+    private LoadingCache<String, PulsarAdmin> adminCache;
+    private LoadingCache<String, Long> unloadedHotNamespaceCache;
 
     public static final String LOADBALANCE_BROKERS_ROOT = "/loadbalance/brokers";
     public static final String LOADBALANCER_DYNAMIC_SETTING_STRATEGY_ZPATH = "/loadbalance/settings/strategy";
@@ -159,9 +159,8 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
     public static final String LOADBALANCER_STRATEGY_LEAST_MSG = "leastMsgPerSecond";
 
     private String brokerZnodePath;
-    private final String brokerRoot;
     private final ScheduledExecutorService scheduler;
-    private final ZooKeeperChildrenCache availableActiveBrokers;
+    private ZooKeeperChildrenCache availableActiveBrokers;
 
     private static final long MBytes = 1024 * 1024;
     // update LoadReport at most every 5 seconds
@@ -173,13 +172,9 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
     // flag to force update load report
     private boolean forceLoadReportUpdate = false;
 
-    public SimpleLoadManagerImpl(PulsarService pulsar) {
-        this(pulsar, LOADBALANCE_BROKERS_ROOT);
-    }
-
-    public SimpleLoadManagerImpl(PulsarService pulsar, final String brokerRoot) {
-        this.brokerRoot = brokerRoot;
-        this.policies = new SimpleResourceAllocationPolicies(pulsar);
+    // Perform initializations which may be done without a PulsarService.
+    public SimpleLoadManagerImpl() {
+        scheduler = Executors.newScheduledThreadPool(1);
         this.sortedRankings.set(new TreeMap<>());
         this.currentLoadReports = new HashMap<>();
         this.resourceUnitRankings = new HashMap<>();
@@ -187,13 +182,18 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
         this.realtimeResourceQuotas.set(new HashMap<>());
         this.realtimeAvgResourceQuota = new ResourceQuota();
         placementStrategy = new WRRPlacementStrategy();
-        lastLoadReport = new LoadReport(pulsar.getWebServiceAddress(), pulsar.getWebServiceAddressTls(),
-                pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
+    }
+
+    @Override
+    public void initialize(final PulsarService pulsar) {
         if (SystemUtils.IS_OS_LINUX) {
             brokerHostUsage = new LinuxBrokerHostUsageImpl(pulsar);
         } else {
             brokerHostUsage = new GenericBrokerHostUsageImpl(pulsar);
         }
+        this.policies = new SimpleResourceAllocationPolicies(pulsar);
+        lastLoadReport = new LoadReport(pulsar.getWebServiceAddress(), pulsar.getWebServiceAddressTls(),
+                pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
         loadReportCacheZk = new ZooKeeperDataCache<LoadReport>(pulsar.getLocalZkCache()) {
             @Override
             public LoadReport deserialize(String key, byte[] content) throws Exception {
@@ -227,7 +227,8 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
                         return System.currentTimeMillis();
                     }
                 });
-        availableActiveBrokers = new ZooKeeperChildrenCache(pulsar.getLocalZkCache(), brokerRoot);
+
+        availableActiveBrokers = new ZooKeeperChildrenCache(pulsar.getLocalZkCache(), LOADBALANCE_BROKERS_ROOT);
         availableActiveBrokers.registerListener(new ZooKeeperCacheListener<Set<String>>() {
             @Override
             public void onUpdate(String path, Set<String> data, Stat stat) {
@@ -237,13 +238,17 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
                 scheduler.submit(SimpleLoadManagerImpl.this::updateRanking);
             }
         });
-        scheduler = Executors.newScheduledThreadPool(1);
         this.pulsar = pulsar;
+    }
+
+    public SimpleLoadManagerImpl(PulsarService pulsar) {
+        this();
+        initialize(pulsar);
     }
 
     @Override
     public String getBrokerRoot() {
-        return brokerRoot;
+        return LOADBALANCE_BROKERS_ROOT;
     }
 
     @Override
@@ -251,16 +256,16 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
         try {
             // Register the brokers in zk list
             ServiceConfiguration conf = pulsar.getConfiguration();
-            if (pulsar.getZkClient().exists(brokerRoot, false) == null) {
+            if (pulsar.getZkClient().exists(LOADBALANCE_BROKERS_ROOT, false) == null) {
                 try {
-                    ZkUtils.createFullPathOptimistic(pulsar.getZkClient(), brokerRoot, new byte[0], Ids.OPEN_ACL_UNSAFE,
-                            CreateMode.PERSISTENT);
+                    ZkUtils.createFullPathOptimistic(pulsar.getZkClient(), LOADBALANCE_BROKERS_ROOT, new byte[0],
+                            Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
                 } catch (KeeperException.NodeExistsException e) {
                     // ignore the exception, node might be present already
                 }
             }
             String lookupServiceAddress = pulsar.getAdvertisedAddress() + ":" + conf.getWebServicePort();
-            brokerZnodePath = brokerRoot + "/" + lookupServiceAddress;
+            brokerZnodePath = LOADBALANCE_BROKERS_ROOT + "/" + lookupServiceAddress;
             LoadReport loadReport = null;
             try {
                 loadReport = generateLoadReport();
@@ -973,7 +978,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
 
         if (availableBrokers.isEmpty()) {
             // Create a map with all available brokers with no load information
-            Set<String> activeBrokers = availableActiveBrokers.get(brokerRoot);
+            Set<String> activeBrokers = availableActiveBrokers.get(LOADBALANCE_BROKERS_ROOT);
             List<String> brokersToShuffle = new ArrayList<>(activeBrokers);
             Collections.shuffle(brokersToShuffle);
             activeBrokers = new HashSet<>(brokersToShuffle);
@@ -1046,7 +1051,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
                 Set<String> activeBrokers = availableActiveBrokers.get();
                 for (String broker : activeBrokers) {
                     try {
-                        String key = String.format("%s/%s", brokerRoot, broker);
+                        String key = String.format("%s/%s", LOADBALANCE_BROKERS_ROOT, broker);
                         LoadReport lr = loadReportCacheZk.get(key)
                                 .orElseThrow(() -> new KeeperException.NoNodeException());
                         ResourceUnit ru = new SimpleResourceUnit(String.format("http://%s", lr.getName()),

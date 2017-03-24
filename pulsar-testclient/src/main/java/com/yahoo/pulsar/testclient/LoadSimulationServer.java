@@ -36,8 +36,9 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
 
 /**
- * LoadSimulationServer is used to simulate client load by maintaining producers and consumers for topics. Instances of
- * this class are controlled across a network via LoadSimulationController.
+ * LoadSimulationServer is used to simulate client load by maintaining producers
+ * and consumers for topics. Instances of this class are controlled across a
+ * network via LoadSimulationController.
  */
 public class LoadSimulationServer {
     // Values for command responses.
@@ -81,8 +82,8 @@ public class LoadSimulationServer {
         final Map<Integer, byte[]> payloadCache;
 
         public TradeUnit(final TradeConfiguration tradeConf, final PulsarClient client,
-                final ProducerConfiguration producerConf, final ConsumerConfiguration consumerConf,
-                final Map<Integer, byte[]> payloadCache) throws Exception {
+                         final ProducerConfiguration producerConf, final ConsumerConfiguration consumerConf,
+                         final Map<Integer, byte[]> payloadCache) throws Exception {
             consumerFuture = client.subscribeAsync(tradeConf.topic, "Subscriber-" + tradeConf.topic, consumerConf);
             producerFuture = client.createProducerAsync(tradeConf.topic, producerConf);
             this.payload = new AtomicReference<>();
@@ -104,15 +105,48 @@ public class LoadSimulationServer {
             this.payload.set(payloadCache.computeIfAbsent(tradeConf.size, byte[]::new));
         }
 
+        // Attempt to create a Producer indefinitely. Useful for ensuring
+        // messages continue to be sent after broker
+        // restarts occur.
+        private Producer getNewProducer() throws Exception {
+            while (true) {
+                try {
+                    return client.createProducerAsync(topic, producerConf).get();
+                } catch (Exception e) {
+                    Thread.sleep(10000);
+                }
+            }
+        }
+
+        private class MutableBoolean {
+            public volatile boolean value = true;
+        }
+
         public void start() throws Exception {
             Producer producer = producerFuture.get();
             final Consumer consumer = consumerFuture.get();
             while (!stop.get()) {
-                producer.sendAsync(payload.get());
-                rateLimiter.acquire();
+                final MutableBoolean wellnessFlag = new MutableBoolean();
+                final Function<Throwable, ? extends MessageId> exceptionHandler = e -> {
+                    // Unset the well flag in the case of an exception so we can
+                    // try to get a new Producer.
+                    wellnessFlag.value = false;
+                    return null;
+                };
+                while (!stop.get() && wellnessFlag.value) {
+                    producer.sendAsync(payload.get()).exceptionally(exceptionHandler);
+                    rateLimiter.acquire();
+                }
+                producer.closeAsync();
+                if (!stop.get()) {
+                    // The Producer failed due to an exception: attempt to get
+                    // another producer.
+                    producer = getNewProducer();
+                } else {
+                    // We are finished: close the consumer.
+                    consumer.closeAsync();
+                }
             }
-            producer.closeAsync();
-            consumer.closeAsync();
         }
     }
 
@@ -175,81 +209,81 @@ public class LoadSimulationServer {
         final TradeConfiguration tradeConf = new TradeConfiguration();
         tradeConf.command = command;
         switch (command) {
-        case CHANGE_COMMAND:
-            // Change the topic's settings if it exists. Report whether the
-            // topic was found on this server.
-            decodeProducerOptions(tradeConf, inputStream);
-            if (topicsToTradeUnits.containsKey(tradeConf.topic)) {
-                topicsToTradeUnits.get(tradeConf.topic).change(tradeConf);
-                outputStream.write(FOUND_TOPIC);
-            } else {
+            case CHANGE_COMMAND:
+                // Change the topic's settings if it exists. Report whether the
+                // topic was found on this server.
+                decodeProducerOptions(tradeConf, inputStream);
+                if (topicsToTradeUnits.containsKey(tradeConf.topic)) {
+                    topicsToTradeUnits.get(tradeConf.topic).change(tradeConf);
+                    outputStream.write(FOUND_TOPIC);
+                } else {
+                    outputStream.write(NO_SUCH_TOPIC);
+                }
+                break;
+            case STOP_COMMAND:
+                // Stop the topic if it exists. Report whether the topic was found,
+                // and whether it was already stopped.
+                tradeConf.topic = inputStream.readUTF();
+                if (topicsToTradeUnits.containsKey(tradeConf.topic)) {
+                    final boolean wasStopped = topicsToTradeUnits.get(tradeConf.topic).stop.getAndSet(true);
+                    outputStream.write(wasStopped ? REDUNDANT_COMMAND : FOUND_TOPIC);
+                } else {
+                    outputStream.write(NO_SUCH_TOPIC);
+                }
+                break;
+            case TRADE_COMMAND:
+                // Create the topic. It is assumed that the topic does not already
+                // exist.
+                decodeProducerOptions(tradeConf, inputStream);
+                final TradeUnit tradeUnit = new TradeUnit(tradeConf, client, producerConf, consumerConf, payloadCache);
+                topicsToTradeUnits.put(tradeConf.topic, tradeUnit);
+                executor.submit(() -> {
+                    try {
+                        tradeUnit.start();
+                    } catch (Exception ex) {
+                        throw new RuntimeException(ex);
+                    }
+                });
+                // Tell controller topic creation is finished.
                 outputStream.write(NO_SUCH_TOPIC);
-            }
-            break;
-        case STOP_COMMAND:
-            // Stop the topic if it exists. Report whether the topic was found,
-            // and whether it was already stopped.
-            tradeConf.topic = inputStream.readUTF();
-            if (topicsToTradeUnits.containsKey(tradeConf.topic)) {
-                final boolean wasStopped = topicsToTradeUnits.get(tradeConf.topic).stop.getAndSet(true);
-                outputStream.write(wasStopped ? REDUNDANT_COMMAND : FOUND_TOPIC);
-            } else {
-                outputStream.write(NO_SUCH_TOPIC);
-            }
-            break;
-        case TRADE_COMMAND:
-            // Create the topic. It is assumed that the topic does not already
-            // exist.
-            decodeProducerOptions(tradeConf, inputStream);
-            final TradeUnit tradeUnit = new TradeUnit(tradeConf, client, producerConf, consumerConf, payloadCache);
-            topicsToTradeUnits.put(tradeConf.topic, tradeUnit);
-            executor.submit(() -> {
-                try {
-                    tradeUnit.start();
-                } catch (Exception ex) {
-                    throw new RuntimeException(ex);
+                break;
+            case CHANGE_GROUP_COMMAND:
+                // Change the settings of all topics belonging to a group. Report
+                // the number of topics changed.
+                decodeGroupOptions(tradeConf, inputStream);
+                tradeConf.size = inputStream.readInt();
+                tradeConf.rate = inputStream.readDouble();
+                // See if a topic belongs to this tenant and group using this regex.
+                final String groupRegex = ".*://.*/" + tradeConf.tenant + "/" + tradeConf.group + "-.*/.*";
+                int numFound = 0;
+                for (Map.Entry<String, TradeUnit> entry : topicsToTradeUnits.entrySet()) {
+                    final String destination = entry.getKey();
+                    final TradeUnit unit = entry.getValue();
+                    if (destination.matches(groupRegex)) {
+                        ++numFound;
+                        unit.change(tradeConf);
+                    }
                 }
-            });
-            // Tell controller topic creation is finished.
-            outputStream.write(NO_SUCH_TOPIC);
-            break;
-        case CHANGE_GROUP_COMMAND:
-            // Change the settings of all topics belonging to a group. Report
-            // the number of topics changed.
-            decodeGroupOptions(tradeConf, inputStream);
-            tradeConf.size = inputStream.readInt();
-            tradeConf.rate = inputStream.readDouble();
-            // See if a topic belongs to this tenant and group using this regex.
-            final String groupRegex = ".*://.*/" + tradeConf.tenant + "/" + tradeConf.group + "-.*/.*";
-            int numFound = 0;
-            for (Map.Entry<String, TradeUnit> entry : topicsToTradeUnits.entrySet()) {
-                final String destination = entry.getKey();
-                final TradeUnit unit = entry.getValue();
-                if (destination.matches(groupRegex)) {
-                    ++numFound;
-                    unit.change(tradeConf);
+                outputStream.writeInt(numFound);
+                break;
+            case STOP_GROUP_COMMAND:
+                // Stop all topics belonging to a group. Report the number of topics
+                // stopped.
+                decodeGroupOptions(tradeConf, inputStream);
+                // See if a topic belongs to this tenant and group using this regex.
+                final String regex = ".*://.*/" + tradeConf.tenant + "/" + tradeConf.group + "-.*/.*";
+                int numStopped = 0;
+                for (Map.Entry<String, TradeUnit> entry : topicsToTradeUnits.entrySet()) {
+                    final String destination = entry.getKey();
+                    final TradeUnit unit = entry.getValue();
+                    if (destination.matches(regex) && !unit.stop.getAndSet(true)) {
+                        ++numStopped;
+                    }
                 }
-            }
-            outputStream.writeInt(numFound);
-            break;
-        case STOP_GROUP_COMMAND:
-            // Stop all topics belonging to a group. Report the number of topics
-            // stopped.
-            decodeGroupOptions(tradeConf, inputStream);
-            // See if a topic belongs to this tenant and group using this regex.
-            final String regex = ".*://.*/" + tradeConf.tenant + "/" + tradeConf.group + "-.*/.*";
-            int numStopped = 0;
-            for (Map.Entry<String, TradeUnit> entry : topicsToTradeUnits.entrySet()) {
-                final String destination = entry.getKey();
-                final TradeUnit unit = entry.getValue();
-                if (destination.matches(regex) && !unit.stop.getAndSet(true)) {
-                    ++numStopped;
-                }
-            }
-            outputStream.writeInt(numStopped);
-            break;
-        default:
-            throw new IllegalArgumentException("Unrecognized command code received: " + command);
+                outputStream.writeInt(numStopped);
+                break;
+            default:
+                throw new IllegalArgumentException("Unrecognized command code received: " + command);
         }
         outputStream.flush();
     }
@@ -261,9 +295,9 @@ public class LoadSimulationServer {
         topicsToTradeUnits = new ConcurrentHashMap<>();
         final EventLoopGroup eventLoopGroup = SystemUtils.IS_OS_LINUX
                 ? new EpollEventLoopGroup(Runtime.getRuntime().availableProcessors(),
-                        new DefaultThreadFactory("pulsar-test-client"))
+                new DefaultThreadFactory("pulsar-test-client"))
                 : new NioEventLoopGroup(Runtime.getRuntime().availableProcessors(),
-                        new DefaultThreadFactory("pulsar-test-client"));
+                new DefaultThreadFactory("pulsar-test-client"));
         clientConf = new ClientConfiguration();
 
         // Disable connection pooling.

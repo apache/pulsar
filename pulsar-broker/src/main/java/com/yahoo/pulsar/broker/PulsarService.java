@@ -210,7 +210,7 @@ public class PulsarService implements AutoCloseable {
 
     private class LoadManagerWatcher implements Watcher {
         public void process(final WatchedEvent event) {
-            new Thread(() -> {
+            executor.execute(() -> {
                 try {
                     LOG.info("Attempting to change load manager");
                     final String newLoadManagerName =
@@ -226,7 +226,7 @@ public class PulsarService implements AutoCloseable {
                 } catch (Exception ex) {
                     LOG.warn("Failed to change load manager due to {}", ex);
                 }
-            }).start();
+            });
         }
     }
 
