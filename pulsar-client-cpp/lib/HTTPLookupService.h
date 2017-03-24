@@ -20,12 +20,11 @@
 #include <lib/LookupService.h>
 #include <lib/ClientImpl.h>
 #include <lib/Url.h>
-#include <boost/bind.hpp>
 #include <json/value.h>
 #include <json/reader.h>
+#include <lib/HTTPWrapper.h>
 
 namespace pulsar {
-
     class HTTPLookupService : public LookupService {
     public:
         HTTPLookupService(const std::string& lookupUrl, const ClientConfiguration& clientConfiguration,
@@ -35,35 +34,17 @@ namespace pulsar {
 
         Future<Result, LookupDataResultPtr> getPartitionMetadataAsync(const DestinationNamePtr& dn);
 
+        static void callback(boost::system::error_code er, HTTPWrapperPtr wrapperPtr,
+                                        Promise<Result, LookupDataResultPtr> promise);
     private:
         typedef Promise<Result, LookupDataResultPtr> LookupPromise;
         ExecutorServiceProviderPtr executorProvider_;
         Url adminUrl_;
         AuthenticationPtr authenticationPtr_;
         TimeDuration lookupTimeout_;
-        void handle_resolve(ReadStreamPtr requestStreamPtr, LookupPromise promise, TcpResolverPtr resolverPtr,
-                            const boost::system::error_code& err,
-                            boost::asio::ip::tcp::resolver::iterator endpoint_iterator);
 
-        void handle_connect(ReadStreamPtr requestStreamPtr, LookupPromise promise, SocketPtr socketPtr,
-                            const boost::system::error_code& err,
-                            boost::asio::ip::tcp::resolver::iterator endpoint_iterator);
-
-        void handle_write_request(LookupPromise promise, SocketPtr socketPtr,
-                                  const boost::system::error_code& err);
-
-        void handle_read_status_line(ReadStreamPtr responseStreamPtr, LookupPromise promise,
-                                     SocketPtr socketPtr, const boost::system::error_code& err);
-
-        void handle_read_headers(ReadStreamPtr responseStreamPtr, LookupPromise promise,
-                                 SocketPtr socketPtr, const boost::system::error_code& err);
-
-        void handle_read_content(ReadStreamPtr responseStreamPtr, LookupPromise promise,
-                                 SocketPtr socketPtr, const boost::system::error_code& err);
-
-        static LookupDataResultPtr parsePartitionData(ReadStreamPtr streamPtr);
-
-        static LookupDataResultPtr parseLookupData(ReadStreamPtr streamPtr);
+        static LookupDataResultPtr parsePartitionData(std::string& json);
+        static LookupDataResultPtr parseLookupData(std::string& json);
     };
 
 }

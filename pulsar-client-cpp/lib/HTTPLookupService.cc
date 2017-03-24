@@ -1,11 +1,24 @@
+/**
+ * Copyright 2016 Yahoo Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 #include <lib/HTTPLookupService.h>
 
 DECLARE_LOG_OBJECT()
 
 namespace pulsar {
     using boost::posix_time::seconds;
-    using boost::asio::ip::tcp;
-
     const static std::string V2_PATH = "/lookup/v2/destination/";
     const static std::string PARTITION_PATH = "/admin/persistent/";
     const static int MAX_HTTP_REDIRECTS = 20;
@@ -33,6 +46,9 @@ namespace pulsar {
             promise.setFailed(ResultInvalidTopicName);
             return promise.getFuture();
         }
+//        std::ostream request_stream(requestStreamPtr.get());
+//        request_stream << "GET " << V2_PATH << "persistent" << SEPARATOR << dn->getProperty() << SEPARATOR << dn->getCluster()
+//                       << SEPARATOR << dn->getNamespacePortion() << SEPARATOR << dn->getEncodedLocalName() << " HTTP/1.1\r\n";
 
         std::string requestUrl = "";
         // TODO - remove this - adminUrl_ + V2_PATH + dn->getLookupName();
@@ -79,178 +95,28 @@ namespace pulsar {
             authorizationData = authDataContent->getCommandData();
         }
 
-        // TODO - validate if the url is well formed
         // TODO - setup deadline timer
-        ReadStreamPtr requestStreamPtr = executorProvider_->get()->createReadStream();
-        std::ostream request_stream(requestStreamPtr.get());
-        request_stream << "GET " << V2_PATH << "persistent" << SEPARATOR << dn->getProperty() << SEPARATOR << dn->getCluster()
-                       << SEPARATOR << dn->getNamespacePortion() << SEPARATOR << dn->getEncodedLocalName() << " HTTP/1.1\r\n";
+        HTTPWrapperPtr wrapperPtr = boost::make_shared<HTTPWrapper>(executorProvider_);
+        std::stringstream requestStream;
+        requestStream << PARTITION_PATH << dn->getProperty() << SEPARATOR << dn->getCluster()
+                      << SEPARATOR << dn->getNamespacePortion() << SEPARATOR << dn->getEncodedLocalName() << SEPARATOR
+                      << PARTITION_METHOD_NAME;
 
-        /*
-        request_stream << "GET " << PARTITION_PATH << dn->getProperty() << SEPARATOR << dn->getCluster()
-                       << SEPARATOR << dn->getNamespacePortion() << SEPARATOR << dn->getEncodedLocalName() << SEPARATOR
-                       << PARTITION_METHOD_NAME << " HTTP/1.1\r\n";
-                       */
-        request_stream << "Host: " << adminUrl_.host() << "\r\n";
-        request_stream << "Accept: */*\r\n";
-        request_stream << "Connection: close\r\n\r\n";
-
-        LOG_DEBUG("Getting Partition Metadata from : " << request_stream);
+        std::vector<std::string> headers;
+        headers.push_back("Host: " + adminUrl_.host());
+        headers.push_back("Accept: */*");
+        // TODO - set authentication headers
+        headers.push_back("Connection: close");
+        LOG_DEBUG("JAI 1");
+        wrapperPtr->createRequest(adminUrl_, HTTP_GET, "1.1", requestStream.str(),
+                headers, "",
+                boost::bind(&HTTPLookupService::callback, _1, wrapperPtr, promise));
+        usleep(10 * 1000 * 1000);
         LOG_DEBUG("AdminUrl = " << adminUrl_);
-        // TODO - put this resolver as a part of the class
-        tcp::resolver::query query(adminUrl_.host(), boost::lexical_cast<std::string>(adminUrl_.port()));
-        TcpResolverPtr resolverPtr = executorProvider_->get()->createTcpResolver();
-        resolverPtr->async_resolve(query,
-                                   boost::bind(&HTTPLookupService::handle_resolve, this, requestStreamPtr, promise,
-                                               resolverPtr,
-                                               boost::asio::placeholders::error,
-                                               boost::asio::placeholders::iterator));
-
         return promise.getFuture();
     }
 
-    void HTTPLookupService::handle_resolve(ReadStreamPtr requestStreamPtr, LookupPromise promise,
-                                           TcpResolverPtr resolverPtr,
-                                           const boost::system::error_code &err,
-                                           tcp::resolver::iterator endpoint_iterator) {
-        SocketPtr socketPtr = executorProvider_->get()->createSocket();
-        if (!err) {
-            // Attempt a connection to the first endpoint in the list. Each endpoint
-            // will be tried until we successfully establish a connection.
-            tcp::endpoint endpoint = *endpoint_iterator;
-            socketPtr->async_connect(endpoint,
-                                     boost::bind(&HTTPLookupService::handle_connect, this, requestStreamPtr, promise,
-                                                 socketPtr, boost::asio::placeholders::error, ++endpoint_iterator));
-        } else {
-            LOG_ERROR(err.message());
-            promise.setFailed(ResultLookupError);
-        }
-    }
-
-    void HTTPLookupService::handle_connect(ReadStreamPtr requestStreamPtr, LookupPromise promise, SocketPtr socketPtr,
-                                           const boost::system::error_code &err,
-                                           tcp::resolver::iterator endpoint_iterator) {
-        if (!err) {
-            // The connection was successful. Send the request.
-            boost::asio::async_write(*socketPtr, *requestStreamPtr,
-                                     boost::bind(&HTTPLookupService::handle_write_request, this, promise, socketPtr,
-                                                 boost::asio::placeholders::error));
-        } else if (endpoint_iterator != tcp::resolver::iterator()) {
-            // The connection failed. Try the next endpoint in the list.
-            socketPtr->close();
-            tcp::endpoint endpoint = *endpoint_iterator;
-            socketPtr->async_connect(endpoint,
-                                     boost::bind(&HTTPLookupService::handle_connect, this, requestStreamPtr, promise,
-                                                 socketPtr, boost::asio::placeholders::error, ++endpoint_iterator));
-        } else {
-            LOG_ERROR(err.message());
-            promise.setFailed(ResultLookupError);
-        }
-    }
-
-    void HTTPLookupService::handle_write_request(LookupPromise promise, SocketPtr socketPtr,
-                                                 const boost::system::error_code &err) {
-        if (!err) {
-            ReadStreamPtr responseStreamPtr = executorProvider_->get()->createReadStream();
-            // Read the response status line.
-            boost::asio::async_read_until(*socketPtr, *responseStreamPtr, "\r\n",
-                                          boost::bind(&HTTPLookupService::handle_read_status_line, this,
-                                                      responseStreamPtr, promise, socketPtr,
-                                                      boost::asio::placeholders::error));
-        } else {
-            LOG_ERROR(err.message());
-            promise.setFailed(ResultLookupError);
-        }
-    }
-
-    void HTTPLookupService::handle_read_status_line(ReadStreamPtr responseStreamPtr, LookupPromise promise,
-                                                    SocketPtr socketPtr, const boost::system::error_code &err) {
-        if (!err) {
-            // Check that response is OK.
-            std::istream response_stream(responseStreamPtr.get());
-            std::string http_version;
-            response_stream >> http_version;
-            unsigned int status_code;
-            response_stream >> status_code;
-            std::string status_message;
-            std::getline(response_stream, status_message);
-            if (!response_stream || http_version.substr(0, 5) != "HTTP/") {
-                LOG_ERROR("Invalid response");
-                promise.setFailed(ResultLookupError);
-                return;
-            }
-            if (status_code != 200) {
-                LOG_ERROR("Response returned with status code " << status_code);
-                promise.setFailed(ResultLookupError);;
-                return;
-            }
-
-            // Read the response headers, which are terminated by a blank line.
-            boost::asio::async_read_until(*socketPtr, *responseStreamPtr, "\r\n\r\n",
-                                          boost::bind(&HTTPLookupService::handle_read_headers, this,
-                                                      responseStreamPtr, promise, socketPtr,
-                                                      boost::asio::placeholders::error));
-        } else {
-            LOG_ERROR(err.message());
-            promise.setFailed(ResultLookupError);
-        }
-    }
-
-    void HTTPLookupService::handle_read_headers(ReadStreamPtr responseStreamPtr, LookupPromise promise,
-                                                SocketPtr socketPtr, const boost::system::error_code &err) {
-        if (!err) {
-            // Process the response headers.
-            std::istream response_stream(responseStreamPtr.get());
-            std::string header;
-            while (std::getline(response_stream, header) && header != "\r") {
-                LOG_DEBUG(header);
-            }
-
-            // Discard the remaining junk characters
-            if (responseStreamPtr.get()->size() > 0) {
-                std::cout<<"\'"<<responseStreamPtr.get()<<"\'"<<std::endl;
-                responseStreamPtr.get()->consume(responseStreamPtr.get()->size());
-            }
-
-            // Start reading remaining data until EOF.
-            boost::asio::async_read(*socketPtr, *responseStreamPtr,
-                                    boost::asio::transfer_at_least(1),
-                                    boost::bind(&HTTPLookupService::handle_read_content, this,
-                                                responseStreamPtr, promise, socketPtr,
-                                                boost::asio::placeholders::error));
-        } else {
-            LOG_ERROR(err.message());
-            promise.setFailed(ResultLookupError);
-        }
-    }
-
-    void HTTPLookupService::handle_read_content(ReadStreamPtr responseStreamPtr, LookupPromise promise,
-                                                SocketPtr socketPtr,
-                                                const boost::system::error_code &err) {
-        if (!err) {
-            boost::asio::async_read(*socketPtr, *responseStreamPtr,
-                                    boost::asio::transfer_at_least(1),
-                                    boost::bind(&HTTPLookupService::handle_read_content, this,
-                                                responseStreamPtr, promise, socketPtr,
-                                                boost::asio::placeholders::error));
-        } else if (err == boost::asio::error::eof) {
-            // Reading data in the end together from responseStreamPtr since expecting only about 100 bytes in response
-            LookupDataResultPtr lookupDataResultPtr = parsePartitionData(responseStreamPtr);
-            if (lookupDataResultPtr) {
-                promise.setValue(lookupDataResultPtr);
-            } else {
-                promise.setFailed(ResultLookupError);
-            }
-        } else {
-            LOG_ERROR(err.message());
-            promise.setFailed(ResultLookupError);
-        }
-    }
-
-    LookupDataResultPtr HTTPLookupService::parsePartitionData(ReadStreamPtr streamPtr) {
-        std::istream is(streamPtr.get());
-        std::string json;
-        is >> json;
+    LookupDataResultPtr HTTPLookupService::parsePartitionData(std::string& json) {
         Json::Value root;
         Json::Reader reader;
         if (!reader.parse(json, root, false)) {
@@ -263,11 +129,7 @@ namespace pulsar {
         return lookupDataResultPtr;
     }
 
-    static LookupDataResultPtr parseLookupData(ReadStreamPtr streamPtr) {
-        std::istream is(streamPtr.get());
-        std::string json;
-        is >> json;
-
+    LookupDataResultPtr HTTPLookupService::parseLookupData(std::string& json) {
         Json::Value root;
         Json::Reader reader;
         if (!reader.parse(json, root, false)) {
@@ -284,6 +146,15 @@ namespace pulsar {
         lookupDataResultPtr->setBrokerUrl(root.get("brokerUrl", "").asString());
         lookupDataResultPtr->setBrokerUrlSsl(root.get("brokerUrlSsl", "").asString());
         return lookupDataResultPtr;
+    }
+
+
+    void HTTPLookupService::callback(boost::system::error_code er, HTTPWrapperPtr wrapperPtr,
+                                     Promise<Result, LookupDataResultPtr> promise) {
+        LOG_ERROR("Callback called with data");
+        // LOG_ERROR(wrapper.getResponseContent());
+        // wrapperPtr->getResponse();
+        return;
     }
 }
 
