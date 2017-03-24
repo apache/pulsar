@@ -111,7 +111,7 @@ public class LoadSimulationServer {
         private Producer getNewProducer() throws Exception {
             while (true) {
                 try {
-                    return client.createProducerAsync(topic, producerConf).get();
+                    return client.createProducer(topic, producerConf);
                 } catch (Exception e) {
                     Thread.sleep(10000);
                 }
