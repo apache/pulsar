@@ -80,11 +80,11 @@ public class AuthenticationAthenz implements Authentication {
 
     @Override
     public void configure(Map<String, String> authParams) {
-        this.tenantDomain = authParams.get("tenant_domain");
-        this.tenantService = authParams.get("tenant_service");
-        this.providerDomain = authParams.get("provider_domain");
-        this.privateKeyPath = authParams.get("private_key_path");
-        this.keyId = authParams.getOrDefault("key_id", "0");
+        this.tenantDomain = authParams.get("tenantDomain");
+        this.tenantService = authParams.get("tenantService");
+        this.providerDomain = authParams.get("providerDomain");
+        this.privateKeyPath = authParams.get("privateKeyPath");
+        this.keyId = authParams.getOrDefault("keyId", "0");
     }
 
     @Override
