@@ -426,4 +426,36 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         factory.shutdown();
         assertNotNull(offlineTopicStats);
     }
+
+    @Test(timeOut = 20000)
+    void testResetCursorAfterRecovery() throws Exception {
+        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(bkc, zkc);
+        ManagedLedgerConfig conf = new ManagedLedgerConfig().setMaxEntriesPerLedger(10).setEnsembleSize(1)
+                .setWriteQuorumSize(1).setAckQuorumSize(1).setMetadataEnsembleSize(1).setMetadataWriteQuorumSize(1)
+                .setMetadataAckQuorumSize(1);
+        ManagedLedger ledger = factory.open("my_test_move_cursor_ledger", conf);
+        ManagedCursor cursor = ledger.openCursor("trc1");
+        Position p1 = ledger.addEntry("dummy-entry-1".getBytes());
+        Position p2 = ledger.addEntry("dummy-entry-2".getBytes());
+        Position p3 = ledger.addEntry("dummy-entry-3".getBytes());
+        Position p4 = ledger.addEntry("dummy-entry-4".getBytes());
+
+        cursor.markDelete(p3);
+
+        ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(bkc, zkc);
+        ledger = factory2.open("my_test_move_cursor_ledger", conf);
+        cursor = ledger.openCursor("trc1");
+
+        assertEquals(cursor.getMarkDeletedPosition(), p3);
+        assertEquals(cursor.getReadPosition(), p4);
+        assertEquals(cursor.getNumberOfEntriesInBacklog(), 1);
+
+        cursor.resetCursor(p2);
+        assertEquals(cursor.getMarkDeletedPosition(), p1);
+        assertEquals(cursor.getReadPosition(), p2);
+        assertEquals(cursor.getNumberOfEntriesInBacklog(), 3);
+
+        factory2.shutdown();
+        factory.shutdown();
+    }
 }
