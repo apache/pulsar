@@ -33,7 +33,7 @@ public:
     const std::string& protocol() const;
     const std::string& host() const;
     const int port() const;
-
+    friend std::ostream& operator<<(std::ostream &os, const Url& obj);
 private:
     std::string protocol_;
     std::string host_;

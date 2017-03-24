@@ -81,4 +81,10 @@ const int Url::port() const {
     return port_;
 }
 
+std::ostream & operator<<(std::ostream &os, const Url& obj) {
+    os << "Url [Host = " << obj.host() << ", Protocol = " << obj.protocol()
+       << ", Port = " << obj.port() << "]";
+    return os;
+}
+
 } // pulsar
