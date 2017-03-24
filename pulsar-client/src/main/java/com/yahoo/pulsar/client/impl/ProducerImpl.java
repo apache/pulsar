@@ -395,7 +395,7 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
             return CompletableFuture.completedFuture(null);
         }
 
-        if (!isConnected()) {
+        if (getClientCnx() == null || currentState != State.Ready) {
             log.info("[{}] [{}] Closed Producer (not connected)", topic, producerName);
             synchronized (this) {
                 setState(State.Closed);
