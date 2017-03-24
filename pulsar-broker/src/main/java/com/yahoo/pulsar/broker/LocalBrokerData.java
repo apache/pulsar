@@ -84,11 +84,6 @@ public class LocalBrokerData extends JSONWritable implements ServiceLookupData {
 
     /**
      * Using the system resource usage and bundle stats acquired from the Pulsar client, update this LocalBrokerData.
-     * <<<<<<< Updated upstream
-     *
-     * =======
-     * 
-     * >>>>>>> Stashed changes
      * 
      * @param systemResourceUsage
      *            System resource usage (cpu, memory, and direct memory).
