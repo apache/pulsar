@@ -108,9 +108,13 @@ namespace pulsar {
         // TODO - set authentication headers
         headers.push_back("Connection: close");
         LOG_DEBUG("JAI 1");
-        wrapperPtr->createRequest(adminUrl_, HTTP_GET, "1.1", requestStream.str(),
-                headers, "",
-                boost::bind(&HTTPLookupService::callback, _1, wrapperPtr, promise));
+        HTTPMethod method = HTTP_GET;
+        std::string version = "1.1";
+        std::string content = "";
+        std::string path = requestStream.str();
+        wrapperPtr->createRequest(adminUrl_, method, version, path,
+                headers, content,
+                boost::bind(&HTTPLookupService::callback, _1, _2, promise));
         usleep(10 * 1000 * 1000);
         LOG_DEBUG("AdminUrl = " << adminUrl_);
         return promise.getFuture();
@@ -149,9 +153,10 @@ namespace pulsar {
     }
 
 
-    void HTTPLookupService::callback(boost::system::error_code er, HTTPWrapperPtr wrapperPtr,
+    void HTTPLookupService::callback(const boost::system::error_code& er, const HTTPWrapperResponse& response,
                                      Promise<Result, LookupDataResultPtr> promise) {
         LOG_ERROR("Callback called with data");
+        LOG_ERROR(response);
         // LOG_ERROR(wrapper.getResponseContent());
         // wrapperPtr->getResponse();
         return;

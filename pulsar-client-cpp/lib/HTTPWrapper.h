@@ -30,20 +30,22 @@ enum HTTPMethod {HTTP_GET, HTTP_POST, HTTP_HEAD, HTTP_PUT, HTTP_DELETE, HTTP_OPT
 
 struct HTTPWrapperResponse {
     std::vector<std::string> headers;
+    std::string statusCode;
     std::string response;
     std::string statusLine;
+    friend std::ostream & operator<<(std::ostream &os, const HTTPWrapperResponse& obj);
 };
 
 typedef boost::shared_ptr<HTTPWrapper> HTTPWrapperPtr;
-typedef boost::function<void(boost::system::error_code er)> HTTPWrapperCallback;
+typedef boost::function<void(const boost::system::error_code&, const HTTPWrapperResponse&)> HTTPWrapperCallback;
 
 class HTTPWrapper : public boost::enable_shared_from_this<HTTPWrapper> {
 public:
     HTTPWrapper(ExecutorServiceProviderPtr executorService);
-    void createRequest(Url serverUrl ,HTTPMethod method, std::string HTTPVersion, std::string path,
-                       std::vector<std::string> headers, std::string content, HTTPWrapperCallback callback);
+    void createRequest(Url& serverUrl ,HTTPMethod& method, std::string& HTTPVersion, std::string& path,
+                       std::vector<std::string>& headers, std::string& content, HTTPWrapperCallback callback);
     HTTPWrapperResponse getResponse();
-    static std::string getHTTPMethodName(HTTPMethod method);
+    static std::string getHTTPMethodName(HTTPMethod& method);
 private:
     TcpResolverPtr resolverPtr_;
     ReadStreamPtr requestStreamPtr_;

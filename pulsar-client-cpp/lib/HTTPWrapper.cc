@@ -2,7 +2,7 @@
  * Copyright 2016 Yahoo Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
+ * you may not use shared_from_this() file except in compliance with the License.
  * You may obtain a copy of the License at
  *
  *     http://www.apache.org/licenses/LICENSE-2.0
@@ -20,6 +20,17 @@ DECLARE_LOG_OBJECT()
 
 namespace pulsar {
     using boost::asio::ip::tcp;
+    static const HTTPWrapperResponse EMPTY_RESPONSE = {};
+    std::ostream & operator<<(std::ostream &os, const HTTPWrapperResponse& obj) {
+        os << "HTTPWrapperResponse [statusLine = " << obj.statusLine << ", statusCode" << obj.statusCode
+           << ", response = " << obj.response << ", headers = {";
+        std::vector<std::string>::const_iterator iter = obj.headers.begin();
+        while (iter != obj.headers.end()) {
+            os << "\'" << *iter << "\', ";
+        }
+        os << "}]";
+        return os;
+    }
 
     HTTPWrapper::HTTPWrapper(ExecutorServiceProviderPtr executorServiceProviderPtr) :
         resolverPtr_(executorServiceProviderPtr->get()->createTcpResolver()),
@@ -29,7 +40,7 @@ namespace pulsar {
         socketPtr_(executorServiceProviderPtr->get()->createSocket()) {
     }
 
-    std::string HTTPWrapper::getHTTPMethodName(HTTPMethod method) {
+    std::string HTTPWrapper::getHTTPMethodName(HTTPMethod& method) {
         switch(method) {
             case HTTP_GET:
                 return "GET";
@@ -49,9 +60,8 @@ namespace pulsar {
     }
 
 
-    void HTTPWrapper::createRequest(Url serverUrl,
-                                    HTTPMethod method, std::string HTTPVersion, std::string path,
-                                    std::vector<std::string> headers, std::string content,
+    void HTTPWrapper::createRequest(Url& serverUrl ,HTTPMethod& method, std::string& HTTPVersion, std::string& path,
+                                    std::vector<std::string>& headers, std::string& content,
                                     HTTPWrapperCallback callback) {
         callback_ = callback;
         std::ostream request_stream(requestStreamPtr_.get());
@@ -65,7 +75,7 @@ namespace pulsar {
         tcp::resolver::query query(serverUrl.host(), boost::lexical_cast<std::string>(serverUrl.port()));
         LOG_DEBUG("JAI 2");
         resolverPtr_->async_resolve(query,
-                                   boost::bind(&HTTPWrapper::handle_resolve, this,
+                                   boost::bind(&HTTPWrapper::handle_resolve, shared_from_this(),
                                                boost::asio::placeholders::error,
                                                boost::asio::placeholders::iterator));
         LOG_DEBUG("JAI 3");
@@ -80,12 +90,12 @@ namespace pulsar {
             tcp::endpoint endpoint = *endpoint_iterator;
             LOG_DEBUG("JAI 4");
             socketPtr_->async_connect(endpoint,
-                                     boost::bind(&HTTPWrapper::handle_connect, this,
+                                     boost::bind(&HTTPWrapper::handle_connect, shared_from_this(),
                                                  boost::asio::placeholders::error, ++endpoint_iterator));
             LOG_DEBUG("JAI 5");
         } else {
             LOG_ERROR(err.message());
-            callback_(err);
+            callback_(err, EMPTY_RESPONSE);
         }
     }
 
@@ -93,7 +103,7 @@ namespace pulsar {
         if (!err) {
             // The connection was successful. Send the request.
             boost::asio::async_write(*socketPtr_, *requestStreamPtr_,
-                                     boost::bind(&HTTPWrapper::handle_write_request, this,
+                                     boost::bind(&HTTPWrapper::handle_write_request, shared_from_this(),
                                                  boost::asio::placeholders::error));
         } else if (endpoint_iterator != tcp::resolver::iterator()) {
             // The connection failed. Try the next endpoint in the list.
@@ -101,12 +111,12 @@ namespace pulsar {
             socketPtr_->close();
             tcp::endpoint endpoint = *endpoint_iterator;
             socketPtr_->async_connect(endpoint,
-                                     boost::bind(&HTTPWrapper::handle_connect, this,
+                                     boost::bind(&HTTPWrapper::handle_connect, shared_from_this(),
                                                  boost::asio::placeholders::error, ++endpoint_iterator));
             LOG_DEBUG("JAI 8");
         } else {
             LOG_ERROR(err.message());
-            callback_(err);
+            callback_(err, EMPTY_RESPONSE);
         }
     }
 
@@ -114,11 +124,11 @@ namespace pulsar {
         if (!err) {
             // Read the response status line.
             boost::asio::async_read_until(*socketPtr_, *responseHeaderStreamPtr_, "\r\n",
-                                          boost::bind(&HTTPWrapper::handle_read_status_line, this,
+                                          boost::bind(&HTTPWrapper::handle_read_status_line, shared_from_this(),
                                                       boost::asio::placeholders::error));
         } else {
             LOG_ERROR(err.message());
-            callback_(err);
+            callback_(err, EMPTY_RESPONSE);
         }
     }
 
@@ -134,22 +144,22 @@ namespace pulsar {
 //
 //        if (!response_stream || http_version.substr(0, 5) != "HTTP/") {
 //            LOG_ERROR("Invalid response");
-//            callback_(err);
+//            callback_(err, EMPTY_RESPONSE);
 //            return;
 //        }
 //        if (status_code != 200) {
 //            LOG_ERROR("Response returned with status code " << status_code);
-//            callback_(err);
+//            callback_(err, EMPTY_RESPONSE);
 //            return;
 //        }
         if (!err) {
             // Read the response headers, which are terminated by a blank line.
             boost::asio::async_read_until(*socketPtr_, *responseHeaderStreamPtr_, "\r\n\r\n",
-                                          boost::bind(&HTTPWrapper::handle_read_headers, this,
+                                          boost::bind(&HTTPWrapper::handle_read_headers, shared_from_this(),
                                                       boost::asio::placeholders::error));
         } else {
             LOG_ERROR(err.message());
-            callback_(err);
+            callback_(err, EMPTY_RESPONSE);
         }
     }
 
@@ -171,11 +181,11 @@ namespace pulsar {
             // Start reading remaining data until EOF.
             boost::asio::async_read(*socketPtr_, *responseContentStreamPtr_,
                                     boost::asio::transfer_at_least(1),
-                                    boost::bind(&HTTPWrapper::handle_read_content, this,
+                                    boost::bind(&HTTPWrapper::handle_read_content, shared_from_this(),
                                                 boost::asio::placeholders::error));
         } else {
             LOG_ERROR(err.message());
-            callback_(err);
+            callback_(err, EMPTY_RESPONSE);
         }
     }
 
@@ -183,13 +193,13 @@ namespace pulsar {
         if (!err) {
             boost::asio::async_read(*socketPtr_, *responseContentStreamPtr_,
                                     boost::asio::transfer_at_least(1),
-                                    boost::bind(&HTTPWrapper::handle_read_content, this,
+                                    boost::bind(&HTTPWrapper::handle_read_content, shared_from_this(),
                                                 boost::asio::placeholders::error));
         } else if (err == boost::asio::error::eof) {
-            callback_(err);
+            callback_(err, getResponse());
         } else {
             LOG_ERROR(err.message());
-            callback_(err);
+            callback_(err, EMPTY_RESPONSE);
         }
     }
 
@@ -221,7 +231,7 @@ namespace pulsar {
             LOG_DEBUG(data);
         }
 
-
+        return EMPTY_RESPONSE;
     }
 
 
