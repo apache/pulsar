@@ -77,6 +77,18 @@ public class PersistentTopicsImpl extends BaseResource implements PersistentTopi
     }
 
     @Override
+    public List<String> getPartitionedTopicList(String namespace) throws PulsarAdminException {
+        try {
+            NamespaceName ns = new NamespaceName(namespace);
+            return request(persistentTopics.path(ns.getProperty()).path(ns.getCluster()).path(ns.getLocalName()).path("partitioned")).get(
+                    new GenericType<List<String>>() {
+                    });
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
     public Map<String, Set<AuthAction>> getPermissions(String destination) throws PulsarAdminException {
         try {
             DestinationName ds = DestinationName.get(destination);
