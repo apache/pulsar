@@ -38,73 +38,56 @@ namespace pulsar {
     }
 
     Future<Result, LookupDataResultPtr> HTTPLookupService::lookupAsync(const std::string &destinationName) {
+        LookupPromise promise;
         boost::shared_ptr<DestinationName> dn = DestinationName::get(destinationName);
 
-        LookupPromise promise;
         if (!dn) {
             LOG_ERROR("Unable to parse destination - " << destinationName);
             promise.setFailed(ResultInvalidTopicName);
             return promise.getFuture();
         }
-//        std::ostream request_stream(requestStreamPtr.get());
-//        request_stream << "GET " << V2_PATH << "persistent" << SEPARATOR << dn->getProperty() << SEPARATOR << dn->getCluster()
-//                       << SEPARATOR << dn->getNamespacePortion() << SEPARATOR << dn->getEncodedLocalName() << " HTTP/1.1\r\n";
 
-        std::string requestUrl = "";
-        // TODO - remove this - adminUrl_ + V2_PATH + dn->getLookupName();
-        LOG_DEBUG("Doing topic lookup on: " << requestUrl);
-
-        // LookupDataPromisePtr promise = boost::make_shared<LookupDataPromise>();
-        // cmsAdminGetAsync(requestUrl, promise, PartitionMetadataPromisePtr());
-        // return promise->getFuture();
-
-        AuthenticationDataPtr authDataContent;
-        Result authResult = authenticationPtr_->getAuthData(authDataContent);
-        if (authResult != ResultOk) {
-            LOG_ERROR("All Authentication method should have AuthenticationData");
-            promise.setFailed(authResult);
-            return promise.getFuture();
-        }
-
-        std::string authorizationData;
-        if (authDataContent->hasDataFromCommand()) {
-            authorizationData = authDataContent->getCommandData();
-        }
-
-
+        std::stringstream requestStream;
+        requestStream << V2_PATH << "persistent" << SEPARATOR << dn->getProperty() << SEPARATOR << dn->getCluster()
+                      << SEPARATOR << dn->getNamespacePortion() << SEPARATOR << dn->getEncodedLocalName();
+        sendHTTPRequest(promise, requestStream, Lookup);
         return promise.getFuture();
+
     }
 
     Future<Result, LookupDataResultPtr> HTTPLookupService::getPartitionMetadataAsync(const DestinationNamePtr &dn) {
-        // PartitionMetadataPromisePtr promise = boost::make_shared<PartitionMetadataPromise>();
-        // cmsAdminGetAsync(requestUrl.str(), LookupDataPromisePtr(), promise);
-        // return promise->getFuture();
-
-        AuthenticationDataPtr authDataContent;
         LookupPromise promise;
-        Result authResult = authenticationPtr_->getAuthData(authDataContent);
-        if (authResult != ResultOk) {
-            LOG_ERROR("All Authentication methods should have AuthenticationData");
-            promise.setFailed(authResult);
-            return promise.getFuture();
-        }
-
-        // Need to think more about other Authorization methods
-        std::string authorizationData;
-        if (authDataContent->hasDataFromCommand()) {
-            authorizationData = authDataContent->getCommandData();
-        }
-
-        // TODO - setup deadline timer
         std::stringstream requestStream;
         requestStream << PARTITION_PATH << dn->getProperty() << SEPARATOR << dn->getCluster()
                       << SEPARATOR << dn->getNamespacePortion() << SEPARATOR << dn->getEncodedLocalName() << SEPARATOR
                       << PARTITION_METHOD_NAME;
+        sendHTTPRequest(promise, requestStream, PartitionMetaData);
+        return promise.getFuture();
+    }
+
+    void HTTPLookupService::sendHTTPRequest(LookupPromise promise, std::stringstream& requestStream,
+                                            RequestType requestType) {
+        AuthenticationDataPtr authDataContent;
+        Result authResult = authenticationPtr_->getAuthData(authDataContent);
+        if (authResult != ResultOk) {
+            LOG_ERROR("All Authentication methods should have AuthenticationData");
+            promise.setFailed(authResult);
+        }
+
+        // Need to think more about other Authorization methods
+        std::string authorizationData = "";
+        if (authDataContent->hasDataFromCommand()) {
+            authorizationData = authDataContent->getCommandData();
+        }
+
+        DeadlineTimerPtr timerPtr = startTimer(promise);
 
         std::vector<std::string> headers;
         headers.push_back("Host: " + adminUrl_.host());
+        if (authorizationData != "") {
+            headers.push_back("Yahoo-App-Auth: " + authorizationData);
+        }
         headers.push_back("Accept: */*");
-        // TODO - set authentication headers
         headers.push_back("Connection: close");
         LOG_DEBUG("JAI 1");
         HTTPWrapper::Method method = HTTPWrapper::GET;
@@ -112,13 +95,11 @@ namespace pulsar {
         std::string content = "";
         std::string path = requestStream.str();
         HTTPWrapper::createRequest(executorProvider_, adminUrl_, method, version, path,
-                headers, content,
-                boost::bind(&HTTPLookupService::callback, _1, _2, promise, Lookup));
-        LOG_DEBUG("AdminUrl = " << adminUrl_);
-        return promise.getFuture();
+                                   headers, content,
+                                   boost::bind(&HTTPLookupService::callback, _1, _2, promise, requestType, timerPtr));
     }
 
-    LookupDataResultPtr HTTPLookupService::parsePartitionData(const std::string& json) {
+    LookupDataResultPtr HTTPLookupService::parsePartitionData(const std::string &json) {
         Json::Value root;
         Json::Reader reader;
         if (!reader.parse(json, root, false)) {
@@ -131,7 +112,7 @@ namespace pulsar {
         return lookupDataResultPtr;
     }
 
-    LookupDataResultPtr HTTPLookupService::parseLookupData(const std::string& json) {
+    LookupDataResultPtr HTTPLookupService::parseLookupData(const std::string &json) {
         Json::Value root;
         Json::Reader reader;
         if (!reader.parse(json, root, false)) {
@@ -140,8 +121,8 @@ namespace pulsar {
             return LookupDataResultPtr();
         }
 
-        if (! root.isMember("brokerUrl") || root.isMember("defaultBrokerUrlSsl") ) {
-            LOG_ERROR("malformed json! " << json );
+        if (!root.isMember("brokerUrl") || root.isMember("defaultBrokerUrlSsl")) {
+            LOG_ERROR("malformed json! " << json);
             return LookupDataResultPtr();
         }
 
@@ -152,150 +133,43 @@ namespace pulsar {
     }
 
 
-    void HTTPLookupService::callback(const boost::system::error_code& er, const HTTPWrapperResponse& response,
-                                     Promise<Result, LookupDataResultPtr> promise, RequestType requestType) {
-        LOG_DEBUG("HTTPLookupService::callback response = " << response);
-        promise.setFailed(ResultLookupError);
-//        if (response.failed()) {
-//            LOG_ERROR("HTTPLookupService::callback failed " << response.retMessage);
-//            promise.setFailed(ResultLookupError);
-//            return;
-//        }
-//        if (response.retCode == HTTPWrapperResponse::Timeout) {
-//            LOG_ERROR("Ignoring HTTPLookupService::callback since timer expired");
-//            promise.setFailed(ResultTimeout);
-//            return;
-//        }
-//
-//        const std::string& content = response.content;
-//        promise.setValue((requestType == Lookup) ? parsePartitionData(content) : parseLookupData(content));
+    void HTTPLookupService::callback(const boost::system::error_code &er, const HTTPWrapperResponse &response,
+                                     Promise<Result, LookupDataResultPtr> promise, RequestType requestType,
+                                     DeadlineTimerPtr timer) {
+        // TODO - fix this - handle \r\n
+        // LOG_DEBUG("HTTPLookupService::callback response = " << response);
+        if (response.failed()) {
+            LOG_ERROR("HTTPLookupService::callback failed " << response.retMessage);
+            promise.setFailed(ResultLookupError);
+            return;
+        }
+        if (response.retCode == HTTPWrapperResponse::Timeout) {
+            LOG_ERROR("Ignoring HTTPLookupService::callback since timer expired");
+            promise.setFailed(ResultTimeout);
+            return;
+        }
+        // TODO - handle redirects
+
+        const std::string &content = response.content;
+        promise.setValue((requestType == PartitionMetaData) ? parsePartitionData(content) : parseLookupData(content));
+        timer->cancel();
+    }
+
+
+    DeadlineTimerPtr HTTPLookupService::startTimer(LookupPromise promise) {
+        DeadlineTimerPtr timer = executorProvider_->get()->createDeadlineTimer();
+        timer->expires_from_now(lookupTimeout_);
+        timer->async_wait(boost::bind(&HTTPLookupService::handleTimeout, this, _1, promise));
+        return timer;
+    }
+
+    void HTTPLookupService::handleTimeout(const boost::system::error_code &ec, LookupPromise promise) {
+        if (ec) {
+            LOG_DEBUG(" Ignoring timer on cancelled event, code[" << ec << "]");
+            return;
+        }
+        LOG_DEBUG("Timeout occured");
+        // Timer has reached the given timeout
+        promise.setFailed(ResultTimeout);
     }
 }
-
-////private
-//    void HTTPLookupService::cmsAdminGetAsync(const std::string& requestUrl,
-//                                         LookupDataPromisePtr lookupDataPromise,
-//                                         PartitionMetadataPromisePtr partitionMetdataPromise) {
-//        //check if the URL is valid or not if not return invalid address error
-//        // asio::error_code err;
-//        urdl::url service_url = urdl::url::from_string(requestUrl, err);
-//        if (err) {
-//            LOG_ERROR("Invalid Url, unable to parse - " << requestUrl << "error - " << err);
-//            if (lookupDataPromise) {
-//                lookupDataPromise->setFailed(ResultInvalidUrl);
-//            }
-//            if (partitionMetdataPromise) {
-//                partitionMetdataPromise->setFailed(ResultInvalidUrl);
-//            }
-//            return;
-//        }
-//
-//        AuthenticationDataPtr authDataContent;
-//        Result authResult = authentication->getAuthData(authDataContent);
-//        if (authResult != ResultOk) {
-//            LOG_ERROR("All Authentication method should have AuthenticationData");
-//            if (lookupDataPromise) {
-//                lookupDataPromise->setFailed(authResult);
-//            }
-//            if (partitionMetdataPromise) {
-//                partitionMetdataPromise->setFailed(authResult);
-//            }
-//            return;
-//        }
-//
-//        std::string authorizationData;
-//        if (authDataContent->hasDataFromCommand()) {
-//            authorizationData = authDataContent->getCommandData();
-//        }
-//
-//        // Setup timer
-//        DeadlineTimerPtr timer = executorProvider_->get()->createDeadlineTimer();
-//        timer->expires_from_now(lookupTimeout_);
-//        timer->async_wait(boost::bind(&HTTPLookupService::handleTimeout, this, _1, lookupDataPromise, partitionMetdataPromise));
-//
-//        ReadStreamPtr readStream = executorProvider_->get()->createReadStream();
-//        urdl::option_set options;
-//        options.set_option(urdl::http::max_redirects(MAX_HTTP_REDIRECTS));
-//        options.set_option(urdl::http::yca_header(authorizationData));
-//        readStream->set_options(options);
-//        readStream->async_open(requestUrl,
-//                               boost::bind(&HTTPLookupService::handleOpen,
-//                                           this, _1, readStream, requestUrl,
-//                                           lookupDataPromise, partitionMetdataPromise, timer));
-//
-//
-//    }
-//
-///*
-// * @param ec asio error code, non-zero means trouble
-// * handler for async_open call
-// */
-//    void HTTPLookupService::handleOpen(const asio::error_code& ec, ReadStreamPtr readStream,
-//                                   const std::string& requestUrl,
-//                                   LookupDataPromisePtr lookupDataPromise,
-//                                   PartitionMetadataPromisePtr partitionMetdataPromise, DeadlineTimerPtr timer) {
-//        if (!ec) {
-//            // composable call, only returns after reading content_length size data
-//            size_t length = readStream->content_length();
-//            SharedBuffer buffer = SharedBuffer::allocate(length);
-//            asio::async_read(*readStream, buffer.asio_buffer(),
-//                             boost::bind(&HTTPLookupService::handleRead,
-//                                         this, _1, _2, buffer, lookupDataPromise, partitionMetdataPromise, timer));
-//        } else {
-//            LOG_ERROR("Unable to open URL - " << requestUrl << " : " << ec << " -- " << ec.message());
-//            if (lookupDataPromise) {
-//                lookupDataPromise->setFailed(ResultConnectError);
-//            } else {
-//                partitionMetdataPromise->setFailed(ResultConnectError);
-//            }
-//
-//            timer->cancel();
-//        }
-//    }
-//
-///*
-// * @param ec asio error_code, non-zero means trouble
-// */
-//    void HTTPLookupService::handleRead(const asio::error_code& ec, size_t bytesTransferred,
-//                                   SharedBuffer buffer,
-//                                   LookupDataPromisePtr lookupDataPromise,
-//                                   PartitionMetadataPromisePtr partitionMetdataPromise, DeadlineTimerPtr timer) {
-//        buffer.bytesWritten(bytesTransferred);
-//
-//        if (!ec) {
-//            std::string response(buffer.data(), buffer.readableBytes());
-//            if (lookupDataPromise) {
-//                LOG_DEBUG("Lookup response : " << response);
-//                lookupDataPromise->setValue(LookupData::parse(response));
-//            } else {
-//                LOG_DEBUG("Partition Metadata response : " << response);
-//                partitionMetdataPromise->setValue(PartitionMetadata::parse(response));
-//            }
-//        } else {
-//            LOG_ERROR("Error Reading data from the socket:  " << ec);
-//            if (lookupDataPromise) {
-//                lookupDataPromise->setFailed(ResultReadError);
-//            } else {
-//                partitionMetdataPromise->setFailed(ResultReadError);
-//            }
-//        }
-//
-//        timer->cancel();
-//    }
-//
-//    void HTTPLookupService::handleTimeout(const asio::error_code& ec, LookupDataPromisePtr lookupDataPromise,
-//                                      PartitionMetadataPromisePtr partitionMetdataPromise) {
-//        if (!ec) {
-//            // Timer has reached the given timeout
-//            if (lookupDataPromise) {
-//                if (lookupDataPromise->setFailed(ResultTimeout)) {
-//                    LOG_WARN("Timeout during HTTP lookup operation");
-//                }
-//            } else {
-//                if (partitionMetdataPromise->setFailed(ResultTimeout)) {
-//                    LOG_WARN("Timeout while fetching partition metadata");
-//                }
-//            }
-//        }
-//    }
-// }

@@ -25,9 +25,10 @@
 
 namespace pulsar {
 class HTTPWrapper;
-    
+
+// TODO - change this to a class
 struct HTTPWrapperResponse {
-    enum RetCode { Success, SendFailure, Timeout, ResponseFailure, UnknownError};
+    enum RetCode { Success, SendFailure, Timeout, ResponseFailure};
     HTTPWrapperResponse();
     std::string HTTPVersion;
     uint64_t statusCode;
@@ -38,6 +39,10 @@ struct HTTPWrapperResponse {
     RetCode retCode;
     std::string retMessage;
     boost::system::error_code errCode;
+
+    void setError(boost::system::error_code& errCode) {
+
+    }
 
     bool failed() const {
         return (retCode != Success);

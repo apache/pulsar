@@ -33,18 +33,21 @@ namespace pulsar {
         AuthenticationPtr authenticationPtr_;
         TimeDuration lookupTimeout_;
 
-        static LookupDataResultPtr parsePartitionData(const std::string& json);
-        static LookupDataResultPtr parseLookupData(const std::string& json);
+        static LookupDataResultPtr parsePartitionData(const std::string&);
+        static LookupDataResultPtr parseLookupData(const std::string&);
+        void sendHTTPRequest(LookupPromise, std::stringstream&, RequestType);
+        DeadlineTimerPtr startTimer(LookupPromise);
     public:
-        HTTPLookupService(const std::string& lookupUrl, const ClientConfiguration& clientConfiguration,
-                      ExecutorServiceProviderPtr executorProvider, const AuthenticationPtr& authData);
+        HTTPLookupService(const std::string&, const ClientConfiguration&,
+                      ExecutorServiceProviderPtr, const AuthenticationPtr&);
 
-        Future<Result, LookupDataResultPtr> lookupAsync(const std::string& destinationName);
+        Future<Result, LookupDataResultPtr> lookupAsync(const std::string&);
 
-        Future<Result, LookupDataResultPtr> getPartitionMetadataAsync(const DestinationNamePtr& dn);
+        Future<Result, LookupDataResultPtr> getPartitionMetadataAsync(const DestinationNamePtr&);
 
-        static void callback(const boost::system::error_code& er, const HTTPWrapperResponse& response,
-                                        Promise<Result, LookupDataResultPtr> promise, RequestType requestType);
+        static void callback(const boost::system::error_code&, const HTTPWrapperResponse&,
+                                        Promise<Result, LookupDataResultPtr>, RequestType, DeadlineTimerPtr);
+        void handleTimeout(const boost::system::error_code&, LookupPromise);
     };
 
 }

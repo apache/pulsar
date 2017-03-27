@@ -28,22 +28,24 @@ namespace pulsar {
               statusMessage(),
               headers(10),
               content(""),
-              retCode(UnknownError),
+              retCode(Success),
               retMessage(""),
               errCode(boost::system::error_code()) {
     }
 
     std::ostream & operator<<(std::ostream &os, const HTTPWrapperResponse& obj) {
+        // TODO - fix issue of parsing /r/n
         os << "HTTPWrapperResponse [";
         os << ", HTTPVersion = " << obj.HTTPVersion;
         os << ", statusCode = " << obj.statusCode;
         os << ", statusMessage = " << obj.statusMessage;
-        os << ", headers = {";
+        os << ", headers = {\n";
         std::vector<std::string>::const_iterator iter = obj.headers.begin();
         while (iter != obj.headers.end()) {
             os << "\'" << *iter << "\', ";
+            iter++;
         }
-        os << "}, content = " << obj.content;
+        os << "\n}, content = " << obj.content;
         os << ", retCode = " << obj.retCode;
         os << ", retMessage = " << obj.retMessage;
         os << ", error_code = " << obj.errCode;
@@ -164,6 +166,7 @@ namespace pulsar {
     }
 
     void HTTPWrapper::handle_read_status_line(const boost::system::error_code &err) {
+        // TODO - check this statement
         // boost::asio::error::eof never reported async_read_until - hence not handled
         if (!err) {
             // Check that response is OK.
@@ -195,7 +198,6 @@ namespace pulsar {
     void HTTPWrapper::handle_read_headers(const boost::system::error_code &err) {
         // boost::asio::error::eof never reported async_read_until - hence not handled
         if (!err) {
-            // Process the response headers.
             std::istream inputStream(responseStreamPtr_.get());
             std::string header;
             // response_.headers guaranteed to have atleast one string since reserve called
@@ -232,9 +234,7 @@ namespace pulsar {
             LOG_DEBUG("EOF occured");
             std::istream inputStream(responseStreamPtr_.get());
             inputStream >> response_.content;
-            LOG_DEBUG("EOF occured");
             callback_(err, response_);
-            LOG_DEBUG("EOF occured");
         } else {
             LOG_ERROR(err.message());
             callback_(err, EMPTY_RESPONSE);
