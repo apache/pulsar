@@ -20,35 +20,37 @@ DECLARE_LOG_OBJECT()
 
 namespace pulsar {
     using boost::asio::ip::tcp;
-    static const HTTPWrapperResponse EMPTY_RESPONSE = HTTPWrapperResponse();
+    static const HTTPWrapper::Response EMPTY_RESPONSE = HTTPWrapper::Response();
 
-    HTTPWrapperResponse::HTTPWrapperResponse()
-            : HTTPVersion(""),
-              statusCode(0),
-              statusMessage(),
-              headers(10),
-              content(""),
-              retCode(Success),
-              retMessage(""),
-              errCode(boost::system::error_code()) {
-    }
-
-    std::ostream & operator<<(std::ostream &os, const HTTPWrapperResponse& obj) {
-        // TODO - fix issue of parsing /r/n
-        os << "HTTPWrapperResponse [";
-        os << ", HTTPVersion = " << obj.HTTPVersion;
-        os << ", statusCode = " << obj.statusCode;
-        os << ", statusMessage = " << obj.statusMessage;
-        os << ", headers = {\n";
-        std::vector<std::string>::const_iterator iter = obj.headers.begin();
-        while (iter != obj.headers.end()) {
-            os << "\'" << *iter << "\', ";
+    std::ostream & operator<<(std::ostream& os, const HTTPWrapper::Request& request) {
+        os << HTTPWrapper::getHTTPMethodName(request.method) << " " << request.path << " HTTP/" << request.version << "\r\n";
+        os << "Host: " << request.serverUrl.host() << "\r\n";
+        std::vector<std::string>::const_iterator iter = request.headers.begin();
+        while (iter != request.headers.end()) {
+            os << *iter << "\r\n";
             iter++;
         }
-        os << "\n}, content = " << obj.content;
-        os << ", retCode = " << obj.retCode;
-        os << ", retMessage = " << obj.retMessage;
-        os << ", error_code = " << obj.errCode;
+        os << request.content << "\r\n";
+        return os;
+    }
+
+    std::ostream & operator<<(std::ostream &os, const HTTPWrapper::Response& obj) {
+        // Don't know why but logger is unable to take the \r in the end and hence giving it a \n to prevent
+        // incorrect formatting
+        os << "HTTPWrapper::Response [";
+        os << "HTTPVersion = " << obj.HTTPVersion << "\n";
+        os << ", statusCode = " << obj.statusCode << "\n";
+
+        os << ", statusMessage = " << obj.statusMessage << "\n";
+        os << ", headers = {" << "\n";
+        std::vector<std::string>::const_iterator iter = obj.headers.begin();
+        while (iter != obj.headers.end()) {
+            os << *iter << "\n";
+            iter++;
+        }
+        os << "\n}, content = " << obj.content << "\n";
+        os << ", retCode = " << obj.retCode << "\n";
+        os << ", error_code = " << obj.errCode << "\n";
         os << "}]";
         return os;
     }
@@ -62,50 +64,42 @@ namespace pulsar {
         response_() {
     }
 
-    std::string HTTPWrapper::getHTTPMethodName(Method& method) {
+    std::string HTTPWrapper::getHTTPMethodName(const Request::Method& method) {
         switch(method) {
-            case GET:
+            case Request::GET:
                 return "GET";
-            case POST:
+            case Request::POST:
                 return "POST";
-            case HEAD:
+            case Request::HEAD:
                 return "HEAD";
-            case PUT:
+            case Request::PUT:
                 return "PUT";
-            case DELETE:
+            case Request::DELETE:
                 return "DELETE";
-            case OPTIONS:
+            case Request::OPTIONS:
                 return "OPTIONS";
-            case CONNECTION:
+            case Request::CONNECTION:
                 return "CONNECTION";
         }
     }
 
 
     void HTTPWrapper::createRequest(ExecutorServiceProviderPtr executorServiceProviderPtr,
-                                    Url& serverUrl ,Method& method, std::string& HTTPVersion, std::string& path,
-                                    std::vector<std::string>& headers, std::string& content,
+                                    Request &request,
                                     HTTPWrapperCallback callback) {
         // Since make_shared doesn't work with private/protected constructors
         HTTPWrapperPtr wrapperPtr = HTTPWrapperPtr(new HTTPWrapper(executorServiceProviderPtr, callback));
-        wrapperPtr->createRequest(serverUrl, method, HTTPVersion, path, headers, content);
+        wrapperPtr->createRequest(request);
     }
 
-    void HTTPWrapper::createRequest(Url& serverUrl ,Method& method, std::string& HTTPVersion, std::string& path,
-                                    std::vector<std::string>& headers, std::string& content) {
-        std::ostream request_stream(requestStreamPtr_.get());
-        request_stream << getHTTPMethodName(method) << " " << path << " HTTP/" << HTTPVersion << "\r\n";
-        std::vector<std::string>::iterator iter = headers.begin();
-        while (iter != headers.end()) {
-            request_stream << *iter << "\r\n";
-            iter++;
-        }
-        request_stream << content << "\r\n";
+    void HTTPWrapper::createRequest(Request& request) {
+        request_ = request;
+        std::ostream requestStream(requestStreamPtr_.get());
+        requestStream << request;
+        LOG_ERROR("HTTP Request Sent: " << request);
 
-        // TODO
-        // LOG_ERROR("Request for" << &request_stream);
 
-        tcp::resolver::query query(serverUrl.host(), boost::lexical_cast<std::string>(serverUrl.port()));
+        tcp::resolver::query query(request.serverUrl.host(), boost::lexical_cast<std::string>(request.serverUrl.port()));
         LOG_DEBUG("JAI 2");
         resolverPtr_->async_resolve(query,
                                    boost::bind(&HTTPWrapper::handle_resolve, shared_from_this(),
@@ -128,7 +122,7 @@ namespace pulsar {
             LOG_DEBUG("JAI 5");
         } else {
             LOG_ERROR(err.message());
-            callback_(err, EMPTY_RESPONSE);
+            callback_(shared_from_this());
         }
     }
 
@@ -149,7 +143,7 @@ namespace pulsar {
             LOG_DEBUG("JAI 8");
         } else {
             LOG_ERROR(err.message());
-            callback_(err, EMPTY_RESPONSE);
+            callback_(shared_from_this());
         }
     }
 
@@ -161,13 +155,12 @@ namespace pulsar {
                                                       boost::asio::placeholders::error));
         } else {
             LOG_ERROR(err.message());
-            callback_(err, EMPTY_RESPONSE);
+            callback_(shared_from_this());
         }
     }
 
     void HTTPWrapper::handle_read_status_line(const boost::system::error_code &err) {
-        // TODO - check this statement
-        // boost::asio::error::eof never reported async_read_until - hence not handled
+        // boost::asio::error::eof not handles since HTTP format don't expect EOF before \r\n\r\n
         if (!err) {
             // Check that response is OK.
             std::istream inputStream(responseStreamPtr_.get());
@@ -177,11 +170,11 @@ namespace pulsar {
             // no headers or non http version
             if (!inputStream || response_.HTTPVersion.substr(0, 5) != "HTTP/") {
                 LOG_DEBUG("Invalid response ");
-                callback_(err, response_);
+                callback_(shared_from_this());
                 return;
             } else if (response_.statusCode != 200) {
                 LOG_ERROR("Response returned with status code " << response_.statusCode);
-                callback_(err, response_);
+                callback_(shared_from_this());
                 return;
             }
 
@@ -191,12 +184,12 @@ namespace pulsar {
                                                       boost::asio::placeholders::error));
         } else {
             LOG_ERROR(err.message());
-            callback_(err, EMPTY_RESPONSE);
+            callback_(shared_from_this());
         }
     }
 
     void HTTPWrapper::handle_read_headers(const boost::system::error_code &err) {
-        // boost::asio::error::eof never reported async_read_until - hence not handled
+        // boost::asio::error::eof not handles since HTTP format don't expect EOF before \r\n\r\n
         if (!err) {
             std::istream inputStream(responseStreamPtr_.get());
             std::string header;
@@ -206,7 +199,7 @@ namespace pulsar {
             }
 
             if (responseStreamPtr_.get()->size() > 0) {
-                // Content doesn't end with \r\n - getline doesn't extract content - remaining characters to be ignored
+                // if content doesn't end with \r\n getline doesn't the extract content - remaining characters to be ignored
                 // http://www.boost.org/doc/libs/1_55_0/doc/html/boost_asio/reference/async_read_until/overload1.html
             }
 
@@ -217,7 +210,7 @@ namespace pulsar {
                                                 boost::asio::placeholders::error));
         } else {
             LOG_ERROR(err.message());
-            callback_(err, EMPTY_RESPONSE);
+            callback_(shared_from_this());
         }
     }
 
@@ -234,10 +227,10 @@ namespace pulsar {
             LOG_DEBUG("EOF occured");
             std::istream inputStream(responseStreamPtr_.get());
             inputStream >> response_.content;
-            callback_(err, response_);
+            callback_(shared_from_this());
         } else {
             LOG_ERROR(err.message());
-            callback_(err, EMPTY_RESPONSE);
+            callback_(shared_from_this());
         }
     }
 }

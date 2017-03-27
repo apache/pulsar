@@ -26,39 +26,38 @@
 namespace pulsar {
 class HTTPWrapper;
 
-// TODO - change this to a class
-struct HTTPWrapperResponse {
-    enum RetCode { Success, SendFailure, Timeout, ResponseFailure};
-    HTTPWrapperResponse();
-    std::string HTTPVersion;
-    uint64_t statusCode;
-    std::string statusMessage;
-    std::vector<std::string> headers;
-    std::string content;
-
-    RetCode retCode;
-    std::string retMessage;
-    boost::system::error_code errCode;
-
-    void setError(boost::system::error_code& errCode) {
-
-    }
-
-    bool failed() const {
-        return (retCode != Success);
-    }
-    friend std::ostream & operator<<(std::ostream&, const HTTPWrapperResponse&);
-};
-
 typedef boost::shared_ptr<HTTPWrapper> HTTPWrapperPtr;
-typedef boost::function<void(const boost::system::error_code&, const HTTPWrapperResponse&)> HTTPWrapperCallback;
-
 class HTTPWrapper : public boost::enable_shared_from_this<HTTPWrapper> {
 public:
-    enum Method {GET, POST, HEAD, PUT, DELETE, OPTIONS, CONNECTION};
-    static void createRequest(ExecutorServiceProviderPtr, Url&, HTTPWrapper::Method&, std::string&, std::string&,
-                       std::vector<std::string>&, std::string&, HTTPWrapperCallback);
-    static std::string getHTTPMethodName(HTTPWrapper::Method&);
+    struct Response {
+        enum RetCode { Success, SendFailure, Timeout, ResponseFailure};
+        std::string HTTPVersion;
+        uint64_t statusCode;
+        std::string statusMessage;
+        std::vector<std::string> headers;
+        std::string content;
+        RetCode retCode;
+        boost::system::error_code errCode;
+        friend std::ostream & operator<<(std::ostream&, const Response&);
+    };
+    typedef boost::function<void(HTTPWrapperPtr)> HTTPWrapperCallback;
+
+    struct Request {
+        enum Method {GET, POST, HEAD, PUT, DELETE, OPTIONS, CONNECTION};
+        Url serverUrl;
+        Method method;
+        std::string version;
+        std::string path;
+        std::vector<std::string> headers;
+        std::string content;
+        friend std::ostream & operator<<(std::ostream&, const Request&);
+    };
+
+    static void createRequest(ExecutorServiceProviderPtr, Request& request, HTTPWrapperCallback);
+    static std::string getHTTPMethodName(const Request::Method&);
+    inline const Response& getResponse() const {
+        return response_;
+    }
 protected:
     HTTPWrapper(ExecutorServiceProviderPtr, HTTPWrapperCallback);
 private:
@@ -67,7 +66,8 @@ private:
     ReadStreamPtr responseStreamPtr_;
     HTTPWrapperCallback callback_;
     SocketPtr socketPtr_;
-    HTTPWrapperResponse response_;
+    Response response_;
+    Request request_;
 
     void handle_resolve(const boost::system::error_code&,
                         boost::asio::ip::tcp::resolver::iterator);
@@ -82,8 +82,7 @@ private:
     void handle_read_headers(const boost::system::error_code&);
 
     void handle_read_content(const boost::system::error_code&);
-    void createRequest(Url&, HTTPWrapper::Method&, std::string&, std::string&,
-                              std::vector<std::string>&, std::string&);
+    void createRequest(Request& request);
 };
 }
 

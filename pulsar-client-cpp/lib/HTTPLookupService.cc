@@ -82,21 +82,20 @@ namespace pulsar {
 
         DeadlineTimerPtr timerPtr = startTimer(promise);
 
-        std::vector<std::string> headers;
-        headers.push_back("Host: " + adminUrl_.host());
+        HTTPWrapper::Request request;
+        // TODO - remove YCA mention from OSS and understand how other auth methods will work with this
         if (authorizationData != "") {
-            headers.push_back("Yahoo-App-Auth: " + authorizationData);
+            request.headers.push_back("Yahoo-App-Auth: " + authorizationData);
         }
-        headers.push_back("Accept: */*");
-        headers.push_back("Connection: close");
-        LOG_DEBUG("JAI 1");
-        HTTPWrapper::Method method = HTTPWrapper::GET;
-        std::string version = "1.1";
-        std::string content = "";
-        std::string path = requestStream.str();
-        HTTPWrapper::createRequest(executorProvider_, adminUrl_, method, version, path,
-                                   headers, content,
-                                   boost::bind(&HTTPLookupService::callback, _1, _2, promise, requestType, timerPtr));
+        request.headers.push_back("Accept: */*");
+        request.headers.push_back("Connection: close");
+        request.method = HTTPWrapper::Request::GET;
+        request.version = "1.1";
+        request.content = "";
+        request.path = requestStream.str();
+        request.serverUrl = adminUrl_;
+        HTTPWrapper::createRequest(executorProvider_, request,
+                                   boost::bind(&HTTPLookupService::callback, _1, promise, requestType, timerPtr));
     }
 
     LookupDataResultPtr HTTPLookupService::parsePartitionData(const std::string &json) {
@@ -133,23 +132,24 @@ namespace pulsar {
     }
 
 
-    void HTTPLookupService::callback(const boost::system::error_code &er, const HTTPWrapperResponse &response,
+    void HTTPLookupService::callback(HTTPWrapperPtr httpWrapperPtr,
                                      Promise<Result, LookupDataResultPtr> promise, RequestType requestType,
                                      DeadlineTimerPtr timer) {
-        // TODO - fix this - handle \r\n
-        // LOG_DEBUG("HTTPLookupService::callback response = " << response);
-        if (response.failed()) {
-            LOG_ERROR("HTTPLookupService::callback failed " << response.retMessage);
+        const HTTPWrapper::Response& response = httpWrapperPtr->getResponse();
+        LOG_DEBUG("HTTPLookupService::callback response = " << response);
+        if (response.retCode != HTTPWrapper::Response::Success) {
+            LOG_ERROR("HTTPLookupService::callback failed " << response.errCode.message());
             promise.setFailed(ResultLookupError);
             return;
         }
-        if (response.retCode == HTTPWrapperResponse::Timeout) {
+        if (response.retCode == HTTPWrapper::Response::Timeout) {
             LOG_ERROR("Ignoring HTTPLookupService::callback since timer expired");
             promise.setFailed(ResultTimeout);
             return;
         }
         // TODO - handle redirects
-
+//        redirect = new URI(String.format("%s%s%s?authoritative=%s", redirectUrl, "/lookup/v2/destination/",
+//                                         topic.getLookupName(), newAuthoritative));
         const std::string &content = response.content;
         promise.setValue((requestType == PartitionMetaData) ? parsePartitionData(content) : parseLookupData(content));
         timer->cancel();
@@ -163,7 +163,7 @@ namespace pulsar {
         return timer;
     }
 
-    void HTTPLookupService::handleTimeout(const boost::system::error_code &ec, LookupPromise promise) {
+    void HTTPLookupService::handleTimeout(const boost::system::error_code &ec,LookupPromise promise) {
         if (ec) {
             LOG_DEBUG(" Ignoring timer on cancelled event, code[" << ec << "]");
             return;
