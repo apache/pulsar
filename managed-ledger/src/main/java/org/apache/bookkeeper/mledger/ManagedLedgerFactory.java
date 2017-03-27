@@ -15,6 +15,7 @@
  */
 package org.apache.bookkeeper.mledger;
 
+import org.apache.bookkeeper.mledger.AsyncCallbacks.ManagedLedgerInfoCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
 
 import com.google.common.annotations.Beta;
@@ -77,6 +78,30 @@ public interface ManagedLedgerFactory {
      *            opaque context
      */
     public void asyncOpen(String name, ManagedLedgerConfig config, OpenLedgerCallback callback, Object ctx);
+
+    /**
+     * Get the current metadata info for a managed ledger
+     *
+     * @param name
+     *            the unique name that identifies the managed ledger
+     * @param callback
+     *            callback object
+     * @param ctx
+     *            opaque context
+     */
+    public ManagedLedgerInfo getManagedLedgerInfo(String name) throws InterruptedException, ManagedLedgerException;
+
+    /**
+     * Asynchronously get the current metadata info for a managed ledger
+     *
+     * @param name
+     *            the unique name that identifies the managed ledger
+     * @param callback
+     *            callback object
+     * @param ctx
+     *            opaque context
+     */
+    public void asyncGetManagedLedgerInfo(String name, ManagedLedgerInfoCallback callback, Object ctx);
 
     /**
      * Releases all the resources maintained by the ManagedLedgerFactory

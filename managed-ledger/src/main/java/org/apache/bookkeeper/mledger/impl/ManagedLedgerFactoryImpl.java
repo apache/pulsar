@@ -17,9 +17,15 @@ package org.apache.bookkeeper.mledger.impl;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -30,15 +36,28 @@ import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.ManagedLedgerInfoCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryMXBean;
+import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
+import org.apache.bookkeeper.mledger.ManagedLedgerInfo.CursorInfo;
+import org.apache.bookkeeper.mledger.ManagedLedgerInfo.LedgerInfo;
+import org.apache.bookkeeper.mledger.ManagedLedgerInfo.MessageRangeInfo;
+import org.apache.bookkeeper.mledger.ManagedLedgerInfo.PositionInfo;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.ManagedLedgerInitializeLedgerCallback;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.State;
+import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
+import org.apache.bookkeeper.mledger.impl.MetaStore.Stat;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats.MessageRange;
+import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.bookkeeper.util.OrderedSafeExecutor;
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooKeeper;
@@ -290,6 +309,133 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         entryCacheManager.clear();
     }
 
+    @Override
+    public ManagedLedgerInfo getManagedLedgerInfo(String name) throws InterruptedException, ManagedLedgerException {
+        class Result {
+            ManagedLedgerInfo info = null;
+            ManagedLedgerException e = null;
+        }
+        final Result r = new Result();
+        final CountDownLatch latch = new CountDownLatch(1);
+        asyncGetManagedLedgerInfo(name, new ManagedLedgerInfoCallback() {
+            @Override
+            public void getInfoComplete(ManagedLedgerInfo info, Object ctx) {
+                r.info = info;
+                latch.countDown();
+            }
+
+            @Override
+            public void getInfoFailed(ManagedLedgerException exception, Object ctx) {
+                r.e = exception;
+                latch.countDown();
+            }
+        }, null);
+
+        latch.await();
+
+        if (r.e != null) {
+            throw r.e;
+        }
+        return r.info;
+    }
+
+    @Override
+    public void asyncGetManagedLedgerInfo(String name, ManagedLedgerInfoCallback callback, Object ctx) {
+        store.getManagedLedgerInfo(name, new MetaStoreCallback<MLDataFormats.ManagedLedgerInfo>() {
+            @Override
+            public void operationComplete(MLDataFormats.ManagedLedgerInfo pbInfo, Stat stat) {
+                ManagedLedgerInfo info = new ManagedLedgerInfo();
+                info.version = stat.getVersion();
+                info.creationDate = DATE_FORMAT.format(Instant.ofEpochMilli(stat.getCreationTimestamp()));
+                info.modificationDate = DATE_FORMAT.format(Instant.ofEpochMilli(stat.getModificationTimestamp()));
+
+                info.ledgers = new ArrayList<>(pbInfo.getLedgerInfoCount());
+                for (int i = 0; i < pbInfo.getLedgerInfoCount(); i++) {
+                    MLDataFormats.ManagedLedgerInfo.LedgerInfo pbLedgerInfo = pbInfo.getLedgerInfo(i);
+                    LedgerInfo ledgerInfo = new LedgerInfo();
+                    ledgerInfo.ledgerId = pbLedgerInfo.getLedgerId();
+                    ledgerInfo.entries = pbLedgerInfo.hasEntries() ? pbLedgerInfo.getEntries() : null;
+                    ledgerInfo.size = pbLedgerInfo.hasSize() ? pbLedgerInfo.getSize() : null;
+                    info.ledgers.add(ledgerInfo);
+                }
+
+                store.getCursors(name, new MetaStoreCallback<List<String>>() {
+                    @Override
+                    public void operationComplete(List<String> cursorsList, Stat stat) {
+                        // Get the info for each cursor
+                        info.cursors = new ConcurrentSkipListMap<>();
+                        List<CompletableFuture<Void>> cursorsFutures = new ArrayList<>();
+
+                        for (String cursorName : cursorsList) {
+                            CompletableFuture<Void> cursorFuture = new CompletableFuture<>();
+                            cursorsFutures.add(cursorFuture);
+                            store.asyncGetCursorInfo(name, cursorName,
+                                    new MetaStoreCallback<MLDataFormats.ManagedCursorInfo>() {
+                                        @Override
+                                        public void operationComplete(ManagedCursorInfo pbCursorInfo, Stat stat) {
+                                            CursorInfo cursorInfo = new CursorInfo();
+                                            cursorInfo.version = stat.getVersion();
+                                            cursorInfo.creationDate = DATE_FORMAT
+                                                    .format(Instant.ofEpochMilli(stat.getCreationTimestamp()));
+                                            cursorInfo.modificationDate = DATE_FORMAT
+                                                    .format(Instant.ofEpochMilli(stat.getModificationTimestamp()));
+
+                                            cursorInfo.cursorsLedgerId = pbCursorInfo.getCursorsLedgerId();
+
+                                            if (pbCursorInfo.hasMarkDeleteLedgerId()) {
+                                                cursorInfo.markDelete = new PositionInfo();
+                                                cursorInfo.markDelete.ledgerId = pbCursorInfo.getMarkDeleteLedgerId();
+                                                cursorInfo.markDelete.entryId = pbCursorInfo.getMarkDeleteEntryId();
+                                            }
+
+                                            if (pbCursorInfo.getIndividualDeletedMessagesCount() > 0) {
+                                                cursorInfo.individualDeletedMessages = new ArrayList<>();
+                                                for (int i = 0; i < pbCursorInfo
+                                                        .getIndividualDeletedMessagesCount(); i++) {
+                                                    MessageRange range = pbCursorInfo.getIndividualDeletedMessages(i);
+                                                    MessageRangeInfo rangeInfo = new MessageRangeInfo();
+                                                    rangeInfo.from.ledgerId = range.getLowerEndpoint().getLedgerId();
+                                                    rangeInfo.from.entryId = range.getLowerEndpoint().getEntryId();
+                                                    rangeInfo.to.ledgerId = range.getUpperEndpoint().getLedgerId();
+                                                    rangeInfo.to.entryId = range.getUpperEndpoint().getEntryId();
+                                                    cursorInfo.individualDeletedMessages.add(rangeInfo);
+                                                }
+                                            }
+
+                                            info.cursors.put(cursorName, cursorInfo);
+                                            cursorFuture.complete(null);
+                                        }
+
+                                        @Override
+                                        public void operationFailed(MetaStoreException e) {
+                                            cursorFuture.completeExceptionally(e);
+                                        }
+                                    });
+                        }
+
+                        Futures.waitForAll(cursorsFutures).thenRun(() -> {
+                            // Completed all the cursors info
+                            callback.getInfoComplete(info, ctx);
+                        }).exceptionally((ex) -> {
+                            callback.getInfoFailed(new ManagedLedgerException(ex), ctx);
+                            return null;
+                        });
+                    }
+
+                    @Override
+                    public void operationFailed(MetaStoreException e) {
+                        callback.getInfoFailed(e, ctx);
+                    }
+                });
+            }
+
+            @Override
+            public void operationFailed(MetaStoreException e) {
+                callback.getInfoFailed(e, ctx);
+            }
+        });
+    }
+
     public MetaStore getMetaStore() {
         return store;
     }
@@ -311,4 +457,6 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     }
 
     private static final Logger log = LoggerFactory.getLogger(ManagedLedgerFactoryImpl.class);
+    
+    private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSZ").withZone(ZoneId.systemDefault());
 }
