@@ -100,12 +100,10 @@ namespace pulsar {
 
 
         tcp::resolver::query query(request.serverUrl.host(), boost::lexical_cast<std::string>(request.serverUrl.port()));
-        LOG_DEBUG("JAI 2");
         resolverPtr_->async_resolve(query,
                                    boost::bind(&HTTPWrapper::handle_resolve, shared_from_this(),
                                                boost::asio::placeholders::error,
                                                boost::asio::placeholders::iterator));
-        LOG_DEBUG("JAI 3");
     }
 
 
@@ -115,11 +113,9 @@ namespace pulsar {
             // Attempt a connection to the first endpoint in the list. Each endpoint
             // will be tried until we successfully establish a connection.
             tcp::endpoint endpoint = *endpoint_iterator;
-            LOG_DEBUG("JAI 4");
             socketPtr_->async_connect(endpoint,
                                      boost::bind(&HTTPWrapper::handle_connect, shared_from_this(),
                                                  boost::asio::placeholders::error, ++endpoint_iterator));
-            LOG_DEBUG("JAI 5");
         } else {
             response_.errCode = err;
             response_.retCode = Response::ResolveError;
@@ -135,13 +131,11 @@ namespace pulsar {
                                                  boost::asio::placeholders::error));
         } else if (endpoint_iterator != tcp::resolver::iterator()) {
             // The connection failed. Try the next endpoint in the list.
-            LOG_DEBUG("JAI 7");
             socketPtr_->close();
             tcp::endpoint endpoint = *endpoint_iterator;
             socketPtr_->async_connect(endpoint,
                                      boost::bind(&HTTPWrapper::handle_connect, shared_from_this(),
                                                  boost::asio::placeholders::error, ++endpoint_iterator));
-            LOG_DEBUG("JAI 8");
         } else {
             response_.errCode = err;
             response_.retCode = Response::ConnectError;
