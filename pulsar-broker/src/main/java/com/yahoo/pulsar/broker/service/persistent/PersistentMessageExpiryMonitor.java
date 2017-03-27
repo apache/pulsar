@@ -64,7 +64,7 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback {
                 } catch (Exception e) {
                     log.error("[{}][{}] Error deserializing message for expiry check", topicName, subName, e);
                 } finally {
-                    entry.releaseAndRecycle();
+                    entry.release();
                     if (msg != null) {
                         msg.recycle();
                     }

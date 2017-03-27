@@ -142,6 +142,8 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
         if (ml.hasActiveCursors()) {
             // Avoid caching entries if no cursor has been created
             EntryImpl entry = EntryImpl.create(ledger.getId(), entryId, data);
+            // EntryCache.insert: duplicates entry by allocating new entry and data. so, recycle entry after calling
+            // insert
             ml.entryCache.insert(entry);
             entry.recycle();
         }

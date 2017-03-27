@@ -217,7 +217,7 @@ public final class PersistentDispatcherSingleActiveConsumer implements Dispatche
         if (currentConsumer == null || readConsumer != currentConsumer) {
             // Active consumer has changed since the read request has been issued. We need to rewind the cursor and
             // re-issue the read request for the new consumer
-            entries.forEach(Entry::releaseAndRecycle);
+            entries.forEach(Entry::release);
             cursor.rewind();
             if (currentConsumer != null) {
                 readMoreEntries(currentConsumer);

@@ -175,7 +175,7 @@ public class Consumer {
                         .build();
 
                 ByteBuf metadataAndPayload = entry.getDataBuffer();
-                // increment ref-count of data and release at the end of process
+                // increment ref-count of data and release at the end of process: so, we can get chance to call entry.release
                 entry.retain();
                 // skip checksum by incrementing reader-index if consumer-client doesn't support checksum verification
                 if (cnx.getRemoteEndpointProtocolVersion() < ProtocolVersion.v6.getNumber()) {
@@ -198,7 +198,7 @@ public class Consumer {
                 ctx.write(Commands.newMessage(consumerId, messageId, metadataAndPayload), promise);
                 messageId.recycle();
                 messageIdBuilder.recycle();
-                entry.releaseAndRecycle();
+                entry.release();
             }
 
             ctx.flush();
@@ -244,7 +244,7 @@ public class Consumer {
                 // this would suggest that the message might have been corrupted
                 iter.remove();
                 PositionImpl pos = (PositionImpl) entry.getPosition();
-                entry.releaseAndRecycle();
+                entry.release();
                 subscription.acknowledgeMessage(pos, AckType.Individual);
                 continue;
             }

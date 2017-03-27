@@ -81,16 +81,16 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ManagedCursor c1 = ledger.openCursor("c1");
         List<Entry> entries = c1.readEntries(10);
         assertEquals(entries.size(), 0);
-        entries.forEach(e -> e.releaseAndRecycle());
+        entries.forEach(e -> e.release());
 
         ledger.addEntry("test".getBytes(Encoding));
         entries = c1.readEntries(10);
         assertEquals(entries.size(), 1);
-        entries.forEach(e -> e.releaseAndRecycle());
+        entries.forEach(e -> e.release());
 
         entries = c1.readEntries(10);
         assertEquals(entries.size(), 0);
-        entries.forEach(e -> e.releaseAndRecycle());
+        entries.forEach(e -> e.release());
 
         // Test string representation
         assertEquals(c1.toString(), "ManagedCursorImpl{ledger=my_test_ledger, name=c1, ackPos=3:-1, readPos=3:1}");
@@ -108,19 +108,19 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         List<Entry> entries = c1.readEntries(2);
         assertEquals(entries.size(), 2);
-        entries.forEach(e -> e.releaseAndRecycle());
+        entries.forEach(e -> e.release());
 
         entries = c1.readEntries(2);
         assertEquals(entries.size(), 0);
-        entries.forEach(e -> e.releaseAndRecycle());
+        entries.forEach(e -> e.release());
 
         entries = c2.readEntries(2);
         assertEquals(entries.size(), 2);
-        entries.forEach(e -> e.releaseAndRecycle());
+        entries.forEach(e -> e.release());
 
         entries = c2.readEntries(2);
         assertEquals(entries.size(), 0);
-        entries.forEach(e -> e.releaseAndRecycle());
+        entries.forEach(e -> e.release());
     }
 
     @Test(timeOut = 20000)
@@ -140,19 +140,19 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertEquals(entries.size(), 2);
         assertEquals(new String(entries.get(0).getData(), Encoding), "entry-1");
         assertEquals(new String(entries.get(1).getData(), Encoding), "entry-2");
-        entries.forEach(e -> e.releaseAndRecycle());
+        entries.forEach(e -> e.release());
 
         entries = c1.readEntries(2);
         assertEquals(entries.size(), 0);
-        entries.forEach(e -> e.releaseAndRecycle());
+        entries.forEach(e -> e.release());
 
         entries = c2.readEntries(2);
         assertEquals(entries.size(), 2);
-        entries.forEach(e -> e.releaseAndRecycle());
+        entries.forEach(e -> e.release());
 
         entries = c2.readEntries(2);
         assertEquals(entries.size(), 0);
-        entries.forEach(e -> e.releaseAndRecycle());
+        entries.forEach(e -> e.release());
     }
 
     @Test(timeOut = 20000)
@@ -171,7 +171,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         byte[] data1 = entry.getData();
         byte[] data2 = entry.getData();
         assertEquals(data1, data2);
-        entry.releaseAndRecycle();
+        entry.release();
     }
 
     @Test(timeOut = 20000)
@@ -223,7 +223,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertEquals(entries.size(), 2);
         c1.markDelete(entries.get(1).getPosition());
         assertEquals(c1.getNumberOfEntries(), 2);
-        entries.forEach(e -> e.releaseAndRecycle());
+        entries.forEach(e -> e.release());
     }
 
     @Test(timeOut = 20000)
@@ -248,7 +248,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         List<Entry> entries = c1.readEntries(2);
         assertEquals(entries.size(), 2);
-        entries.forEach(e -> e.releaseAndRecycle());
+        entries.forEach(e -> e.release());
 
         assertEquals(c1.getNumberOfEntries(), 2);
         assertEquals(c1.getNumberOfEntriesInBacklog(), 4);
@@ -309,7 +309,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
             public void readEntriesComplete(List<Entry> entries, Object ctx) {
                 assertNull(ctx);
                 assertEquals(entries.size(), 1);
-                entries.forEach(e -> e.releaseAndRecycle());
+                entries.forEach(e -> e.release());
                 counter.countDown();
             }
 
@@ -335,7 +335,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         cursor.asyncReadEntries(100, new ReadEntriesCallback() {
             public void readEntriesComplete(List<Entry> entries, Object ctx) {
-                entries.forEach(e -> e.releaseAndRecycle());
+                entries.forEach(e -> e.release());
                 counter.countDown();
             }
 
@@ -410,7 +410,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
             // ok
         }
 
-        entries.forEach(e -> e.releaseAndRecycle());
+        entries.forEach(e -> e.release());
     }
 
     @Test(timeOut = 20000)
@@ -438,7 +438,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         List<Entry> entries = mc2.readEntries(1);
         assertEquals(entries.size(), 1);
         assertEquals(new String(entries.get(0).getData(), Encoding), "dummy-entry-1");
-        entries.forEach(e -> e.releaseAndRecycle());
+        entries.forEach(e -> e.release());
 
         mc2.delete(pos);
 
@@ -610,14 +610,14 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         List<Entry> entries = cursor.readEntries(1);
         assertEquals(entries.size(), 1);
         assertEquals(new String(entries.get(0).getData(), Encoding), "dummy-entry-4");
-        entries.forEach(e -> e.releaseAndRecycle());
+        entries.forEach(e -> e.release());
 
         cursor.seek(entry5.getNext());
         assertEquals(cursor.getReadPosition(), entry6);
         entries = cursor.readEntries(1);
         assertEquals(entries.size(), 1);
         assertEquals(new String(entries.get(0).getData(), Encoding), "dummy-entry-6");
-        entries.forEach(e -> e.releaseAndRecycle());
+        entries.forEach(e -> e.release());
     }
 
     @Test(timeOut = 20000)
@@ -636,7 +636,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertEquals(cursor.getReadPosition(), p2);
 
         List<Entry> entries = cursor.readEntries(2);
-        entries.forEach(e -> e.releaseAndRecycle());
+        entries.forEach(e -> e.release());
 
         cursor.seek(p2);
         assertEquals(cursor.getMarkDeletedPosition(), p1);
@@ -664,7 +664,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertEquals(c1.getNumberOfEntriesInBacklog(), 3);
         List<Entry> entries = c1.readEntries(10);
         assertEquals(entries.size(), 3);
-        entries.forEach(e -> e.releaseAndRecycle());
+        entries.forEach(e -> e.release());
 
         assertEquals(c1.getNumberOfEntries(), 0);
         assertEquals(c1.getNumberOfEntriesInBacklog(), 3);
@@ -677,7 +677,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         entries = c1.readEntries(10);
         assertEquals(entries.size(), 2);
-        entries.forEach(e -> e.releaseAndRecycle());
+        entries.forEach(e -> e.release());
 
         assertEquals(c1.getNumberOfEntries(), 0);
         assertEquals(c1.getNumberOfEntriesInBacklog(), 2);
@@ -714,7 +714,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         List<Entry> entries = cursor.readEntries(1);
         assertEquals(entries.size(), 1);
         assertEquals(new String(entries.get(0).getData(), Encoding), "dummy-entry-2");
-        entries.forEach(e -> e.releaseAndRecycle());
+        entries.forEach(e -> e.release());
 
         cursor.markDelete(p4);
         assertEquals(cursor.hasMoreEntries(), false);
@@ -764,12 +764,12 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         List<Entry> entries = c1.readEntries(3);
         Position p1 = entries.get(2).getPosition();
         c1.markDelete(p1);
-        entries.forEach(e -> e.releaseAndRecycle());
+        entries.forEach(e -> e.release());
 
         entries = c1.readEntries(4);
         Position p2 = entries.get(2).getPosition();
         c2.markDelete(p2);
-        entries.forEach(e -> e.releaseAndRecycle());
+        entries.forEach(e -> e.release());
 
         // Reopen
 
@@ -1133,7 +1133,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         List<Entry> entries = cursor.readEntries(3);
         assertEquals(entries.size(), 3);
-        entries.forEach(e -> e.releaseAndRecycle());
+        entries.forEach(e -> e.release());
 
         assertEquals(cursor.getNumberOfEntries(), 3);
         assertEquals(cursor.getNumberOfEntriesInBacklog(), 6);
@@ -1146,7 +1146,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         entries = cursor.readEntries(3);
         assertEquals(entries.size(), 2);
-        entries.forEach(e -> e.releaseAndRecycle());
+        entries.forEach(e -> e.release());
         assertEquals(cursor.getNumberOfEntries(), 0);
         assertEquals(cursor.getNumberOfEntriesInBacklog(), 5);
     }
@@ -1163,7 +1163,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         Position p4 = ledger.addEntry("entry4".getBytes());
         Position p5 = ledger.addEntry("entry5".getBytes());
 
-        c2.readEntries(1).get(0).releaseAndRecycle();
+        c2.readEntries(1).get(0).release();
         c2.delete(p2);
         c2.delete(p3);
 
@@ -1171,7 +1171,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertEquals(entries.size(), 2);
         assertEquals(entries.get(0).getPosition(), p4);
         assertEquals(entries.get(1).getPosition(), p5);
-        entries.forEach(e -> e.releaseAndRecycle());
+        entries.forEach(e -> e.release());
     }
 
     @Test(timeOut = 20000)
@@ -1455,7 +1455,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
             c.asyncReadEntriesOrWait(1, new ReadEntriesCallback() {
                 public void readEntriesComplete(List<Entry> entries, Object ctx) {
                     assertEquals(entries.size(), 1);
-                    entries.forEach(e -> e.releaseAndRecycle());
+                    entries.forEach(e -> e.release());
                     counter.countDown();
                 }
 
@@ -1492,7 +1492,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                         List<Entry> entries = cursor.readEntriesOrWait(10);
                         assertTrue(entries.size() <= 10);
                         toRead -= entries.size();
-                        entries.forEach(e -> e.releaseAndRecycle());
+                        entries.forEach(e -> e.release());
                     }
 
                     return null;
@@ -1747,7 +1747,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ledger.addEntry("not-expired".getBytes(Encoding));
         List<Entry> entries = c1.readEntries(3);
         c1.markDelete(entries.get(2).getPosition());
-        entries.forEach(e -> e.releaseAndRecycle());
+        entries.forEach(e -> e.release());
         assertEquals(
                 c1.findNewestMatching(entry -> Arrays.equals(entry.getDataAndRelease(), "expired".getBytes(Encoding))),
                 newPosition);
@@ -1768,7 +1768,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         List<Entry> entries = c1.readEntries(4);
         c1.markDelete(entries.get(0).getPosition());
         c1.delete(entries.get(2).getPosition());
-        entries.forEach(e -> e.releaseAndRecycle());
+        entries.forEach(e -> e.release());
 
         assertEquals(
                 c1.findNewestMatching(entry -> Arrays.equals(entry.getDataAndRelease(), "expired".getBytes(Encoding))),
@@ -1791,7 +1791,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         List<Entry> entries = c1.readEntries(4);
         c1.delete(entries.get(1).getPosition());
         c1.delete(entries.get(2).getPosition());
-        entries.forEach(e -> e.releaseAndRecycle());
+        entries.forEach(e -> e.release());
 
         assertEquals(
                 c1.findNewestMatching(entry -> Arrays.equals(entry.getDataAndRelease(), "expired".getBytes(Encoding))),
@@ -1815,7 +1815,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         List<Entry> entries = c1.readEntries(5);
         c1.delete(entries.get(1).getPosition());
         c1.delete(entries.get(3).getPosition());
-        entries.forEach(e -> e.releaseAndRecycle());
+        entries.forEach(e -> e.release());
 
         assertEquals(
                 c1.findNewestMatching(entry -> Arrays.equals(entry.getDataAndRelease(), "expired".getBytes(Encoding))),
@@ -1840,7 +1840,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         c1.delete(entries.get(1).getPosition());
         c1.delete(entries.get(3).getPosition());
         c1.delete(entries.get(6).getPosition());
-        entries.forEach(e -> e.releaseAndRecycle());
+        entries.forEach(e -> e.release());
 
         assertEquals(
                 c1.findNewestMatching(entry -> Arrays.equals(entry.getDataAndRelease(), "expired".getBytes(Encoding))),
@@ -1862,7 +1862,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         c1.delete(entries.get(1).getPosition());
         c1.delete(entries.get(2).getPosition());
         c1.markDelete(entries.get(3).getPosition());
-        entries.forEach(e -> e.releaseAndRecycle());
+        entries.forEach(e -> e.release());
 
         assertTrue(c1.isIndividuallyDeletedEntriesEmpty());
     }
@@ -1881,7 +1881,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         List<Entry> entries = c1.readEntries(4);
         c1.delete(entries.get(1).getPosition());
         c1.markDelete(entries.get(3).getPosition());
-        entries.forEach(e -> e.releaseAndRecycle());
+        entries.forEach(e -> e.release());
 
         assertTrue(c1.isIndividuallyDeletedEntriesEmpty());
     }
@@ -1901,7 +1901,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         c1.delete(entries.get(1).getPosition());
         c1.delete(entries.get(2).getPosition());
         c1.delete(entries.get(0).getPosition());
-        entries.forEach(e -> e.releaseAndRecycle());
+        entries.forEach(e -> e.release());
 
         assertTrue(c1.isIndividuallyDeletedEntriesEmpty());
     }
@@ -1921,7 +1921,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         c1.delete(entries.get(1).getPosition());
         c1.delete(entries.get(2).getPosition());
         c1.markDelete(entries.get(0).getPosition());
-        entries.forEach(e -> e.releaseAndRecycle());
+        entries.forEach(e -> e.release());
 
         assertTrue(c1.isIndividuallyDeletedEntriesEmpty());
     }
@@ -1960,7 +1960,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
             } catch (Exception e) {
                 log.error("Error de-serializing message for message position find", e);
             } finally {
-                entry.releaseAndRecycle();
+                entry.release();
             }
             return false;
         }, findEntryCallback, ManagedCursorImpl.FindPositionConstraint.SearchAllAvailableEntries);
@@ -1998,7 +1998,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         c1.markDelete(entries.get(2).getPosition());
         c1.close();
         ledger.close();
-        entries.forEach(e -> e.releaseAndRecycle());
+        entries.forEach(e -> e.release());
         // give timed ledger trimming a chance to run
         Thread.sleep(100);
 
@@ -2064,7 +2064,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                 && Arrays.equals(entries.get(1).getData(), "entry3".getBytes(Encoding)))
                 || (Arrays.equals(entries.get(0).getData(), "entry3".getBytes(Encoding))
                         && Arrays.equals(entries.get(1).getData(), "entry1".getBytes(Encoding))));
-        entries.forEach(Entry::releaseAndRecycle);
+        entries.forEach(Entry::release);
 
         // 3. Fail on reading non-existing position
         PositionImpl invalidPosition = new PositionImpl(100, 100);
@@ -2155,7 +2155,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         Position pos5 = ledger.addEntry("msg5".getBytes());
 
         List<Entry> entries = c1.readEntries(4);
-        entries.forEach(e -> e.releaseAndRecycle());
+        entries.forEach(e -> e.release());
         long currentLedger = ((PositionImpl) c1.getMarkDeletedPosition()).getLedgerId();
 
         // check if the first message is returned for '0'

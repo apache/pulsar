@@ -276,7 +276,7 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
 
         if (shouldRewindBeforeReadingOrReplaying && readType == ReadType.Normal) {
             // All consumers got disconnected before the completion of the read operation
-            entries.forEach(Entry::releaseAndRecycle);
+            entries.forEach(Entry::release);
             cursor.rewind();
             shouldRewindBeforeReadingOrReplaying = false;
             readMoreEntries();
@@ -291,7 +291,7 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
             Consumer c = getNextConsumer();
             if (c == null) {
                 // Do nothing, cursor will be rewind at reconnection
-                entries.subList(start, entries.size()).forEach(Entry::releaseAndRecycle);
+                entries.subList(start, entries.size()).forEach(Entry::release);
                 cursor.rewind();
                 return;
             }
@@ -323,7 +323,7 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
             }
             entries.subList(start, entries.size()).forEach(entry -> {
                 messagesToReplay.add((PositionImpl) entry.getPosition());
-                entry.releaseAndRecycle();
+                entry.release();
             });
         }
 

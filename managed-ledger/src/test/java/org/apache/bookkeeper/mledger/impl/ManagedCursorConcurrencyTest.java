@@ -102,7 +102,7 @@ public class ManagedCursorConcurrencyTest extends MockedBookKeeperTestCase {
                     barrier.await();
 
                     for (int i = 0; i < 1000; i++) {
-                        cursor.readEntries(1).forEach(e -> e.releaseAndRecycle());
+                        cursor.readEntries(1).forEach(e -> e.release());
                     }
 
                 } catch (Exception e) {
@@ -171,7 +171,7 @@ public class ManagedCursorConcurrencyTest extends MockedBookKeeperTestCase {
                     barrier.await();
 
                     for (int i = 0; i < 1000; i++) {
-                        cursor.readEntries(1).forEach(e -> e.releaseAndRecycle());
+                        cursor.readEntries(1).forEach(e -> e.release());
                         // Thread.sleep(2,200);
                         Thread.sleep(2, 195);
                     }
@@ -247,7 +247,7 @@ public class ManagedCursorConcurrencyTest extends MockedBookKeeperTestCase {
                 barrier.await();
 
                 for (int i = 0; i < 1000; i++) {
-                    cursor.readEntries(1).forEach(e -> e.releaseAndRecycle());
+                    cursor.readEntries(1).forEach(e -> e.release());
                 }
             } catch (Exception e) {
                 e.printStackTrace();
@@ -414,7 +414,7 @@ public class ManagedCursorConcurrencyTest extends MockedBookKeeperTestCase {
                     @Override
                     public void readEntryComplete(Entry entry, Object ctx) {
                         successReadEntries.getAndIncrement();
-                        entry.releaseAndRecycle();
+                        entry.release();
                         readCounter.countDown();
                     }
 

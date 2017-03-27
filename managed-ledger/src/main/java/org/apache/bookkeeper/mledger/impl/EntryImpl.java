@@ -74,38 +74,6 @@ final class EntryImpl implements Entry, Comparable<EntryImpl>, ReferenceCounted 
         return entry;
     }
 
-    // constructors
-    private EntryImpl(LedgerEntry ledgerEntry) {
-        this.position = new PositionImpl(ledgerEntry.getLedgerId(), ledgerEntry.getEntryId());
-        this.data = ledgerEntry.getEntryBuffer();
-        this.recyclerHandle = null;
-    }
-
-    // Used just for tests
-    private EntryImpl(long ledgerId, long entryId, byte[] data) {
-        this.position = new PositionImpl(ledgerId, entryId);
-        this.data = Unpooled.wrappedBuffer(data);
-        this.recyclerHandle = null;
-    }
-
-    private EntryImpl(long ledgerId, long entryId, ByteBuf data) {
-        this.position = new PositionImpl(ledgerId, entryId);
-        this.data = data;
-        this.recyclerHandle = null;
-    }
-
-    private EntryImpl(PositionImpl position, ByteBuf data) {
-        this.position = position;
-        this.data = data;
-        this.recyclerHandle = null;
-    }
-
-    private EntryImpl(EntryImpl other) {
-        this.position = new PositionImpl(other.position);
-        this.data = RecyclableDuplicateByteBuf.create(other.data);
-        this.recyclerHandle = null;
-    }
-
     private EntryImpl(Recycler.Handle recyclerHandle) {
         this.recyclerHandle = recyclerHandle;
     }
@@ -126,7 +94,7 @@ final class EntryImpl implements Entry, Comparable<EntryImpl>, ReferenceCounted 
     @Override
     public byte[] getDataAndRelease() {
         byte[] array = getData();
-        release1();
+        release();
         return array;
     }
 
@@ -151,12 +119,7 @@ final class EntryImpl implements Entry, Comparable<EntryImpl>, ReferenceCounted 
     }
 
     @Override
-    public void release1() {
-        data.release();
-    }
-
-    @Override
-    public void releaseAndRecycle() {
+    public void release() {
         if(data.release()) {
             // recycle only if data buf is released and no other object will use the data 
             recycle();    

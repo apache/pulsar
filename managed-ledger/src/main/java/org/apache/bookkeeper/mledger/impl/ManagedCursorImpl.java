@@ -904,7 +904,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 if (exception.get() != null) {
                     // if there is already a failure for a different position, we should release the entry straight away
                     // and not add it to the list
-                    entry.releaseAndRecycle();
+                    entry.release();
                     if (--pendingCallbacks == 0) {
                         callback.readEntriesFailed(exception.get(), ctx);
                     }
@@ -921,7 +921,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 log.warn("[{}][{}] Error while replaying entries", ledger.getName(), name, mle);
                 if (exception.compareAndSet(null, mle)) {
                     // release the entries just once, any further read success will release the entry straight away
-                    entries.forEach(Entry::releaseAndRecycle);
+                    entries.forEach(Entry::release);
                 }
                 if (--pendingCallbacks == 0) {
                     callback.readEntriesFailed(exception.get(), ctx);
@@ -1564,7 +1564,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                                     entry.getPosition());
                         }
 
-                        entry.releaseAndRecycle();
+                        entry.release();
                     }
                     return includeEntry;
                 }));

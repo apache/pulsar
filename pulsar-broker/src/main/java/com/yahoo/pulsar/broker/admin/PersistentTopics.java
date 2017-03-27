@@ -893,7 +893,7 @@ public class PersistentTopics extends AdminResource {
             throw new RestException(exception);
         } finally {
             if (entry != null) {
-                entry.releaseAndRecycle();
+                entry.release();
             }
         }
     }

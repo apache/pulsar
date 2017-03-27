@@ -1187,7 +1187,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             log.warn("[{}] Error while getting the oldest message", topic, e);
         } finally {
             if (entry != null) {
-                entry.releaseAndRecycle();
+                entry.release();
             }
             if (msg != null) {
                 msg.recycle();

@@ -49,14 +49,19 @@ public interface Entry {
      */
     Position getPosition();
 
+    /**
+     * Increments ref-count of entry data
+     */
     void retain();
     
     /**
-     * Release the resources allocated for this entry
+     * Recycles entry instance 
      */
-    void release1();
-
     void recycle();
 
-    void releaseAndRecycle();
+    /**
+     * Release the resources (data) allocated for this entry and recycle if all the resources are deallocated (ref-count
+     * of data reached to 0)
+     */
+    void release();
 }

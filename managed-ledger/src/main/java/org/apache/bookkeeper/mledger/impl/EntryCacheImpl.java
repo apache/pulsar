@@ -119,12 +119,12 @@ public class EntryCacheImpl implements EntryCache {
         }
 
         EntryImpl cacheEntry = EntryImpl.create(entry.getPosition(), cachedData);
-        if (entries.put(entry.getPosition(),cacheEntry)) {
+        if (entries.put(cacheEntry.getPosition(),cacheEntry)) {
             manager.entryAdded(entry.getLength());
             return true;
         } else {
             // entry was not inserted into cache, we need to discard it
-            cacheEntry.releaseAndRecycle();
+            cacheEntry.release();
             return false;
         }
     }
@@ -172,7 +172,7 @@ public class EntryCacheImpl implements EntryCache {
         EntryImpl entry = entries.get(position);
         if (entry != null) {
             EntryImpl cachedEntry = EntryImpl.create(entry);
-            entry.releaseAndRecycle();
+            entry.release();
             manager.mlFactoryMBean.recordCacheHit(cachedEntry.getLength());
             callback.readEntryComplete(cachedEntry, ctx);
         } else {
@@ -224,7 +224,7 @@ public class EntryCacheImpl implements EntryCache {
             for (EntryImpl entry : cachedEntries) {
                 entriesToReturn.add(EntryImpl.create(entry));
                 totalCachedSize += entry.getLength();
-                entry.releaseAndRecycle();
+                entry.release();
             }
 
             manager.mlFactoryMBean.recordCacheHits(entriesToReturn.size(), totalCachedSize);
@@ -237,7 +237,7 @@ public class EntryCacheImpl implements EntryCache {
 
         } else {
             if (!cachedEntries.isEmpty()) {
-                cachedEntries.forEach(entry -> entry.releaseAndRecycle());
+                cachedEntries.forEach(entry -> entry.release());
             }
 
             // Read all the entries from bookkeeper
