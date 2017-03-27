@@ -135,24 +135,24 @@ namespace pulsar {
     void HTTPLookupService::callback(HTTPWrapperPtr httpWrapperPtr,
                                      Promise<Result, LookupDataResultPtr> promise, RequestType requestType,
                                      DeadlineTimerPtr timer) {
-        const HTTPWrapper::Response& response = httpWrapperPtr->getResponse();
+        const HTTPWrapper::Response &response = httpWrapperPtr->getResponse();
         LOG_DEBUG("HTTPLookupService::callback response = " << response);
         if (response.retCode != HTTPWrapper::Response::Success) {
             LOG_ERROR("HTTPLookupService::callback failed " << response.errCode.message());
             promise.setFailed(ResultLookupError);
             return;
         }
-        if (response.retCode == HTTPWrapper::Response::Timeout) {
-            LOG_ERROR("Ignoring HTTPLookupService::callback since timer expired");
-            promise.setFailed(ResultTimeout);
+        if (response.statusCode == 307 || response.statusCode == 308) {
+            LOG_DEBUG("Redirect response received");
+                // TODO - handle redirects
+        //        redirect = new URI(String.format("%s%s%s?authoritative=%s", redirectUrl, "/lookup/v2/destination/",
+        //                                         topic.getLookupName(), newAuthoritative));
             return;
         }
-        // TODO - handle redirects
-//        redirect = new URI(String.format("%s%s%s?authoritative=%s", redirectUrl, "/lookup/v2/destination/",
-//                                         topic.getLookupName(), newAuthoritative));
+        timer->cancel(); // Take care
         const std::string &content = response.content;
         promise.setValue((requestType == PartitionMetaData) ? parsePartitionData(content) : parseLookupData(content));
-        timer->cancel();
+
     }
 
 

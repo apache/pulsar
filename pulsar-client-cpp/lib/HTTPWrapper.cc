@@ -121,7 +121,8 @@ namespace pulsar {
                                                  boost::asio::placeholders::error, ++endpoint_iterator));
             LOG_DEBUG("JAI 5");
         } else {
-            LOG_ERROR(err.message());
+            response_.errCode = err;
+            response_.retCode = Response::ResolveError;
             callback_(shared_from_this());
         }
     }
@@ -142,7 +143,8 @@ namespace pulsar {
                                                  boost::asio::placeholders::error, ++endpoint_iterator));
             LOG_DEBUG("JAI 8");
         } else {
-            LOG_ERROR(err.message());
+            response_.errCode = err;
+            response_.retCode = Response::ConnectError;
             callback_(shared_from_this());
         }
     }
@@ -154,7 +156,8 @@ namespace pulsar {
                                           boost::bind(&HTTPWrapper::handle_read_status_line, shared_from_this(),
                                                       boost::asio::placeholders::error));
         } else {
-            LOG_ERROR(err.message());
+            response_.errCode = err;
+            response_.retCode = Response::SendFailure;
             callback_(shared_from_this());
         }
     }
@@ -168,22 +171,20 @@ namespace pulsar {
             inputStream >> response_.statusCode;
             std::getline(inputStream, response_.statusMessage);
             // no headers or non http version
-            if (!inputStream || response_.HTTPVersion.substr(0, 5) != "HTTP/") {
+            if (!inputStream || response_.HTTPVersion.substr(0, 5) != "HTTP/" || response_.statusCode != 200) {
                 LOG_DEBUG("Invalid response ");
-                callback_(shared_from_this());
-                return;
-            } else if (response_.statusCode != 200) {
-                LOG_ERROR("Response returned with status code " << response_.statusCode);
+                response_.errCode = err;
+                response_.retCode = Response::ResponseFailure;
                 callback_(shared_from_this());
                 return;
             }
-
             // Read the response headers, which are terminated by a blank line.
             boost::asio::async_read_until(*socketPtr_, *responseStreamPtr_, "\r\n\r\n",
                                           boost::bind(&HTTPWrapper::handle_read_headers, shared_from_this(),
                                                       boost::asio::placeholders::error));
         } else {
-            LOG_ERROR(err.message());
+            response_.errCode = err;
+            response_.retCode = Response::ResponseFailure;
             callback_(shared_from_this());
         }
     }
@@ -209,7 +210,8 @@ namespace pulsar {
                                     boost::bind(&HTTPWrapper::handle_read_content, shared_from_this(),
                                                 boost::asio::placeholders::error));
         } else {
-            LOG_ERROR(err.message());
+            response_.errCode = err;
+            response_.retCode = Response::ResponseFailure;
             callback_(shared_from_this());
         }
     }
@@ -227,9 +229,12 @@ namespace pulsar {
             LOG_DEBUG("EOF occured");
             std::istream inputStream(responseStreamPtr_.get());
             inputStream >> response_.content;
+            response_.errCode = err;
+            response_.retCode = Response::Success;
             callback_(shared_from_this());
         } else {
-            LOG_ERROR(err.message());
+            response_.errCode = err;
+            response_.retCode = Response::ResponseFailure;
             callback_(shared_from_this());
         }
     }

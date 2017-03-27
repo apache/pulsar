@@ -64,16 +64,21 @@ namespace pulsar {
           listenerExecutorProvider_(boost::make_shared<ExecutorServiceProvider>(clientConfiguration.getMessageListenerThreads())),
           partitionListenerExecutorProvider_(boost::make_shared<ExecutorServiceProvider>(clientConfiguration.getMessageListenerThreads())),
           pool_(clientConfiguration, ioExecutorProvider_, clientConfiguration.getAuthenticationPtr(), poolConnections),
-          lookupServicePtr_(boost::make_shared<BinaryProtoLookupService>(boost::ref(pool_), boost::ref(serviceUrl))),
           producerIdGenerator_(0),
           consumerIdGenerator_(0),
           requestIdGenerator_(0) {
         LogUtils::init(clientConfiguration.getLogConfFilePath());
-        // TODO - remove me
-        lookupServicePtr_ = boost::make_shared<HTTPLookupService>(boost::ref(serviceUrl_),
-                                                                  boost::ref(clientConfiguration_),
-                                                                  ioExecutorProvider_,
-                                                                  boost::ref(clientConfiguration.getAuthenticationPtr()));
+        if ( !strncmp(serviceUrl_.c_str(), "http", 4)) {
+            LOG_DEBUG("Using HTTP Lookup");
+            lookupServicePtr_ = boost::make_shared<HTTPLookupService>(boost::ref(serviceUrl_),
+                                                                      boost::ref(clientConfiguration_),
+                                                                      ioExecutorProvider_,
+                                                                      boost::ref(
+                                                                              clientConfiguration.getAuthenticationPtr()));
+        } else {
+            LOG_DEBUG("Using Binary Lookup");
+            lookupServicePtr_ = boost::make_shared<BinaryProtoLookupService>(boost::ref(pool_), boost::ref(serviceUrl));
+        }
     }
 
     ClientImpl::~ClientImpl() {

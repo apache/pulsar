@@ -30,7 +30,7 @@ typedef boost::shared_ptr<HTTPWrapper> HTTPWrapperPtr;
 class HTTPWrapper : public boost::enable_shared_from_this<HTTPWrapper> {
 public:
     struct Response {
-        enum RetCode { Success, SendFailure, Timeout, ResponseFailure};
+        enum RetCode { Success, SendFailure, ResponseFailure, ResolveError, ConnectError};
         std::string HTTPVersion;
         uint64_t statusCode;
         std::string statusMessage;
