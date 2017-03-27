@@ -96,7 +96,6 @@ namespace pulsar {
         }
 
         // TODO - setup deadline timer
-        HTTPWrapperPtr wrapperPtr = boost::make_shared<HTTPWrapper>(executorProvider_);
         std::stringstream requestStream;
         requestStream << PARTITION_PATH << dn->getProperty() << SEPARATOR << dn->getCluster()
                       << SEPARATOR << dn->getNamespacePortion() << SEPARATOR << dn->getEncodedLocalName() << SEPARATOR
@@ -108,24 +107,23 @@ namespace pulsar {
         // TODO - set authentication headers
         headers.push_back("Connection: close");
         LOG_DEBUG("JAI 1");
-        HTTPMethod method = HTTP_GET;
+        HTTPWrapper::Method method = HTTPWrapper::GET;
         std::string version = "1.1";
         std::string content = "";
         std::string path = requestStream.str();
-        wrapperPtr->createRequest(adminUrl_, method, version, path,
+        HTTPWrapper::createRequest(executorProvider_, adminUrl_, method, version, path,
                 headers, content,
-                boost::bind(&HTTPLookupService::callback, _1, _2, promise));
-        usleep(10 * 1000 * 1000);
+                boost::bind(&HTTPLookupService::callback, _1, _2, promise, Lookup));
         LOG_DEBUG("AdminUrl = " << adminUrl_);
         return promise.getFuture();
     }
 
-    LookupDataResultPtr HTTPLookupService::parsePartitionData(std::string& json) {
+    LookupDataResultPtr HTTPLookupService::parsePartitionData(const std::string& json) {
         Json::Value root;
         Json::Reader reader;
         if (!reader.parse(json, root, false)) {
-            LOG_ERROR("Failed to parse json of Partition Metadata: " << reader.getFormatedErrorMessages());
-            LOG_ERROR("JSON Response: " << json);
+            LOG_ERROR("Failed to parse json of Partition Metadata: " << reader.getFormatedErrorMessages()
+                                                                     << "\nInput Json = " << json);
             return LookupDataResultPtr();
         }
         LookupDataResultPtr lookupDataResultPtr = boost::make_shared<LookupDataResult>();
@@ -133,16 +131,17 @@ namespace pulsar {
         return lookupDataResultPtr;
     }
 
-    LookupDataResultPtr HTTPLookupService::parseLookupData(std::string& json) {
+    LookupDataResultPtr HTTPLookupService::parseLookupData(const std::string& json) {
         Json::Value root;
         Json::Reader reader;
         if (!reader.parse(json, root, false)) {
-            LOG_ERROR("Failed to parse json : " << reader.getFormatedErrorMessages());
+            LOG_ERROR("Failed to parse json : " << reader.getFormatedErrorMessages()
+                                                << "\nInput Json = " << json);
             return LookupDataResultPtr();
         }
 
         if (! root.isMember("brokerUrl") || root.isMember("defaultBrokerUrlSsl") ) {
-            LOG_ERROR("malformed json! " << json);
+            LOG_ERROR("malformed json! " << json );
             return LookupDataResultPtr();
         }
 
@@ -154,12 +153,22 @@ namespace pulsar {
 
 
     void HTTPLookupService::callback(const boost::system::error_code& er, const HTTPWrapperResponse& response,
-                                     Promise<Result, LookupDataResultPtr> promise) {
-        LOG_ERROR("Callback called with data");
-        LOG_ERROR(response);
-        // LOG_ERROR(wrapper.getResponseContent());
-        // wrapperPtr->getResponse();
-        return;
+                                     Promise<Result, LookupDataResultPtr> promise, RequestType requestType) {
+        LOG_DEBUG("HTTPLookupService::callback response = " << response);
+        promise.setFailed(ResultLookupError);
+//        if (response.failed()) {
+//            LOG_ERROR("HTTPLookupService::callback failed " << response.retMessage);
+//            promise.setFailed(ResultLookupError);
+//            return;
+//        }
+//        if (response.retCode == HTTPWrapperResponse::Timeout) {
+//            LOG_ERROR("Ignoring HTTPLookupService::callback since timer expired");
+//            promise.setFailed(ResultTimeout);
+//            return;
+//        }
+//
+//        const std::string& content = response.content;
+//        promise.setValue((requestType == Lookup) ? parsePartitionData(content) : parseLookupData(content));
     }
 }
 

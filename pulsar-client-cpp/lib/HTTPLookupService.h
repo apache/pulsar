@@ -26,6 +26,15 @@
 
 namespace pulsar {
     class HTTPLookupService : public LookupService {
+        enum RequestType {Lookup, PartitionMetaData};
+        typedef Promise<Result, LookupDataResultPtr> LookupPromise;
+        ExecutorServiceProviderPtr executorProvider_;
+        Url adminUrl_;
+        AuthenticationPtr authenticationPtr_;
+        TimeDuration lookupTimeout_;
+
+        static LookupDataResultPtr parsePartitionData(const std::string& json);
+        static LookupDataResultPtr parseLookupData(const std::string& json);
     public:
         HTTPLookupService(const std::string& lookupUrl, const ClientConfiguration& clientConfiguration,
                       ExecutorServiceProviderPtr executorProvider, const AuthenticationPtr& authData);
@@ -35,16 +44,7 @@ namespace pulsar {
         Future<Result, LookupDataResultPtr> getPartitionMetadataAsync(const DestinationNamePtr& dn);
 
         static void callback(const boost::system::error_code& er, const HTTPWrapperResponse& response,
-                                        Promise<Result, LookupDataResultPtr> promise);
-    private:
-        typedef Promise<Result, LookupDataResultPtr> LookupPromise;
-        ExecutorServiceProviderPtr executorProvider_;
-        Url adminUrl_;
-        AuthenticationPtr authenticationPtr_;
-        TimeDuration lookupTimeout_;
-
-        static LookupDataResultPtr parsePartitionData(std::string& json);
-        static LookupDataResultPtr parseLookupData(std::string& json);
+                                        Promise<Result, LookupDataResultPtr> promise, RequestType requestType);
     };
 
 }

@@ -20,50 +20,77 @@ DECLARE_LOG_OBJECT()
 
 namespace pulsar {
     using boost::asio::ip::tcp;
-    static const HTTPWrapperResponse EMPTY_RESPONSE = {};
+    static const HTTPWrapperResponse EMPTY_RESPONSE = HTTPWrapperResponse();
+
+    HTTPWrapperResponse::HTTPWrapperResponse()
+            : HTTPVersion(""),
+              statusCode(0),
+              statusMessage(),
+              headers(10),
+              content(""),
+              retCode(UnknownError),
+              retMessage(""),
+              errCode(boost::system::error_code()) {
+    }
+
     std::ostream & operator<<(std::ostream &os, const HTTPWrapperResponse& obj) {
-        os << "HTTPWrapperResponse [statusLine = " << obj.statusLine << ", statusCode" << obj.statusCode
-           << ", response = " << obj.response << ", headers = {";
+        os << "HTTPWrapperResponse [";
+        os << ", HTTPVersion = " << obj.HTTPVersion;
+        os << ", statusCode = " << obj.statusCode;
+        os << ", statusMessage = " << obj.statusMessage;
+        os << ", headers = {";
         std::vector<std::string>::const_iterator iter = obj.headers.begin();
         while (iter != obj.headers.end()) {
             os << "\'" << *iter << "\', ";
         }
+        os << "}, content = " << obj.content;
+        os << ", retCode = " << obj.retCode;
+        os << ", retMessage = " << obj.retMessage;
+        os << ", error_code = " << obj.errCode;
         os << "}]";
         return os;
     }
 
-    HTTPWrapper::HTTPWrapper(ExecutorServiceProviderPtr executorServiceProviderPtr) :
+    HTTPWrapper::HTTPWrapper(ExecutorServiceProviderPtr executorServiceProviderPtr, HTTPWrapperCallback callback) :
         resolverPtr_(executorServiceProviderPtr->get()->createTcpResolver()),
         requestStreamPtr_(executorServiceProviderPtr->get()->createReadStream()),
-        responseHeaderStreamPtr_(executorServiceProviderPtr->get()->createReadStream()),
-        responseContentStreamPtr_(executorServiceProviderPtr->get()->createReadStream()),
-        socketPtr_(executorServiceProviderPtr->get()->createSocket()) {
+        responseStreamPtr_(executorServiceProviderPtr->get()->createReadStream()),
+        socketPtr_(executorServiceProviderPtr->get()->createSocket()),
+        callback_(callback),
+        response_() {
     }
 
-    std::string HTTPWrapper::getHTTPMethodName(HTTPMethod& method) {
+    std::string HTTPWrapper::getHTTPMethodName(Method& method) {
         switch(method) {
-            case HTTP_GET:
+            case GET:
                 return "GET";
-            case HTTP_POST:
+            case POST:
                 return "POST";
-            case HTTP_HEAD:
+            case HEAD:
                 return "HEAD";
-            case HTTP_PUT:
+            case PUT:
                 return "PUT";
-            case HTTP_DELETE:
+            case DELETE:
                 return "DELETE";
-            case HTTP_OPTIONS:
+            case OPTIONS:
                 return "OPTIONS";
-            case HTTP_CONNECTION:
+            case CONNECTION:
                 return "CONNECTION";
         }
     }
 
 
-    void HTTPWrapper::createRequest(Url& serverUrl ,HTTPMethod& method, std::string& HTTPVersion, std::string& path,
+    void HTTPWrapper::createRequest(ExecutorServiceProviderPtr executorServiceProviderPtr,
+                                    Url& serverUrl ,Method& method, std::string& HTTPVersion, std::string& path,
                                     std::vector<std::string>& headers, std::string& content,
                                     HTTPWrapperCallback callback) {
-        callback_ = callback;
+        // Since make_shared doesn't work with private/protected constructors
+        HTTPWrapperPtr wrapperPtr = HTTPWrapperPtr(new HTTPWrapper(executorServiceProviderPtr, callback));
+        wrapperPtr->createRequest(serverUrl, method, HTTPVersion, path, headers, content);
+    }
+
+    void HTTPWrapper::createRequest(Url& serverUrl ,Method& method, std::string& HTTPVersion, std::string& path,
+                                    std::vector<std::string>& headers, std::string& content) {
         std::ostream request_stream(requestStreamPtr_.get());
         request_stream << getHTTPMethodName(method) << " " << path << " HTTP/" << HTTPVersion << "\r\n";
         std::vector<std::string>::iterator iter = headers.begin();
@@ -72,6 +99,10 @@ namespace pulsar {
             iter++;
         }
         request_stream << content << "\r\n";
+
+        // TODO
+        // LOG_ERROR("Request for" << &request_stream);
+
         tcp::resolver::query query(serverUrl.host(), boost::lexical_cast<std::string>(serverUrl.port()));
         LOG_DEBUG("JAI 2");
         resolverPtr_->async_resolve(query,
@@ -123,7 +154,7 @@ namespace pulsar {
     void HTTPWrapper::handle_write_request(const boost::system::error_code &err) {
         if (!err) {
             // Read the response status line.
-            boost::asio::async_read_until(*socketPtr_, *responseHeaderStreamPtr_, "\r\n",
+            boost::asio::async_read_until(*socketPtr_, *responseStreamPtr_, "\r\n",
                                           boost::bind(&HTTPWrapper::handle_read_status_line, shared_from_this(),
                                                       boost::asio::placeholders::error));
         } else {
@@ -133,28 +164,26 @@ namespace pulsar {
     }
 
     void HTTPWrapper::handle_read_status_line(const boost::system::error_code &err) {
-//        // Check that response is OK.
-//        std::istream response_stream(responseHeaderStreamPtr_.get());
-//        std::string http_version;
-//        response_stream >> http_version;
-//        unsigned int status_code;
-//        response_stream >> status_code;
-//        std::string status_message;
-//        std::getline(response_stream, status_message);
-//
-//        if (!response_stream || http_version.substr(0, 5) != "HTTP/") {
-//            LOG_ERROR("Invalid response");
-//            callback_(err, EMPTY_RESPONSE);
-//            return;
-//        }
-//        if (status_code != 200) {
-//            LOG_ERROR("Response returned with status code " << status_code);
-//            callback_(err, EMPTY_RESPONSE);
-//            return;
-//        }
+        // boost::asio::error::eof never reported async_read_until - hence not handled
         if (!err) {
+            // Check that response is OK.
+            std::istream inputStream(responseStreamPtr_.get());
+            inputStream >> response_.HTTPVersion;
+            inputStream >> response_.statusCode;
+            std::getline(inputStream, response_.statusMessage);
+            // no headers or non http version
+            if (!inputStream || response_.HTTPVersion.substr(0, 5) != "HTTP/") {
+                LOG_DEBUG("Invalid response ");
+                callback_(err, response_);
+                return;
+            } else if (response_.statusCode != 200) {
+                LOG_ERROR("Response returned with status code " << response_.statusCode);
+                callback_(err, response_);
+                return;
+            }
+
             // Read the response headers, which are terminated by a blank line.
-            boost::asio::async_read_until(*socketPtr_, *responseHeaderStreamPtr_, "\r\n\r\n",
+            boost::asio::async_read_until(*socketPtr_, *responseStreamPtr_, "\r\n\r\n",
                                           boost::bind(&HTTPWrapper::handle_read_headers, shared_from_this(),
                                                       boost::asio::placeholders::error));
         } else {
@@ -164,22 +193,23 @@ namespace pulsar {
     }
 
     void HTTPWrapper::handle_read_headers(const boost::system::error_code &err) {
+        // boost::asio::error::eof never reported async_read_until - hence not handled
         if (!err) {
             // Process the response headers.
-//            std::istream response_stream(responseHeaderStreamPtr_.get());
-//            std::string header;
-//            while (std::getline(response_stream, header) && header != "\r") {
-//                LOG_DEBUG(header);
-//            }
+            std::istream inputStream(responseStreamPtr_.get());
+            std::string header;
+            // response_.headers guaranteed to have atleast one string since reserve called
+            while (std::getline(inputStream, header) && header != "\r") {
+                response_.headers.push_back(header);
+            }
 
-//            // Discard the remaining junk characters
-//            if (responseHeaderStreamPtr_.get()->size() > 0) {
-//                // std::cout<<"\'"<<responseHeaderStreamPtr_.get()<<"\'"<<std::endl;
-//                responseHeaderStreamPtr_.get()->consume(responseHeaderStreamPtr_.get()->size());
-//            }
+            if (responseStreamPtr_.get()->size() > 0) {
+                // Content doesn't end with \r\n - getline doesn't extract content - remaining characters to be ignored
+                // http://www.boost.org/doc/libs/1_55_0/doc/html/boost_asio/reference/async_read_until/overload1.html
+            }
 
             // Start reading remaining data until EOF.
-            boost::asio::async_read(*socketPtr_, *responseContentStreamPtr_,
+            boost::asio::async_read(*socketPtr_, *responseStreamPtr_,
                                     boost::asio::transfer_at_least(1),
                                     boost::bind(&HTTPWrapper::handle_read_content, shared_from_this(),
                                                 boost::asio::placeholders::error));
@@ -191,48 +221,23 @@ namespace pulsar {
 
     void HTTPWrapper::handle_read_content(const boost::system::error_code &err) {
         if (!err) {
-            boost::asio::async_read(*socketPtr_, *responseContentStreamPtr_,
+            std::istream inputStream(responseStreamPtr_.get());
+            inputStream >> response_.content;
+            boost::asio::async_read(*socketPtr_, *responseStreamPtr_,
                                     boost::asio::transfer_at_least(1),
                                     boost::bind(&HTTPWrapper::handle_read_content, shared_from_this(),
                                                 boost::asio::placeholders::error));
         } else if (err == boost::asio::error::eof) {
-            callback_(err, getResponse());
+            // eof occurs but responseStreamPtr_ not necessarily emptys
+            LOG_DEBUG("EOF occured");
+            std::istream inputStream(responseStreamPtr_.get());
+            inputStream >> response_.content;
+            LOG_DEBUG("EOF occured");
+            callback_(err, response_);
+            LOG_DEBUG("EOF occured");
         } else {
             LOG_ERROR(err.message());
             callback_(err, EMPTY_RESPONSE);
         }
     }
-
-    HTTPWrapperResponse HTTPWrapper::getResponse() {
-        std::string data;
-        std::istream header(responseHeaderStreamPtr_.get());
-        header >> data;
-        LOG_ERROR("Header is "<<data);
-        std::istream aheader(responseHeaderStreamPtr_.get());
-        aheader >> data;
-        LOG_ERROR("Again Header is "<<data);
-
-        while (std::getline(header, data)) {
-            LOG_DEBUG(data);
-        }
-
-        data = "";
-        std::istream content(responseContentStreamPtr_.get());
-        content >> data;
-
-        LOG_ERROR("COnetent is "<<data);
-
-        std::istream acontent(responseContentStreamPtr_.get());
-        acontent >> data;
-        LOG_ERROR("Again COnetent is "<<data);
-
-
-        while (std::getline(content, data)) {
-            LOG_DEBUG(data);
-        }
-
-        return EMPTY_RESPONSE;
-    }
-
-
 }
