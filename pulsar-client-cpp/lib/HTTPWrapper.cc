@@ -100,7 +100,7 @@ namespace pulsar {
         socketPtr_ = executorServiceProviderPtr_->get()->createSocket();
         std::ostream requestStream(requestStreamPtr_.get());
         requestStream << request_;
-        LOG_ERROR("HTTP Request Sent: " << request_);
+        LOG_DEBUG("HTTP Request Sent: " << request_);
 
 
         tcp::resolver::query query(request_.serverUrl.host(), boost::lexical_cast<std::string>(request_.serverUrl.port()));

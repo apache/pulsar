@@ -145,7 +145,12 @@ namespace pulsar {
         const HTTPWrapper::Response &response = httpWrapperPtr->getResponse();
         LOG_DEBUG("HTTPLookupService::callback response = " << response);
         if (response.retCode != HTTPWrapper::Response::Success) {
-            LOG_ERROR("HTTPLookupService::callback failed " << response.errCode.message());
+            if (response.statusCode == 401 || response.statusMessage == "Unauthorized") {
+                LOG_ERROR("Authentication failed");
+                promise.setFailed(ResultConnectError);
+                return;
+            }
+            LOG_ERROR("HTTPLookupService::callback failed - asio errCode = " << response.errCode.message());
             promise.setFailed(ResultLookupError);
             timerPtr->cancel();
             return;
