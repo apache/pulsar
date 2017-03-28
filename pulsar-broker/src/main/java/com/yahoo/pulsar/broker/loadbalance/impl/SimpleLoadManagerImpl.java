@@ -97,6 +97,8 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
     private long brokerRotationCursor = 0;
     // load balancing metrics
     private AtomicReference<List<Metrics>> loadBalancingMetrics = new AtomicReference<>();
+    // Cache of brokers to be used in applying policies and determining final candidates.
+    private final Set<String> brokerCandidateCache;
 
     // Caches for bundle gains and losses.
     private final Set<String> bundleGainsCache;
@@ -185,6 +187,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
         placementStrategy = new WRRPlacementStrategy();
         bundleGainsCache = new HashSet<>();
         bundleLossesCache = new HashSet<>();
+        brokerCandidateCache = new HashSet<>();
     }
 
     @Override
@@ -871,93 +874,29 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
         return selectedRU;
     }
 
-    private Multimap<Long, ResourceUnit> getFinalCandidatesWithPolicy(NamespaceName namespace,
-            Multimap<Long, ResourceUnit> primaries, Multimap<Long, ResourceUnit> shared) {
-        Multimap<Long, ResourceUnit> finalCandidates = TreeMultimap.create();
-        // if not enough primary then it should be union of primaries and secondaries
-        finalCandidates.putAll(primaries);
-        if (policies.shouldFailoverToSecondaries(namespace, primaries.size())) {
-            log.debug(
-                    "Not enough of primaries [{}] available for namespace - [{}], "
-                            + "adding shared [{}] as possible candidate owners",
-                    primaries.size(), namespace.toString(), shared.size());
-            finalCandidates.putAll(shared);
-        }
-        return finalCandidates;
-    }
-
-    private Multimap<Long, ResourceUnit> getFinalCandidatesNoPolicy(Multimap<Long, ResourceUnit> shared) {
-        Multimap<Long, ResourceUnit> finalCandidates = TreeMultimap.create();
-
-        finalCandidates.putAll(shared);
-        return finalCandidates;
-    }
-
     private Multimap<Long, ResourceUnit> getFinalCandidates(ServiceUnitId serviceUnit,
             Map<Long, Set<ResourceUnit>> availableBrokers) {
-        // need multimap or at least set of RUs
-        Multimap<Long, ResourceUnit> matchedPrimaries = TreeMultimap.create();
-        Multimap<Long, ResourceUnit> matchedShared = TreeMultimap.create();
-
-        NamespaceName namespace = serviceUnit.getNamespaceObject();
-        boolean isIsolationPoliciesPresent = policies.IsIsolationPoliciesPresent(namespace);
-        if (isIsolationPoliciesPresent) {
-            log.debug("Isolation Policies Present for namespace - [{}]", namespace.toString());
-        }
-        for (Map.Entry<Long, Set<ResourceUnit>> entry : availableBrokers.entrySet()) {
-            for (ResourceUnit ru : entry.getValue()) {
-                log.debug("Considering Resource Unit [{}] with Rank [{}] for serviceUnit [{}]", ru.getResourceId(),
-                        entry.getKey(), serviceUnit);
-                URL brokerUrl = null;
-                try {
-                    brokerUrl = new URL(String.format(ru.getResourceId()));
-                } catch (MalformedURLException e) {
-                    log.error("Unable to parse brokerUrl from ResourceUnitId - [{}]", e);
-                    continue;
+        synchronized (brokerCandidateCache) {
+            brokerCandidateCache.clear();
+            for (final Set<ResourceUnit> resourceUnitSet : availableBrokers.values()) {
+                for (final ResourceUnit resourceUnit : resourceUnitSet) {
+                    brokerCandidateCache.add(resourceUnit.getResourceId().replace("http://", ""));
                 }
-                // todo: in future check if the resource unit has resources to take the namespace
-                if (isIsolationPoliciesPresent) {
-                    // note: serviceUnitID is namespace name and ResourceID is brokerName
-                    if (policies.isPrimaryBroker(namespace, brokerUrl.getHost())) {
-                        matchedPrimaries.put(entry.getKey(), ru);
-                        if (log.isDebugEnabled()) {
-                            log.debug(
-                                    "Added Primary Broker - [{}] as possible Candidates for"
-                                            + " namespace - [{}] with policies",
-                                    brokerUrl.getHost(), namespace.toString());
-                        }
-                    } else if (policies.isSharedBroker(brokerUrl.getHost())) {
-                        matchedShared.put(entry.getKey(), ru);
-                        if (log.isDebugEnabled()) {
-                            log.debug(
-                                    "Added Shared Broker - [{}] as possible "
-                                            + "Candidates for namespace - [{}] with policies",
-                                    brokerUrl.getHost(), namespace.toString());
-                        }
-                    } else {
-                        if (log.isDebugEnabled()) {
-                            log.debug("Skipping Broker - [{}] not primary broker and not shared"
-                                    + " for namespace - [{}] ", brokerUrl.getHost(), namespace.toString());
-                        }
+            }
 
-                    }
-                } else {
-                    if (policies.isSharedBroker(brokerUrl.getHost())) {
-                        matchedShared.put(entry.getKey(), ru);
-                        log.debug("Added Shared Broker - [{}] as possible Candidates for namespace - [{}]",
-                                brokerUrl.getHost(), namespace.toString());
+            LoadManagerShared.applyPolicies(serviceUnit, policies, brokerCandidateCache);
+            final Multimap<Long, ResourceUnit> result = TreeMultimap.create();
+            // After LoadManagerShared is finished applying the filter, put the results back into a multimap.
+            for (final Map.Entry<Long, Set<ResourceUnit>> entry : availableBrokers.entrySet()) {
+                final Long rank = entry.getKey();
+                final Set<ResourceUnit> resourceUnits = entry.getValue();
+                for (final ResourceUnit resourceUnit : resourceUnits) {
+                    if (brokerCandidateCache.contains(resourceUnit.getResourceId().replace("http://", ""))) {
+                        result.put(rank, resourceUnit);
                     }
                 }
             }
-        }
-        if (isIsolationPoliciesPresent) {
-            return getFinalCandidatesWithPolicy(namespace, matchedPrimaries, matchedShared);
-        } else {
-            log.debug(
-                    "Policies not present for namespace - [{}] so only "
-                            + "considering shared [{}] brokers for possible owner",
-                    namespace.toString(), matchedShared.size());
-            return getFinalCandidatesNoPolicy(matchedShared);
+            return result;
         }
     }
 
@@ -1099,19 +1038,9 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
     }
 
     private SystemResourceUsage getSystemResourceUsage() throws IOException {
-        SystemResourceUsage systemResourceUsage = brokerHostUsage.getBrokerHostUsage();
-
-        // Override System memory usage and limit with JVM heap usage and limit
-        long maxHeapMemoryInBytes = Runtime.getRuntime().maxMemory();
+        SystemResourceUsage systemResourceUsage = LoadManagerShared.getSystemResourceUsage(brokerHostUsage);
         long memoryUsageInMBytes = getAverageJvmHeapUsageMBytes();
         systemResourceUsage.memory.usage = (double) memoryUsageInMBytes;
-        systemResourceUsage.memory.limit = (double) (maxHeapMemoryInBytes) / MBytes;
-
-        // Collect JVM direct memory
-        systemResourceUsage.directMemory.usage = (double) (sun.misc.SharedSecrets.getJavaNioAccess()
-                .getDirectBufferPool().getMemoryUsed() / MBytes);
-        systemResourceUsage.directMemory.limit = (double) (sun.misc.VM.maxDirectMemory() / MBytes);
-
         return systemResourceUsage;
     }
 
@@ -1128,10 +1057,10 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
                 loadReport.setName(String.format("%s:%s", pulsar.getAdvertisedAddress(),
                         pulsar.getConfiguration().getWebServicePort()));
                 SystemResourceUsage systemResourceUsage = this.getSystemResourceUsage();
-                loadReport.setOverLoaded(
-                        isAboveLoadLevel(systemResourceUsage, this.getLoadBalancerBrokerOverloadedThresholdPercentage()));
-                loadReport.setUnderLoaded(
-                        isBelowLoadLevel(systemResourceUsage, this.getLoadBalancerBrokerUnderloadedThresholdPercentage()));
+                loadReport.setOverLoaded(isAboveLoadLevel(systemResourceUsage,
+                        this.getLoadBalancerBrokerOverloadedThresholdPercentage()));
+                loadReport.setUnderLoaded(isBelowLoadLevel(systemResourceUsage,
+                        this.getLoadBalancerBrokerUnderloadedThresholdPercentage()));
 
                 loadReport.setSystemResourceUsage(systemResourceUsage);
                 loadReport.setBundleStats(pulsar.getBrokerService().getBundleStats());
@@ -1165,8 +1094,8 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
                 loadReport.setAllocatedMsgRateIn(allocatedQuota.getMsgRateIn());
                 loadReport.setAllocatedMsgRateOut(allocatedQuota.getMsgRateOut());
 
-                final ResourceUnit resourceUnit = new SimpleResourceUnit(String.format("http://%s", loadReport.getName()),
-                        fromLoadReport(loadReport));
+                final ResourceUnit resourceUnit = new SimpleResourceUnit(
+                        String.format("http://%s", loadReport.getName()), fromLoadReport(loadReport));
                 Set<String> preAllocatedBundles;
                 if (resourceUnitRankings.containsKey(resourceUnit)) {
                     preAllocatedBundles = resourceUnitRankings.get(resourceUnit).getPreAllocatedBundles();
@@ -1287,23 +1216,9 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
         }
     }
 
-    private String getNamespaceNameFromBundleName(String bundleName) {
-        // the bundle format is property/cluster/namespace/0x00000000_0xFFFFFFFF
-        int pos = bundleName.lastIndexOf("/");
-        checkArgument(pos != -1);
-        return bundleName.substring(0, pos);
-    }
-
-    private String getBundleRangeFromBundleName(String bundleName) {
-        // the bundle format is property/cluster/namespace/0x00000000_0xFFFFFFFF
-        int pos = bundleName.lastIndexOf("/");
-        checkArgument(pos != -1);
-        return bundleName.substring(pos + 1, bundleName.length());
-    }
-
     // todo: changeme: this can be optimized, we don't have to iterate through everytime
     private boolean isBrokerAvailableForRebalancing(String bundleName, long maxLoadLevel) {
-        NamespaceName namespaceName = new NamespaceName(getNamespaceNameFromBundleName(bundleName));
+        NamespaceName namespaceName = new NamespaceName(LoadManagerShared.getNamespaceNameFromBundleName(bundleName));
         Map<Long, Set<ResourceUnit>> availableBrokers = sortedRankings.get();
         // this does not have "http://" in front, hacky but no time to pretty up
         Multimap<Long, ResourceUnit> brokers = getFinalCandidates(namespaceName, availableBrokers);
@@ -1349,7 +1264,8 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
                     if (!isUnloadDisabledInLoadShedding()) {
                         log.info("Unloading namespace {} from overloaded broker {}", bundleName, brokerName);
                         adminCache.get(brokerName).namespaces().unloadNamespaceBundle(
-                                getNamespaceNameFromBundleName(bundleName), getBundleRangeFromBundleName(bundleName));
+                                LoadManagerShared.getNamespaceNameFromBundleName(bundleName),
+                                LoadManagerShared.getBundleRangeFromBundleName(bundleName));
                         log.info("Successfully unloaded namespace {} from broker {}", bundleName, brokerName);
                     } else {
                         log.info("DRY RUN: Unload in Load Shedding is disabled. Namespace {} would have been "
@@ -1449,7 +1365,8 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
                 if (stats.topics <= 1) {
                     log.info("Unable to split hot namespace bundle {} since there is only one topic.", bundleName);
                 } else {
-                    NamespaceName namespaceName = new NamespaceName(getNamespaceNameFromBundleName(bundleName));
+                    NamespaceName namespaceName = new NamespaceName(
+                            LoadManagerShared.getNamespaceNameFromBundleName(bundleName));
                     int numBundles = pulsar.getNamespaceService().getBundleCount(namespaceName);
                     if (numBundles >= maxBundleCount) {
                         log.info("Unable to split hot namespace bundle {} since the namespace has too many bundles.",
@@ -1478,7 +1395,8 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
             for (String bundleName : bundlesToBeSplit) {
                 try {
                     pulsar.getAdminClient().namespaces().splitNamespaceBundle(
-                            getNamespaceNameFromBundleName(bundleName), getBundleRangeFromBundleName(bundleName));
+                            LoadManagerShared.getNamespaceNameFromBundleName(bundleName),
+                            LoadManagerShared.getBundleRangeFromBundleName(bundleName));
                     log.info("Successfully split namespace bundle {}", bundleName);
                 } catch (Exception e) {
                     log.error("Failed to split namespace bundle {}", bundleName, e);
