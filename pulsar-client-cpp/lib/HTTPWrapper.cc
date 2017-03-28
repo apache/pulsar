@@ -55,12 +55,12 @@ namespace pulsar {
         return os;
     }
 
-    HTTPWrapper::HTTPWrapper(ExecutorServiceProviderPtr executorServiceProviderPtr, HTTPWrapperCallback callback) :
+    HTTPWrapper::HTTPWrapper(ExecutorServiceProviderPtr executorServiceProviderPtr) :
         resolverPtr_(executorServiceProviderPtr->get()->createTcpResolver()),
         requestStreamPtr_(executorServiceProviderPtr->get()->createReadStream()),
         responseStreamPtr_(executorServiceProviderPtr->get()->createReadStream()),
         socketPtr_(executorServiceProviderPtr->get()->createSocket()),
-        callback_(callback),
+        callback_(),
         response_() {
     }
 
@@ -88,12 +88,13 @@ namespace pulsar {
                                     Request &request,
                                     HTTPWrapperCallback callback) {
         // Since make_shared doesn't work with private/protected constructors
-        HTTPWrapperPtr wrapperPtr = HTTPWrapperPtr(new HTTPWrapper(executorServiceProviderPtr, callback));
-        wrapperPtr->createRequest(request);
+        HTTPWrapperPtr wrapperPtr = HTTPWrapperPtr(new HTTPWrapper(executorServiceProviderPtr));
+        wrapperPtr->createRequest(request, callback);
     }
 
-    void HTTPWrapper::createRequest(Request& request) {
+    void HTTPWrapper::createRequest(Request& request, HTTPWrapperCallback callback) {
         request_ = request;
+        callback_ = callback;
         std::ostream requestStream(requestStreamPtr_.get());
         requestStream << request;
         LOG_ERROR("HTTP Request Sent: " << request);

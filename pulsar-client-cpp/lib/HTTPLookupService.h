@@ -45,7 +45,8 @@ namespace pulsar {
 
         Future<Result, LookupDataResultPtr> getPartitionMetadataAsync(const DestinationNamePtr&);
 
-        static void callback(HTTPWrapperPtr, Promise<Result, LookupDataResultPtr>, RequestType, DeadlineTimerPtr);
+        static void callback(HTTPWrapperPtr, Promise<Result, LookupDataResultPtr>, RequestType, DeadlineTimerPtr,
+                             std::vector<std::string>, int);
         void handleTimeout(const boost::system::error_code&, LookupPromise);
     };
 

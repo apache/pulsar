@@ -53,13 +53,17 @@ public:
         friend std::ostream & operator<<(std::ostream&, const Request&);
     };
 
-    static void createRequest(ExecutorServiceProviderPtr, Request& request, HTTPWrapperCallback);
+    static void createRequest(ExecutorServiceProviderPtr, Request&, HTTPWrapperCallback);
     static std::string getHTTPMethodName(const Request::Method&);
     inline const Response& getResponse() const {
         return response_;
     }
+    inline Request& getMutableRequest() {
+        return request_;
+    }
+    void createRequest(Request& request, HTTPWrapperCallback);
 protected:
-    HTTPWrapper(ExecutorServiceProviderPtr, HTTPWrapperCallback);
+    HTTPWrapper(ExecutorServiceProviderPtr);
 private:
     TcpResolverPtr resolverPtr_;
     ReadStreamPtr requestStreamPtr_;
@@ -82,7 +86,6 @@ private:
     void handle_read_headers(const boost::system::error_code&);
 
     void handle_read_content(const boost::system::error_code&);
-    void createRequest(Request& request);
 };
 }
 

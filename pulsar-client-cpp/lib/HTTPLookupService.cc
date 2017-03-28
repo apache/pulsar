@@ -67,22 +67,21 @@ namespace pulsar {
 
     void HTTPLookupService::sendHTTPRequest(LookupPromise promise, std::stringstream& requestStream,
                                             RequestType requestType) {
+        DeadlineTimerPtr timerPtr = startTimer(promise);
+
+        HTTPWrapper::Request request;
+
+        // Need to think more about other Authorization methods
+        std::string authorizationData = "";
         AuthenticationDataPtr authDataContent;
         Result authResult = authenticationPtr_->getAuthData(authDataContent);
         if (authResult != ResultOk) {
             LOG_ERROR("All Authentication methods should have AuthenticationData");
             promise.setFailed(authResult);
         }
-
-        // Need to think more about other Authorization methods
-        std::string authorizationData = "";
         if (authDataContent->hasDataFromCommand()) {
             authorizationData = authDataContent->getCommandData();
         }
-
-        DeadlineTimerPtr timerPtr = startTimer(promise);
-
-        HTTPWrapper::Request request;
         // TODO - remove YCA mention from OSS and understand how other auth methods will work with this
         if (authorizationData != "") {
             request.headers.push_back("Yahoo-App-Auth: " + authorizationData);
@@ -95,7 +94,8 @@ namespace pulsar {
         request.path = requestStream.str();
         request.serverUrl = adminUrl_;
         HTTPWrapper::createRequest(executorProvider_, request,
-                                   boost::bind(&HTTPLookupService::callback, _1, promise, requestType, timerPtr));
+                                   boost::bind(&HTTPLookupService::callback, _1, promise, requestType, timerPtr,
+                                               request.headers, MAX_HTTP_REDIRECTS));
     }
 
     LookupDataResultPtr HTTPLookupService::parsePartitionData(const std::string &json) {
@@ -134,7 +134,13 @@ namespace pulsar {
 
     void HTTPLookupService::callback(HTTPWrapperPtr httpWrapperPtr,
                                      Promise<Result, LookupDataResultPtr> promise, RequestType requestType,
-                                     DeadlineTimerPtr timer) {
+                                     DeadlineTimerPtr timerPtr, std::vector<std::string> headers,
+                                     int numberOfRedirects) {
+        if (promise.isComplete()) {
+            // Timer expired
+            LOG_DEBUG("Promise already fulfilled");
+            return;
+        }
         const HTTPWrapper::Response &response = httpWrapperPtr->getResponse();
         LOG_DEBUG("HTTPLookupService::callback response = " << response);
         if (response.retCode != HTTPWrapper::Response::Success) {
@@ -144,12 +150,36 @@ namespace pulsar {
         }
         if (response.statusCode == 307 || response.statusCode == 308) {
             LOG_DEBUG("Redirect response received");
-                // TODO - handle redirects
-        //        redirect = new URI(String.format("%s%s%s?authoritative=%s", redirectUrl, "/lookup/v2/destination/",
-        //                                         topic.getLookupName(), newAuthoritative));
+            if (numberOfRedirects <= 0) {
+                LOG_DEBUG("Max redirect limit reached");
+                promise.setFailed(ResultLookupError);
+                return;
+            }
+            const std::vector<std::string>& responseHeaders = response.headers;
+            std::vector<std::string>::const_iterator iter = responseHeaders.begin();
+            while (iter != responseHeaders.end()) {
+                if (!strncmp((*iter).c_str(), "Location", 8)) {
+                    // Match found
+                    Url url;
+                    std::string redirectString = (*iter).substr(10);
+                    if (!Url::parse(redirectString, url)) {
+                        LOG_ERROR("Failed to parse url: " << redirectString);
+                        promise.setFailed(ResultLookupError);
+                        return;
+                    }
+
+                    HTTPWrapper::Request& request = httpWrapperPtr->getMutableRequest();
+                    request.path = url.path() + url.file() + url.parameter();
+                    request.serverUrl = url;
+                    httpWrapperPtr->createRequest(request, boost::bind(&HTTPLookupService::callback, _1, promise, requestType, timerPtr,
+                                                                       headers, numberOfRedirects - 1));
+                    return;
+                }
+                iter++;
+            }
             return;
         }
-        timer->cancel(); // Take care
+        timerPtr->cancel(); // Take care
         const std::string &content = response.content;
         promise.setValue((requestType == PartitionMetaData) ? parsePartitionData(content) : parseLookupData(content));
 

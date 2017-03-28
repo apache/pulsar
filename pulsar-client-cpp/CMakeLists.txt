@@ -34,6 +34,10 @@ find_path(LOG4CXX_INCLUDE_PATH log4cxx/logger.h)
 find_path(GTEST_INCLUDE_PATH gtest/gtest.h)
 find_library(LIB_JSON jsoncpp)
 
+if (NOT LIB_JSON)
+    find_library(LIB_JSON json_cpp)
+endif (NOT LIB_JSON)
+
 set(ADDITIONAL_LIBRARIES $ENV{PULSAR_ADDITIONAL_LIBRARIES})
 link_directories( $ENV{PULSAR_ADDITIONAL_LIBRARY_PATH} )
 
