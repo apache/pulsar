@@ -666,59 +666,59 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
         String strategy = this.getLoadBalancerPlacementStrategy();
         log.info("doLoadRanking - load balancing strategy: {}", strategy);
         if (!currentLoadReports.isEmpty()) {
-            synchronized (resourceUnitRankings) {
-                Map<Long, Set<ResourceUnit>> newSortedRankings = Maps.newTreeMap();
-                Map<ResourceUnit, ResourceUnitRanking> newResourceUnitRankings = new HashMap<>();
 
-                for (Map.Entry<ResourceUnit, LoadReport> entry : currentLoadReports.entrySet()) {
-                    ResourceUnit resourceUnit = entry.getKey();
-                    LoadReport loadReport = entry.getValue();
+            Map<Long, Set<ResourceUnit>> newSortedRankings = Maps.newTreeMap();
+            Map<ResourceUnit, ResourceUnitRanking> newResourceUnitRankings = new HashMap<>();
 
-                    // calculate rankings
-                    Set<String> loadedBundles = loadReport.getBundles();
-                    Set<String> preAllocatedBundles = null;
-                    if (resourceUnitRankings.containsKey(resourceUnit)) {
-                        preAllocatedBundles = resourceUnitRankings.get(resourceUnit).getPreAllocatedBundles();
-                        preAllocatedBundles.removeAll(loadedBundles);
-                    } else {
-                        preAllocatedBundles = new HashSet<>();
-                    }
-                    ResourceQuota allocatedQuota = getTotalAllocatedQuota(loadedBundles);
-                    ResourceQuota preAllocatedQuota = getTotalAllocatedQuota(preAllocatedBundles);
-                    ResourceUnitRanking ranking = new ResourceUnitRanking(loadReport.getSystemResourceUsage(),
-                            loadedBundles, allocatedQuota, preAllocatedBundles, preAllocatedQuota);
-                    newResourceUnitRankings.put(resourceUnit, ranking);
+            for (Map.Entry<ResourceUnit, LoadReport> entry : currentLoadReports.entrySet()) {
+                ResourceUnit resourceUnit = entry.getKey();
+                LoadReport loadReport = entry.getValue();
 
-                    // generated sorted ranking
-                    double loadPercentage = ranking.getEstimatedLoadPercentage();
-                    long maxCapacity = ranking.estimateMaxCapacity(
-                            pulsar.getLocalZkCacheService().getResourceQuotaCache().getDefaultQuota());
-                    long finalRank = 0;
-                    if (strategy.equals(LOADBALANCER_STRATEGY_LLS)) {
-                        finalRank = (long) loadPercentage;
-                    } else if (strategy.equals(LOADBALANCER_STRATEGY_LEAST_MSG)) {
-                        finalRank = (long) ranking.getEstimatedMessageRate();
-                    } else {
-                        double idleRatio = (100 - loadPercentage) / 100;
-                        finalRank = (long) (maxCapacity * idleRatio * idleRatio);
-                    }
-
-                    if (!newSortedRankings.containsKey(finalRank)) {
-                        newSortedRankings.put(finalRank, new HashSet<ResourceUnit>());
-                    }
-                    newSortedRankings.get(finalRank).add(entry.getKey());
-                    if (log.isDebugEnabled()) {
-                        log.debug("Added Resource Unit [{}] with Rank [{}]", entry.getKey().getResourceId(), finalRank);
-                    }
-
-                    // update metrics
-                    if (resourceUnit.getResourceId().contains(hostname)) {
-                        updateLoadBalancingMetrics(hostname, finalRank, ranking);
-                    }
+                // calculate rankings
+                Set<String> loadedBundles = loadReport.getBundles();
+                Set<String> preAllocatedBundles = null;
+                if (resourceUnitRankings.containsKey(resourceUnit)) {
+                    preAllocatedBundles = resourceUnitRankings.get(resourceUnit).getPreAllocatedBundles();
+                    preAllocatedBundles.removeAll(loadedBundles);
+                } else {
+                    preAllocatedBundles = new HashSet<>();
                 }
-                this.sortedRankings.set(newSortedRankings);
-                this.resourceUnitRankings = newResourceUnitRankings;
+                ResourceQuota allocatedQuota = getTotalAllocatedQuota(loadedBundles);
+                ResourceQuota preAllocatedQuota = getTotalAllocatedQuota(preAllocatedBundles);
+                ResourceUnitRanking ranking = new ResourceUnitRanking(loadReport.getSystemResourceUsage(),
+                        loadedBundles, allocatedQuota, preAllocatedBundles, preAllocatedQuota);
+                newResourceUnitRankings.put(resourceUnit, ranking);
+
+                // generated sorted ranking
+                double loadPercentage = ranking.getEstimatedLoadPercentage();
+                long maxCapacity = ranking
+                        .estimateMaxCapacity(pulsar.getLocalZkCacheService().getResourceQuotaCache().getDefaultQuota());
+                long finalRank = 0;
+                if (strategy.equals(LOADBALANCER_STRATEGY_LLS)) {
+                    finalRank = (long) loadPercentage;
+                } else if (strategy.equals(LOADBALANCER_STRATEGY_LEAST_MSG)) {
+                    finalRank = (long) ranking.getEstimatedMessageRate();
+                } else {
+                    double idleRatio = (100 - loadPercentage) / 100;
+                    finalRank = (long) (maxCapacity * idleRatio * idleRatio);
+                }
+
+                if (!newSortedRankings.containsKey(finalRank)) {
+                    newSortedRankings.put(finalRank, new HashSet<ResourceUnit>());
+                }
+                newSortedRankings.get(finalRank).add(entry.getKey());
+                if (log.isDebugEnabled()) {
+                    log.debug("Added Resource Unit [{}] with Rank [{}]", entry.getKey().getResourceId(), finalRank);
+                }
+
+                // update metrics
+                if (resourceUnit.getResourceId().contains(hostname)) {
+                    updateLoadBalancingMetrics(hostname, finalRank, ranking);
+                }
             }
+            this.sortedRankings.set(newSortedRankings);
+            this.resourceUnitRankings = newResourceUnitRankings;
+
         } else {
             log.info("Leader broker[{}] No ResourceUnits to rank this run, Using Old Ranking",
                     pulsar.getWebServiceAddress());

@@ -204,7 +204,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
                 if (log.isDebugEnabled()) {
                     log.debug("Update Received for path {}", path);
                 }
-                scheduler.submit(ModularLoadManagerImpl.this::updateAll);
+                scheduler.submit(ModularLoadManagerImpl.this::updateLocalBrokerData);
             }
         });
 
