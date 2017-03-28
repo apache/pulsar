@@ -21,6 +21,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.bookkeeper.mledger.impl.MetaStoreImplZookeeper;
+import org.apache.bookkeeper.mledger.util.DimensionStats;
+
 /**
  */
 public class BrokerOperabilityMetrics {
@@ -62,6 +65,29 @@ public class BrokerOperabilityMetrics {
         dMetrics.put("brk_topic_load_time_99_99_percentile_ms", topicLoadStats.topicsLoad9999Ms);
         dMetrics.put("brk_topic_load_rate_s",
                 (1000 * topicLoadStats.topicLoadCounts) / topicLoadStats.elapsedIntervalMs);
+
+        return dMetrics;
+    }
+
+    public Metrics getZkLatencyMetrics(MetaStoreImplZookeeper metaStore) {
+        Map<String, String> dimensionMap = Maps.newHashMap();
+        dimensionMap.put("broker", brokerName);
+        dimensionMap.put("cluster", localCluster);
+        dimensionMap.put("metric", "zk_op_stats");
+        Metrics dMetrics = Metrics.create(dimensionMap);
+
+        DimensionStats zkOpLatencyStats = metaStore.getZkOpLatencyStats();
+        zkOpLatencyStats.updateStats();
+
+        dMetrics.put("zk_latency_mean_ms", zkOpLatencyStats.meanDimensionMs);
+        dMetrics.put("zk_latency_time_median_ms", zkOpLatencyStats.medianDimensionMs);
+        dMetrics.put("zk_latency_95percentile_ms", zkOpLatencyStats.dimension95Ms);
+        dMetrics.put("zk_latency_99_percentile_ms", zkOpLatencyStats.dimension99Ms);
+        dMetrics.put("zk_latency_99_9_percentile_ms", zkOpLatencyStats.dimension999Ms);
+        dMetrics.put("zk_latency_99_99_percentile_ms", zkOpLatencyStats.dimension999Ms);
+        dMetrics.put("zk_op_count", zkOpLatencyStats.dimensionCounts);
+        dMetrics.put("zk_write_rate", metaStore.getAndResetNumOfWrite());
+        dMetrics.put("zk_read_rate", metaStore.getAndResetNumOfRead());
 
         return dMetrics;
     }

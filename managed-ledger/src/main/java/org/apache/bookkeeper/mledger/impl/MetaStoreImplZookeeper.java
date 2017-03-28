@@ -20,11 +20,13 @@ import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.LongAdder;
 
 import org.apache.bookkeeper.mledger.ManagedLedgerException.BadVersionException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo;
+import org.apache.bookkeeper.mledger.util.DimensionStats;
 import org.apache.bookkeeper.util.OrderedSafeExecutor;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.zookeeper.AsyncCallback.StringCallback;
@@ -57,6 +59,9 @@ public class MetaStoreImplZookeeper implements MetaStore {
     private final ZooKeeper zk;
     private final ZNodeProtobufFormat protobufFormat;
     private final OrderedSafeExecutor executor;
+    private final LongAdder numWrite;
+    private final LongAdder numRead;
+    private final DimensionStats zkOpLatencyStats;
 
     private static class ZKStat implements Stat {
         private final int version;
@@ -100,6 +105,9 @@ public class MetaStoreImplZookeeper implements MetaStore {
         this.zk = zk;
         this.protobufFormat = protobufFormat;
         this.executor = executor;
+        this.numWrite = new LongAdder();
+        this.numRead = new LongAdder();
+        this.zkOpLatencyStats = new DimensionStats();
 
         if (zk.exists(prefixName, false) == null) {
             zk.create(prefixName, new byte[0], Acl, CreateMode.PERSISTENT);
@@ -133,7 +141,9 @@ public class MetaStoreImplZookeeper implements MetaStore {
     @Override
     public void getManagedLedgerInfo(final String ledgerName, final MetaStoreCallback<ManagedLedgerInfo> callback) {
         // Try to get the content or create an empty node
+        final long now = System.currentTimeMillis();
         zk.getData(prefix + ledgerName, false, (rc, path, ctx, readData, stat) -> executor.submit(safeRun(() -> {
+            recordRead(System.currentTimeMillis() - now);
             if (rc == Code.OK.intValue()) {
                 try {
                     ManagedLedgerInfo info = parseManagedLedgerInfo(readData);
@@ -175,8 +185,10 @@ public class MetaStoreImplZookeeper implements MetaStore {
                 mlInfo.toString().getBytes(Encoding) : // Text format
                 mlInfo.toByteArray(); // Binary format
 
+        final long now = System.currentTimeMillis();
         zk.setData(prefix + ledgerName, serializedMlInfo, zkStat.getVersion(),
                 (rc, path, zkCtx, stat1) -> executor.submit(safeRun(() -> {
+                    recordWrite(System.currentTimeMillis() - now);
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] UpdateLedgersIdsCallback.processResult rc={} newVersion={}", ledgerName,
                                 Code.get(rc), stat != null ? stat.getVersion() : "null");
@@ -200,7 +212,9 @@ public class MetaStoreImplZookeeper implements MetaStore {
         if (log.isDebugEnabled()) {
             log.debug("[{}] Get cursors list", ledgerName);
         }
+        final long now = System.currentTimeMillis();
         zk.getChildren(prefix + ledgerName, false, (rc, path, ctx, children, stat) -> executor.submit(safeRun(() -> {
+            recordRead(System.currentTimeMillis() - now);
             if (log.isDebugEnabled()) {
                 log.debug("[{}] getConsumers complete rc={} children={}", ledgerName, Code.get(rc), children);
             }
@@ -223,8 +237,9 @@ public class MetaStoreImplZookeeper implements MetaStore {
         if (log.isDebugEnabled()) {
             log.debug("Reading from {}", path);
         }
-
+        final long now = System.currentTimeMillis();
         zk.getData(path, false, (rc, path1, ctx, data, stat) -> executor.submit(safeRun(() -> {
+            recordRead(System.currentTimeMillis() - now);
             if (rc != Code.OK.intValue()) {
                 callback.operationFailed(new MetaStoreException(KeeperException.create(Code.get(rc))));
             } else {
@@ -257,8 +272,10 @@ public class MetaStoreImplZookeeper implements MetaStore {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Creating consumer {} on meta-data store with {}", ledgerName, cursorName, info);
             }
+            final long now = System.currentTimeMillis();
             zk.create(path, content, Acl, CreateMode.PERSISTENT,
                     (rc, path1, ctx, name) -> executor.submit(safeRun(() -> {
+                        recordWrite(System.currentTimeMillis() - now);
                         if (rc != Code.OK.intValue()) {
                             log.warn("[{}] Error creating cosumer {} node on meta-data store with {}: ", ledgerName,
                                     cursorName, info, Code.get(rc));
@@ -276,7 +293,9 @@ public class MetaStoreImplZookeeper implements MetaStore {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Updating consumer {} on meta-data store with {}", ledgerName, cursorName, info);
             }
+            final long now = System.currentTimeMillis();
             zk.setData(path, content, zkStat.getVersion(), (rc, path1, ctx, stat1) -> executor.submit(safeRun(() -> {
+                recordWrite(System.currentTimeMillis() - now);
                 if (rc == Code.BADVERSION.intValue()) {
                     callback.operationFailed(new BadVersionException(KeeperException.create(Code.get(rc))));
                 } else if (rc != Code.OK.intValue()) {
@@ -292,7 +311,9 @@ public class MetaStoreImplZookeeper implements MetaStore {
     public void asyncRemoveCursor(final String ledgerName, final String consumerName,
             final MetaStoreCallback<Void> callback) {
         log.info("[{}] Remove consumer={}", ledgerName, consumerName);
+        final long now = System.currentTimeMillis();
         zk.delete(prefix + ledgerName + "/" + consumerName, -1, (rc, path, ctx) -> executor.submit(safeRun(() -> {
+            recordWrite(System.currentTimeMillis() - now);
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] zk delete done. rc={}", ledgerName, consumerName, Code.get(rc));
             }
@@ -307,7 +328,9 @@ public class MetaStoreImplZookeeper implements MetaStore {
     @Override
     public void removeManagedLedger(String ledgerName, MetaStoreCallback<Void> callback) {
         log.info("[{}] Remove ManagedLedger", ledgerName);
+        final long now = System.currentTimeMillis();
         zk.delete(prefix + ledgerName, -1, (rc, path, ctx) -> executor.submit(safeRun(() -> {
+            recordWrite(System.currentTimeMillis() - now);
             if (log.isDebugEnabled()) {
                 log.debug("[{}] zk delete done. rc={}", ledgerName, Code.get(rc));
             }
@@ -386,5 +409,39 @@ public class MetaStoreImplZookeeper implements MetaStore {
         return ManagedCursorInfo.newBuilder().mergeFrom(data).build();
     }
 
+    @Override
+    public void recordWrite(long latency) {
+        zkOpLatencyStats.recordValue(latency);
+        numWrite.increment();
+    }
+ 
+    @Override
+    public void recordWrite() {
+        numWrite.increment();
+    }
+
+    @Override
+    public void recordRead(long latency) {
+        zkOpLatencyStats.recordValue(latency);
+        numRead.increment();
+    }
+
+    @Override
+    public void recordRead() {
+        numRead.increment();
+    }
+
+    public long getAndResetNumOfWrite() {
+        return numWrite.sumThenReset();
+    }
+
+    public long getAndResetNumOfRead() {
+        return numRead.sumThenReset();
+    }
+
+    public DimensionStats getZkOpLatencyStats() {
+        return this.zkOpLatencyStats;
+    }
+    
     private static final Logger log = LoggerFactory.getLogger(MetaStoreImplZookeeper.class);
 }

@@ -21,6 +21,10 @@ import java.util.Map;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
 
+import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
+import org.apache.bookkeeper.mledger.impl.MetaStore;
+import org.apache.bookkeeper.mledger.impl.MetaStoreImplZookeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,6 +56,7 @@ public class PulsarStats implements Closeable {
     private List<Metrics> tempMetricsCollection;
     private List<Metrics> metricsCollection;
     private final BrokerOperabilityMetrics brokerOperabilityMetrics;
+    private final ManagedLedgerFactory ledgerFactory;
 
     private final ReentrantReadWriteLock bufferLock = new ReentrantReadWriteLock();
 
@@ -67,6 +72,7 @@ public class PulsarStats implements Closeable {
         this.metricsCollection = Lists.newArrayList();
         this.brokerOperabilityMetrics = new BrokerOperabilityMetrics(pulsar.getConfiguration().getClusterName(),
                 pulsar.getAdvertisedAddress());
+        this.ledgerFactory = pulsar.getManagedLedgerFactory();
     }
 
     @Override
@@ -140,7 +146,9 @@ public class PulsarStats implements Closeable {
             }
             brokerOperabilityMetrics.getMetrics()
                     .forEach(brokerOperabilityMetric -> tempMetricsCollection.add(brokerOperabilityMetric));
-
+            // add zk-op-stats metrics
+            tempMetricsCollection.add(brokerOperabilityMetrics.getZkLatencyMetrics(
+                    (MetaStoreImplZookeeper) (((ManagedLedgerFactoryImpl) ledgerFactory).getMetaStore())));
             // json end
             topicStatsStream.endObject();
         } catch (Exception e) {

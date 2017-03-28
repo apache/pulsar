@@ -248,6 +248,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] Opening legder {}", name, id);
                     }
+                    store.recordRead();
                     mbean.startDataLedgerOpenOp();
                     bookKeeper.asyncOpenLedger(id, config.getDigestType(), config.getPassword(), opencb, null);
                 } else {
@@ -276,7 +277,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 TOTAL_SIZE_UPDATER.addAndGet(this, li.getSize());
             } else {
                 iterator.remove();
+                final long now = System.currentTimeMillis();
                 bookKeeper.asyncDeleteLedger(li.getLedgerId(), (rc, ctx) -> {
+                    store.recordWrite(System.currentTimeMillis() - now);
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] Deleted empty ledger ledgerId={} rc={}", name, li.getLedgerId(), rc);
                     }
@@ -300,8 +303,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         // Create a new ledger to start writing
         this.lastLedgerCreationInitiationTimestamp = System.nanoTime();
         mbean.startDataLedgerCreateOp();
+        final long now = System.currentTimeMillis();
         bookKeeper.asyncCreateLedger(config.getEnsembleSize(), config.getWriteQuorumSize(), config.getAckQuorumSize(),
                 config.getDigestType(), config.getPassword(), (rc, lh, ctx) -> {
+                    store.recordWrite(System.currentTimeMillis() - now);
                     executor.submitOrdered(name, safeRun(() -> {
                         mbean.endDataLedgerCreateOp();
                         if (rc != BKException.Code.OK) {
@@ -478,6 +483,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             if (STATE_UPDATER.compareAndSet(this, State.ClosedLedger, State.CreatingLedger)) {
                 this.lastLedgerCreationInitiationTimestamp = System.nanoTime();
                 mbean.startDataLedgerCreateOp();
+                store.recordWrite();
                 bookKeeper.asyncCreateLedger(config.getEnsembleSize(), config.getWriteQuorumSize(),
                         config.getAckQuorumSize(), config.getDigestType(), config.getPassword(), this, ctx);
             }
@@ -1076,8 +1082,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             // The last ledger was empty, so we can discard it
             ledgers.remove(lh.getId());
             mbean.startDataLedgerDeleteOp();
+            final long now = System.currentTimeMillis();
             bookKeeper.asyncDeleteLedger(lh.getId(), (rc, ctx) -> {
                 mbean.endDataLedgerDeleteOp();
+                store.recordWrite(System.currentTimeMillis() - now);
                 log.info("[{}] Delete complete for empty ledger {}. rc={}", name, lh.getId(), rc);
             }, null);
         }
@@ -1092,6 +1100,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             STATE_UPDATER.set(this, State.CreatingLedger);
             this.lastLedgerCreationInitiationTimestamp = System.nanoTime();
             mbean.startDataLedgerCreateOp();
+            store.recordWrite();
             bookKeeper.asyncCreateLedger(config.getEnsembleSize(), config.getWriteQuorumSize(),
                     config.getAckQuorumSize(), config.getDigestType(), config.getPassword(), this, null);
         }
@@ -1158,8 +1167,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 log.debug("[{}] Asynchronously opening ledger {} for read", name, ledgerId);
             }
             mbean.startDataLedgerOpenOp();
+            final long now = System.currentTimeMillis();
             bookKeeper.asyncOpenLedger(ledgerId, config.getDigestType(), config.getPassword(),
                     (int rc, LedgerHandle lh, Object ctx) -> {
+                        store.recordRead(System.currentTimeMillis() - now);
                         executor.submit(safeRun(() -> {
                             mbean.endDataLedgerOpenOp();
                             if (rc != BKException.Code.OK) {
@@ -1447,7 +1458,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
                     for (LedgerInfo ls : ledgersToDelete) {
                         log.info("[{}] Removing ledger {} - size: {}", name, ls.getLedgerId(), ls.getSize());
+                        final long now = System.currentTimeMillis();
                         bookKeeper.asyncDeleteLedger(ls.getLedgerId(), (rc, ctx) -> {
+                            store.recordWrite(System.currentTimeMillis() - now);
                             if (rc == BKException.Code.NoSuchLedgerExistsException) {
                                 log.warn("[{}] Ledger was already deleted {}", name, ls.getLedgerId());
                             } else if (rc != BKException.Code.OK) {
@@ -1563,7 +1576,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Deleting ledger {}", name, ls);
             }
+            final long now = System.currentTimeMillis();
             bookKeeper.asyncDeleteLedger(ls.getLedgerId(), (rc, ctx1) -> {
+                store.recordWrite(System.currentTimeMillis() - now);
                 switch (rc) {
                 case BKException.Code.NoSuchLedgerExistsException:
                     log.warn("[{}] Ledger {} not found when deleting it", name, ls.getLedgerId());
