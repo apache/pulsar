@@ -145,7 +145,7 @@ namespace pulsar {
         const HTTPWrapper::Response &response = httpWrapperPtr->getResponse();
         LOG_DEBUG("HTTPLookupService::callback response = " << response);
         if (response.retCode != HTTPWrapper::Response::Success) {
-            if (response.statusCode == 401 || response.statusMessage == "Unauthorized") {
+            if (response.statusCode == 401 || response.statusMessage == " Unauthorized") {
                 LOG_ERROR("Authentication failed");
                 promise.setFailed(ResultConnectError);
                 return;
