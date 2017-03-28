@@ -139,6 +139,7 @@ namespace pulsar {
         if (promise.isComplete()) {
             // Timer expired
             LOG_DEBUG("Promise already fulfilled");
+            timerPtr->cancel();
             return;
         }
         const HTTPWrapper::Response &response = httpWrapperPtr->getResponse();
@@ -146,6 +147,7 @@ namespace pulsar {
         if (response.retCode != HTTPWrapper::Response::Success) {
             LOG_ERROR("HTTPLookupService::callback failed " << response.errCode.message());
             promise.setFailed(ResultLookupError);
+            timerPtr->cancel();
             return;
         }
         if (response.statusCode == 307 || response.statusCode == 308) {
@@ -153,6 +155,7 @@ namespace pulsar {
             if (numberOfRedirects <= 0) {
                 LOG_DEBUG("Max redirect limit reached");
                 promise.setFailed(ResultLookupError);
+                timerPtr->cancel();
                 return;
             }
             const std::vector<std::string>& responseHeaders = response.headers;

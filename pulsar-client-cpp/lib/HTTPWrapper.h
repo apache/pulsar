@@ -65,6 +65,7 @@ public:
 protected:
     HTTPWrapper(ExecutorServiceProviderPtr);
 private:
+    ExecutorServiceProviderPtr executorServiceProviderPtr_;
     TcpResolverPtr resolverPtr_;
     ReadStreamPtr requestStreamPtr_;
     ReadStreamPtr responseStreamPtr_;

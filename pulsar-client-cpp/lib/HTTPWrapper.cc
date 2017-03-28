@@ -55,13 +55,8 @@ namespace pulsar {
         return os;
     }
 
-    HTTPWrapper::HTTPWrapper(ExecutorServiceProviderPtr executorServiceProviderPtr) :
-        resolverPtr_(executorServiceProviderPtr->get()->createTcpResolver()),
-        requestStreamPtr_(executorServiceProviderPtr->get()->createReadStream()),
-        responseStreamPtr_(executorServiceProviderPtr->get()->createReadStream()),
-        socketPtr_(executorServiceProviderPtr->get()->createSocket()),
-        callback_(),
-        response_() {
+    HTTPWrapper::HTTPWrapper(ExecutorServiceProviderPtr executorServiceProviderPtr)
+            : executorServiceProviderPtr_(executorServiceProviderPtr){
     }
 
     std::string HTTPWrapper::getHTTPMethodName(const Request::Method& method) {
@@ -95,6 +90,10 @@ namespace pulsar {
     void HTTPWrapper::createRequest(Request& request, HTTPWrapperCallback callback) {
         request_ = request;
         callback_ = callback;
+        resolverPtr_ = executorServiceProviderPtr_->get()->createTcpResolver();
+        requestStreamPtr_ = executorServiceProviderPtr_->get()->createReadStream();
+        responseStreamPtr_ = executorServiceProviderPtr_->get()->createReadStream();
+        socketPtr_ = executorServiceProviderPtr_->get()->createSocket();
         std::ostream requestStream(requestStreamPtr_.get());
         requestStream << request;
         LOG_ERROR("HTTP Request Sent: " << request);
