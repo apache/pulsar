@@ -1,3 +1,18 @@
+/**
+ * Copyright 2016 Yahoo Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.yahoo.pulsar.broker.loadbalance.impl;
 
 import java.util.HashMap;
@@ -14,7 +29,9 @@ import com.yahoo.pulsar.broker.loadbalance.LoadSheddingStrategy;
 
 /**
  * An abstract class which makes a LoadSheddingStrategy which makes decisions based on standard deviation easier to
- * implement.
+ * implement. Assuming there exists some real number metric which may estimate the load on a server, this load shedding
+ * strategy calculates the standard deviation with respect to that metric and sheds load on brokers whose standard
+ * deviation is above some threshold.
  */
 public abstract class DeviationShedder implements LoadSheddingStrategy {
     // A Set of pairs is used in favor of a Multimap for simplicity.
@@ -50,7 +67,7 @@ public abstract class DeviationShedder implements LoadSheddingStrategy {
      * @return A map from all selected bundles to the brokers on which they reside.
      */
     @Override
-    public Map<String, String> selectBundlesForUnloading(final LoadData loadData, final ServiceConfiguration conf) {
+    public Map<String, String> findBundlesForUnloading(final LoadData loadData, final ServiceConfiguration conf) {
         final Map<String, String> result = new HashMap<>();
         bundleTreeSetCache.clear();
         metricTreeSetCache.clear();

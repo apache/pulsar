@@ -25,6 +25,8 @@ import com.yahoo.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import com.yahoo.pulsar.broker.stats.Metrics;
 import com.yahoo.pulsar.common.naming.ServiceUnitId;
 import com.yahoo.pulsar.common.policies.data.loadbalancer.LoadReport;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * LoadManager runs though set of load reports collected from different brokers and generates a recommendation of
@@ -34,6 +36,9 @@ import com.yahoo.pulsar.common.policies.data.loadbalancer.LoadReport;
  * Concrete Load Manager is also return the least loaded broker that should own the new namespace.
  */
 public interface LoadManager {
+    Logger log = LoggerFactory.getLogger(LoadManager.class);
+
+    String LOADBALANCE_BROKERS_ROOT = "/loadbalance/brokers";
 
     public void start() throws PulsarServerException;
 
@@ -83,11 +88,6 @@ public interface LoadManager {
     void doNamespaceBundleSplit() throws Exception;
 
     /**
-     * Determine the broker root.
-     */
-    String getBrokerRoot();
-
-    /**
      * Removes visibility of current broker from loadbalancer list so, other brokers can't redirect any request to this
      * broker and this broker won't accept new connection requests.
      *
@@ -121,7 +121,7 @@ public interface LoadManager {
                 return casted;
             }
         } catch (Exception e) {
-            // Ignore
+            log.warn("Error when trying to create load manager: {}");
         }
         // If we failed to create a load manager, default to SimpleLoadManagerImpl.
         return new SimpleLoadManagerImpl(pulsar);

@@ -29,6 +29,7 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response.Status;
 
+import com.yahoo.pulsar.broker.loadbalance.LoadManager;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.ZooDefs;
@@ -68,7 +69,7 @@ public class Brokers extends AdminResource {
 
         try {
             // Add Native brokers
-            return pulsar().getLocalZkCache().getChildren(pulsar().getLoadManager().get().getBrokerRoot());
+            return pulsar().getLocalZkCache().getChildren(LoadManager.LOADBALANCE_BROKERS_ROOT);
         } catch (Exception e) {
             LOG.error(String.format("[%s] Failed to get active broker list: cluster=%s", clientAppId(), cluster), e);
             throw new RestException(e);

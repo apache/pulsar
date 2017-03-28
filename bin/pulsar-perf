@@ -77,7 +77,7 @@ where command is one of:
     consume                 Run a consumer
     simple-monitor          Continuously receive broker data when using SimpleLoadManagerImpl
     modular-monitor         Continuously receive broker data when using ModularLoadManagerImpl
-    simulation-server       Run a simulation server acting as a Pulsar client
+    simulation-client       Run a simulation server acting as a Pulsar client
     simulation-controller   Run a simulation controller to give commands to servers
 
     help                This help message
@@ -146,8 +146,8 @@ elif [ "$COMMAND" == "simple-monitor" ]; then
     exec $JAVA $OPTS com.yahoo.pulsar.testclient.SimpleLoadManagerBrokerMonitor "$@"
 elif [ "$COMMAND" == "modular-monitor" ]; then
     exec $JAVA $OPTS com.yahoo.pulsar.testclient.ModularLoadManagerBrokerMonitor "$@"
-elif [ "$COMMAND" == "simulation-server" ]; then
-    exec $JAVA $OPTS com.yahoo.pulsar.testclient.LoadSimulationServer "$@"
+elif [ "$COMMAND" == "simulation-client" ]; then
+    exec $JAVA $OPTS com.yahoo.pulsar.testclient.LoadSimulationClient "$@"
 elif [ "$COMMAND" == "simulation-controller" ]; then
     exec $JAVA $OPTS com.yahoo.pulsar.testclient.LoadSimulationController "$@"
 elif [ "$COMMAND" == "help" ]; then

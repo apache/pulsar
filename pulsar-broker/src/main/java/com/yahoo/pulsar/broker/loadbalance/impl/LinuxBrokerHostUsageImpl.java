@@ -57,7 +57,8 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
         this.systemBean = (OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean();
         this.lastCollection = 0L;
         this.usage = new SystemResourceUsage();
-        pulsar.getLoadManagerExecutor().scheduleAtFixedRate(this::calculateBrokerHostUsage, 0, hostUsageCheckIntervalMin, TimeUnit.MINUTES);
+        pulsar.getLoadManagerExecutor().scheduleAtFixedRate(this::calculateBrokerHostUsage, 0,
+                hostUsageCheckIntervalMin, TimeUnit.MINUTES);
     }
 
     @Override
@@ -112,25 +113,20 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
 
     /**
      * Reads first line of /proc/stat to get total cpu usage.
+     * 
      * <pre>
      *     cpu  user   nice system idle    iowait irq softirq steal guest guest_nice
      *     cpu  317808 128  58637  2503692 7634   0   13472   0     0     0
      * </pre>
-     * Line is split in "words", filtering the first.
-     * The sum of all numbers give the amount of cpu cycles used this far.
-     * Real CPU usage should equal the sum substracting the idle cycles,
-     * this would include iowait, irq and steal.
+     * 
+     * Line is split in "words", filtering the first. The sum of all numbers give the amount of cpu cycles used this
+     * far. Real CPU usage should equal the sum substracting the idle cycles, this would include iowait, irq and steal.
      */
     private CpuStat getTotalCpuUsage() {
         try (Stream<String> stream = Files.lines(Paths.get("/proc/stat"))) {
-            String[] words = stream
-                    .findFirst()
-                    .get().split("\\s+");
+            String[] words = stream.findFirst().get().split("\\s+");
 
-            long total = Arrays.stream(words)
-                    .filter(s -> !s.contains("cpu"))
-                    .mapToLong(Long::parseLong)
-                    .sum();
+            long total = Arrays.stream(words).filter(s -> !s.contains("cpu")).mapToLong(Long::parseLong).sum();
 
             long idle = Long.parseLong(words[4]);
 
@@ -149,9 +145,7 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
 
     private List<String> getNics() {
         try (Stream<Path> stream = Files.list(Paths.get("/sys/class/net/"))) {
-            return stream
-                    .filter(this::isPhysicalNic)
-                    .map(path -> path.getFileName().toString())
+            return stream.filter(this::isPhysicalNic).map(path -> path.getFileName().toString())
                     .collect(Collectors.toList());
         } catch (IOException e) {
             LOG.error("Failed to find NICs", e);
@@ -160,15 +154,21 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
     }
 
     private boolean isPhysicalNic(Path path) {
-        path = Files.isSymbolicLink(path) ? path.toAbsolutePath() : path;
-        if (!path.toString().contains("/virtual/")) {
-            try {
-                Files.readAllBytes(path.resolve("speed"));
-                return true;
-            } catch (Exception e) {
-                // wireless nics don't report speed, ignore them.
-                return false;
+        try {
+            path = path.toAbsolutePath();
+            path = Files.isSymbolicLink(path) ? Files.readSymbolicLink(path) : path;
+            if (!path.toString().contains("/virtual/")) {
+                try {
+                    Files.readAllBytes(path.resolve("speed"));
+                    return true;
+                } catch (Exception e) {
+                    // wireless nics don't report speed, ignore them.
+                    return false;
+                }
             }
+        } catch (IOException e) {
+            LOG.error("Failed to read link target for NIC " + path, e);
+            return false;
         }
         return false;
     }

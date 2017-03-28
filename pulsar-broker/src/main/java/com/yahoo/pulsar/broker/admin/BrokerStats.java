@@ -175,7 +175,7 @@ public class BrokerStats extends AdminResource {
             if (lm instanceof SimpleLoadManagerImpl) {
                 return ((SimpleLoadManagerImpl) lm).getResourceAvailabilityFor(ns).asMap();
             } else {
-                return Collections.emptyMap();
+                return null;
             }
         } catch (Exception e) {
             log.error("Unable to get Resource Availability - [{}]", e);

@@ -976,100 +976,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     // Configurations for new load manager API
 
-    // Number of samples to use for short term time window
-    private int loadManagerNumberOfSamplesShortTermWindow = 50;
-
-    // Number of samples to use for long term time window
-    private int loadManagerNumberOfSamplesLongTermWindow = 1000;
-
-    // How often in seconds to update the broker data
-    private long loadManagerBrokerDataUpdateIntervalInSeconds = 60;
-
-    // How often in seconds to update the bundle data
-    private long loadManagerBundleDataUpdateIntervalInSeconds = 60;
-
-    // Default throughput in to assume for new bundles
-    private double loadManagerDefaultMessageThroughputIn = 50000;
-
-    // Default throughput out to assume for new bundles
-    private double loadManagerDefaultMessageThroughputOut = 50000;
-
-    // Default message rate in to assume for new bundles
-    private double loadManagerDefaultMessageRateIn = 50;
-
-    // Default message rate out to assume for new bundles
-    private double loadManagerDefaultMessageRateOut = 50;
-
     // Name of load manager to use
+    @FieldContext(dynamic = true)
     private String loadManagerClassName = "com.yahoo.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl";
-
-    // Name of placement strategy to use for new loadbalancer API.
-    private String modularPlacementStrategyClassName =
-            "com.yahoo.pulsar.broker.loadbalance.impl.LeastLongTermMessageRate";
-
-    public int getLoadManagerNumberOfSamplesShortTermWindow() {
-        return loadManagerNumberOfSamplesShortTermWindow;
-    }
-
-    public void setLoadManagerNumberOfSamplesShortTermWindow(int loadManagerNumberOfSamplesShortTermWindow) {
-        this.loadManagerNumberOfSamplesShortTermWindow = loadManagerNumberOfSamplesShortTermWindow;
-    }
-
-    public int getLoadManagerNumberOfSamplesLongTermWindow() {
-        return loadManagerNumberOfSamplesLongTermWindow;
-    }
-
-    public void setLoadManagerNumberOfSamplesLongTermWindow(int loadManagerNumberOfSamplesLongTermWindow) {
-        this.loadManagerNumberOfSamplesLongTermWindow = loadManagerNumberOfSamplesLongTermWindow;
-    }
-
-    public long getLoadManagerBrokerDataUpdateIntervalInSeconds() {
-        return loadManagerBrokerDataUpdateIntervalInSeconds;
-    }
-
-    public void setLoadManagerBrokerDataUpdateIntervalInSeconds(long loadManagerBrokerDataUpdateIntervalInSeconds) {
-        this.loadManagerBrokerDataUpdateIntervalInSeconds = loadManagerBrokerDataUpdateIntervalInSeconds;
-    }
-
-    public long getLoadManagerBundleDataUpdateIntervalInSeconds() {
-        return loadManagerBundleDataUpdateIntervalInSeconds;
-    }
-
-    public void setLoadManagerBundleDataUpdateIntervalInSeconds(long loadManagerBundleDataUpdateIntervalInSeconds) {
-        this.loadManagerBundleDataUpdateIntervalInSeconds = loadManagerBundleDataUpdateIntervalInSeconds;
-    }
-
-    public double getLoadManagerDefaultMessageThroughputIn() {
-        return loadManagerDefaultMessageThroughputIn;
-    }
-
-    public void setLoadManagerDefaultMessageThroughputIn(double loadManagerDefaultMessageThroughputIn) {
-        this.loadManagerDefaultMessageThroughputIn = loadManagerDefaultMessageThroughputIn;
-    }
-
-    public double getLoadManagerDefaultMessageThroughputOut() {
-        return loadManagerDefaultMessageThroughputOut;
-    }
-
-    public void setLoadManagerDefaultMessageThroughputOut(double loadManagerDefaultMessageThroughputOut) {
-        this.loadManagerDefaultMessageThroughputOut = loadManagerDefaultMessageThroughputOut;
-    }
-
-    public double getLoadManagerDefaultMessageRateIn() {
-        return loadManagerDefaultMessageRateIn;
-    }
-
-    public void setLoadManagerDefaultMessageRateIn(double loadManagerDefaultMessageRateIn) {
-        this.loadManagerDefaultMessageRateIn = loadManagerDefaultMessageRateIn;
-    }
-
-    public double getLoadManagerDefaultMessageRateOut() {
-        return loadManagerDefaultMessageRateOut;
-    }
-
-    public void setLoadManagerDefaultMessageRateOut(double loadManagerDefaultMessageRateOut) {
-        this.loadManagerDefaultMessageRateOut = loadManagerDefaultMessageRateOut;
-    }
 
     public String getLoadManagerClassName() {
         return loadManagerClassName;
@@ -1077,13 +986,5 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public void setLoadManagerClassName(String loadManagerClassName) {
         this.loadManagerClassName = loadManagerClassName;
-    }
-
-    public String getModularPlacementStrategyClassName() {
-        return modularPlacementStrategyClassName;
-    }
-
-    public void setModularPlacementStrategyClassName(String modularPlacementStrategyClassName) {
-        this.modularPlacementStrategyClassName = modularPlacementStrategyClassName;
     }
 }

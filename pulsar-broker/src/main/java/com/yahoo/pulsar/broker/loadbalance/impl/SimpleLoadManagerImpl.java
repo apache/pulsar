@@ -98,6 +98,10 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
     // load balancing metrics
     private AtomicReference<List<Metrics>> loadBalancingMetrics = new AtomicReference<>();
 
+    // Caches for bundle gains and losses.
+    private final Set<String> bundleGainsCache;
+    private final Set<String> bundleLossesCache;
+
     // CPU usage per msg/sec
     private double realtimeCpuLoadFactor = 0.025;
     // memory usage per 500 (topics + producers + consumers)
@@ -134,9 +138,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
     private LoadingCache<String, PulsarAdmin> adminCache;
     private LoadingCache<String, Long> unloadedHotNamespaceCache;
 
-    public static final String LOADBALANCE_BROKERS_ROOT = "/loadbalance/brokers";
     public static final String LOADBALANCER_DYNAMIC_SETTING_STRATEGY_ZPATH = "/loadbalance/settings/strategy";
-    public static final String LOADBALANCER_DYNAMIC_SETTING_SECONDARY_STRATEGY_ZPATH = "/loadbalance/settings/secondary_strategy";
     public static final String LOADBALANCER_DYNAMIC_SETTING_CENTRALIZED_ZPATH = "/loadbalance/settings/is_centralized";
     private static final String LOADBALANCER_DYNAMIC_SETTING_LOAD_FACTOR_CPU_ZPATH = "/loadbalance/settings/load_factor_cpu";
     private static final String LOADBALANCER_DYNAMIC_SETTING_LOAD_FACTOR_MEM_ZPATH = "/loadbalance/settings/load_factor_mem";
@@ -147,7 +149,6 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
     private static final String SETTING_NAME_LOAD_FACTOR_CPU = "loadFactorCPU";
     private static final String SETTING_NAME_LOAD_FACTOR_MEM = "loadFactorMemory";
     private static final String SETTING_NAME_STRATEGY = "loadBalancerStrategy";
-    private static final String SETTING_NAME_SECONDARY_STRATEGY = "loadBalancerSecondaryStrategy";
     private static final String SETTING_NAME_IS_CENTRALIZED = "loadBalancerIsCentralized";
     private static final String SETTING_NAME_OVERLOAD_THRESHOLD = "overloadThreshold";
     private static final String SETTING_NAME_UNDERLOAD_THRESHOLD = "underloadThreshold";
@@ -182,6 +183,8 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
         this.realtimeResourceQuotas.set(new HashMap<>());
         this.realtimeAvgResourceQuota = new ResourceQuota();
         placementStrategy = new WRRPlacementStrategy();
+        bundleGainsCache = new HashSet<>();
+        bundleLossesCache = new HashSet<>();
     }
 
     @Override
@@ -244,11 +247,6 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
     public SimpleLoadManagerImpl(PulsarService pulsar) {
         this();
         initialize(pulsar);
-    }
-
-    @Override
-    public String getBrokerRoot() {
-        return LOADBALANCE_BROKERS_ROOT;
     }
 
     @Override
@@ -1119,76 +1117,78 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
 
     @Override
     public LoadReport generateLoadReport() throws Exception {
-        long timeSinceLastGenMillis = System.currentTimeMillis() - lastLoadReport.getTimestamp();
-        if (timeSinceLastGenMillis <= LOAD_REPORT_UPDATE_MIMIMUM_INTERVAL) {
-            return lastLoadReport;
-        }
-        try {
-            LoadReport loadReport = new LoadReport(pulsar.getWebServiceAddress(), pulsar.getWebServiceAddressTls(),
-                    pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
-            loadReport.setName(String.format("%s:%s", pulsar.getAdvertisedAddress(),
-                    pulsar.getConfiguration().getWebServicePort()));
-            SystemResourceUsage systemResourceUsage = this.getSystemResourceUsage();
-            loadReport.setOverLoaded(
-                    isAboveLoadLevel(systemResourceUsage, this.getLoadBalancerBrokerOverloadedThresholdPercentage()));
-            loadReport.setUnderLoaded(
-                    isBelowLoadLevel(systemResourceUsage, this.getLoadBalancerBrokerUnderloadedThresholdPercentage()));
+        synchronized (bundleGainsCache) {
+            long timeSinceLastGenMillis = System.currentTimeMillis() - lastLoadReport.getTimestamp();
+            if (timeSinceLastGenMillis <= LOAD_REPORT_UPDATE_MIMIMUM_INTERVAL) {
+                return lastLoadReport;
+            }
+            try {
+                LoadReport loadReport = new LoadReport(pulsar.getWebServiceAddress(), pulsar.getWebServiceAddressTls(),
+                        pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
+                loadReport.setName(String.format("%s:%s", pulsar.getAdvertisedAddress(),
+                        pulsar.getConfiguration().getWebServicePort()));
+                SystemResourceUsage systemResourceUsage = this.getSystemResourceUsage();
+                loadReport.setOverLoaded(
+                        isAboveLoadLevel(systemResourceUsage, this.getLoadBalancerBrokerOverloadedThresholdPercentage()));
+                loadReport.setUnderLoaded(
+                        isBelowLoadLevel(systemResourceUsage, this.getLoadBalancerBrokerUnderloadedThresholdPercentage()));
 
-            loadReport.setSystemResourceUsage(systemResourceUsage);
-            loadReport.setBundleStats(pulsar.getBrokerService().getBundleStats());
-            loadReport.setTimestamp(System.currentTimeMillis());
+                loadReport.setSystemResourceUsage(systemResourceUsage);
+                loadReport.setBundleStats(pulsar.getBrokerService().getBundleStats());
+                loadReport.setTimestamp(System.currentTimeMillis());
 
-            final Set<String> oldBundles = lastLoadReport.getBundles();
-            final Set<String> newBundles = loadReport.getBundles();
-            final Set<String> bundleGains = new HashSet<>();
-            final Set<String> bundleLosses = new HashSet<>();
+                final Set<String> oldBundles = lastLoadReport.getBundles();
+                final Set<String> newBundles = loadReport.getBundles();
+                bundleGainsCache.clear();
+                bundleLossesCache.clear();
 
-            for (String oldBundle : oldBundles) {
-                if (!newBundles.contains(oldBundle)) {
-                    bundleLosses.add(oldBundle);
+                for (String oldBundle : oldBundles) {
+                    if (!newBundles.contains(oldBundle)) {
+                        bundleLossesCache.add(oldBundle);
+                    }
                 }
-            }
 
-            for (String newBundle : newBundles) {
-                if (!oldBundles.contains(newBundle)) {
-                    bundleGains.add(newBundle);
+                for (String newBundle : newBundles) {
+                    if (!oldBundles.contains(newBundle)) {
+                        bundleGainsCache.add(newBundle);
+                    }
                 }
+                loadReport.setBundleGains(bundleGainsCache);
+                loadReport.setBundleLosses(bundleLossesCache);
+
+                final ResourceQuota allocatedQuota = getTotalAllocatedQuota(newBundles);
+                loadReport.setAllocatedCPU(
+                        (allocatedQuota.getMsgRateIn() + allocatedQuota.getMsgRateOut()) * realtimeCpuLoadFactor);
+                loadReport.setAllocatedMemory(allocatedQuota.getMemory());
+                loadReport.setAllocatedBandwidthIn(allocatedQuota.getBandwidthIn());
+                loadReport.setAllocatedBandwidthOut(allocatedQuota.getBandwidthOut());
+                loadReport.setAllocatedMsgRateIn(allocatedQuota.getMsgRateIn());
+                loadReport.setAllocatedMsgRateOut(allocatedQuota.getMsgRateOut());
+
+                final ResourceUnit resourceUnit = new SimpleResourceUnit(String.format("http://%s", loadReport.getName()),
+                        fromLoadReport(loadReport));
+                Set<String> preAllocatedBundles;
+                if (resourceUnitRankings.containsKey(resourceUnit)) {
+                    preAllocatedBundles = resourceUnitRankings.get(resourceUnit).getPreAllocatedBundles();
+                    preAllocatedBundles.removeAll(newBundles);
+                } else {
+                    preAllocatedBundles = new HashSet<>();
+                }
+
+                final ResourceQuota preAllocatedQuota = getTotalAllocatedQuota(preAllocatedBundles);
+
+                loadReport.setPreAllocatedCPU(
+                        (preAllocatedQuota.getMsgRateIn() + preAllocatedQuota.getMsgRateOut()) * realtimeCpuLoadFactor);
+                loadReport.setPreAllocatedMemory(preAllocatedQuota.getMemory());
+                loadReport.setPreAllocatedBandwidthIn(preAllocatedQuota.getBandwidthIn());
+                loadReport.setPreAllocatedBandwidthOut(preAllocatedQuota.getBandwidthOut());
+                loadReport.setPreAllocatedMsgRateIn(preAllocatedQuota.getMsgRateIn());
+                loadReport.setPreAllocatedMsgRateOut(preAllocatedQuota.getMsgRateOut());
+                return loadReport;
+            } catch (Exception e) {
+                log.error("[{}] Failed to generate LoadReport for broker, reason [{}]", e.getMessage(), e);
+                throw e;
             }
-            loadReport.setBundleGains(bundleGains);
-            loadReport.setBundleLosses(bundleLosses);
-
-            final ResourceQuota allocatedQuota = getTotalAllocatedQuota(newBundles);
-            loadReport.setAllocatedCPU(
-                    (allocatedQuota.getMsgRateIn() + allocatedQuota.getMsgRateOut()) * realtimeCpuLoadFactor);
-            loadReport.setAllocatedMemory(allocatedQuota.getMemory());
-            loadReport.setAllocatedBandwidthIn(allocatedQuota.getBandwidthIn());
-            loadReport.setAllocatedBandwidthOut(allocatedQuota.getBandwidthOut());
-            loadReport.setAllocatedMsgRateIn(allocatedQuota.getMsgRateIn());
-            loadReport.setAllocatedMsgRateOut(allocatedQuota.getMsgRateOut());
-
-            final ResourceUnit resourceUnit = new SimpleResourceUnit(String.format("http://%s", loadReport.getName()),
-                    fromLoadReport(loadReport));
-            Set<String> preAllocatedBundles;
-            if (resourceUnitRankings.containsKey(resourceUnit)) {
-                preAllocatedBundles = resourceUnitRankings.get(resourceUnit).getPreAllocatedBundles();
-                preAllocatedBundles.removeAll(newBundles);
-            } else {
-                preAllocatedBundles = new HashSet<>();
-            }
-
-            final ResourceQuota preAllocatedQuota = getTotalAllocatedQuota(preAllocatedBundles);
-
-            loadReport.setPreAllocatedCPU(
-                    (preAllocatedQuota.getMsgRateIn() + preAllocatedQuota.getMsgRateOut()) * realtimeCpuLoadFactor);
-            loadReport.setPreAllocatedMemory(preAllocatedQuota.getMemory());
-            loadReport.setPreAllocatedBandwidthIn(preAllocatedQuota.getBandwidthIn());
-            loadReport.setPreAllocatedBandwidthOut(preAllocatedQuota.getBandwidthOut());
-            loadReport.setPreAllocatedMsgRateIn(preAllocatedQuota.getMsgRateIn());
-            loadReport.setPreAllocatedMsgRateOut(preAllocatedQuota.getMsgRateOut());
-            return loadReport;
-        } catch (Exception e) {
-            log.error("[{}] Failed to generate LoadReport for broker, reason [{}]", e.getMessage(), e);
-            throw e;
         }
     }
 

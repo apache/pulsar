@@ -80,7 +80,6 @@ import io.netty.util.concurrent.DefaultThreadFactory;
  */
 public class PulsarService implements AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(PulsarService.class);
-    private static final String DYNAMIC_LOAD_MANAGER_ZPATH = "/loadbalance/settings/load-manager";
     private ServiceConfiguration config = null;
     private NamespaceService nsservice = null;
     private ManagedLedgerClientFactory managedLedgerClientFactory = null;
@@ -208,28 +207,6 @@ public class PulsarService implements AutoCloseable {
         }
     }
 
-    private class LoadManagerWatcher implements Watcher {
-        public void process(final WatchedEvent event) {
-            executor.execute(() -> {
-                try {
-                    LOG.info("Attempting to change load manager");
-                    final String newLoadManagerName =
-                            new String(getZkClient().getData(DYNAMIC_LOAD_MANAGER_ZPATH, this, null));
-
-                    config.setLoadManagerClassName(newLoadManagerName);
-                    final LoadManager newLoadManager = LoadManager.create(PulsarService.this);
-                    LOG.info("Created load manager: {}", newLoadManagerName);
-                    loadManager.get().disableBroker();
-                    newLoadManager.start();
-                    loadManager.set(newLoadManager);
-
-                } catch (Exception ex) {
-                    LOG.warn("Failed to change load manager due to {}", ex);
-                }
-            });
-        }
-    }
-
     /**
      * Get the current service configuration.
      *
@@ -264,17 +241,6 @@ public class PulsarService implements AutoCloseable {
             this.brokerService = new BrokerService(this);
 
             // Start load management service (even if load balancing is disabled)
-            if (getZkClient().exists(DYNAMIC_LOAD_MANAGER_ZPATH, false) != null) {
-                config.setLoadManagerClassName(new String(getZkClient().getData(DYNAMIC_LOAD_MANAGER_ZPATH, false, null)));
-            }
-
-            try {
-                ZkUtils.createFullPathOptimistic(getZkClient(), DYNAMIC_LOAD_MANAGER_ZPATH,
-                        config.getLoadManagerClassName().getBytes(), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
-            } catch (KeeperException.NodeExistsException e) {
-                // Ignore
-            }
-
             this.loadManager = new AtomicReference<>(LoadManager.create(this));
 
             this.startLoadManagementService();
@@ -348,8 +314,6 @@ public class PulsarService implements AutoCloseable {
             state = State.Started;
 
             acquireSLANamespace();
-
-            getZkClient().getData(DYNAMIC_LOAD_MANAGER_ZPATH, new LoadManagerWatcher(), null);
 
             LOG.info("messaging service is ready, bootstrap service on port={}, broker url={}, cluster={}, configs={}",
                     config.getWebServicePort(), brokerServiceUrl, config.getClusterName(), config);

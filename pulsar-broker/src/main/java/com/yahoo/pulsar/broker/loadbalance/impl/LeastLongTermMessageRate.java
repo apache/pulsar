@@ -1,3 +1,18 @@
+/**
+ * Copyright 2016 Yahoo Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.yahoo.pulsar.broker.loadbalance.impl;
 
 import java.util.ArrayList;
@@ -28,8 +43,12 @@ public class LeastLongTermMessageRate implements ModularLoadManagerStrategy {
         bestBrokers = new ArrayList<>();
     }
 
-    // Form a score for a broker using its preallocated bundle data and time
-    // average data.
+    // Form a score for a broker using its preallocated bundle data and time average data.
+    // This is done by summing all preallocated long-term message rates and adding them to the broker's overall
+    // long-term message rate, which is itself the sum of the long-term message rate of every allocated bundle.
+    // Once the total long-term message rate is calculated, the score is then weighted by
+    // max_usage < overload_threshold ? 1 / (overload_threshold - max_usage): Inf
+    // This weight attempts to discourage the placement of bundles on brokers whose system resource usage is high.
     private static double getScore(final BrokerData brokerData, final ServiceConfiguration conf) {
         final double overloadThreshold = conf.getLoadBalancerBrokerOverloadedThresholdPercentage() / 100;
         double totalMessageRate = 0;

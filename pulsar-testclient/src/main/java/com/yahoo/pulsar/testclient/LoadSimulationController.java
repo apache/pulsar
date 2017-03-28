@@ -1,3 +1,18 @@
+/**
+ * Copyright 2016 Yahoo Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.yahoo.pulsar.testclient;
 
 import java.io.BufferedReader;
@@ -259,7 +274,7 @@ public class LoadSimulationController {
         // the controller.
         final int i = random.nextInt(servers.length);
         System.out.println("Sending trade request to " + servers[i]);
-        outputStreams[i].write(LoadSimulationServer.TRADE_COMMAND);
+        outputStreams[i].write(LoadSimulationClient.TRADE_COMMAND);
         writeProducerOptions(outputStreams[i], arguments, destination);
         outputStreams[i].flush();
         if (inputStreams[i].read() != -1) {
@@ -286,7 +301,7 @@ public class LoadSimulationController {
     private synchronized boolean change(final ShellArguments arguments, final String destination) throws Exception {
         System.out.println("Searching for server with topic " + destination);
         for (DataOutputStream outputStream : outputStreams) {
-            outputStream.write(LoadSimulationServer.CHANGE_COMMAND);
+            outputStream.write(LoadSimulationClient.CHANGE_COMMAND);
             writeProducerOptions(outputStream, arguments, destination);
             outputStream.flush();
         }
@@ -294,11 +309,11 @@ public class LoadSimulationController {
         for (int i = 0; i < servers.length; ++i) {
             int readValue;
             switch (readValue = inputStreams[i].read()) {
-            case LoadSimulationServer.FOUND_TOPIC:
+            case LoadSimulationClient.FOUND_TOPIC:
                 System.out.format("Found topic %s on server %s\n", destination, servers[i]);
                 foundTopic = true;
                 break;
-            case LoadSimulationServer.NO_SUCH_TOPIC:
+            case LoadSimulationClient.NO_SUCH_TOPIC:
                 break;
             case -1:
                 System.out.format("ERROR: Socket to %s closed\n", servers[i]);
@@ -332,7 +347,7 @@ public class LoadSimulationController {
                     commandArguments.get(3));
             System.out.println("Searching for server with topic " + destination);
             for (DataOutputStream outputStream : outputStreams) {
-                outputStream.write(LoadSimulationServer.STOP_COMMAND);
+                outputStream.write(LoadSimulationClient.STOP_COMMAND);
                 outputStream.writeUTF(destination);
                 outputStream.flush();
             }
@@ -340,13 +355,13 @@ public class LoadSimulationController {
             for (int i = 0; i < servers.length; ++i) {
                 int readValue;
                 switch (readValue = inputStreams[i].read()) {
-                case LoadSimulationServer.FOUND_TOPIC:
+                case LoadSimulationClient.FOUND_TOPIC:
                     System.out.format("Found topic %s on server %s\n", destination, servers[i]);
                     foundTopic = true;
                     break;
-                case LoadSimulationServer.NO_SUCH_TOPIC:
+                case LoadSimulationClient.NO_SUCH_TOPIC:
                     break;
-                case LoadSimulationServer.REDUNDANT_COMMAND:
+                case LoadSimulationClient.REDUNDANT_COMMAND:
                     System.out.format("ERROR: Topic %s already stopped on %s\n", destination, servers[i]);
                     foundTopic = true;
                     break;
@@ -394,7 +409,7 @@ public class LoadSimulationController {
             final String tenant = commandArguments.get(1);
             final String group = commandArguments.get(2);
             for (DataOutputStream outputStream : outputStreams) {
-                outputStream.write(LoadSimulationServer.CHANGE_GROUP_COMMAND);
+                outputStream.write(LoadSimulationClient.CHANGE_GROUP_COMMAND);
                 outputStream.writeUTF(tenant);
                 outputStream.writeUTF(group);
                 outputStream.writeInt(arguments.size);
@@ -440,7 +455,7 @@ public class LoadSimulationController {
             final String tenant = commandArguments.get(1);
             final String group = commandArguments.get(2);
             for (DataOutputStream outputStream : outputStreams) {
-                outputStream.write(LoadSimulationServer.STOP_GROUP_COMMAND);
+                outputStream.write(LoadSimulationClient.STOP_GROUP_COMMAND);
                 outputStream.writeUTF(tenant);
                 outputStream.writeUTF(group);
                 outputStream.flush();

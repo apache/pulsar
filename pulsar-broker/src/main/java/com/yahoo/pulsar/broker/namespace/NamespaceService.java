@@ -405,7 +405,7 @@ public class NamespaceService {
         try {
             checkArgument(StringUtils.isNotBlank(candidateBroker), "Lookup broker can't be null " + candidateBroker);
             URI uri = new URI(candidateBroker);
-            String path = String.format("%s/%s:%s", loadManager.get().getBrokerRoot(), uri.getHost(),
+            String path = String.format("%s/%s:%s", LoadManager.LOADBALANCE_BROKERS_ROOT, uri.getHost(),
                     uri.getPort());
             pulsar.getLocalZkCache().getDataAsync(path, serviceLookupDataDeserializer).thenAccept(reportData -> {
                 if (reportData.isPresent()) {
@@ -427,7 +427,7 @@ public class NamespaceService {
     }
 
     private boolean isBrokerActive(String candidateBroker) throws KeeperException, InterruptedException {
-        Set<String> activeNativeBrokers = pulsar.getLocalZkCache().getChildren(loadManager.get().getBrokerRoot());
+        Set<String> activeNativeBrokers = pulsar.getLocalZkCache().getChildren(LoadManager.LOADBALANCE_BROKERS_ROOT);
 
         for (String brokerHostPort : activeNativeBrokers) {
             if (candidateBroker.equals("http://" + brokerHostPort)) {
