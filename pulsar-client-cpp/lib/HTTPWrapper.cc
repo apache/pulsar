@@ -166,7 +166,7 @@ namespace pulsar {
             inputStream >> response_.statusCode;
             std::getline(inputStream, response_.statusMessage);
             // no headers or non http version
-            if (!inputStream || response_.HTTPVersion.substr(0, 5) != "HTTP/" || response_.statusCode != 200) {
+            if (!inputStream || response_.HTTPVersion.substr(0, 5) != "HTTP/" || (response_.statusCode != 200 && response_.statusCode != 307 && response_.statusCode != 308)) {
                 LOG_DEBUG("Invalid response ");
                 response_.errCode = err;
                 response_.retCode = Response::ResponseFailure;
