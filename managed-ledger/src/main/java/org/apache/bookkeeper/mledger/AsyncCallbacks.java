@@ -110,4 +110,10 @@ public interface AsyncCallbacks {
         public void resetFailed(ManagedLedgerException exception, Object ctx);
     }
 
+    public interface ManagedLedgerInfoCallback {
+        public void getInfoComplete(ManagedLedgerInfo info, Object ctx);
+
+        public void getInfoFailed(ManagedLedgerException exception, Object ctx);
+    }
+
 }

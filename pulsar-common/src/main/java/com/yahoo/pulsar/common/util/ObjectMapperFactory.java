@@ -15,8 +15,10 @@
  */
 package com.yahoo.pulsar.common.util;
 
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 
 import io.netty.util.concurrent.FastThreadLocal;
 
@@ -26,6 +28,7 @@ public class ObjectMapperFactory {
         // forward compatibility for the properties may go away in the future
         mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
         mapper.configure(DeserializationFeature.READ_UNKNOWN_ENUM_VALUES_AS_NULL, true);
+        mapper.setSerializationInclusion(Include.NON_NULL);
         return mapper;
     }
 

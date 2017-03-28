@@ -724,7 +724,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         try {
             Consumer consumer = pulsarClient.subscribe(topicName, "mysub", new ConsumerConfiguration());
             fail("It should fail as throttling should not receive any request");
-        } catch (com.yahoo.pulsar.client.api.PulsarClientException.TooManyLookupRequestException e) {
+        } catch (com.yahoo.pulsar.client.api.PulsarClientException.TooManyRequestsException e) {
             // ok as throttling set to 0
         }
     }

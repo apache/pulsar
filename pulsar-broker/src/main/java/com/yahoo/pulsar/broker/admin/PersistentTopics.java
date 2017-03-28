@@ -16,6 +16,7 @@
 package com.yahoo.pulsar.broker.admin;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.yahoo.pulsar.common.util.Codec.decode;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -41,14 +42,19 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.WebApplicationException;
+import javax.ws.rs.container.AsyncResponse;
+import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.ResponseBuilder;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.StreamingOutput;
 
+import org.apache.bookkeeper.mledger.AsyncCallbacks.ManagedLedgerInfoCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerOfflineBacklog;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -87,7 +93,6 @@ import com.yahoo.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import com.yahoo.pulsar.common.policies.data.PersistentTopicInternalStats;
 import com.yahoo.pulsar.common.policies.data.PersistentTopicStats;
 import com.yahoo.pulsar.common.policies.data.Policies;
-import static com.yahoo.pulsar.common.util.Codec.decode;
 import com.yahoo.pulsar.zookeeper.ZooKeeperCache.Deserializer;
 
 import io.netty.buffer.ByteBuf;
@@ -527,6 +532,34 @@ public class PersistentTopics extends AdminResource {
         validateAdminOperationOnDestination(dn, authoritative);
         PersistentTopic topic = getTopicReference(dn);
         return topic.getInternalStats();
+    }
+
+    @GET
+    @Path("{property}/{cluster}/{namespace}/{destination}/internal-info")
+    @ApiOperation(value = "Get the internal stats for the topic.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic does not exist") })
+    public void getManagedLedgerInfo(@PathParam("property") String property, @PathParam("cluster") String cluster,
+            @PathParam("namespace") String namespace, @PathParam("destination") @Encoded String destination,
+            @Suspended AsyncResponse asyncResponse) {
+        destination = decode(destination);
+        DestinationName dn = DestinationName.get(domain(), property, cluster, namespace, destination);
+        validateAdminAccessOnProperty(dn.getProperty());
+
+        String managedLedger = dn.getPersistenceNamingEncoding();
+        pulsar().getManagedLedgerFactory().asyncGetManagedLedgerInfo(managedLedger, new ManagedLedgerInfoCallback() {
+            @Override
+            public void getInfoComplete(ManagedLedgerInfo info, Object ctx) {
+                asyncResponse.resume((StreamingOutput) output -> {
+                    jsonMapper().writer().writeValue(output, info);
+                });
+            }
+
+            @Override
+            public void getInfoFailed(ManagedLedgerException exception, Object ctx) {
+                asyncResponse.resume(exception);
+            }
+        }, null);
     }
 
     @GET

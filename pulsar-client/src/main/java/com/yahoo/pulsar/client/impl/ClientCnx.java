@@ -358,7 +358,7 @@ public class ClientCnx extends PulsarHandler {
             if (log.isDebugEnabled()) {
                 log.debug("{} Failed to add lookup-request into pending queue", requestId);
             }
-            future.completeExceptionally(new PulsarClientException.TooManyLookupRequestException(
+            future.completeExceptionally(new PulsarClientException.TooManyRequestsException(
                     "Failed due to too many pending lookup requests"));
         }
         return future;
@@ -457,7 +457,7 @@ public class ClientCnx extends PulsarHandler {
         case ServiceNotReady:
             return new PulsarClientException.LookupException(errorMsg);
         case TooManyRequests:
-            return new PulsarClientException.TooManyLookupRequestException(errorMsg);    
+            return new PulsarClientException.TooManyRequestsException(errorMsg);    
         case ProducerBlockedQuotaExceededError:
             return new PulsarClientException.ProducerBlockedQuotaExceededError(errorMsg);
         case ProducerBlockedQuotaExceededException:
