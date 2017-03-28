@@ -22,6 +22,10 @@ namespace pulsar {
     using boost::asio::ip::tcp;
     static const HTTPWrapper::Response EMPTY_RESPONSE = HTTPWrapper::Response();
 
+    static void removeCarriage(std::string& str) {
+        str.erase( std::remove(str.begin(), str.end(), '\r'), str.end() );
+    }
+
     std::ostream & operator<<(std::ostream& os, const HTTPWrapper::Request& request) {
         os << HTTPWrapper::getHTTPMethodName(request.method) << " " << request.path << " HTTP/" << request.version << "\r\n";
         os << "Host: " << request.serverUrl.host() << "\r\n";
@@ -95,11 +99,11 @@ namespace pulsar {
         responseStreamPtr_ = executorServiceProviderPtr_->get()->createReadStream();
         socketPtr_ = executorServiceProviderPtr_->get()->createSocket();
         std::ostream requestStream(requestStreamPtr_.get());
-        requestStream << request;
-        LOG_ERROR("HTTP Request Sent: " << request);
+        requestStream << request_;
+        LOG_ERROR("HTTP Request Sent: " << request_);
 
 
-        tcp::resolver::query query(request.serverUrl.host(), boost::lexical_cast<std::string>(request.serverUrl.port()));
+        tcp::resolver::query query(request_.serverUrl.host(), boost::lexical_cast<std::string>(request_.serverUrl.port()));
         resolverPtr_->async_resolve(query,
                                    boost::bind(&HTTPWrapper::handle_resolve, shared_from_this(),
                                                boost::asio::placeholders::error,
@@ -164,6 +168,7 @@ namespace pulsar {
             inputStream >> response_.HTTPVersion;
             inputStream >> response_.statusCode;
             std::getline(inputStream, response_.statusMessage);
+            removeCarriage(response_.statusMessage);
             // no headers or non http version
             if (!inputStream || response_.HTTPVersion.substr(0, 5) != "HTTP/" || (response_.statusCode != 200 && response_.statusCode != 307 && response_.statusCode != 308)) {
                 LOG_DEBUG("Invalid response ");
@@ -190,6 +195,7 @@ namespace pulsar {
             std::string header;
             // response_.headers guaranteed to have atleast one string since reserve called
             while (std::getline(inputStream, header) && header != "\r") {
+                removeCarriage(header);
                 response_.headers.push_back(header);
             }
 
