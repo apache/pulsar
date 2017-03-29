@@ -27,7 +27,7 @@ ClientConnectionContainer::ClientConnectionContainer(size_t connectionsPerBroker
 }
 
 bool ClientConnectionContainer::isFull() {
-    return list_.size() < connectionsPerBroker_;
+    return list_.size() >= connectionsPerBroker_;
 }
 
 ClientConnectionWeakPtr ClientConnectionContainer::getNext() {
