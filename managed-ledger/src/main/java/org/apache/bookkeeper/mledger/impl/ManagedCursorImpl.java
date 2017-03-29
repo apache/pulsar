@@ -222,9 +222,9 @@ public class ManagedCursorImpl implements ManagedCursor {
         // a new ledger and write the position into it
         ledger.mbean.startCursorLedgerOpenOp();
         long ledgerId = info.getCursorsLedgerId();
-        final long now = System.currentTimeMillis();
+        final long now = System.nanoTime();
         bookkeeper.asyncOpenLedger(ledgerId, config.getDigestType(), config.getPassword(), (rc, lh, ctx) -> {
-            ledger.getStore().recordRead(System.currentTimeMillis() - now);
+            ledger.getStore().recordReadLatency(System.nanoTime() - now, 1L);
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Opened ledger {} for consumer {}. rc={}", ledger.getName(), ledgerId, name, rc);
             }
@@ -1825,10 +1825,9 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     void createNewMetadataLedger(final VoidCallback callback) {
         ledger.mbean.startCursorLedgerCreateOp();
-        final long now = System.currentTimeMillis();
         bookkeeper.asyncCreateLedger(config.getMetadataEnsemblesize(), config.getMetadataWriteQuorumSize(),
                 config.getMetadataAckQuorumSize(), config.getDigestType(), config.getPassword(), (rc, lh, ctx) -> {
-                    ledger.getStore().recordWrite(System.currentTimeMillis() - now);
+                    ledger.getStore().recordWriteCount(3L); // create-ledger-performs-3-write
                     ledger.getExecutor().submit(safeRun(() -> {
                         ledger.mbean.endCursorLedgerCreateOp();
                         if (rc != BKException.Code.OK) {

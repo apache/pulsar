@@ -93,7 +93,8 @@ public class ManagedLedgerMetricsTest extends BrokerTestBase {
         pulsarClient.createProducer("persistent://my-property/use/my-ns/my-topic1");
         Metrics zkOpMetric = getMetric("zk_op_stats");
         Assert.assertNotNull(zkOpMetric);
-        Assert.assertTrue((double) zkOpMetric.getMetrics().get("zk_latenc_99_99_percentile_ms") > 0);
+        Assert.assertTrue(zkOpMetric.getMetrics().containsKey("zk_latency_write_99_99_percentile_ms"));
+        Assert.assertTrue(zkOpMetric.getMetrics().containsKey("zk_latency_read_99_99_percentile_ms"));
         Assert.assertTrue((long) zkOpMetric.getMetrics().get("zk_read_rate") > 0);
         Assert.assertTrue((long) zkOpMetric.getMetrics().get("zk_write_rate") > 0);
 

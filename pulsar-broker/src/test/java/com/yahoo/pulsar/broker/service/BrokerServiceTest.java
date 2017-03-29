@@ -302,7 +302,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         consumer.close();
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
         JsonArray metrics = brokerStatsClient.getMetrics();
-        assertEquals(metrics.size(), 4, metrics.toString());
+        assertEquals(metrics.size(), 5, metrics.toString());
 
         // these metrics seem to be arriving in different order at different times...
         // is the order really relevant here?

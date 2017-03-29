@@ -41,7 +41,8 @@ public class DimensionStats {
 
     public double elapsedIntervalMs;
 
-    private Recorder dimensionTimeRecorder = new Recorder(TimeUnit.MINUTES.toMillis(10), 2);
+    private final long maxTrackableSeconds = 120;
+    private Recorder dimensionTimeRecorder = new Recorder(TimeUnit.SECONDS.toMillis(maxTrackableSeconds), 2);
     private Histogram dimensionHistogram = null;
 
     public void updateStats() {
@@ -58,6 +59,7 @@ public class DimensionStats {
     }
 
     public void recordValue(long dimensionLatencyMs) {
+        dimensionLatencyMs = dimensionLatencyMs > maxTrackableSeconds ? maxTrackableSeconds : dimensionLatencyMs;
         dimensionTimeRecorder.recordValue(dimensionLatencyMs);
     }
 }

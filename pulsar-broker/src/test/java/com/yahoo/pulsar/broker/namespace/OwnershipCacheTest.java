@@ -28,8 +28,9 @@ import static org.testng.Assert.fail;
 
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
+import org.apache.bookkeeper.mledger.impl.MetaStoreImplZookeeper;
 import org.apache.bookkeeper.util.OrderedSafeExecutor;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.KeeperException.NoNodeException;
@@ -59,6 +60,8 @@ public class OwnershipCacheTest {
     private NamespaceBundleFactory bundleFactory;
     private NamespaceService nsService;
     private BrokerService brokerService;
+    private ManagedLedgerFactoryImpl ledgerFactory;
+    private MetaStoreImplZookeeper metaStore;
     private OrderedSafeExecutor executor;
 
     @BeforeMethod
@@ -67,12 +70,14 @@ public class OwnershipCacheTest {
         selfBrokerUrl = "tcp://localhost:" + port;
         pulsar = mock(PulsarService.class);
         config = mock(ServiceConfiguration.class);
+        ledgerFactory = mock(ManagedLedgerFactoryImpl.class);
         executor = new OrderedSafeExecutor(1, "test");
         zkCache = new LocalZooKeeperCache(MockZooKeeper.newInstance(), executor);
         localCache = new LocalZooKeeperCacheService(zkCache, null);
         bundleFactory = new NamespaceBundleFactory(pulsar, Hashing.crc32());
         nsService = mock(NamespaceService.class);
         brokerService = mock(BrokerService.class);
+        metaStore = new MetaStoreImplZookeeper(zkCache.getZooKeeper(), executor);
         doReturn(CompletableFuture.completedFuture(1)).when(brokerService).unloadServiceUnit(anyObject());
 
         doReturn(zkCache).when(pulsar).getLocalZkCache();
@@ -83,6 +88,8 @@ public class OwnershipCacheTest {
         doReturn(brokerService).when(pulsar).getBrokerService();
         doReturn(webAddress(config)).when(pulsar).getWebServiceAddress();
         doReturn(selfBrokerUrl).when(pulsar).getBrokerServiceUrl();
+        doReturn(ledgerFactory).when(pulsar).getManagedLedgerFactory();
+        doReturn(metaStore).when(ledgerFactory).getMetaStore();
     }
 
     @AfterMethod

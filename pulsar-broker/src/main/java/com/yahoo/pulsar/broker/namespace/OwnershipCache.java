@@ -127,10 +127,10 @@ public class OwnershipCache {
             }
 
             CompletableFuture<OwnedBundle> future = new CompletableFuture<>();
-            final long now = System.currentTimeMillis();
+            final long now = System.nanoTime();
             ZkUtils.asyncCreateFullPathOptimistic(localZkCache.getZooKeeper(), namespaceBundleZNode, znodeContent,
                     Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL, (rc, path, ctx, name) -> {
-                        metaStore.recordWrite(System.currentTimeMillis() - now);
+                        metaStore.recordWriteLatency(System.nanoTime() - now, 1L);
                         if (rc == KeeperException.Code.OK.intValue()) {
                             if (LOG.isDebugEnabled()) {
                                 LOG.debug("Successfully acquired zk lock on {}", namespaceBundleZNode);
@@ -258,9 +258,9 @@ public class OwnershipCache {
     public CompletableFuture<Void> removeOwnership(NamespaceBundle bundle) {
         CompletableFuture<Void> result = new CompletableFuture<>();
         String key = ServiceUnitZkUtils.path(bundle);
-        final long now = System.currentTimeMillis();
+        final long now = System.nanoTime();
         localZkCache.getZooKeeper().delete(key, -1, (rc, path, ctx) -> {
-            metaStore.recordWrite(System.currentTimeMillis() - now);
+            metaStore.recordWriteLatency(System.nanoTime() - now, 1L);
             if (rc == KeeperException.Code.OK.intValue() || rc == KeeperException.Code.NONODE.intValue()) {
                 LOG.info("[{}] Removed zk lock for service unit: {}", key, KeeperException.Code.get(rc));
                 ownedBundlesCache.synchronous().invalidate(key);
