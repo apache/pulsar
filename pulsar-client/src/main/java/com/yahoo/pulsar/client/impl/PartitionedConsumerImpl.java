@@ -466,15 +466,15 @@ public class PartitionedConsumerImpl extends ConsumerBase {
                 brokerConsumerStats.add(index, stats);
             }));
         }
-        
-        CompletableFuture<BrokerConsumerStats> future = FutureUtil.waitForAll(futures).thenApply(r -> {
-            return brokerConsumerStats;
-        });
-        
-        if (future.isCompletedExceptionally()) {
+        final CompletableFuture<BrokerConsumerStats> future = new CompletableFuture<BrokerConsumerStats>();
+        FutureUtil.waitForAll(futures).thenApply(r -> {
+            future.complete(brokerConsumerStats);
+            return (BrokerConsumerStats) brokerConsumerStats;
+        }).exceptionally(ex -> {
             brokerConsumerStats.clear();
-        }
-        
+            future.completeExceptionally(ex);
+            return null;
+        });
         return future;
     }
 }

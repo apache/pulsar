@@ -75,15 +75,12 @@ public class BrokerConsumerStatsTest extends BrokerTestBase {
         try {
             // 3. Consumer all messages routed to consumer1
             Message msg = null;
-            while (true) {
-                msg = consumer1.receive(10, TimeUnit.MILLISECONDS);
+            do {
+                msg = consumer1.receive(1, TimeUnit.SECONDS);
                 if (msg != null) {
                     consumer1.acknowledge(msg);
-                    count++;
-                } else {
-                    break;
                 }
-            }
+            } while(msg != null);
 
             // 4. Check subscription type
             log.debug(consumer1.getBrokerConsumerStatsAsync().get().toString());
@@ -92,30 +89,24 @@ public class BrokerConsumerStatsTest extends BrokerTestBase {
             Assert.assertEquals(consumer1.getBrokerConsumerStatsAsync().get().getMsgBacklog(), totalMessages - count);
 
             // 5. Consumer all messages routed to consumer2
-            while (true) {
-                msg = consumer2.receive(10, TimeUnit.MILLISECONDS);
+            do {
+                msg = consumer2.receive(1, TimeUnit.SECONDS);
                 if (msg != null) {
                     consumer2.acknowledge(msg);
-                    count++;
-                } else {
-                    break;
                 }
-            }
+            } while(msg != null);
 
             // 6. Check consumer2 backlog
             log.debug(consumer2.getBrokerConsumerStatsAsync().get().toString());
             Assert.assertEquals(consumer2.getBrokerConsumerStatsAsync().get().getMsgBacklog(), totalMessages - count);
 
             // 7. Consume all messages routed to consumer2
-            while (true) {
-                msg = consumer3.receive(10, TimeUnit.MILLISECONDS);
+            do {
+                msg = consumer3.receive(1, TimeUnit.SECONDS);
                 if (msg != null) {
                     consumer3.acknowledge(msg);
-                    count++;
-                } else {
-                    break;
                 }
-            }
+            } while(msg != null);
 
             // 6. Check consumer3 backlog
             log.debug(consumer3.getBrokerConsumerStatsAsync().get().toString());
@@ -157,14 +148,12 @@ public class BrokerConsumerStatsTest extends BrokerTestBase {
             
             // 4. Consume all messages
             Message msg = null;
-            while (true) {
-                msg = consumer.receive(10, TimeUnit.MILLISECONDS);
+            do {
+                msg = consumer.receive(1, TimeUnit.SECONDS);
                 if (msg != null) {
                     consumer.acknowledge(msg);
-                } else {
-                    break;
                 }
-            }
+            } while(msg != null);
 
             Thread.sleep(2 * 1000);
             // 5. Cached results returned
