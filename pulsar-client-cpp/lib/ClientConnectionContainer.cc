@@ -31,6 +31,9 @@ bool ClientConnectionContainer::isFull() {
 }
 
 ClientConnectionWeakPtr ClientConnectionContainer::getNext() {
+    if (list_.empty()) {
+        return ClientConnectionWeakPtr();
+    }
     currentIndex_ = (currentIndex_ + 1) % list_.size();
     return list_[currentIndex_];
 }
@@ -40,6 +43,9 @@ void ClientConnectionContainer::add(ClientConnectionWeakPtr cnx) {
 }
 
 void ClientConnectionContainer::remove() {
+    if (list_.empty()) {
+        return;
+    }
     list_.erase(list_.begin() + currentIndex_);
     currentIndex_ = currentIndex_ % list_.size();
 }
