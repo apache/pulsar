@@ -79,6 +79,7 @@ public class BrokerConsumerStatsTest extends BrokerTestBase {
                 msg = consumer1.receive(1, TimeUnit.SECONDS);
                 if (msg != null) {
                     consumer1.acknowledge(msg);
+                    count++;
                 }
             } while(msg != null);
 
@@ -93,6 +94,7 @@ public class BrokerConsumerStatsTest extends BrokerTestBase {
                 msg = consumer2.receive(1, TimeUnit.SECONDS);
                 if (msg != null) {
                     consumer2.acknowledge(msg);
+                    count++;
                 }
             } while(msg != null);
 
@@ -105,6 +107,7 @@ public class BrokerConsumerStatsTest extends BrokerTestBase {
                 msg = consumer3.receive(1, TimeUnit.SECONDS);
                 if (msg != null) {
                     consumer3.acknowledge(msg);
+                    count++;
                 }
             } while(msg != null);
 
@@ -127,7 +130,7 @@ public class BrokerConsumerStatsTest extends BrokerTestBase {
 
         // 1. Create consumer
         ConsumerConfiguration conf = new ConsumerConfiguration();
-        conf.setBrokerConsumerStatsCacheTime(3, TimeUnit.SECONDS);
+        conf.setBrokerConsumerStatsCacheTime(6, TimeUnit.SECONDS);
         Consumer consumer = pulsarClient.subscribe(topicName + topicNamePostFix, "my-subscriber-name", conf);
 
         // 2. Create producer and produce messages
@@ -155,7 +158,6 @@ public class BrokerConsumerStatsTest extends BrokerTestBase {
                 }
             } while(msg != null);
 
-            Thread.sleep(2 * 1000);
             // 5. Cached results returned
             Assert.assertEquals(consumer.getBrokerConsumerStatsAsync().get().getMsgBacklog(), totalMessages);
             Assert.assertTrue(consumer.getBrokerConsumerStatsAsync().get().isValid());
@@ -163,7 +165,7 @@ public class BrokerConsumerStatsTest extends BrokerTestBase {
             Assert.assertTrue(stats.isValid());
 
             // 6. Waiting for cache time to expire
-            Thread.sleep(2 * 1000);
+            Thread.sleep(8 * 1000);
             Assert.assertEquals(consumer.getBrokerConsumerStatsAsync().get().getMsgBacklog(), 0);
             Assert.assertNotEquals(stats, consumer.getBrokerConsumerStatsAsync().get());
             Assert.assertFalse(stats.isValid());
@@ -200,15 +202,14 @@ public class BrokerConsumerStatsTest extends BrokerTestBase {
             BrokerConsumerStats stats = consumer.getBrokerConsumerStatsAsync().get();
             Assert.assertEquals(stats.getSubscriptionType(), SubscriptionType.Exclusive);
             Assert.assertEquals(stats.getMsgBacklog(), totalMessages);
+            Thread.sleep(4 * 1000);
+            Assert.assertTrue(consumer.getBrokerConsumerStatsAsync().get().isValid());
             
             // 5. check if stats are instance of PartitionedBrokerConsumerStatsImpl
             Assert.assertTrue(stats instanceof PartitionedBrokerConsumerStatsImpl);
             Assert.assertEquals(((PartitionedBrokerConsumerStatsImpl) stats).get(0).getMsgBacklog(), totalMessages / 3);
             Assert.assertEquals(((PartitionedBrokerConsumerStatsImpl) stats).get(1).getMsgBacklog(), totalMessages / 3);
             Assert.assertEquals(((PartitionedBrokerConsumerStatsImpl) stats).get(2).getMsgBacklog(), totalMessages / 3);
-
-            Thread.sleep(2 * 1000);
-            Assert.assertTrue(consumer.getBrokerConsumerStatsAsync().get().isValid());
         } catch (Exception ex) {
             Assert.fail("Exception:" + ex);
         } finally {

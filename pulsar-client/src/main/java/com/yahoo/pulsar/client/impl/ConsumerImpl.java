@@ -1029,7 +1029,7 @@ public class ConsumerImpl extends ConsumerBase {
         
         long requestId = client.newRequestId();
         return cnx().newConsumerStats(topic, subscription, consumerId, requestId)
-                .thenApplyAsync(brokerConsumerStats -> {
+                .thenApply(brokerConsumerStats -> {
                     brokerConsumerStats.setCacheTime(conf.getBrokerConsumerStatsCacheTimeInMs());
                     this.brokerConsumerStats = brokerConsumerStats;
                     return brokerConsumerStats;
