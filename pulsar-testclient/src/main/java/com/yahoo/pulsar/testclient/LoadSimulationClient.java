@@ -314,8 +314,7 @@ public class LoadSimulationClient {
                         new DefaultThreadFactory("pulsar-test-client"));
         clientConf = new ClientConfiguration();
 
-        // Disable connection pooling.
-        clientConf.setConnectionsPerBroker(0);
+        clientConf.setConnectionsPerBroker(4);
 
         // Disable stats on the clients to reduce CPU/memory usage.
         clientConf.setStatsInterval(0, TimeUnit.SECONDS);

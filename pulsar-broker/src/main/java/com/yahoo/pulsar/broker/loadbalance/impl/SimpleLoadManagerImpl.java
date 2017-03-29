@@ -889,8 +889,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
             }
             brokerCandidateCache.clear();
             try {
-                LoadManagerShared.applyPolicies(serviceUnit, policies, brokerCandidateCache,
-                        availableBrokersCache);
+                LoadManagerShared.applyPolicies(serviceUnit, policies, brokerCandidateCache, availableBrokersCache);
             } catch (Exception e) {
                 log.warn("Error when trying to apply policies: {}", e);
                 for (final Map.Entry<Long, Set<ResourceUnit>> entry : availableBrokers.entrySet()) {

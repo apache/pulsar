@@ -83,9 +83,6 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
     // Note that the default message size is implicitly defined as DEFAULT_MESSAGE_THROUGHPUT / DEFAULT_MESSAGE_RATE.
     public static final double DEFAULT_MESSAGE_THROUGHPUT = 50000;
 
-    // Value of prefix "mibi" (e.g., number of bytes in a mibibyte).
-    public static final int MIBI = 1024 * 1024;
-
     // The number of effective samples to keep for observing long term data.
     public static final int NUM_LONG_SAMPLES = 1000;
 
