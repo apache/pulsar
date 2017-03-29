@@ -25,6 +25,7 @@
 #include "boost/date_time/posix_time/posix_time.hpp"
 #include "CustomRoutingPolicy.h"
 #include <boost/thread.hpp>
+#include <boost/thread/mutex.hpp>
 
 #include "HttpHelper.h"
 
@@ -34,6 +35,7 @@ DECLARE_LOG_OBJECT()
 
 using namespace pulsar;
 
+boost::mutex mutex_;
 static int globalTestBatchMessagesCounter = 0;
 static int globalCount = 0;
 static int globalResendMessageCount = 0;
@@ -119,13 +121,19 @@ TEST(BasicEndToEndTest, testBatchMessages)
 }
 
 void resendMessage(Result r, const Message& msg, Producer &producer) {
+    int attemptNumber = boost::lexical_cast<int>(msg.getProperty("attempt#"));
+	Lock lock(mutex_);
     if (r != ResultOk) {
-        int attemptNumber = boost::lexical_cast<int>(msg.getProperty("attempt#"));
-        if (attemptNumber++ < 3) {
+        LOG_DEBUG("attempt#" << attemptNumber);
+        if (attemptNumber < 3) {
             globalResendMessageCount++;
-            producer.sendAsync(MessageBuilder().setProperty("attempt#", boost::lexical_cast<std::string>(attemptNumber)).build(),
+            lock.unlock();
+            producer.sendAsync(MessageBuilder().setProperty("attempt#", boost::lexical_cast<std::string>(attemptNumber + 1)).build(),
                                    boost::bind(resendMessage, _1, _2, producer));
         }
+    } else {
+        producer.sendAsync(MessageBuilder().setProperty("attempt#", boost::lexical_cast<std::string>(attemptNumber + 1)).build(),
+                               boost::bind(resendMessage, _1, _2, producer));
     }
 }
 
@@ -378,6 +386,11 @@ TEST(BasicEndToEndTest, testPartitionedProducerConsumer)
     Producer producer;
     Result result = client.createProducer(topicName, producer);
     ASSERT_EQ(ResultOk, result);
+
+    Consumer consumer;
+    result = client.subscribe(topicName, "subscription-A", consumer);
+    ASSERT_EQ(ResultOk, result);
+
     for (int i = 0; i < 10; i++ ) {
         boost::posix_time::ptime t(boost::posix_time::microsec_clock::universal_time());
         long nanoSeconds = t.time_of_day().total_nanoseconds();
@@ -388,9 +401,7 @@ TEST(BasicEndToEndTest, testPartitionedProducerConsumer)
         LOG_INFO("Message Timestamp is " << msg.getPublishTimestamp());
         LOG_INFO("Message is " << msg);
     }
-    Consumer consumer;
-    result = client.subscribe(topicName, "subscription-A", consumer);
-    ASSERT_EQ(ResultOk, result);
+
     ASSERT_EQ(consumer.getSubscriptionName(), "subscription-A");
     for (int i = 0; i < 10; i++) {
         Message m;
@@ -815,6 +826,6 @@ TEST(BasicEndToEndTest, testMessageListenerPause)
 
     // 3 seconds
     usleep(3 * 1000 * 1000);
-
+	Lock lock(mutex_);
     ASSERT_EQ(globalResendMessageCount, 3);
 }
