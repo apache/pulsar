@@ -97,8 +97,12 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
     private long brokerRotationCursor = 0;
     // load balancing metrics
     private AtomicReference<List<Metrics>> loadBalancingMetrics = new AtomicReference<>();
+
     // Cache of brokers to be used in applying policies and determining final candidates.
     private final Set<String> brokerCandidateCache;
+
+    // Other policy selection caches.
+    private final Set<String> availableBrokersCache;
 
     // Caches for bundle gains and losses.
     private final Set<String> bundleGainsCache;
@@ -188,6 +192,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
         bundleGainsCache = new HashSet<>();
         bundleLossesCache = new HashSet<>();
         brokerCandidateCache = new HashSet<>();
+        availableBrokersCache = new HashSet<>();
     }
 
     @Override
@@ -876,13 +881,19 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
             Map<Long, Set<ResourceUnit>> availableBrokers) {
         synchronized (brokerCandidateCache) {
             final Multimap<Long, ResourceUnit> result = TreeMultimap.create();
+            availableBrokersCache.clear();
+            for (final Set<ResourceUnit> resourceUnits : availableBrokers.values()) {
+                for (final ResourceUnit resourceUnit : resourceUnits) {
+                    availableBrokersCache.add(resourceUnit.getResourceId().replace("http://", ""));
+                }
+            }
             brokerCandidateCache.clear();
             try {
                 LoadManagerShared.applyPolicies(serviceUnit, policies, brokerCandidateCache,
-                        availableActiveBrokers.get());
+                        availableBrokersCache);
             } catch (Exception e) {
                 log.warn("Error when trying to apply policies: {}", e);
-                for (final Map.Entry<Long, Set<ResourceUnit>> entry: availableBrokers.entrySet()) {
+                for (final Map.Entry<Long, Set<ResourceUnit>> entry : availableBrokers.entrySet()) {
                     result.putAll(entry.getKey(), entry.getValue());
                 }
                 return result;
