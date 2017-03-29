@@ -36,6 +36,16 @@ public class PositionImpl implements Position, Comparable<PositionImpl> {
 
     private final Handle recyclerHandle;
 
+    private static final Recycler<PositionImpl> RECYCLER = new Recycler<PositionImpl>() {
+        protected PositionImpl newObject(Recycler.Handle handle) {
+            return new PositionImpl(handle);
+        }
+    };
+
+    private PositionImpl(Handle recyclerHandle) {
+        this.recyclerHandle = recyclerHandle;
+    }
+
     public PositionImpl(PositionInfo pi) {
         this.ledgerId = pi.getLedgerId();
         this.entryId = pi.getEntryId();
@@ -60,24 +70,19 @@ public class PositionImpl implements Position, Comparable<PositionImpl> {
         this.recyclerHandle = null;
     }
 
-    private PositionImpl(Handle recyclerHandle) {
-        this.recyclerHandle = recyclerHandle;
-    }
-
     public static PositionImpl get(long ledgerId, long entryId) {
-        // PositionImpl position = RECYCLER.get();
-        // position.ledgerId = ledgerId;
-        // position.entryId = entryId;
-        // return position;
         return new PositionImpl(ledgerId, entryId);
     }
 
     public static PositionImpl get(PositionImpl other) {
-        // PositionImpl position = RECYCLER.get();
-        // position.ledgerId = other.ledgerId;
-        // position.entryId = other.entryId;
-        // return position;
         return new PositionImpl(other);
+    }
+
+    public static PositionImpl create(long ledgerId, long entryId) {
+        PositionImpl position = RECYCLER.get();
+        position.ledgerId = ledgerId;
+        position.entryId = entryId;
+        return position;
     }
 
     public long getLedgerId() {
@@ -127,12 +132,6 @@ public class PositionImpl implements Position, Comparable<PositionImpl> {
     public PositionInfo getPositionInfo() {
         return PositionInfo.newBuilder().setLedgerId(ledgerId).setEntryId(entryId).build();
     }
-
-    private static final Recycler<PositionImpl> RECYCLER = new Recycler<PositionImpl>() {
-        protected PositionImpl newObject(Recycler.Handle handle) {
-            return new PositionImpl(handle);
-        }
-    };
 
     public void recycle() {
         if (recyclerHandle != null) {

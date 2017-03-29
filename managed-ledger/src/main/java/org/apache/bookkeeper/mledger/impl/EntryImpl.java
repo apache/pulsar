@@ -40,7 +40,7 @@ final class EntryImpl implements Entry, Comparable<EntryImpl>, ReferenceCounted 
 
     public static EntryImpl create(LedgerEntry ledgerEntry) {
         EntryImpl entry = RECYCLER.get();
-        entry.position = new PositionImpl(ledgerEntry.getLedgerId(), ledgerEntry.getEntryId());
+        entry.position = PositionImpl.create(ledgerEntry.getLedgerId(), ledgerEntry.getEntryId());
         entry.data = ledgerEntry.getEntryBuffer();
         return entry;
     }
@@ -48,14 +48,14 @@ final class EntryImpl implements Entry, Comparable<EntryImpl>, ReferenceCounted 
     // Used just for tests
     public static EntryImpl create(long ledgerId, long entryId, byte[] data) {
         EntryImpl entry = RECYCLER.get();
-        entry.position = new PositionImpl(ledgerId, entryId);
+        entry.position = PositionImpl.create(ledgerId, entryId);
         entry.data = Unpooled.wrappedBuffer(data);
         return entry;
     }
 
     public static EntryImpl create(long ledgerId, long entryId, ByteBuf data) {
         EntryImpl entry = RECYCLER.get();
-        entry.position = new PositionImpl(ledgerId, entryId);
+        entry.position = PositionImpl.create(ledgerId, entryId);
         entry.data = data;
         return entry;
     }
@@ -105,7 +105,9 @@ final class EntryImpl implements Entry, Comparable<EntryImpl>, ReferenceCounted 
 
     @Override
     public PositionImpl getPosition() {
-        return position;
+        // return new non-recyclable instance of position as this.position will be recycled once (EntryImpl)this will be
+        // recycled. So, return new instance whose life-cycle doesn't depend on EntryImpl
+        return new PositionImpl(position);
     }
 
     @Override
@@ -129,6 +131,8 @@ final class EntryImpl implements Entry, Comparable<EntryImpl>, ReferenceCounted 
     @Override
     public void recycle() {
         this.data = null;
+        // recycle position if it is recyclable object
+        this.position.recycle();
         this.position = null;
         if (recyclerHandle != null) {
             RECYCLER.recycle(this, recyclerHandle);
