@@ -52,7 +52,8 @@ public class LoadManagerShared {
     // Determines the brokers available for the given service unit according to the given policies.
     // The brokers are put into brokerCandidateCache.
     public static synchronized void applyPolicies(final ServiceUnitId serviceUnit,
-            final SimpleResourceAllocationPolicies policies, final Set<String> brokerCandidateCache) {
+            final SimpleResourceAllocationPolicies policies, final Set<String> brokerCandidateCache,
+            final Set<String> availableBrokers) {
         primariesCache.clear();
         sharedCache.clear();
         NamespaceName namespace = serviceUnit.getNamespaceObject();
@@ -60,7 +61,7 @@ public class LoadManagerShared {
         if (isIsolationPoliciesPresent) {
             log.debug("Isolation Policies Present for namespace - [{}]", namespace.toString());
         }
-        for (final String broker : brokerCandidateCache) {
+        for (final String broker : availableBrokers) {
             final String brokerUrlString = String.format("http://%s", broker);
             URL brokerUrl;
             try {

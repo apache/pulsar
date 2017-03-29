@@ -204,7 +204,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
                 if (log.isDebugEnabled()) {
                     log.debug("Update Received for path {}", path);
                 }
-                scheduler.submit(ModularLoadManagerImpl.this::updateLocalBrokerData);
+                scheduler.submit(ModularLoadManagerImpl.this::updateAll);
             }
         });
 
@@ -472,8 +472,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
         }
         final BundleData data = loadData.getBundleData().computeIfAbsent(bundle, key -> getBundleDataOrDefault(bundle));
         brokerCandidateCache.clear();
-        brokerCandidateCache.addAll(loadData.getBrokerData().keySet());
-        LoadManagerShared.applyPolicies(serviceUnit, policies, brokerCandidateCache);
+        LoadManagerShared.applyPolicies(serviceUnit, policies, brokerCandidateCache, loadData.getBrokerData().keySet());
 
         // Use the filter pipeline to finalize broker candidates.
         for (BrokerFilter filter : filterPipeline) {

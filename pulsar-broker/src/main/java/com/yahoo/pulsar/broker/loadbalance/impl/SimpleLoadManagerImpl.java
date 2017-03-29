@@ -786,89 +786,87 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
         // the total message rate which is in the range [0,Infinity) so they are unbounded. The
         // "boundedness" affects how two ranks are compared to see which one is better
         boolean unboundedRanks = getLoadBalancerPlacementStrategy().equals(LOADBALANCER_STRATEGY_LEAST_MSG);
-        synchronized (resourceUnitRankings) {
-            long randomBrokerIndex = (candidates.size() > 0) ? (this.brokerRotationCursor % candidates.size()) : 0;
+        long randomBrokerIndex = (candidates.size() > 0) ? (this.brokerRotationCursor % candidates.size()) : 0;
 
-            // find the least loaded & not-idle broker
-            for (Map.Entry<Long, ResourceUnit> candidateOwner : candidates.entries()) {
-                ResourceUnit candidate = candidateOwner.getValue();
-                randomBrokerIndex--;
+        // find the least loaded & not-idle broker
+        for (Map.Entry<Long, ResourceUnit> candidateOwner : candidates.entries()) {
+            ResourceUnit candidate = candidateOwner.getValue();
+            randomBrokerIndex--;
 
-                // skip broker which is not ranked. this should never happen except in unit test
-                if (!resourceUnitRankings.containsKey(candidate)) {
-                    continue;
+            // skip broker which is not ranked. this should never happen except in unit test
+            if (!resourceUnitRankings.containsKey(candidate)) {
+                continue;
+            }
+
+            // check if this ServiceUnit is already pre-allocated
+            String resourceUnitId = candidate.getResourceId();
+            ResourceUnitRanking ranking = resourceUnitRankings.get(candidate);
+            if (ranking.isServiceUnitPreAllocated(serviceUnitId)) {
+                return candidate;
+            }
+
+            // check if this ServiceUnit is already loaded
+            if (ranking.isServiceUnitLoaded(serviceUnitId)) {
+                ranking.removeLoadedServiceUnit(serviceUnitId, this.getResourceQuota(serviceUnitId));
+            }
+
+            // record a random broker
+            if (randomBrokerIndex < 0 && randomRU == null) {
+                randomRU = candidate;
+            }
+
+            // check the available capacity
+            double loadPercentage = ranking.getEstimatedLoadPercentage();
+            double availablePercentage = Math.max(0, (100 - loadPercentage) / 100);
+            long availability = (long) (ranking.estimateMaxCapacity(defaultQuota) * availablePercentage);
+            if (availability > maxAvailability) {
+                maxAvailability = availability;
+                maxAvailableRU = candidate;
+            }
+
+            // check the load percentage
+            if (ranking.isIdle()) {
+                if (idleRU == null) {
+                    idleRU = candidate;
                 }
-
-                // check if this ServiceUnit is already pre-allocated
-                String resourceUnitId = candidate.getResourceId();
-                ResourceUnitRanking ranking = resourceUnitRankings.get(candidate);
-                if (ranking.isServiceUnitPreAllocated(serviceUnitId)) {
-                    return candidate;
-                }
-
-                // check if this ServiceUnit is already loaded
-                if (ranking.isServiceUnitLoaded(serviceUnitId)) {
-                    ranking.removeLoadedServiceUnit(serviceUnitId, this.getResourceQuota(serviceUnitId));
-                }
-
-                // record a random broker
-                if (randomBrokerIndex < 0 && randomRU == null) {
-                    randomRU = candidate;
-                }
-
-                // check the available capacity
-                double loadPercentage = ranking.getEstimatedLoadPercentage();
-                double availablePercentage = Math.max(0, (100 - loadPercentage) / 100);
-                long availability = (long) (ranking.estimateMaxCapacity(defaultQuota) * availablePercentage);
-                if (availability > maxAvailability) {
-                    maxAvailability = availability;
-                    maxAvailableRU = candidate;
-                }
-
-                // check the load percentage
-                if (ranking.isIdle()) {
-                    if (idleRU == null) {
-                        idleRU = candidate;
-                    }
+            } else {
+                if (selectedRU == null) {
+                    selectedRU = candidate;
+                    selectedRanking = ranking;
+                    minLoadPercentage = loadPercentage;
                 } else {
-                    if (selectedRU == null) {
+                    if ((unboundedRanks ? ranking.compareMessageRateTo(selectedRanking)
+                            : ranking.compareTo(selectedRanking)) < 0) {
+                        minLoadPercentage = loadPercentage;
                         selectedRU = candidate;
                         selectedRanking = ranking;
-                        minLoadPercentage = loadPercentage;
-                    } else {
-                        if ((unboundedRanks ? ranking.compareMessageRateTo(selectedRanking)
-                                : ranking.compareTo(selectedRanking)) < 0) {
-                            minLoadPercentage = loadPercentage;
-                            selectedRU = candidate;
-                            selectedRanking = ranking;
-                        }
                     }
                 }
             }
+        }
 
-            if ((minLoadPercentage > underloadThreshold && idleRU != null) || selectedRU == null) {
-                // assigned to idle broker is the least loaded broker already have optimum load (which means NOT
-                // underloaded), or all brokers are idle
-                selectedRU = idleRU;
-            } else if (minLoadPercentage >= 100.0 && randomRU != null && !unboundedRanks) {
-                // all brokers are full, assign to a random one
-                selectedRU = randomRU;
-            } else if (minLoadPercentage > overloadThreshold && !unboundedRanks) {
-                // assign to the broker with maximum available capacity if all brokers are overloaded
-                selectedRU = maxAvailableRU;
-            }
+        if ((minLoadPercentage > underloadThreshold && idleRU != null) || selectedRU == null) {
+            // assigned to idle broker is the least loaded broker already have optimum load (which means NOT
+            // underloaded), or all brokers are idle
+            selectedRU = idleRU;
+        } else if (minLoadPercentage >= 100.0 && randomRU != null && !unboundedRanks) {
+            // all brokers are full, assign to a random one
+            selectedRU = randomRU;
+        } else if (minLoadPercentage > overloadThreshold && !unboundedRanks) {
+            // assign to the broker with maximum available capacity if all brokers are overloaded
+            selectedRU = maxAvailableRU;
+        }
 
-            // re-calculate load level for selected broker
-            if (selectedRU != null) {
-                this.brokerRotationCursor = (this.brokerRotationCursor + 1) % 1000000;
-                ResourceUnitRanking ranking = resourceUnitRankings.get(selectedRU);
-                String loadPercentageDesc = ranking.getEstimatedLoadPercentageString();
-                log.info("Assign {} to {} with ({}).", serviceUnitId, selectedRU.getResourceId(), loadPercentageDesc);
-                if (!ranking.isServiceUnitPreAllocated(serviceUnitId)) {
-                    ResourceQuota quota = this.getResourceQuota(serviceUnitId);
-                    ranking.addPreAllocatedServiceUnit(serviceUnitId, quota);
-                    resourceUnitRankings.put(selectedRU, ranking);
-                }
+        // re-calculate load level for selected broker
+        if (selectedRU != null) {
+            this.brokerRotationCursor = (this.brokerRotationCursor + 1) % 1000000;
+            ResourceUnitRanking ranking = resourceUnitRankings.get(selectedRU);
+            String loadPercentageDesc = ranking.getEstimatedLoadPercentageString();
+            log.info("Assign {} to {} with ({}).", serviceUnitId, selectedRU.getResourceId(), loadPercentageDesc);
+            if (!ranking.isServiceUnitPreAllocated(serviceUnitId)) {
+                ResourceQuota quota = this.getResourceQuota(serviceUnitId);
+                ranking.addPreAllocatedServiceUnit(serviceUnitId, quota);
+                resourceUnitRankings.put(selectedRU, ranking);
             }
         }
         return selectedRU;
@@ -877,15 +875,19 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
     private Multimap<Long, ResourceUnit> getFinalCandidates(ServiceUnitId serviceUnit,
             Map<Long, Set<ResourceUnit>> availableBrokers) {
         synchronized (brokerCandidateCache) {
+            final Multimap<Long, ResourceUnit> result = TreeMultimap.create();
             brokerCandidateCache.clear();
-            for (final Set<ResourceUnit> resourceUnitSet : availableBrokers.values()) {
-                for (final ResourceUnit resourceUnit : resourceUnitSet) {
-                    brokerCandidateCache.add(resourceUnit.getResourceId().replace("http://", ""));
+            try {
+                LoadManagerShared.applyPolicies(serviceUnit, policies, brokerCandidateCache,
+                        availableActiveBrokers.get());
+            } catch (Exception e) {
+                log.warn("Error when trying to apply policies: {}", e);
+                for (final Map.Entry<Long, Set<ResourceUnit>> entry: availableBrokers.entrySet()) {
+                    result.putAll(entry.getKey(), entry.getValue());
                 }
+                return result;
             }
 
-            LoadManagerShared.applyPolicies(serviceUnit, policies, brokerCandidateCache);
-            final Multimap<Long, ResourceUnit> result = TreeMultimap.create();
             // After LoadManagerShared is finished applying the filter, put the results back into a multimap.
             for (final Map.Entry<Long, Set<ResourceUnit>> entry : availableBrokers.entrySet()) {
                 final Long rank = entry.getKey();
