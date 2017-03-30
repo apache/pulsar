@@ -145,7 +145,6 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
     private LoadingCache<String, Long> unloadedHotNamespaceCache;
 
     public static final String LOADBALANCER_DYNAMIC_SETTING_STRATEGY_ZPATH = "/loadbalance/settings/strategy";
-    public static final String LOADBALANCER_DYNAMIC_SETTING_CENTRALIZED_ZPATH = "/loadbalance/settings/is_centralized";
     private static final String LOADBALANCER_DYNAMIC_SETTING_LOAD_FACTOR_CPU_ZPATH = "/loadbalance/settings/load_factor_cpu";
     private static final String LOADBALANCER_DYNAMIC_SETTING_LOAD_FACTOR_MEM_ZPATH = "/loadbalance/settings/load_factor_mem";
     private static final String LOADBALANCER_DYNAMIC_SETTING_OVERLOAD_THRESHOLD_ZPATH = "/loadbalance/settings/overload_threshold";
@@ -155,7 +154,6 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
     private static final String SETTING_NAME_LOAD_FACTOR_CPU = "loadFactorCPU";
     private static final String SETTING_NAME_LOAD_FACTOR_MEM = "loadFactorMemory";
     private static final String SETTING_NAME_STRATEGY = "loadBalancerStrategy";
-    private static final String SETTING_NAME_IS_CENTRALIZED = "loadBalancerIsCentralized";
     private static final String SETTING_NAME_OVERLOAD_THRESHOLD = "overloadThreshold";
     private static final String SETTING_NAME_UNDERLOAD_THRESHOLD = "underloadThreshold";
     private static final String SETTING_NAME_COMFORTLOAD_THRESHOLD = "comfortLoadThreshold";
@@ -401,9 +399,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
         if (strategy.equals(LOADBALANCER_STRATEGY_LLS) || strategy.equals(LOADBALANCER_STRATEGY_LEAST_MSG)) {
             return true;
         }
-
-        return this.getDynamicConfigurationBoolean(LOADBALANCER_DYNAMIC_SETTING_CENTRALIZED_ZPATH,
-                SETTING_NAME_IS_CENTRALIZED, pulsar.getConfiguration().getLoadBalancerIsCentralized());
+        return false;
     }
 
     private long getLoadBalancerBrokerUnderloadedThresholdPercentage() {
