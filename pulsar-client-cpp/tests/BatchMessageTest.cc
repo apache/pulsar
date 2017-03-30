@@ -759,7 +759,9 @@ TEST(BatchMessageTest, testPermits) {
 }
 
 TEST(BatchMessageTest, testPartitionedTopics) {
-    Client client(lookupUrl);
+    ClientConfiguration clientConfig;
+    clientConfig.setConnectionsPerBroker(3);
+    Client client(lookupUrl, clientConfig);
     std::string topicName = "persistent://property/cluster/namespace/test-partitioned-batch-messages-" + boost::lexical_cast<std::string>(epochTime) ;
 
     // call admin api to make it partitioned

@@ -15,7 +15,6 @@
  */
 
 #include "ConnectionPool.h"
-
 #include "LogUtils.h"
 
 DECLARE_LOG_OBJECT()
@@ -44,18 +43,20 @@ Future<Result, ClientConnectionWeakPtr> ConnectionPool::getConnectionAsync(
         if (cnxIt != pool_.end()) {
             // endpoint exists in the map
             ClientConnectionContainerPtr containerPtr = cnxIt->second;
-            if (containerPtr->isFull()) {
-                // pool is full - can start reusing connections
+            if (containerPtr && containerPtr->isFull()) {
+                // container is full - can start reusing connections
                 ClientConnectionPtr cnx = containerPtr->getNext().lock();
                 if (cnx && !cnx->isClosed()) {
                     // Found a valid or pending connection in the pool
                     LOG_DEBUG("Got connection from pool for " << endpoint << " use_count: "  //
-                                                              << (cnx.use_count() - 1) << " @ " << cnx.get());
+                                                              << (cnx.use_count() - 1) << " @ " << cnx.get()
+															  << " " << *containerPtr);
                     return cnx->getConnectFuture();
                 } else {
                     // Deleting stale connection
                     LOG_INFO("Deleting stale connection from pool for " << endpoint << " use_count: "
-                                                                        << (cnx.use_count() - 1) << " @ " << cnx.get());
+                                                                        << (cnx.use_count() - 1) << " @ " << cnx.get()
+																		<< " " << *containerPtr);
                     containerPtr->remove();
                 }
             }
@@ -71,11 +72,15 @@ Future<Result, ClientConnectionWeakPtr> ConnectionPool::getConnectionAsync(
     if (poolConnections_) {
         if (cnxIt == pool_.end()) {
             // Need to insert a container in the map
-            ClientConnectionContainerPtr containerPtr = boost::make_shared<ClientConnectionContainer>(connectionsPerBroker);
-            containerPtr->add(cnx);
+            ClientConnectionContainerPtr containerPtr = boost::make_shared<ClientConnectionContainer<ClientConnectionWeakPtr> >(connectionsPerBroker);
+            LOG_DEBUG("Adding Connection to a new Container " << *containerPtr);
+            ClientConnectionWeakPtr temp = cnx; // can't typecast and bind lvalue at same time
+            containerPtr->add(temp);
             pool_.insert(std::make_pair(endpoint, containerPtr));
         } else {
-            (cnxIt->second)->add(cnx);
+            LOG_DEBUG("Adding Connection to an existing Container " << *(cnxIt->second));
+            ClientConnectionWeakPtr temp = cnx;
+            (cnxIt->second)->add(temp);
         }
     }
     lock.unlock();

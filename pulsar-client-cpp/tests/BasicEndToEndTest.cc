@@ -365,12 +365,14 @@ TEST(BasicEndToEndTest, testLookupThrottling) {
 
 TEST(BasicEndToEndTest, testPartitionedProducerConsumer)
 {
-    Client client(lookupUrl);
+    ClientConfiguration config;
+    config.setConnectionsPerBroker(4);
+	Client client(lookupUrl);
     std::string topicName = "persistent://prop/unit/ns/partition-test";
 
     // call admin api to make it partitioned
     std::string url = adminUrl + "admin/persistent/prop/unit/ns/partition-test/partitions";
-    int res = makePutRequest(url, "3");
+    int res = makePutRequest(url, "13");
 
     LOG_INFO("res = "<<res);
     ASSERT_FALSE(res != 204 && res != 409);
