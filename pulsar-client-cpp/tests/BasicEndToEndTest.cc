@@ -826,6 +826,6 @@ TEST(BasicEndToEndTest, testMessageListenerPause)
 
     // 3 seconds
     usleep(3 * 1000 * 1000);
-	Lock lock(mutex_);
+    Lock lock(mutex_);
     ASSERT_EQ(globalResendMessageCount, 3);
 }
