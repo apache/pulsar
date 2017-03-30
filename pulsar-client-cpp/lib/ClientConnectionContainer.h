@@ -23,7 +23,7 @@ namespace pulsar {
     /* @brief - This class uses a vector to store elements and provides a wrap around getNext() function to retrieve elements in a round robin fashion.
      * @note - this class is not thread safe.
      */
-	template <class T>
+    template <class T>
     class ClientConnectionContainer {
     private:
         size_t capacity_;
