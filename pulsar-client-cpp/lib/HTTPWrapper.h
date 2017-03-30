@@ -27,6 +27,10 @@ namespace pulsar {
 class HTTPWrapper;
 
 typedef boost::shared_ptr<HTTPWrapper> HTTPWrapperPtr;
+
+/*
+ * @note - This class doesn't support header continuation
+ */
 class HTTPWrapper : public boost::enable_shared_from_this<HTTPWrapper> {
 public:
     struct Response {
@@ -84,6 +88,9 @@ private:
 
     void handle_read_status_line(const boost::system::error_code&);
 
+    /*
+     * @note - This method doesn't support header continuation
+     */
     void handle_read_headers(const boost::system::error_code&);
 
     void handle_read_content(const boost::system::error_code&);

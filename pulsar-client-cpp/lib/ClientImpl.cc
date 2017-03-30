@@ -68,12 +68,12 @@ namespace pulsar {
           consumerIdGenerator_(0),
           requestIdGenerator_(0) {
         LogUtils::init(clientConfiguration.getLogConfFilePath());
-        if ( !strncmp(serviceUrl_.c_str(), "http", 4)) {
+        if (serviceUrl_.compare(0, 4, "http") == 0) {
             LOG_DEBUG("Using HTTP Lookup");
-            lookupServicePtr_ = boost::make_shared<HTTPLookupService>(boost::ref(serviceUrl_),
-                                                                      boost::ref(clientConfiguration_),
+            lookupServicePtr_ = boost::make_shared<HTTPLookupService>(boost::cref(serviceUrl_),
+                                                                      boost::cref(clientConfiguration_),
                                                                       ioExecutorProvider_,
-                                                                      boost::ref(
+                                                                      boost::cref(
                                                                               clientConfiguration.getAuthenticationPtr()));
         } else {
             LOG_DEBUG("Using Binary Lookup");

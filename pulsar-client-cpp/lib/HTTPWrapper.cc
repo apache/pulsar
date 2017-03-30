@@ -22,8 +22,10 @@ namespace pulsar {
     using boost::asio::ip::tcp;
     static const HTTPWrapper::Response EMPTY_RESPONSE = HTTPWrapper::Response();
 
-    static void removeCarriage(std::string& str) {
-        str.erase( std::remove(str.begin(), str.end(), '\r'), str.end() );
+    static void removeCarriageFromTheEnd(std::string& str) {
+    	if (str.back() == '\r') {
+    		str.pop_back();
+    	}
     }
 
     std::ostream & operator<<(std::ostream& os, const HTTPWrapper::Request& request) {
@@ -34,6 +36,7 @@ namespace pulsar {
             os << *iter << "\r\n";
             iter++;
         }
+        os << "\r\n"; // carriage for beginning the content section
         os << request.content << "\r\n";
         return os;
     }
@@ -161,14 +164,14 @@ namespace pulsar {
     }
 
     void HTTPWrapper::handle_read_status_line(const boost::system::error_code &err) {
-        // boost::asio::error::eof not handles since HTTP format don't expect EOF before \r\n\r\n
+        // boost::asio::error::eof not handled separately since eof before \r\n\r\n means failure
         if (!err) {
             // Check that response is OK.
             std::istream inputStream(responseStreamPtr_.get());
             inputStream >> response_.HTTPVersion;
             inputStream >> response_.statusCode;
             std::getline(inputStream, response_.statusMessage);
-            removeCarriage(response_.statusMessage);
+            removeCarriageFromTheEnd(response_.statusMessage);
             // no headers or non http version
             if (!inputStream || response_.HTTPVersion.substr(0, 5) != "HTTP/" || (response_.statusCode != 200 && response_.statusCode != 307 && response_.statusCode != 308)) {
                 LOG_DEBUG("Invalid response ");
@@ -195,7 +198,7 @@ namespace pulsar {
             std::string header;
             // response_.headers guaranteed to have atleast one string since reserve called
             while (std::getline(inputStream, header) && header != "\r") {
-                removeCarriage(header);
+                removeCarriageFromTheEnd(header);
                 response_.headers.push_back(header);
             }
 
@@ -219,7 +222,9 @@ namespace pulsar {
     void HTTPWrapper::handle_read_content(const boost::system::error_code &err) {
         if (!err) {
             std::istream inputStream(responseStreamPtr_.get());
-            inputStream >> response_.content;
+        	std::ostringstream os;
+        	os << inputStream.rdbuf();
+        	response_.content = os.str();
             boost::asio::async_read(*socketPtr_, *responseStreamPtr_,
                                     boost::asio::transfer_at_least(1),
                                     boost::bind(&HTTPWrapper::handle_read_content, shared_from_this(),
@@ -228,7 +233,9 @@ namespace pulsar {
             // eof occurs but responseStreamPtr_ not necessarily emptys
             LOG_DEBUG("EOF occured");
             std::istream inputStream(responseStreamPtr_.get());
-            inputStream >> response_.content;
+        	std::ostringstream os;
+        	os << inputStream.rdbuf();
+        	response_.content = os.str();
             response_.errCode = err;
             response_.retCode = Response::Success;
             callback_(shared_from_this());

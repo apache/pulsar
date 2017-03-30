@@ -22,7 +22,6 @@ namespace pulsar {
     const static std::string V2_PATH = "/lookup/v2/destination/";
     const static std::string PARTITION_PATH = "/admin/persistent/";
     const static int MAX_HTTP_REDIRECTS = 20;
-    const static char SEPARATOR = '/';
     const static std::string PARTITION_METHOD_NAME = "partitions";
 
     HTTPLookupService::HTTPLookupService(const std::string &lookupUrl,
@@ -48,8 +47,8 @@ namespace pulsar {
         }
 
         std::stringstream requestStream;
-        requestStream << V2_PATH << "persistent" << SEPARATOR << dn->getProperty() << SEPARATOR << dn->getCluster()
-                      << SEPARATOR << dn->getNamespacePortion() << SEPARATOR << dn->getEncodedLocalName();
+        requestStream << V2_PATH << "persistent/" << dn->getProperty() << '/' << dn->getCluster()
+                      << '/' << dn->getNamespacePortion() << '/' << dn->getEncodedLocalName();
         sendHTTPRequest(promise, requestStream, Lookup);
         return promise.getFuture();
 
@@ -58,8 +57,8 @@ namespace pulsar {
     Future<Result, LookupDataResultPtr> HTTPLookupService::getPartitionMetadataAsync(const DestinationNamePtr &dn) {
         LookupPromise promise;
         std::stringstream requestStream;
-        requestStream << PARTITION_PATH << dn->getProperty() << SEPARATOR << dn->getCluster()
-                      << SEPARATOR << dn->getNamespacePortion() << SEPARATOR << dn->getEncodedLocalName() << SEPARATOR
+        requestStream << PARTITION_PATH << dn->getProperty() << '/' << dn->getCluster()
+                      << '/' << dn->getNamespacePortion() << '/' << dn->getEncodedLocalName() << '/'
                       << PARTITION_METHOD_NAME;
         sendHTTPRequest(promise, requestStream, PartitionMetaData);
         return promise.getFuture();
@@ -120,14 +119,23 @@ namespace pulsar {
             return LookupDataResultPtr();
         }
 
-        if (!root.isMember("brokerUrl") || root.isMember("defaultBrokerUrlSsl")) {
+        static const char brokerUrlStr[] = "brokerUrl";
+        const Json::Value* brokerUrl = root.find(brokerUrlStr, brokerUrlStr + sizeof(brokerUrlStr) - 1);
+        if (!brokerUrl || !brokerUrl->isString()) {
+            LOG_ERROR("malformed json! " << json);
+            return LookupDataResultPtr();
+        }
+
+        static const char brokerUrlSslStr[] = "brokerUrlSsl";
+        const Json::Value* brokerUrlSsl = root.find(brokerUrlSslStr, brokerUrlSslStr + sizeof(brokerUrlSslStr) - 1);
+        if (!brokerUrlSsl || !brokerUrlSsl->isString()) {
             LOG_ERROR("malformed json! " << json);
             return LookupDataResultPtr();
         }
 
         LookupDataResultPtr lookupDataResultPtr = boost::make_shared<LookupDataResult>();
-        lookupDataResultPtr->setBrokerUrl(root.get("brokerUrl", "").asString());
-        lookupDataResultPtr->setBrokerUrlSsl(root.get("brokerUrlSsl", "").asString());
+        lookupDataResultPtr->setBrokerUrl(brokerUrl->asString());
+        lookupDataResultPtr->setBrokerUrlSsl(brokerUrlSsl->asString());
         return lookupDataResultPtr;
     }
 
@@ -146,7 +154,7 @@ namespace pulsar {
         LOG_DEBUG("HTTPLookupService::callback response = " << response);
         if (response.retCode != HTTPWrapper::Response::Success) {
             if (response.statusCode == 401) {
-                // 401 means unauthorized
+                // 401 means unauthenticated
                 LOG_ERROR("Authentication failed");
                 promise.setFailed(ResultConnectError);
                 return;
@@ -167,7 +175,7 @@ namespace pulsar {
             const std::vector<std::string>& responseHeaders = response.headers;
             std::vector<std::string>::const_iterator iter = responseHeaders.begin();
             while (iter != responseHeaders.end()) {
-                if (!strncmp((*iter).c_str(), "Location", 8)) {
+                if ((*iter).compare(0, 8, "Location") == 0) {
                     // Match found
                     Url url;
                     std::string redirectString = (*iter).substr(10);
