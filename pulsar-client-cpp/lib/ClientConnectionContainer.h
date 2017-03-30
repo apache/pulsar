@@ -34,30 +34,40 @@ namespace pulsar {
          * @throws - if we try to create a container with capacity 0.
          */
         ClientConnectionContainer(size_t);
+
         /*
          * @returns - true if the container has reached it's max capacity.
          */
-        inline bool isFull();
+        inline bool isFull() const;
+
         /*
          * @returns - gets the next element in the container - wraps around after the last element.
          * @throws - if the list is empty.
          */
         T getNext();
+
         /*
          * @brief - Adds the element to the end of the list.
          * @returns - false if the list is full.
          */
         bool add(T&);
+
         /*
          * @brief - removes element in reverse order starting from the one returned by last getNext() call
          * 		  - removes the oldest element if getNext() never called
          * @return - true if an element was removed
          */
         bool remove();
+
         /*
          * @returns - the size of the container
          */
         inline size_t size() const;
+
+        /*
+         * @returns - true if the list is empty
+         */
+        inline bool isEmpty() const;
 
         // http://web.mst.edu/~nmjxv3/articles/templates.html
         friend std::ostream& operator<<(std::ostream& os, const ClientConnectionContainer<T>& obj) {
@@ -76,8 +86,12 @@ template <class T>  ClientConnectionContainer<T>::ClientConnectionContainer(size
 	}
 }
 
-template <class T> bool ClientConnectionContainer<T>::isFull() {
+template <class T> bool ClientConnectionContainer<T>::isFull() const {
     return list_.size() >= capacity_;
+}
+
+template <class T> bool ClientConnectionContainer<T>::isEmpty() const {
+    return list_.size() == 0;
 }
 
 template <class T> T ClientConnectionContainer<T>::getNext() {
