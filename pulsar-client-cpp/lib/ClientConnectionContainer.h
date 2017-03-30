@@ -31,7 +31,7 @@ namespace pulsar {
         std::vector<T> list_;
     public:
         /*
-         * @note - can't create a container of capacity 0;
+         * @throws - if we try to create a container with capacity 0.
          */
         ClientConnectionContainer(size_t);
         /*
@@ -40,7 +40,7 @@ namespace pulsar {
         inline bool isFull();
         /*
          * @returns - gets the next element in the container - wraps around after the last element.
-         * @note - throws exception if the list is empty.
+         * @throws - if the list is empty.
          */
         T getNext();
         /*
