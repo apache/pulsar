@@ -542,8 +542,12 @@ TEST(BasicEndToEndTest, testSinglePartitionRoutingPolicy)
     Producer producer;
     ProducerConfiguration producerConfiguration;
     producerConfiguration.setPartitionsRoutingMode(ProducerConfiguration::UseSinglePartition);
-
     Result result = client.createProducer(topicName, producerConfiguration, producer);
+
+    Consumer consumer;
+    result = client.subscribe(topicName, "subscription-A", consumer);
+    ASSERT_EQ(ResultOk, result);
+
     ASSERT_EQ(ResultOk, result);
     for (int i = 0; i < 10; i++ ) {
         boost::posix_time::ptime t(boost::posix_time::microsec_clock::universal_time());
@@ -553,9 +557,7 @@ TEST(BasicEndToEndTest, testSinglePartitionRoutingPolicy)
         Message msg = MessageBuilder().setContent(ss.str()).build();
         ASSERT_EQ(ResultOk, producer.send(msg));
     }
-    Consumer consumer;
-    result = client.subscribe(topicName, "subscription-A", consumer);
-    ASSERT_EQ(ResultOk, result);
+
     for (int i = 0; i < 10; i++) {
         Message m;
         consumer.receive(m);
