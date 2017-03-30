@@ -155,22 +155,12 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
 
     private boolean isPhysicalNic(Path path) {
         try {
-            path = path.toAbsolutePath();
-            path = Files.isSymbolicLink(path) ? Files.readSymbolicLink(path) : path;
-            if (!path.toString().contains("/virtual/")) {
-                try {
-                    Files.readAllBytes(path.resolve("speed"));
-                    return true;
-                } catch (Exception e) {
-                    // wireless nics don't report speed, ignore them.
-                    return false;
-                }
-            }
-        } catch (IOException e) {
-            LOG.error("Failed to read link target for NIC " + path, e);
+            Files.readAllBytes(path.resolve("speed"));
+            return true;
+        } catch (Exception e) {
+            // wireless nics don't report speed, ignore them.
             return false;
         }
-        return false;
     }
 
     private Path getNicSpeedPath(String nic) {
