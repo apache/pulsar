@@ -199,7 +199,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean loadBalancerEnabled = false;
     // load placement strategy
     private String loadBalancerPlacementStrategy = "weightedRandomSelection"; // weighted random selection
-    // load placement secondary strategy (used to silently test an alternate strategy)
     // Percentage of change to trigger load report update
     private int loadBalancerReportUpdateThresholdPercentage = 10;
     // maximum interval to update load report
