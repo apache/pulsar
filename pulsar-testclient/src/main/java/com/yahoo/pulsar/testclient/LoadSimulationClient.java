@@ -361,7 +361,7 @@ public class LoadSimulationClient {
             // has not been tested or considered and is not recommended.
             log.info("Listening for controller command...");
             final Socket socket = serverSocket.accept();
-            log.info("Connected to %s\n", socket.getInetAddress().getHostName());
+            log.info("Connected to {}\n", socket.getInetAddress().getHostName());
             executor.submit(() -> {
                 try {
                     handle(socket);
