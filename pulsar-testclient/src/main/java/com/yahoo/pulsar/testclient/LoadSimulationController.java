@@ -44,6 +44,8 @@ import com.yahoo.pulsar.common.policies.data.ResourceQuota;
 import com.yahoo.pulsar.common.policies.data.loadbalancer.LoadReport;
 import com.yahoo.pulsar.common.policies.data.loadbalancer.NamespaceBundleStats;
 import com.yahoo.pulsar.common.util.ObjectMapperFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * To use: 1. Delegate a list of server machines which act as zookeeper clients. 2. Choose a port for those machines. 3.
@@ -60,6 +62,7 @@ import com.yahoo.pulsar.common.util.ObjectMapperFactory;
  *
  */
 public class LoadSimulationController {
+    private static final Logger log = LoggerFactory.getLogger(LoadSimulationController.class);
     private final static String QUOTA_ROOT = "/loadbalance/resource-quota/namespace";
 
     // Input streams for each server to send commands through.
@@ -207,7 +210,7 @@ public class LoadSimulationController {
 
     /**
      * Create a LoadSimulationController with the given JCommander arguments.
-     * 
+     *
      * @param arguments
      *            Arguments to create from.
      */
@@ -219,12 +222,12 @@ public class LoadSimulationController {
         final Socket[] sockets = new Socket[servers.length];
         inputStreams = new DataInputStream[servers.length];
         outputStreams = new DataOutputStream[servers.length];
-        System.out.format("Found %d servers:\n", servers.length);
+        log.info("Found {} servers:", servers.length);
         for (int i = 0; i < servers.length; ++i) {
             sockets[i] = new Socket(servers[i], serverPort);
             inputStreams[i] = new DataInputStream(sockets[i].getInputStream());
             outputStreams[i] = new DataOutputStream(sockets[i].getOutputStream());
-            System.out.format("Connected to %s\n", servers[i]);
+            log.info("Connected to {}", servers[i]);
         }
     }
 
@@ -232,7 +235,7 @@ public class LoadSimulationController {
     // actual number of application arguments.
     private boolean checkAppArgs(final int numAppArgs, final int numRequired) {
         if (numAppArgs != numRequired) {
-            System.out.format("ERROR: Wrong number of application arguments (found %d, required %d)\n", numAppArgs,
+            log.info("ERROR: Wrong number of application arguments (found {}, required {})", numAppArgs,
                     numRequired);
             return false;
         }
@@ -254,7 +257,7 @@ public class LoadSimulationController {
             // doubles.
             final String[] splits = arguments.rangeString.split(",");
             if (splits.length != 2) {
-                System.out.println("ERROR: Argument to --rand-rate should be a two comma-separated values");
+                log.info("ERROR: Argument to --rand-rate should be a two comma-separated values");
                 return;
             }
             final double first = Double.parseDouble(splits[0]);
@@ -273,14 +276,14 @@ public class LoadSimulationController {
         // Decide which server to send to randomly to preserve statelessness of
         // the controller.
         final int i = random.nextInt(servers.length);
-        System.out.println("Sending trade request to " + servers[i]);
+        log.info("Sending trade request to " + servers[i]);
         outputStreams[i].write(LoadSimulationClient.TRADE_COMMAND);
         writeProducerOptions(outputStreams[i], arguments, destination);
         outputStreams[i].flush();
         if (inputStreams[i].read() != -1) {
-            System.out.println("Created producer and consumer for " + destination);
+            log.info("Created producer and consumer for " + destination);
         } else {
-            System.out.format("ERROR: Socket to %s closed\n", servers[i]);
+            log.info("ERROR: Socket to {} closed", servers[i]);
         }
     }
 
@@ -299,7 +302,7 @@ public class LoadSimulationController {
     // arguments.
     // Returns true if the topic was found and false otherwise.
     private synchronized boolean change(final ShellArguments arguments, final String destination) throws Exception {
-        System.out.println("Searching for server with topic " + destination);
+        log.info("Searching for server with topic " + destination);
         for (DataOutputStream outputStream : outputStreams) {
             outputStream.write(LoadSimulationClient.CHANGE_COMMAND);
             writeProducerOptions(outputStream, arguments, destination);
@@ -310,16 +313,16 @@ public class LoadSimulationController {
             int readValue;
             switch (readValue = inputStreams[i].read()) {
             case LoadSimulationClient.FOUND_TOPIC:
-                System.out.format("Found topic %s on server %s\n", destination, servers[i]);
+                log.info("Found topic {} on server {}", destination, servers[i]);
                 foundTopic = true;
                 break;
             case LoadSimulationClient.NO_SUCH_TOPIC:
                 break;
             case -1:
-                System.out.format("ERROR: Socket to %s closed\n", servers[i]);
+                log.info("ERROR: Socket to {} closed", servers[i]);
                 break;
             default:
-                System.out.println("ERROR: Unknown response signal received: " + readValue);
+                log.info("ERROR: Unknown response signal received: " + readValue);
             }
         }
         return foundTopic;
@@ -333,7 +336,7 @@ public class LoadSimulationController {
             final String destination = makeDestination(commandArguments.get(1), commandArguments.get(2),
                     commandArguments.get(3));
             if (!change(arguments, destination)) {
-                System.out.format("ERROR: Topic %s not found\n", destination);
+                log.info("ERROR: Topic {} not found", destination);
             }
         }
     }
@@ -345,7 +348,7 @@ public class LoadSimulationController {
         if (checkAppArgs(commandArguments.size() - 1, 3)) {
             final String destination = makeDestination(commandArguments.get(1), commandArguments.get(2),
                     commandArguments.get(3));
-            System.out.println("Searching for server with topic " + destination);
+            log.info("Searching for server with topic " + destination);
             for (DataOutputStream outputStream : outputStreams) {
                 outputStream.write(LoadSimulationClient.STOP_COMMAND);
                 outputStream.writeUTF(destination);
@@ -356,24 +359,24 @@ public class LoadSimulationController {
                 int readValue;
                 switch (readValue = inputStreams[i].read()) {
                 case LoadSimulationClient.FOUND_TOPIC:
-                    System.out.format("Found topic %s on server %s\n", destination, servers[i]);
+                    log.info("Found topic {} on server {}", destination, servers[i]);
                     foundTopic = true;
                     break;
                 case LoadSimulationClient.NO_SUCH_TOPIC:
                     break;
                 case LoadSimulationClient.REDUNDANT_COMMAND:
-                    System.out.format("ERROR: Topic %s already stopped on %s\n", destination, servers[i]);
+                    log.info("ERROR: Topic {} already stopped on {}", destination, servers[i]);
                     foundTopic = true;
                     break;
                 case -1:
-                    System.out.format("ERROR: Socket to %s closed\n", servers[i]);
+                    log.info("ERROR: Socket to {} closed", servers[i]);
                     break;
                 default:
-                    System.out.println("ERROR: Unknown response signal received: " + readValue);
+                    log.info("ERROR: Unknown response signal received: " + readValue);
                 }
             }
             if (!foundTopic) {
-                System.out.format("ERROR: Topic %s not found\n", destination);
+                log.info("ERROR: Topic {} not found", destination);
             }
         }
     }
@@ -427,23 +430,23 @@ public class LoadSimulationController {
         for (int i = 0; i < servers.length; ++i) {
             final int foundOnServer = inputStreams[i].readInt();
             if (foundOnServer == -1) {
-                System.out.format("ERROR: Socket to %s closed\n", servers[i]);
+                log.info("ERROR: Socket to {} closed", servers[i]);
             } else if (foundOnServer == 0) {
-                System.out.format("Found no topics belonging to tenant %s and group %s on %s\n", tenant, group,
+                log.info("Found no topics belonging to tenant {} and group {} on {}", tenant, group,
                         servers[i]);
             } else if (foundOnServer > 0) {
-                System.out.format("Found %d topics belonging to tenant %s and group %s on %s\n", foundOnServer, tenant,
+                log.info("Found {} topics belonging to tenant {} and group {} on {}", foundOnServer, tenant,
                         group, servers[i]);
                 numFound += foundOnServer;
             } else {
-                System.out.format("ERROR: Negative value %d received for topic count on %s\n", foundOnServer,
+                log.info("ERROR: Negative value {} received for topic count on {}", foundOnServer,
                         servers[i]);
             }
         }
         if (numFound == 0) {
-            System.out.format("ERROR: Found no topics belonging to tenant %s and group %s\n", tenant, group);
+            log.info("ERROR: Found no topics belonging to tenant {} and group {}", tenant, group);
         } else {
-            System.out.format("Found %d topics belonging to tenant %s and group %s\n", numFound, tenant, group);
+            log.info("Found {} topics belonging to tenant {} and group {}", numFound, tenant, group);
         }
     }
 
@@ -554,11 +557,11 @@ public class LoadSimulationController {
                         mangledNamespace);
                 final String newAPITargetPath = String.format("/loadbalance/bundle-data/%s/%s/%s/0x00000000_0xffffffff",
                         cluster, tenantName, mangledNamespace);
-                System.out.format("Copying %s to %s\n", bundle, oldAPITargetPath);
+                log.info("Copying {} to {}", bundle, oldAPITargetPath);
                 ZkUtils.createFullPathOptimistic(targetZKClient, oldAPITargetPath,
                         ObjectMapperFactory.getThreadLocal().writeValueAsBytes(quota), ZooDefs.Ids.OPEN_ACL_UNSAFE,
                         CreateMode.PERSISTENT);
-                System.out.format("Creating new API data at %s\n", newAPITargetPath);
+                log.info("Creating new API data at {}", newAPITargetPath);
                 // Put the quota in the new ZooKeeper.
                 ZkUtils.createFullPathOptimistic(targetZKClient, newAPITargetPath, bundleData.getJsonBytes(),
                         ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
@@ -622,7 +625,7 @@ public class LoadSimulationController {
                     System.exit(0);
                     break;
                 default:
-                    System.out.format("ERROR: Unknown command \"%s\"\n", command);
+                    log.info("ERROR: Unknown command \"{}\"", command);
                 }
             } catch (ParameterException ex) {
                 ex.printStackTrace();

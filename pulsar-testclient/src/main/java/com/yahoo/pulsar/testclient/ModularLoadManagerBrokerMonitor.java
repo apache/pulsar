@@ -29,8 +29,11 @@ import com.google.gson.Gson;
 import com.yahoo.pulsar.broker.LocalBrokerData;
 import com.yahoo.pulsar.broker.TimeAverageBrokerData;
 import com.yahoo.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ModularLoadManagerBrokerMonitor {
+    private static final Logger log = LoggerFactory.getLogger(ModularLoadManagerImpl.class);
     private static final String BROKER_ROOT = "/loadbalance/brokers";
     private static final int ZOOKEEPER_TIMEOUT_MILLIS = 5000;
     private final ZooKeeper zkClient;
@@ -64,12 +67,12 @@ public class ModularLoadManagerBrokerMonitor {
             }
             for (String oldBroker : brokers) {
                 if (!newBrokers.contains(oldBroker)) {
-                    System.out.println("Lost broker: " + oldBroker);
+                    log.info("Lost broker: " + oldBroker);
                 }
             }
             for (String newBroker : newBrokers) {
                 if (!brokers.contains(newBroker)) {
-                    System.out.println("Gained broker: " + newBroker);
+                    log.info("Gained broker: " + newBroker);
                     final BrokerDataWatcher brokerDataWatcher = new BrokerDataWatcher(zkClient);
                     brokerDataWatcher.printBrokerData(path + "/" + newBroker);
                 }
@@ -102,10 +105,10 @@ public class ModularLoadManagerBrokerMonitor {
 
         private static void printMessageData(final double msgThroughputIn, final double msgThroughputOut,
                 final double msgRateIn, final double msgRateOut) {
-            System.out.format("Message Throughput In: %.2f KB/s\n", msgThroughputIn / 1024);
-            System.out.format("Message Throughput Out: %.2f KB/s\n", msgThroughputOut / 1024);
-            System.out.format("Message Rate In: %.2f msgs/s\n", msgRateIn);
-            System.out.format("Message Rate Out: %.2f msgs/s\n", msgRateOut);
+            log.info(String.format("Message Throughput In: %.2f KB/s", msgThroughputIn / 1024));
+            log.info(String.format("Message Throughput Out: %.2f KB/s", msgThroughputOut / 1024));
+            log.info(String.format("Message Rate In: %.2f msgs/s", msgRateIn));
+            log.info(String.format("Message Rate Out: %.2f msgs/s", msgRateOut));
         }
 
         public synchronized void printBrokerData(final String brokerPath) {
@@ -119,22 +122,21 @@ public class ModularLoadManagerBrokerMonitor {
                 throw new RuntimeException(ex);
             }
 
-            System.out.println("\nBroker Data for " + broker + ":");
-            System.out.println("---------------");
+            log.info("Broker Data for " + broker + ":");
+            log.info("---------------");
 
-            System.out.println("\nNum Topics: " + localBrokerData.getNumTopics());
-            System.out.println("Num Bundles: " + localBrokerData.getNumBundles());
-            System.out.println("Num Consumers: " + localBrokerData.getNumConsumers());
-            System.out.println("Num Producers: " + localBrokerData.getNumProducers());
+            log.info("Num Topics: " + localBrokerData.getNumTopics());
+            log.info("Num Bundles: " + localBrokerData.getNumBundles());
+            log.info("Num Consumers: " + localBrokerData.getNumConsumers());
+            log.info("Num Producers: " + localBrokerData.getNumProducers());
 
-            System.out.println(String.format("\nCPU: %.2f%%", localBrokerData.getCpu().percentUsage()));
+            log.info(String.format("CPU: %.2f%%", localBrokerData.getCpu().percentUsage()));
 
-            System.out.println(String.format("Memory: %.2f%%", localBrokerData.getMemory().percentUsage()));
+            log.info(String.format("Memory: %.2f%%", localBrokerData.getMemory().percentUsage()));
 
-            System.out
-                    .println(String.format("Direct Memory: %.2f%%", localBrokerData.getDirectMemory().percentUsage()));
+            log.info(String.format("Direct Memory: %.2f%%", localBrokerData.getDirectMemory().percentUsage()));
 
-            System.out.println("\nLatest Data:\n");
+            log.info("Latest Data:");
             printMessageData(localBrokerData.getMsgThroughputIn(), localBrokerData.getMsgThroughputOut(),
                     localBrokerData.getMsgRateIn(), localBrokerData.getMsgRateOut());
 
@@ -145,28 +147,25 @@ public class ModularLoadManagerBrokerMonitor {
             } catch (Exception ex) {
                 throw new RuntimeException(ex);
             }
-            System.out.println("\nShort Term Data:\n");
+            log.info("Short Term Data:");
             printMessageData(timeAverageData.getShortTermMsgThroughputIn(),
                     timeAverageData.getShortTermMsgThroughputOut(), timeAverageData.getShortTermMsgRateIn(),
                     timeAverageData.getShortTermMsgRateOut());
 
-            System.out.println("\nLong Term Data:\n");
+            log.info("Long Term Data:");
             printMessageData(timeAverageData.getLongTermMsgThroughputIn(),
                     timeAverageData.getLongTermMsgThroughputOut(), timeAverageData.getLongTermMsgRateIn(),
                     timeAverageData.getLongTermMsgRateOut());
 
-            System.out.println();
             if (!localBrokerData.getLastBundleGains().isEmpty()) {
                 for (String bundle : localBrokerData.getLastBundleGains()) {
-                    System.out.println("Gained Bundle: " + bundle);
+                    log.info("Gained Bundle: " + bundle);
                 }
-                System.out.println();
             }
             if (!localBrokerData.getLastBundleLosses().isEmpty()) {
                 for (String bundle : localBrokerData.getLastBundleLosses()) {
-                    System.out.println("Lost Bundle: " + bundle);
+                    log.info("Lost Bundle: " + bundle);
                 }
-                System.out.println();
             }
         }
     }

@@ -23,6 +23,8 @@ import com.yahoo.pulsar.common.policies.data.loadbalancer.SystemResourceUsage;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooKeeper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 
@@ -31,6 +33,7 @@ import java.util.*;
  * receive updates in LoadReports as they occur.
  */
 public class SimpleLoadManagerBrokerMonitor {
+    private static final Logger log = LoggerFactory.getLogger(SimpleLoadManagerBrokerMonitor.class);
     private static final String BROKER_ROOT = "/loadbalance/brokers";
     private static final int ZOOKEEPER_TIMEOUT_MILLIS = 5000;
     private final ZooKeeper zkClient;
@@ -64,12 +67,12 @@ public class SimpleLoadManagerBrokerMonitor {
             }
             for (String oldBroker : brokers) {
                 if (!newBrokers.contains(oldBroker)) {
-                    System.out.println("Lost broker: " + oldBroker);
+                    log.info("Lost broker: " + oldBroker);
                 }
             }
             for (String newBroker : newBrokers) {
                 if (!brokers.contains(newBroker)) {
-                    System.out.println("Gained broker: " + newBroker);
+                    log.info("Gained broker: " + newBroker);
                     final LoadReportWatcher loadReportWatcher = new LoadReportWatcher(zkClient);
                     loadReportWatcher.printLoadReport(path + "/" + newBroker);
                 }
@@ -105,54 +108,52 @@ public class SimpleLoadManagerBrokerMonitor {
             }
             final SystemResourceUsage resourceUsage = loadReport.getSystemResourceUsage();
 
-            System.out.println("\nLoad Report for " + brokerName + ":");
-            System.out.println("---------------");
+            log.info("Load Report for " + brokerName + ":");
+            log.info("---------------");
 
-            System.out.println("\nNum Topics: " + loadReport.getNumTopics());
-            System.out.println("Num Bundles: " + loadReport.getNumBundles());
+            log.info("Num Topics: " + loadReport.getNumTopics());
+            log.info("Num Bundles: " + loadReport.getNumBundles());
 
-            System.out.format("\nRaw CPU: %.2f%%\n", resourceUsage.getCpu().percentUsage());
-            System.out.println(String.format("Allocated CPU: %.2f%%",
+            log.info(String.format("Raw CPU: %.2f%%", resourceUsage.getCpu().percentUsage()));
+            log.info(String.format("Allocated CPU: %.2f%%",
                     percentUsage(loadReport.getAllocatedCPU(), resourceUsage.getCpu().limit)));
-            System.out.println(String.format("Preallocated CPU: %.2f%%",
+            log.info(String.format("Preallocated CPU: %.2f%%",
                     percentUsage(loadReport.getPreAllocatedCPU(), resourceUsage.getCpu().limit)));
 
-            System.out.format("\nRaw Memory: %.2f%%\n", resourceUsage.getMemory().percentUsage());
-            System.out.println(String.format("Allocated Memory: %.2f%%",
+            log.info(String.format("Raw Memory: %.2f%%", resourceUsage.getMemory().percentUsage()));
+            log.info(String.format("Allocated Memory: %.2f%%",
                     percentUsage(loadReport.getAllocatedMemory(), resourceUsage.getMemory().limit)));
-            System.out.println(String.format("Preallocated Memory: %.2f%%",
+            log.info(String.format("Preallocated Memory: %.2f%%",
                     percentUsage(loadReport.getPreAllocatedMemory(), resourceUsage.getMemory().limit)));
 
-            System.out.format("\nRaw Bandwidth In: %.2f%%\n", resourceUsage.getBandwidthIn().percentUsage());
-            System.out.println(String.format("Allocated Bandwidth In: %.2f%%",
+            log.info(String.format("Raw Bandwidth In: %.2f%%", resourceUsage.getBandwidthIn().percentUsage()));
+            log.info(String.format("Allocated Bandwidth In: %.2f%%",
                     percentUsage(loadReport.getAllocatedBandwidthIn(), resourceUsage.getBandwidthIn().limit)));
-            System.out.println(String.format("Preallocated Bandwidth In: %.2f%%",
+            log.info(String.format("Preallocated Bandwidth In: %.2f%%",
                     percentUsage(loadReport.getPreAllocatedBandwidthIn(), resourceUsage.getBandwidthIn().limit)));
 
-            System.out.format("\nRaw Bandwidth Out: %.2f%%\n", resourceUsage.getBandwidthOut().percentUsage());
-            System.out.println(String.format("Allocated Bandwidth Out: %.2f%%",
+            log.info(String.format("Raw Bandwidth Out: %.2f%%", resourceUsage.getBandwidthOut().percentUsage()));
+            log.info(String.format("Allocated Bandwidth Out: %.2f%%",
                     percentUsage(loadReport.getAllocatedBandwidthOut(), resourceUsage.getBandwidthOut().limit)));
-            System.out.println(String.format("Preallocated Bandwidth Out: %.2f%%",
+            log.info(String.format("Preallocated Bandwidth Out: %.2f%%",
                     percentUsage(loadReport.getPreAllocatedBandwidthOut(), resourceUsage.getBandwidthOut().limit)));
 
-            System.out.format("\nDirect Memory: %.2f%%\n", resourceUsage.getDirectMemory().percentUsage());
+            log.info(String.format("Direct Memory: %.2f%%", resourceUsage.getDirectMemory().percentUsage()));
 
-            System.out.format("Messages In Per Second: %.2f\n", loadReport.getMsgRateIn());
-            System.out.format("Messages Out Per Second: %.2f\n", loadReport.getMsgRateOut());
-            System.out.format("Preallocated Messages In Per Second: %.2f\n", loadReport.getPreAllocatedMsgRateIn());
-            System.out.format("Preallocated Out Per Second: %.2f\n", loadReport.getPreAllocatedMsgRateOut());
-            System.out.println();
+            log.info(String.format("Messages In Per Second: %.2f", loadReport.getMsgRateIn()));
+            log.info(String.format("Messages Out Per Second: %.2f", loadReport.getMsgRateOut()));
+            log.info(String.format("Preallocated Messages In Per Second: %.2f", loadReport.getPreAllocatedMsgRateIn()));
+            log.info(String.format("Preallocated Out Per Second: %.2f", loadReport.getPreAllocatedMsgRateOut()));
+
             if (!loadReport.getBundleGains().isEmpty()) {
                 for (String bundle : loadReport.getBundleGains()) {
-                    System.out.println("Gained Bundle: " + bundle);
+                    log.info("Gained Bundle: " + bundle);
                 }
-                System.out.println();
             }
             if (!loadReport.getBundleLosses().isEmpty()) {
                 for (String bundle : loadReport.getBundleLosses()) {
-                    System.out.println("Lost Bundle: " + bundle);
+                    log.info("Lost Bundle: " + bundle);
                 }
-                System.out.println();
             }
         }
     }

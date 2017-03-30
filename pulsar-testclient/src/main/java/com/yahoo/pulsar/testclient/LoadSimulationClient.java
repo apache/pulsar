@@ -49,12 +49,16 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * LoadSimulationClient is used to simulate client load by maintaining producers and consumers for topics. Instances of
  * this class are controlled across a network via LoadSimulationController.
  */
 public class LoadSimulationClient {
+    private final static Logger log = LoggerFactory.getLogger(LoadSimulationClient.class);
+
     // Values for command responses.
     public static final byte FOUND_TOPIC = 0;
     public static final byte NO_SUCH_TOPIC = 1;
@@ -355,9 +359,9 @@ public class LoadSimulationClient {
             // Technically, two controllers can be connected simultaneously, but
             // non-sequential handling of commands
             // has not been tested or considered and is not recommended.
-            System.out.println("Listening for controller command...");
+            log.info("Listening for controller command...");
             final Socket socket = serverSocket.accept();
-            System.out.format("Connected to %s\n", socket.getInetAddress().getHostName());
+            log.info("Connected to %s\n", socket.getInetAddress().getHostName());
             executor.submit(() -> {
                 try {
                     handle(socket);
