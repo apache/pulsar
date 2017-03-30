@@ -23,6 +23,7 @@ import java.util.TreeMap;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.collect.Maps;
+
 import com.yahoo.pulsar.common.policies.data.loadbalancer.SystemResourceUsage.ResourceType;
 
 
@@ -30,15 +31,13 @@ import com.yahoo.pulsar.common.policies.data.loadbalancer.SystemResourceUsage.Re
  * This class represents the overall load of the broker - it includes overall {@link SystemResourceUsage} and
  * {@link NamespaceUsage} for all the namespaces hosted by this broker.
  */
-public class LoadReport {
+public class LoadReport implements ServiceLookupData {
     private String name;
 
     private final String webServiceUrl;
     private final String webServiceUrlTls;
-
     private final String pulsarServiceUrl;
-    private final String pulsarServieUrlTls;
-
+    private final String pulsarServiceUrlTls;
     private boolean isUnderLoaded;
     private boolean isOverLoaded;
     private long timestamp;
@@ -53,12 +52,13 @@ public class LoadReport {
        this(null, null, null, null);
     }
 
-    public LoadReport(String webServiceUrl,  String webServiceUrlTls, String pulsarServiceUrl, String pulsarServieUrlTls) {
-        this.webServiceUrl =  webServiceUrl;
+    public LoadReport(String webServiceUrl,  String webServiceUrlTls, String pulsarServiceUrl, String pulsarServiceUrlTls) {
+        this.webServiceUrl = webServiceUrl;
         this.webServiceUrlTls = webServiceUrlTls;
         this.pulsarServiceUrl = pulsarServiceUrl;
-        this.pulsarServieUrlTls = pulsarServieUrlTls;
-
+        this.pulsarServiceUrlTls = pulsarServiceUrlTls;
+        bundleLosses = new HashSet<>();
+        bundleGains = new HashSet<>();
         isUnderLoaded = false;
         isOverLoaded = false;
         timestamp = 0;
@@ -76,6 +76,24 @@ public class LoadReport {
     private SystemResourceUsage systemResourceUsage;
 
     private Map<String, NamespaceBundleStats> bundleStats;
+
+    private Set<String> bundleGains;
+
+    private Set<String> bundleLosses;
+
+    private double allocatedCPU;
+    private double allocatedMemory;
+    private double allocatedBandwidthIn;
+    private double allocatedBandwidthOut;
+    private double allocatedMsgRateIn;
+    private double allocatedMsgRateOut;
+
+    private double preAllocatedCPU;
+    private double preAllocatedMemory;
+    private double preAllocatedBandwidthIn;
+    private double preAllocatedBandwidthOut;
+    private double preAllocatedMsgRateIn;
+    private double preAllocatedMsgRateOut;
 
     public void setBundleStats(Map<String, NamespaceBundleStats> stats) {
         bundleStats = (stats == null) ? null : new HashMap<String, NamespaceBundleStats>(stats);
@@ -226,19 +244,135 @@ public class LoadReport {
         return sortedBundleStats;
     }
 
+    public Set<String> getBundleGains() {
+        return bundleGains;
+    }
+
+    public void setBundleGains(Set<String> bundleGains) {
+        this.bundleGains = bundleGains;
+    }
+
+    public Set<String> getBundleLosses() {
+        return bundleLosses;
+    }
+
+    public void setBundleLosses(Set<String> bundleLosses) {
+        this.bundleLosses = bundleLosses;
+    }
+
+    public double getAllocatedCPU() {
+        return allocatedCPU;
+    }
+
+    public void setAllocatedCPU(double allocatedCPU) {
+        this.allocatedCPU = allocatedCPU;
+    }
+
+    public double getAllocatedMemory() {
+        return allocatedMemory;
+    }
+
+    public void setAllocatedMemory(double allocatedMemory) {
+        this.allocatedMemory = allocatedMemory;
+    }
+
+    public double getAllocatedBandwidthIn() {
+        return allocatedBandwidthIn;
+    }
+
+    public void setAllocatedBandwidthIn(double allocatedBandwidthIn) {
+        this.allocatedBandwidthIn = allocatedBandwidthIn;
+    }
+
+    public double getAllocatedBandwidthOut() {
+        return allocatedBandwidthOut;
+    }
+
+    public void setAllocatedBandwidthOut(double allocatedBandwidthOut) {
+        this.allocatedBandwidthOut = allocatedBandwidthOut;
+    }
+
+    public double getAllocatedMsgRateIn() {
+        return allocatedMsgRateIn;
+    }
+
+    public void setAllocatedMsgRateIn(double allocatedMsgRateIn) {
+        this.allocatedMsgRateIn = allocatedMsgRateIn;
+    }
+
+    public double getAllocatedMsgRateOut() {
+        return allocatedMsgRateOut;
+    }
+
+    public void setAllocatedMsgRateOut(double allocatedMsgRateOut) {
+        this.allocatedMsgRateOut = allocatedMsgRateOut;
+    }
+
+    public double getPreAllocatedCPU() {
+        return preAllocatedCPU;
+    }
+
+    public void setPreAllocatedCPU(double preAllocatedCPU) {
+        this.preAllocatedCPU = preAllocatedCPU;
+    }
+
+    public double getPreAllocatedMemory() {
+        return preAllocatedMemory;
+    }
+
+    public void setPreAllocatedMemory(double preAllocatedMemory) {
+        this.preAllocatedMemory = preAllocatedMemory;
+    }
+
+    public double getPreAllocatedBandwidthIn() {
+        return preAllocatedBandwidthIn;
+    }
+
+    public void setPreAllocatedBandwidthIn(double preAllocatedBandwidthIn) {
+        this.preAllocatedBandwidthIn = preAllocatedBandwidthIn;
+    }
+
+    public double getPreAllocatedBandwidthOut() {
+        return preAllocatedBandwidthOut;
+    }
+
+    public void setPreAllocatedBandwidthOut(double preAllocatedBandwidthOut) {
+        this.preAllocatedBandwidthOut = preAllocatedBandwidthOut;
+    }
+
+    public double getPreAllocatedMsgRateIn() {
+        return preAllocatedMsgRateIn;
+    }
+
+    public void setPreAllocatedMsgRateIn(double preAllocatedMsgRateIn) {
+        this.preAllocatedMsgRateIn = preAllocatedMsgRateIn;
+    }
+
+    public double getPreAllocatedMsgRateOut() {
+        return preAllocatedMsgRateOut;
+    }
+
+    public void setPreAllocatedMsgRateOut(double preAllocatedMsgRateOut) {
+        this.preAllocatedMsgRateOut = preAllocatedMsgRateOut;
+    }
+
+    @Override
     public String getWebServiceUrl() {
         return webServiceUrl;
     }
 
+    @Override
     public String getWebServiceUrlTls() {
         return webServiceUrlTls;
     }
 
+    @Override
     public String getPulsarServiceUrl() {
         return pulsarServiceUrl;
     }
 
-    public String getPulsarServieUrlTls() {
-        return pulsarServieUrlTls;
+    @Override
+    public String getPulsarServiceUrlTls() {
+        return pulsarServiceUrlTls;
     }
 }

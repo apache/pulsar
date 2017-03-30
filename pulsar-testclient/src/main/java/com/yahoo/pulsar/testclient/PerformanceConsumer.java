@@ -132,11 +132,11 @@ public class PerformanceConsumer {
             if (arguments.serviceURL == null) {
                 arguments.serviceURL = prop.getProperty("brokerServiceUrl");
             }
-            
+
             if (arguments.serviceURL == null) {
                 arguments.serviceURL = prop.getProperty("webServiceUrl");
             }
-            
+
             // fallback to previous-version serviceUrl property to maintain backward-compatibility
             if (arguments.serviceURL == null) {
                 arguments.serviceURL = prop.getProperty("serviceUrl", "http://localhost:8080/");
