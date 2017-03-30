@@ -162,7 +162,7 @@ void resendMessage(Result r, const Message& msg, Producer &producer) {
     ASSERT_EQ(ResultOk, result);
 
     Message receivedMsg;
-    consumer.receive(receivedMsg);
+    ASSERT_EQ(ResultOk, consumer.receive(receivedMsg));
     ASSERT_EQ(content, receivedMsg.getDataAsString());
     ASSERT_EQ(ResultOk, consumer.unsubscribe());
     ASSERT_EQ(ResultAlreadyClosed, consumer.close());
@@ -282,7 +282,7 @@ TEST(BasicEndToEndTest, testLookupThrottling) {
     LOG_INFO("Trying to receive 10 messages");
     Message msgReceived;
     for (int i = 0; i < 10; i++) {
-        consumer.receive(msgReceived, 1000);
+    	ASSERT_EQ(ResultOk, consumer.receive(msgReceived, 1000));
         LOG_INFO("Received message :" << msgReceived.getMessageId());
         ASSERT_EQ(msgContent, msgReceived.getDataAsString());
         ASSERT_EQ(boost::lexical_cast<std::string>(i), msgReceived.getProperty("msgIndex"));
@@ -396,8 +396,8 @@ TEST(BasicEndToEndTest, testPartitionedProducerConsumer)
     ASSERT_EQ(consumer.getSubscriptionName(), "subscription-A");
     for (int i = 0; i < 10; i++) {
         Message m;
-        consumer.receive(m, 10000);
-        consumer.acknowledge(m);
+        ASSERT_EQ(ResultOk, consumer.receive(m, 10000));
+        ASSERT_EQ(ResultOk, consumer.acknowledge(m));
     }
     client.shutdown();
 }
@@ -453,10 +453,10 @@ TEST(BasicEndToEndTest, testMessageTooBig)
     ASSERT_EQ(ResultOk, result);
 
     Message receivedMsg;
-    consumer.receive(receivedMsg);
+    ASSERT_EQ(ResultOk, consumer.receive(receivedMsg));
     ASSERT_EQ(content1, receivedMsg.getDataAsString());
 
-    consumer.receive(receivedMsg);
+    ASSERT_EQ(ResultOk, consumer.receive(receivedMsg));
     ASSERT_EQ(content2, receivedMsg.getDataAsString());
 
     ASSERT_EQ(ResultOk, consumer.unsubscribe());
@@ -492,10 +492,10 @@ TEST(BasicEndToEndTest, testMessageTooBig)
     ASSERT_EQ(ResultOk, result);
 
     Message receivedMsg;
-    consumer.receive(receivedMsg);
+    ASSERT_EQ(ResultOk, consumer.receive(receivedMsg));
     ASSERT_EQ(content1, receivedMsg.getDataAsString());
 
-    consumer.receive(receivedMsg);
+    ASSERT_EQ(ResultOk, consumer.receive(receivedMsg));
     ASSERT_EQ(content2, receivedMsg.getDataAsString());
 
     ASSERT_EQ(ResultOk, consumer.unsubscribe());
@@ -553,7 +553,7 @@ TEST(BasicEndToEndTest, testSinglePartitionRoutingPolicy)
     ASSERT_EQ(ResultOk, result);
     for (int i = 0; i < 10; i++) {
         Message m;
-        consumer.receive(m);
+        ASSERT_EQ(ResultOk, consumer.receive(m));
         consumer.acknowledgeCumulative(m);
     }
     consumer.close();
