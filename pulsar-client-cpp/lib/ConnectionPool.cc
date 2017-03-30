@@ -42,23 +42,26 @@ Future<Result, ClientConnectionWeakPtr> ConnectionPool::getConnectionAsync(
         cnxIt = pool_.find(endpoint);
         if (cnxIt != pool_.end()) {
             // endpoint exists in the map
-            ClientConnectionContainerPtr containerPtr = cnxIt->second;
-            if (containerPtr && containerPtr->isFull()) {
-                // container is full - can start reusing connections
-                ClientConnectionPtr cnx = containerPtr->getNext().lock();
-                if (cnx && !cnx->isClosed()) {
-                    // Found a valid or pending connection in the pool
-                    LOG_DEBUG("Got connection from pool for " << endpoint << " use_count: "  //
-                                                              << (cnx.use_count() - 1) << " @ " << cnx.get()
-															  << " " << *containerPtr);
-                    return cnx->getConnectFuture();
-                } else {
-                    // Deleting stale connection
-                    LOG_INFO("Deleting stale connection from pool for " << endpoint << " use_count: "
-                                                                        << (cnx.use_count() - 1) << " @ " << cnx.get()
-																		<< " " << *containerPtr);
-                    containerPtr->remove();
-                }
+                ClientConnectionContainerPtr containerPtr = cnxIt->second;
+                if (containerPtr && containerPtr->isFull()) {
+                    // container is full - can start reusing connections
+                    ClientConnectionWeakPtr weakCnx;
+                    if (containerPtr->getNext(weakCnx)) {
+                        ClientConnectionPtr cnx = weakCnx.lock();
+                        if (cnx && !cnx->isClosed()) {
+                            // Found a valid or pending connection in the pool
+                            LOG_DEBUG("Got connection from pool for " << endpoint << " use_count: "//
+                                    << (cnx.use_count() - 1) << " @ " << cnx.get()
+                                    << " " << *containerPtr);
+                            return cnx->getConnectFuture();
+                        } else {
+                            // Deleting stale connection
+                            LOG_INFO("Deleting stale connection from pool for " << endpoint << " use_count: "
+                                    << (cnx.use_count() - 1) << " @ " << cnx.get()
+                                    << " " << *containerPtr);
+                            containerPtr->remove();
+                        }
+                    }
             }
         }
     }

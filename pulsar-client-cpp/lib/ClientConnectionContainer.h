@@ -13,123 +13,130 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-#include <vector>
-#include <iostream>
 #ifndef PULSAR_CPP_CLIENTCONNECTIONCONTAINER_H
 #define PULSAR_CPP_CLIENTCONNECTIONCONTAINER_H
 
+#include <vector>
+#include <iostream>
+#include <algorithm>    // std::min
 namespace pulsar {
-    /* @brief - This class uses a vector to store elements and provides a wrap around getNext() function to retrieve elements in a round robin fashion.
-     * @note - this class is not thread safe.
+/* @brief - This class uses a vector to store elements and provides a wrap around getNext() function to retrieve elements in a round robin fashion.
+ * @note - this class is not thread safe.
+ */
+template<class T>
+class ClientConnectionContainer {
+ private:
+    size_t capacity_;
+    size_t currentIndex_;
+    std::vector<T> list_;
+ public:
+    /*
+     * @param - the capacity of the container (capacity > 0)
+     * @note - A container of capacity 1 is created if given capacity is 0.
      */
-    template <class T>
-    class ClientConnectionContainer {
-    private:
-        size_t capacity_;
-        size_t currentIndex_;
-        std::vector<T> list_;
-    public:
-        /*
-         * @throws - if we try to create a container with capacity 0.
-         */
-        ClientConnectionContainer(size_t);
+    ClientConnectionContainer(size_t);
 
-        /*
-         * @returns - true if the container has reached it's max capacity.
-         */
-        inline bool isFull() const;
+    /*
+     * @returns - true if the container has reached it's max capacity.
+     */
+    inline bool isFull() const;
 
-        /*
-         * @returns - gets the next element in the container - wraps around after the last element.
-         * @throws - if the list is empty.
-         */
-        T getNext();
+    /*
+     * @brief - gets the next element in the container - wraps around after the last element.
+     * @returns - false if the list is empty.
+     */
+    bool getNext(T&);
 
-        /*
-         * @brief - Adds the element to the end of the list.
-         * @returns - false if the list is full.
-         */
-        bool add(T&);
+    /*
+     * @brief - Adds the element to the end of the list.
+     * @returns - false if the list is full.
+     */
+    bool add(T&);
 
-        /*
-         * @brief - removes element in reverse order starting from the one returned by last getNext() call
-         * 		  - removes the oldest element if getNext() never called
-         * @return - true if an element was removed
-         */
-        bool remove();
+    /*
+     * @brief - removes element in reverse order starting from the one returned by last getNext() call
+     * 		  - removes the oldest element if getNext() never called
+     * @return - true if an element was removed
+     */
+    bool remove();
 
-        /*
-         * @returns - the size of the container
-         */
-        inline size_t size() const;
+    /*
+     * @returns - the size of the container
+     */
+    inline size_t size() const;
 
-        /*
-         * @returns - true if the list is empty
-         */
-        inline bool isEmpty() const;
+    /*
+     * @returns - the capacity of the container
+     */
+    inline size_t capacity() const;
 
-        // http://web.mst.edu/~nmjxv3/articles/templates.html
-        friend std::ostream& operator<<(std::ostream& os, const ClientConnectionContainer<T>& obj) {
-        	os << "ClientConnectionContainer [ size_ = " << obj.size() <<", currentIndex_ = " << obj.currentIndex_
-        	   << ", capacity = " << obj.capacity_
-        	   << "]";
-        	return os;
-        }
-    };
+    /*
+     * @returns - true if the list is empty
+     */
+    inline bool isEmpty() const;
 
-template <class T>  ClientConnectionContainer<T>::ClientConnectionContainer(size_t capacity)
-        : capacity_(capacity),
+    // http://web.mst.edu/~nmjxv3/articles/templates.html
+    friend std::ostream& operator<<(std::ostream& os, const ClientConnectionContainer<T>& obj) {
+        os << "ClientConnectionContainer [ size_ = " << obj.size() << ", currentIndex_ = "
+                << obj.currentIndex_ << ", capacity = " << obj.capacity_ << "]";
+        return os;
+    }
+};
+
+template<class T> ClientConnectionContainer<T>::ClientConnectionContainer(size_t capacity)
+        : capacity_(std::min(capacity, 1uL)),
           currentIndex_(-1) {
-	if (capacity == 0) {
-		throw "Can't create a container of capacity 0";
-	}
 }
 
-template <class T> bool ClientConnectionContainer<T>::isFull() const {
+template<class T> bool ClientConnectionContainer<T>::isFull() const {
     return list_.size() >= capacity_;
 }
 
-template <class T> bool ClientConnectionContainer<T>::isEmpty() const {
+template<class T> bool ClientConnectionContainer<T>::isEmpty() const {
     return list_.size() == 0;
 }
 
-template <class T> T ClientConnectionContainer<T>::getNext() {
+template<class T> bool ClientConnectionContainer<T>::getNext(T& element) {
     if (list_.empty()) {
-        throw "Get next called on an empty container";
+        return false;
     }
     currentIndex_ = (currentIndex_ + 1) % list_.size();
-    return list_[currentIndex_];
+    element = list_[currentIndex_];
+    return true;
 }
 
-template <class T> bool ClientConnectionContainer<T>::add(T& element) {
-	if (isFull()) {
-		return false;
-	}
+template<class T> bool ClientConnectionContainer<T>::add(T& element) {
+    if (isFull()) {
+        return false;
+    }
     list_.push_back(element);
     return true;
 }
 
-template <class T> bool ClientConnectionContainer<T>::remove() {
-	if (list_.empty()) {
-		return false;
-	} else if (list_.size() == 1) {
-		list_.clear();
-		currentIndex_ = -1;
-		return true;
-	} else if (currentIndex_ == -1) {
-		list_.erase(list_.begin());
-		return true;
-	}
-	// list size >= 2
+template<class T> bool ClientConnectionContainer<T>::remove() {
+    if (list_.empty()) {
+        return false;
+    } else if (list_.size() == 1) {
+        list_.clear();
+        currentIndex_ = -1;
+        return true;
+    } else if (currentIndex_ == -1) {
+        list_.erase(list_.begin());
+        return true;
+    }
+    // list size >= 2
     list_.erase(list_.begin() + currentIndex_);
     // list size >= 1
     currentIndex_ = (list_.size() + currentIndex_ - 1) % list_.size();
     return true;
 }
 
-template <class T> size_t ClientConnectionContainer<T>::size() const {
-	return list_.size();
+template<class T> size_t ClientConnectionContainer<T>::size() const {
+    return list_.size();
+}
+
+template<class T> size_t ClientConnectionContainer<T>::capacity() const {
+    return list_.capacity();
 }
 }
 

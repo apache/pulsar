@@ -551,6 +551,8 @@ TEST(BasicEndToEndTest, testSinglePartitionRoutingPolicy)
     Consumer consumer;
     result = client.subscribe(topicName, "subscription-A", consumer);
     ASSERT_EQ(ResultOk, result);
+
+    // Since we are getting all messages in order that means we are using a single producer
     for (int i = 0; i < 10; i++) {
         Message m;
         ASSERT_EQ(ResultOk, consumer.receive(m));
