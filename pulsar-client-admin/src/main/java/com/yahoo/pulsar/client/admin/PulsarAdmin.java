@@ -102,6 +102,10 @@ public class PulsarAdmin implements Closeable {
         LOG.debug("created: serviceUrl={}, authMethodName={}", serviceUrl,
                 auth != null ? auth.getAuthMethodName() : null);
 
+        if (auth != null) {
+            auth.start();
+        }
+
         ClientConfig httpConfig = new ClientConfig();
         httpConfig.property(ClientProperties.FOLLOW_REDIRECTS, true);
         httpConfig.property(ClientProperties.ASYNC_THREADPOOL_SIZE, 8);
@@ -117,7 +121,7 @@ public class PulsarAdmin implements Closeable {
                         .loadCertificatesFromPemFile(pulsarConfig.getTlsTrustCertsFilePath());
 
                 // Set private key and certificate if available
-                AuthenticationDataProvider authData = pulsarConfig.getAuthentication().getAuthData();
+                AuthenticationDataProvider authData = auth.getAuthData();
                 if (authData.hasDataForTls()) {
                     sslCtx = SecurityUtility.createSslContext(pulsarConfig.isTlsAllowInsecureConnection(),
                             trustCertificates, authData.getTlsCertificates(), authData.getTlsPrivateKey());
@@ -128,6 +132,13 @@ public class PulsarAdmin implements Closeable {
 
                 clientBuilder.sslContext(sslCtx);
             } catch (Exception e) {
+                try {
+                    if (auth != null) {
+                        auth.close();
+                    }
+                } catch (IOException ioe) {
+                    LOG.error("Failed to close the authentication service", ioe);
+                }
                 throw new PulsarClientException.InvalidConfigurationException(e.getMessage());
             }
         }
@@ -137,10 +148,6 @@ public class PulsarAdmin implements Closeable {
         this.serviceUrl = serviceUrl;
         WebTarget root = client.target(serviceUrl.toString());
         web = root.path("/admin");
-
-        if (auth != null) {
-            auth.start();
-        }
 
         this.clusters = new ClustersImpl(web, auth);
         this.brokers = new BrokersImpl(web, auth);
