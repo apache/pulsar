@@ -47,4 +47,6 @@ int main() {
 
         sleep(1);
     }
+
+    client.close();
 }

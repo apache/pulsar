@@ -20,8 +20,8 @@ import static com.google.common.base.Preconditions.checkArgument;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
@@ -39,9 +39,11 @@ import javax.ws.rs.core.Response.Status;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+import com.yahoo.pulsar.client.admin.PersistentTopics;
 import com.yahoo.pulsar.client.admin.PulsarAdminException;
 import com.yahoo.pulsar.client.admin.PulsarAdminException.NotFoundException;
-import com.yahoo.pulsar.client.admin.PersistentTopics;
 import com.yahoo.pulsar.client.api.Authentication;
 import com.yahoo.pulsar.client.api.Message;
 import com.yahoo.pulsar.client.impl.MessageImpl;
@@ -286,6 +288,38 @@ public class PersistentTopicsImpl extends BaseResource implements PersistentTopi
                     @Override
                     public void completed(PersistentTopicInternalStats response) {
                         future.complete(response);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
+    }
+
+    @Override
+    public JsonObject getInternalInfo(String destination) throws PulsarAdminException {
+        try {
+            return getInternalInfoAsync(destination).get();
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e.getCause());
+        }
+    }
+
+    @Override
+    public CompletableFuture<JsonObject> getInternalInfoAsync(String destination) {
+        DestinationName ds = validateTopic(destination);
+        final CompletableFuture<JsonObject> future = new CompletableFuture<>();
+        asyncGetRequest(persistentTopics.path(ds.getNamespace()).path(ds.getEncodedLocalName()).path("internal-info"),
+                new InvocationCallback<String>() {
+                    @Override
+                    public void completed(String response) {
+                        JsonObject json = new Gson().fromJson(response, JsonObject.class);
+                        future.complete(json);
                     }
 
                     @Override

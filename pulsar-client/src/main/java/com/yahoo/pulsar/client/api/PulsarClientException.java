@@ -60,8 +60,8 @@ public class PulsarClientException extends IOException {
         }
     }
 
-    public static class TooManyLookupRequestException extends LookupException {
-        public TooManyLookupRequestException(String msg) {
+    public static class TooManyRequestsException extends LookupException {
+        public TooManyRequestsException(String msg) {
             super(msg);
         }
     }

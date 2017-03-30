@@ -81,6 +81,6 @@ if [ "$3" = "all" -o "$3" = "compile" ]; then
   sleep 10
   PULSAR_CLIENT_CONF=$2/pulsar-client-cpp/tests/client.conf $2/bin/pulsar-admin clusters create --url http://localhost:9765/ --url-secure https://localhost:9766/ --broker-url pulsar://localhost:9885/ --broker-url-secure pulsar+ssl://localhost:9886/ cluster
   exec_cmd "sleep 5 && pushd $2/pulsar-client-cpp/tests && ./main && popd";
-  exec_cmd "kill -SIGTERM $pid";
+  exec_cmd "kill -SIGTERM $standalone_pid";
   exec_cmd "kill -SIGTERM $auth_pid";
 fi

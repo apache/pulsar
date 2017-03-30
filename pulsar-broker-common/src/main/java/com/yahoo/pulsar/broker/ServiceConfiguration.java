@@ -91,6 +91,9 @@ public class ServiceConfiguration implements PulsarConfiguration{
     // Max number of concurrent lookup request broker allows to throttle heavy incoming lookup traffic
     @FieldContext(dynamic = true)
     private int maxConcurrentLookupRequest = 10000;
+    // Max number of concurrent topic loading request broker allows to control number of zk-operations
+    @FieldContext(dynamic = true)
+    private int maxConcurrentTopicLoadRequest = 5000;
 
     /***** --- TLS --- ****/
     // Enable TLS
@@ -432,6 +435,14 @@ public class ServiceConfiguration implements PulsarConfiguration{
 
     public void setMaxConcurrentLookupRequest(int maxConcurrentLookupRequest) {
         this.maxConcurrentLookupRequest = maxConcurrentLookupRequest;
+    }
+
+    public int getMaxConcurrentTopicLoadRequest() {
+        return maxConcurrentTopicLoadRequest;
+    }
+
+    public void setMaxConcurrentTopicLoadRequest(int maxConcurrentTopicLoadRequest) {
+        this.maxConcurrentTopicLoadRequest = maxConcurrentTopicLoadRequest;
     }
 
     public boolean isTlsEnabled() {
