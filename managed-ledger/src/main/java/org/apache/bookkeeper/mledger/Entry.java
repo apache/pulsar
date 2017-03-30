@@ -17,8 +17,6 @@ package org.apache.bookkeeper.mledger;
 
 import io.netty.buffer.ByteBuf;
 
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
-
 import com.google.common.annotations.Beta;
 
 /**
