@@ -120,6 +120,7 @@ public class EntryCacheImpl implements EntryCache {
 
         PositionImpl position = entry.getPosition();
         EntryImpl cacheEntry = EntryImpl.create(position, cachedData);
+        cachedData.release();
         if (entries.put(position, cacheEntry)) {
             manager.entryAdded(entry.getLength());
             return true;

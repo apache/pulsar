@@ -31,8 +31,8 @@ import io.netty.util.Recycler.Handle;
 
 public class PositionImpl implements Position, Comparable<PositionImpl> {
 
-    private long ledgerId;
-    private long entryId;
+    private final long ledgerId;
+    private final long entryId;
 
     public PositionImpl(PositionInfo pi) {
         this.ledgerId = pi.getLedgerId();
