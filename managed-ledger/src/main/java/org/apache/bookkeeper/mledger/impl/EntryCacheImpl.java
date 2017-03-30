@@ -118,8 +118,9 @@ public class EntryCacheImpl implements EntryCache {
             entryBuf.readerIndex(readerIdx);
         }
 
-        EntryImpl cacheEntry = EntryImpl.create(entry.getPosition(), cachedData);
-        if (entries.put(cacheEntry.getPosition(),cacheEntry)) {
+        PositionImpl position = entry.getPosition();
+        EntryImpl cacheEntry = EntryImpl.create(position, cachedData);
+        if (entries.put(position, cacheEntry)) {
             manager.entryAdded(entry.getLength());
             return true;
         } else {
@@ -141,7 +142,6 @@ public class EntryCacheImpl implements EntryCache {
                     lastPosition, entriesRemoved, sizeRemoved);
         }
 
-        firstPosition.recycle();
         manager.entriesRemoved(sizeRemoved);
     }
 
@@ -158,8 +158,6 @@ public class EntryCacheImpl implements EntryCache {
                     ml.getName(), ledgerId, entriesRemoved, sizeRemoved);
         }
 
-        firstPosition.recycle();
-        lastPosition.recycle();
         manager.entriesRemoved(sizeRemoved);
     }
 
@@ -213,8 +211,6 @@ public class EntryCacheImpl implements EntryCache {
         }
 
         Collection<EntryImpl> cachedEntries = entries.getRange(firstPosition, lastPosition);
-        firstPosition.recycle();
-        lastPosition.recycle();
 
         if (cachedEntries.size() == entriesToRead) {
             long totalCachedSize = 0;

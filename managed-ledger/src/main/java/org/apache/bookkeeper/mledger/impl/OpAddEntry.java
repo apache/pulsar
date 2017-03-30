@@ -145,7 +145,7 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
             // EntryCache.insert: duplicates entry by allocating new entry and data. so, recycle entry after calling
             // insert
             ml.entryCache.insert(entry);
-            entry.recycle();
+            entry.release();
         }
 
         // We are done using the byte buffer
