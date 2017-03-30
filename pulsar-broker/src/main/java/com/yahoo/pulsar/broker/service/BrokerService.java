@@ -40,6 +40,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
+import com.yahoo.pulsar.broker.loadbalance.LoadManager;
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
 import org.apache.bookkeeper.mledger.ManagedLedger;
@@ -343,7 +344,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         try {
             // make broker-node unavailable from the cluster
             if (pulsar.getLoadManager() != null) {
-                pulsar.getLoadManager().disableBroker();
+                pulsar.getLoadManager().get().disableBroker();
             }
 
             // unload all namespace-bundles gracefully
@@ -910,6 +911,17 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         // add listener on "maxConcurrentTopicLoadRequest" value change
         registerConfigurationListener("maxConcurrentTopicLoadRequest",
                 (maxConcurrentTopicLoadRequest) -> topicLoadRequestSemaphore.set(new Semaphore((int) maxConcurrentTopicLoadRequest, false)));
+        registerConfigurationListener("loadManagerClassName", className -> {
+            try {
+                final LoadManager newLoadManager = LoadManager.create(pulsar);
+                log.info("Created load manager: {}", className);
+                pulsar.getLoadManager().get().disableBroker();
+                newLoadManager.start();
+                pulsar.getLoadManager().set(newLoadManager);
+            } catch (Exception ex) {
+                log.warn("Failed to change load manager due to {}", ex);
+            }
+        });
         // add more listeners here
     }
 

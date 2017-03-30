@@ -19,17 +19,23 @@ import java.io.IOException;
 import java.net.URL;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
 
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.util.OrderedSafeExecutor;
+import org.apache.bookkeeper.util.ZkUtils;
+import org.apache.zookeeper.CreateMode;
+import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.WatchedEvent;
+import org.apache.zookeeper.Watcher;
+import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.slf4j.Logger;
@@ -93,7 +99,7 @@ public class PulsarService implements AutoCloseable {
     private ScheduledFuture<?> loadReportTask = null;
     private ScheduledFuture<?> loadSheddingTask = null;
     private ScheduledFuture<?> loadResourceQuotaTask = null;
-    private LoadManager loadManager = null;
+    private AtomicReference<LoadManager> loadManager = null;
     private PulsarAdmin adminClient = null;
     private ZooKeeperClientFactory zkClientFactory = null;
     private final String bindAddress;
@@ -235,7 +241,7 @@ public class PulsarService implements AutoCloseable {
             this.brokerService = new BrokerService(this);
 
             // Start load management service (even if load balancing is disabled)
-            this.loadManager = new SimpleLoadManagerImpl(this);
+            this.loadManager = new AtomicReference<>(LoadManager.create(this));
 
             this.startLoadManagementService();
 
@@ -396,7 +402,7 @@ public class PulsarService implements AutoCloseable {
 
     private void startLoadManagementService() throws PulsarServerException {
         LOG.info("Starting load management service ...");
-        this.loadManager.start();
+        this.loadManager.get().start();
 
         if (config.isLoadBalancerEnabled()) {
             LOG.info("Starting load balancer");
@@ -625,7 +631,7 @@ public class PulsarService implements AutoCloseable {
         return brokerServiceUrlTls;
     }
 
-    public LoadManager getLoadManager() {
+    public AtomicReference<LoadManager> getLoadManager() {
         return loadManager;
     }
 

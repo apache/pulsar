@@ -19,22 +19,23 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.Runnable;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * LoadManager load shedding task
  */
 public class LoadSheddingTask implements Runnable {
     private static final Logger LOG = LoggerFactory.getLogger(LoadSheddingTask.class);
-    private final LoadManager loadManager;
+    private final AtomicReference<LoadManager> loadManager;
 
-    public LoadSheddingTask(LoadManager loadManager) {
+    public LoadSheddingTask(AtomicReference<LoadManager> loadManager) {
         this.loadManager = loadManager;
     }
 
     @Override
     public void run() {
         try {
-            loadManager.doLoadShedding();
+            loadManager.get().doLoadShedding();
         } catch (Exception e) {
             LOG.warn("Error during the load shedding", e);
         }
