@@ -18,9 +18,15 @@ package com.yahoo.pulsar.broker.loadbalance;
 import java.util.List;
 
 import com.yahoo.pulsar.broker.PulsarServerException;
+import com.yahoo.pulsar.broker.PulsarService;
+import com.yahoo.pulsar.broker.ServiceConfiguration;
+import com.yahoo.pulsar.broker.loadbalance.impl.ModularLoadManagerWrapper;
+import com.yahoo.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import com.yahoo.pulsar.broker.stats.Metrics;
 import com.yahoo.pulsar.common.naming.ServiceUnitId;
 import com.yahoo.pulsar.common.policies.data.loadbalancer.LoadReport;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * LoadManager runs though set of load reports collected from different brokers and generates a recommendation of
@@ -30,6 +36,9 @@ import com.yahoo.pulsar.common.policies.data.loadbalancer.LoadReport;
  * Concrete Load Manager is also return the least loaded broker that should own the new namespace.
  */
 public interface LoadManager {
+    Logger log = LoggerFactory.getLogger(LoadManager.class);
+
+    String LOADBALANCE_BROKERS_ROOT = "/loadbalance/brokers";
 
     public void start() throws PulsarServerException;
 
@@ -87,4 +96,34 @@ public interface LoadManager {
     public void disableBroker() throws Exception;
 
     public void stop() throws PulsarServerException;
+
+    /**
+     * Initialize this LoadManager.
+     * 
+     * @param pulsar
+     *            The service to initialize this with.
+     */
+    public void initialize(PulsarService pulsar);
+
+    static LoadManager create(final PulsarService pulsar) {
+        try {
+            final ServiceConfiguration conf = pulsar.getConfiguration();
+            final Class<?> loadManagerClass = Class.forName(conf.getLoadManagerClassName());
+            // Assume there is a constructor with one argument of PulsarService.
+            final Object loadManagerInstance = loadManagerClass.newInstance();
+            if (loadManagerInstance instanceof LoadManager) {
+                final LoadManager casted = (LoadManager) loadManagerInstance;
+                casted.initialize(pulsar);
+                return casted;
+            } else if (loadManagerInstance instanceof ModularLoadManager) {
+                final LoadManager casted = new ModularLoadManagerWrapper((ModularLoadManager) loadManagerInstance);
+                casted.initialize(pulsar);
+                return casted;
+            }
+        } catch (Exception e) {
+            log.warn("Error when trying to create load manager: {}");
+        }
+        // If we failed to create a load manager, default to SimpleLoadManagerImpl.
+        return new SimpleLoadManagerImpl(pulsar);
+    }
 }

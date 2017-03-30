@@ -73,9 +73,14 @@ pulsar_help() {
     cat <<EOF
 Usage: pulsar <command>
 where command is one of:
-    produce             Run a producer
-    consume             Run a consumer
-    help                This help message
+    produce                        Run a producer
+    consume                        Run a consumer
+    monitor-simple-load-manager    Continuously receive broker data when using SimpleLoadManagerImpl
+    monitor-modular-load-manager   Continuously receive broker data when using ModularLoadManagerImpl
+    simulation-client              Run a simulation server acting as a Pulsar client
+    simulation-controller          Run a simulation controller to give commands to servers
+
+    help                           This help message
 
 or command is the full name of a class with a defined main() method.
 
@@ -137,6 +142,14 @@ if [ "$COMMAND" == "produce" ]; then
     exec $JAVA $OPTS com.yahoo.pulsar.testclient.PerformanceProducer --conf-file $PULSAR_PERFTEST_CONF "$@"
 elif [ "$COMMAND" == "consume" ]; then
     exec $JAVA $OPTS com.yahoo.pulsar.testclient.PerformanceConsumer --conf-file $PULSAR_PERFTEST_CONF "$@"
+elif [ "$COMMAND" == "monitor-simple-load-manager" ]; then
+    exec $JAVA $OPTS com.yahoo.pulsar.testclient.SimpleLoadManagerBrokerMonitor "$@"
+elif [ "$COMMAND" == "monitor-modular-load-manager" ]; then
+    exec $JAVA $OPTS com.yahoo.pulsar.testclient.ModularLoadManagerBrokerMonitor "$@"
+elif [ "$COMMAND" == "simulation-client" ]; then
+    exec $JAVA $OPTS com.yahoo.pulsar.testclient.LoadSimulationClient "$@"
+elif [ "$COMMAND" == "simulation-controller" ]; then
+    exec $JAVA $OPTS com.yahoo.pulsar.testclient.LoadSimulationController "$@"
 elif [ "$COMMAND" == "help" ]; then
     pulsar_help;
 else
