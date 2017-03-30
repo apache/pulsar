@@ -38,7 +38,7 @@ using namespace pulsar;
 boost::mutex mutex_;
 static int globalTestBatchMessagesCounter = 0;
 static int globalCount = 0;
-static int globalResendMessageCount = 0;
+static long globalResendMessageCount = 0;
 static std::string lookupUrl = "pulsar://localhost:8885";
 static std::string adminUrl = "http://localhost:8765/";
 
@@ -121,20 +121,16 @@ TEST(BasicEndToEndTest, testBatchMessages)
 }
 
 void resendMessage(Result r, const Message& msg, Producer &producer) {
-    int attemptNumber = boost::lexical_cast<int>(msg.getProperty("attempt#"));
 	Lock lock(mutex_);
     if (r != ResultOk) {
-        LOG_DEBUG("attempt#" << attemptNumber);
-        if (attemptNumber < 3) {
-            globalResendMessageCount++;
-            lock.unlock();
-            producer.sendAsync(MessageBuilder().setProperty("attempt#", boost::lexical_cast<std::string>(attemptNumber + 1)).build(),
-                                   boost::bind(resendMessage, _1, _2, producer));
-        }
-    } else {
-        producer.sendAsync(MessageBuilder().setProperty("attempt#", boost::lexical_cast<std::string>(attemptNumber + 1)).build(),
-                               boost::bind(resendMessage, _1, _2, producer));
+        LOG_DEBUG("globalResendMessageCount" << globalResendMessageCount);
+		if (globalResendMessageCount++ >= 3) {
+			return;
+		}
+		lock.unlock();
     }
+    producer.sendAsync(MessageBuilder().build(),
+                               boost::bind(resendMessage, _1, _2, producer));
 }
 
     TEST(BasicEndToEndTest, testProduceConsume)
@@ -804,7 +800,7 @@ TEST(BasicEndToEndTest, testMessageListenerPause)
     client.close();
 }
 
-    TEST(BasicEndToEndTest, testResendViaListener)
+    TEST(BasicEndToEndTest, testResendViaSendCallback)
 {
     Client client(lookupUrl);
     std::string topicName = "persistent://my-property/my-cluster/my-namespace/testResendViaListener";
@@ -821,11 +817,13 @@ TEST(BasicEndToEndTest, testMessageListenerPause)
     Result result = producerFuture.get(producer);
     ASSERT_EQ(ResultOk, result);
 
-    // Send asynchronously
-    producer.sendAsync(MessageBuilder().setProperty("attempt#", boost::lexical_cast<std::string>(0)).build(), boost::bind(resendMessage, _1, _2, producer));
+    // Send asynchronously for 3 seconds
+    // Expect timeouts since we have set timeout to 1 ms
+    // On receiving timeout send the message using the CMS client IO thread via cb function.
+    producer.sendAsync(MessageBuilder().build(), boost::bind(resendMessage, _1, _2, producer));
 
     // 3 seconds
     usleep(3 * 1000 * 1000);
     Lock lock(mutex_);
-    ASSERT_EQ(globalResendMessageCount, 3);
+    ASSERT_GE(globalResendMessageCount, 3);
 }
