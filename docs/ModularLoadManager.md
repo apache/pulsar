@@ -20,4 +20,3 @@ Alternatively, the load manager may also be changed dynamically via the `pulsar-
 com.yahoo.broker.loadbalance.impl.ModularLoadManagerImpl`
 
 The admin tool may also be used to change back to `com.yahoo.broker.loadbalance.impl.SimpleLoadManagerImpl`
-Note that the ZooKeeper node `/admin/configuration` must exist BEFORE brokers are started for this to work correctly.
