@@ -913,7 +913,6 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 (maxConcurrentTopicLoadRequest) -> topicLoadRequestSemaphore.set(new Semaphore((int) maxConcurrentTopicLoadRequest, false)));
         registerConfigurationListener("loadManagerClassName", className -> {
             try {
-                log.info("Attempting to change load manager");
                 final LoadManager newLoadManager = LoadManager.create(pulsar);
                 log.info("Created load manager: {}", className);
                 pulsar.getLoadManager().get().disableBroker();
