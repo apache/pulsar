@@ -24,6 +24,7 @@ import java.util.List;
 
 import org.apache.bookkeeper.client.AsyncCallback.ReadCallback;
 import org.apache.bookkeeper.client.BKException;
+import org.apache.bookkeeper.client.LedgerEntry;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
@@ -183,7 +184,11 @@ public class EntryCacheImpl implements EntryCache {
                 }
 
                 if (sequence.hasMoreElements()) {
-                    EntryImpl returnEntry = EntryImpl.create(sequence.nextElement());
+                    LedgerEntry ledgerEntry = sequence.nextElement();
+                    EntryImpl returnEntry = EntryImpl.create(ledgerEntry);
+
+                    // The EntryImpl is now the owner of the buffer, so we can release the original one
+                    ledgerEntry.getEntryBuffer().release();
 
                     manager.mlFactoryMBean.recordCacheMiss(1, returnEntry.getLength());
                     ml.mbean.addReadEntriesSample(1, returnEntry.getLength());
@@ -259,7 +264,10 @@ public class EntryCacheImpl implements EntryCache {
                     final List<EntryImpl> entriesToReturn = Lists.newArrayListWithExpectedSize(entriesToRead);
                     while (sequence.hasMoreElements()) {
                         // Insert the entries at the end of the list (they will be unsorted for now)
-                        EntryImpl entry = EntryImpl.create(sequence.nextElement());
+                        LedgerEntry ledgerEntry = sequence.nextElement();
+                        EntryImpl entry = EntryImpl.create(ledgerEntry);
+                        ledgerEntry.getEntryBuffer().release();
+
                         entriesToReturn.add(entry);
 
                         totalSize += entry.getLength();
