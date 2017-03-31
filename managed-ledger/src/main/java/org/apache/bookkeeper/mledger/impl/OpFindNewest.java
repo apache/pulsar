@@ -59,13 +59,14 @@ public class OpFindNewest implements ReadEntryCallback {
 
     @Override
     public void readEntryComplete(Entry entry, Object ctx) {
+        final Position position = entry.getPosition();
         switch (state) {
         case checkFirst:
             if (!condition.apply(entry)) {
                 callback.findEntryComplete(null, OpFindNewest.this.ctx);
                 return;
             } else {
-                lastMatchedPosition = entry.getPosition();
+                lastMatchedPosition = position;
 
                 // check last entry
                 state = State.checkLast;
@@ -75,7 +76,7 @@ public class OpFindNewest implements ReadEntryCallback {
             break;
         case checkLast:
             if (condition.apply(entry)) {
-                callback.findEntryComplete(entry.getPosition(), OpFindNewest.this.ctx);
+                callback.findEntryComplete(position, OpFindNewest.this.ctx);
                 return;
             } else {
                 // start binary search
@@ -87,7 +88,7 @@ public class OpFindNewest implements ReadEntryCallback {
         case searching:
             if (condition.apply(entry)) {
                 // mid - last
-                lastMatchedPosition = entry.getPosition();
+                lastMatchedPosition = position;
                 min = mid();
             } else {
                 // start - mid

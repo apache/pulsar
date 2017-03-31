@@ -112,14 +112,14 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             List<Entry> entries = cursor.readEntries(20);
             log.debug("Read {} entries", entries.size());
 
+            // Acknowledge only on last entry
+            Entry lastEntry = entries.get(entries.size() - 1);
+            cursor.markDelete(lastEntry.getPosition());
+            
             for (Entry entry : entries) {
                 log.info("Read entry. Position={} Content='{}'", entry.getPosition(), new String(entry.getData()));
                 entry.release();
             }
-
-            // Acknowledge only on last entry
-            Entry lastEntry = entries.get(entries.size() - 1);
-            cursor.markDelete(lastEntry.getPosition());
 
             log.info("-----------------------");
         }
@@ -212,7 +212,6 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         List<Entry> entries = cursor.readEntries(2);
         assertEquals(entries.size(), 2);
-        entries.forEach(e -> e.release());
 
         assertEquals(cursor.getNumberOfEntries(), 0);
         assertEquals(cursor.getNumberOfEntriesInBacklog(), 2);
@@ -221,6 +220,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertEquals(ledger.getNumberOfEntries(), 2);
         assertEquals(ledger.getNumberOfActiveEntries(), 2);
         cursor.markDelete(entries.get(0).getPosition());
+        entries.forEach(e -> e.release());
 
         assertEquals(cursor.getNumberOfEntries(), 0);
         assertEquals(cursor.getNumberOfEntriesInBacklog(), 1);
@@ -278,10 +278,11 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
                                         assertEquals(entries.size(), 1);
                                         Entry entry = entries.get(0);
+                                        final Position position = entry.getPosition();
                                         assertEquals(new String(entry.getDataAndRelease(), Encoding), "test");
 
-                                        log.debug("Mark-Deleting to position {}", entry.getPosition());
-                                        cursor.asyncMarkDelete(entry.getPosition(), new MarkDeleteCallback() {
+                                        log.debug("Mark-Deleting to position {}", position);
+                                        cursor.asyncMarkDelete(position, new MarkDeleteCallback() {
                                             @Override
                                             public void markDeleteComplete(Object ctx) {
                                                 log.debug("Mark delete complete");
@@ -1887,23 +1888,23 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         // read 20 entries
         final int readEntries = 20;
         List<Entry> entries1 = cursor1.readEntries(readEntries);
+        // Acknowledge only on last entry
+        cursor1.markDelete(entries1.get(entries1.size() - 1).getPosition());
         for (Entry entry : entries1) {
             log.info("Read entry. Position={} Content='{}'", entry.getPosition(), new String(entry.getData()));
             entry.release();
         }
-        // Acknowledge only on last entry
-        cursor1.markDelete(entries1.get(entries1.size() - 1).getPosition());
 
         // read after a second: as RateLimiter limits triggering of removing cache
         Thread.sleep(1000);
 
         List<Entry> entries2 = cursor2.readEntries(readEntries);
+        // Acknowledge only on last entry
+        cursor2.markDelete((entries2.get(entries2.size() - 1)).getPosition());
         for (Entry entry : entries2) {
             log.info("Read entry. Position={} Content='{}'", entry.getPosition(), new String(entry.getData()));
             entry.release();
         }
-        // Acknowledge only on last entry
-        cursor2.markDelete((entries2.get(entries2.size() - 1)).getPosition());
 
         // (3) Validate: cache should remove all entries read by both active cursors
 		log.info("expected, found : {}, {}", (5 * (totalInsertedEntries - readEntries)), entryCache.getSize());
@@ -1911,12 +1912,12 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         final int remainingEntries = totalInsertedEntries - readEntries;
         entries1 = cursor1.readEntries(remainingEntries);
+        // Acknowledge only on last entry
+        cursor1.markDelete(entries1.get(entries1.size() - 1).getPosition());
         for (Entry entry : entries1) {
             log.info("Read entry. Position={} Content='{}'", entry.getPosition(), new String(entry.getData()));
             entry.release();
         }
-        // Acknowledge only on last entry
-        cursor1.markDelete(entries1.get(entries1.size() - 1).getPosition());
 
         // (4) Validate: cursor2 is active cursor and has not read these entries yet: so, cache should not remove these
         // entries

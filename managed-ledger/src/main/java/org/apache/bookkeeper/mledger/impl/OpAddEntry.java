@@ -141,7 +141,11 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
         ManagedLedgerImpl.TOTAL_SIZE_UPDATER.addAndGet(ml, dataLength);
         if (ml.hasActiveCursors()) {
             // Avoid caching entries if no cursor has been created
-            ml.entryCache.insert(new EntryImpl(ledger.getId(), entryId, data));
+            EntryImpl entry = EntryImpl.create(ledger.getId(), entryId, data);
+            // EntryCache.insert: duplicates entry by allocating new entry and data. so, recycle entry after calling
+            // insert
+            ml.entryCache.insert(entry);
+            entry.release();
         }
 
         // We are done using the byte buffer

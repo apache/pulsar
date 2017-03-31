@@ -203,7 +203,6 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         PositionImpl position = (PositionImpl) pos;
         // Message has been successfully persisted
         callback.completed(null, position.getLedgerId(), position.getEntryId());
-        position.recycle();
     }
 
     @Override
