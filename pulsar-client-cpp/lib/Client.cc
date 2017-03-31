@@ -166,10 +166,7 @@ const std::string& ClientConfiguration::getLogConfFilePath() const {
 }
 
 ClientConfiguration& ClientConfiguration::setConnectionsPerBroker(size_t connectionsPerBroker) {
-    if (connectionsPerBroker < 1) {
-        throw "Client Config Exception: connectionsPerBroker need to be greater than or equal to 1.";
-    }
-    impl_->connectionsPerBroker = connectionsPerBroker;
+    impl_->connectionsPerBroker = std::min(1uL, connectionsPerBroker);
     return *this;
 }
 

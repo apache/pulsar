@@ -286,7 +286,7 @@ TEST(BasicEndToEndTest, testLookupThrottling) {
     LOG_INFO("Trying to receive 10 messages");
     Message msgReceived;
     for (int i = 0; i < 10; i++) {
-    	ASSERT_EQ(ResultOk, consumer.receive(msgReceived, 1000));
+        ASSERT_EQ(ResultOk, consumer.receive(msgReceived, 1000));
         LOG_INFO("Received message :" << msgReceived.getMessageId());
         ASSERT_EQ(msgContent, msgReceived.getDataAsString());
         ASSERT_EQ(boost::lexical_cast<std::string>(i), msgReceived.getProperty("msgIndex"));
@@ -371,7 +371,7 @@ TEST(BasicEndToEndTest, testPartitionedProducerConsumer)
 {
     ClientConfiguration config;
     config.setConnectionsPerBroker(4);
-	Client client(lookupUrl);
+    Client client(lookupUrl);
     std::string topicName = "persistent://prop/unit/ns/partition-test";
 
     // call admin api to make it partitioned

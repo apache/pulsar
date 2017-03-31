@@ -165,7 +165,8 @@ class ClientConfiguration {
 
     /*
      * Set max number of of connections per broker.
-     * @param connectionsPerBroker - number of connections per brokers (needs to be >= 1)
+     * @param connectionsPerBroker - number of connections per brokers
+     * @note - if connections per broker < 1 then the value will be set as to 1.
      */
     ClientConfiguration& setConnectionsPerBroker(size_t connectionsPerBroker);
 
