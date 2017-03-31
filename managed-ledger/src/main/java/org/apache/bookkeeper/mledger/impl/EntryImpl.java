@@ -88,7 +88,6 @@ final class EntryImpl extends AbstractReferenceCounted implements Entry, Compara
         entry.entryId = other.entryId;
         entry.data = RecyclableDuplicateByteBuf.create(other.data);
         entry.setRefCnt(1);
-        entry.data.retain();
         return entry;
     }
 
