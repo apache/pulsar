@@ -60,6 +60,7 @@ public class OpReadEntry implements ReadEntriesCallback {
     @Override
     public void readEntriesComplete(List<Entry> returnedEntries, Object ctx) {
         // Filter the returned entries for individual deleted messages
+        final Position nexReadPosition = returnedEntries.get(returnedEntries.size() - 1).getPosition().getNext();
         if (log.isDebugEnabled()) {
             log.debug("[{}][{}] Read entries succeeded batch_size={} cumulative_size={} requested_count={}",
                     cursor.ledger.getName(), cursor.getName(), returnedEntries.size(), entries.size(), count);
@@ -67,7 +68,7 @@ public class OpReadEntry implements ReadEntriesCallback {
         List<Entry> filteredEntries = cursor.filterReadEntries(returnedEntries);
         entries.addAll(filteredEntries);
 
-        updateReadPosition(returnedEntries.get(returnedEntries.size() - 1).getPosition().getNext());
+        updateReadPosition(nexReadPosition);
         checkReadCompletion();
     }
 

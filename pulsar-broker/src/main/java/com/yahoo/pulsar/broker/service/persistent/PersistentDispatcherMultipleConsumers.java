@@ -21,6 +21,7 @@ import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.stream.Collectors;
 
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
@@ -36,6 +37,7 @@ import com.carrotsearch.hppc.ObjectHashSet;
 import com.carrotsearch.hppc.ObjectSet;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.yahoo.pulsar.broker.service.BrokerServiceException;
 import com.yahoo.pulsar.broker.service.Consumer;
@@ -298,13 +300,16 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
             int messagesForC = Math.min(Math.min(entriesToDispatch, c.getAvailablePermits()), MaxRoundRobinBatchSize);
 
             if (messagesForC > 0) {
-                int msgSent = c.sendMessages(entries.subList(start, start + messagesForC)).getRight();
-
+                
+                // remove positions first from replay list first : sendMessages recycles entries
                 if (readType == ReadType.Replay) {
                     entries.subList(start, start + messagesForC).forEach(entry -> {
                         messagesToReplay.remove((PositionImpl) entry.getPosition());
                     });
                 }
+                
+                int msgSent = c.sendMessages(entries.subList(start, start + messagesForC)).getRight();
+                
                 start += messagesForC;
                 entriesToDispatch -= messagesForC;
                 totalAvailablePermits -= msgSent;

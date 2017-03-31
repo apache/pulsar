@@ -1260,7 +1260,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             if (isCursorActive(cursor)) {
                 final PositionImpl lastReadPosition = PositionImpl.get(ledger.getId(), lastEntry);
                 discardEntriesFromCache(cursor, lastReadPosition);
-                lastReadPosition.recycle();
             }
         }
     }
