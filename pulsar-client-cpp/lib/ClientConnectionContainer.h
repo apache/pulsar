@@ -136,7 +136,7 @@ template<class T> size_t ClientConnectionContainer<T>::size() const {
 }
 
 template<class T> size_t ClientConnectionContainer<T>::capacity() const {
-    return list_.capacity();
+    return capacity_;
 }
 }
 

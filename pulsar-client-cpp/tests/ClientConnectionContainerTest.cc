@@ -75,6 +75,7 @@ TEST(ClientConnectionContainerTest, removeOperation) {
     int nextValue;
     // Initialize a container of size 3
     ClientConnectionContainer<int> container(5);
+    ASSERT_EQ(container.capacity(), 5);
 
     // Successfully add 2 elements
     int obj = 0;
@@ -106,7 +107,7 @@ TEST(ClientConnectionContainerTest, removeOperation) {
     ASSERT_TRUE(container.getNext(nextValue));
     ASSERT_EQ(nextValue, 3);
     ASSERT_TRUE(container.getNext(nextValue));
-    ASSERT_EQ(nextValue, 3);
+    ASSERT_EQ(nextValue, 2);
 
     // [2 3] - last getNext returned 2 hence 2 deleted
     ASSERT_TRUE(container.remove());
@@ -160,14 +161,14 @@ TEST(ClientConnectionContainerTest, removeOperation) {
 
 TEST(ClientConnectionContainerTest, negativeTests) {
     int nextValue;
-    ClientConnectionContainer<int> container(3);
-    ASSERT_FALSE(container.getNext(nextValue));
+    ClientConnectionContainer<int> container1(3);
+    ASSERT_FALSE(container1.getNext(nextValue));
 
-    ClientConnectionContainer<int> container(0);
-    ASSERT_EQ(container.size(), 0);
-    ASSERT_EQ(container.capacity(), 2);
-    ASSERT_TRUE(container.isEmpty());
-    ASSERT_FALSE(container.isFull());
+    ClientConnectionContainer<int> container2(0);
+    ASSERT_EQ(container2.size(), 0);
+    ASSERT_EQ(container2.capacity(), 1);
+    ASSERT_TRUE(container2.isEmpty());
+    ASSERT_FALSE(container2.isFull());
 }
 
 TEST(ClientConnectionContainerTest, addOperation) {
