@@ -84,7 +84,7 @@ class ClientConnectionContainer {
 };
 
 template<class T> ClientConnectionContainer<T>::ClientConnectionContainer(size_t capacity)
-        : capacity_(std::min(capacity, 1uL)),
+        : capacity_(std::max(capacity, 1uL)),
           currentIndex_(-1) {
 }
 
