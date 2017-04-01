@@ -700,8 +700,11 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
     @Test(dataProvider = "topicName")
     public void partitionedTopics(String topicName) throws Exception {
+        assertEquals(admin.persistentTopics().getPartitionedTopicList("prop-xyz/use/ns1"), Lists.newArrayList());
         final String partitionedTopicName = "persistent://prop-xyz/use/ns1/" + topicName;
         admin.persistentTopics().createPartitionedTopic(partitionedTopicName, 4);
+        assertEquals(admin.persistentTopics().getPartitionedTopicList("prop-xyz/use/ns1"), Lists.newArrayList(partitionedTopicName));
+
 
         assertEquals(admin.persistentTopics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 4);
 
