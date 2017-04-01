@@ -59,6 +59,7 @@
 			- [delete partitioned topic](#delete-partitioned-topic)
 			- [Delete topic](#delete-topic)
 			- [List of topics](#list-of-topics)
+			- [List of partitioned topics](#list-of-partitioned-topics)
 			- [Grant permission](#grant-permission)
 			- [Get permission](#get-permission)
 			- [Revoke permission](#revoke-permission)
@@ -1488,7 +1489,7 @@ admin.persistentTopics().delete(persistentTopic)
 
 #### List of topics
 
-It provides a list of persistent topics exist under a given namespace.  
+It provides a list of persistent topics existing under a given namespace.  
 
 ###### CLI
 
@@ -1511,6 +1512,34 @@ GET /admin/persistent/{property}/{cluster}/{namespace}
 ```java
 admin.persistentTopics().getList(namespace)
 ```
+
+#### List of partitioned topics
+
+It provides a list of partitioned topics existing under a given namespace.
+
+###### CLI
+
+```
+$ pulsar-admin persistent list-partitioned-topics test-property/cl1/ns1
+```
+
+```
+persistent://test-property/cl1/ns1/partitioned-tp1
+persistent://test-property/cl1/ns1/partitioned-tp2
+```
+
+###### REST
+
+```
+GET /admin/persistent/{property}/{cluster}/{namespace}/partitioned
+```
+
+###### Java
+
+```java
+admin.persistentTopics().getPartitionedTopicList(namespace)
+```
+
 
 #### Grant permission
 
@@ -1981,7 +2010,7 @@ POST /admin/persistent/{property}/{cluster}/{namespace}/{destination}/subscripti
 admin.persistentTopics().expireMessages(persistentTopic, subName, expireTimeInSeconds)
 ```
 
-#### Expire all messages 
+#### Expire all messages
 
 It expires messages which are older than given expiry time (in seconds) for all subscriptions of a given topic.
 

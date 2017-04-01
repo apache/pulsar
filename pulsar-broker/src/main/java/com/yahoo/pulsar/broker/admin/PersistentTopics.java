@@ -30,6 +30,7 @@ import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 import javax.ws.rs.DELETE;
 import javax.ws.rs.DefaultValue;
@@ -157,6 +158,46 @@ public class PersistentTopics extends AdminResource {
 
         destinations.sort(null);
         return destinations;
+    }
+
+    @GET
+    @Path("/{property}/{cluster}/{namespace}/partitioned")
+    @ApiOperation(value = "Get the list of partitioned topics under a namespace.", response = String.class, responseContainer = "List")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace doesn't exist") })
+    public List<String> getPartitionedTopicList(@PathParam("property") String property, @PathParam("cluster") String cluster,
+            @PathParam("namespace") String namespace) {
+        validateAdminAccessOnProperty(property);
+
+        // Validate that namespace exists, throws 404 if it doesn't exist
+        try {
+            policiesCache().get(path("policies", property, cluster, namespace));
+        } catch (KeeperException.NoNodeException e) {
+            log.warn("[{}] Failed to get partitioned topic list {}/{}/{}: Namespace does not exist", clientAppId(), property,
+                    cluster, namespace);
+            throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
+        } catch (Exception e) {
+            log.error("[{}] Failed to get partitioned topic list for namespace {}/{}/{}", clientAppId(), property, cluster, namespace, e);
+            throw new RestException(e);
+        }
+
+        List<String> partitionedTopics = Lists.newArrayList();
+
+        try {
+            String partitionedTopicPath = path(PARTITIONED_TOPIC_PATH_ZNODE, property, cluster, namespace, domain());
+            List<String> destinations = globalZk().getChildren(partitionedTopicPath, false);
+            partitionedTopics = destinations.stream().map(s -> String.format("persistent://%s/%s/%s/%s", property, cluster, namespace, decode(s))).collect(
+                    Collectors.toList());
+        } catch (KeeperException.NoNodeException e) {
+            // NoNode means there are no partitioned topics in this domain for this namespace
+        } catch (Exception e) {
+            log.error("[{}] Failed to get partitioned topic list for namespace {}/{}/{}", clientAppId(), property, cluster,
+                    namespace, e);
+            throw new RestException(e);
+        }
+
+        partitionedTopics.sort(null);
+        return partitionedTopics;
     }
 
     @GET

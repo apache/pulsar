@@ -589,7 +589,10 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         List<String> list = persistentTopics.getList(property, cluster, namespace);
         assertTrue(list.isEmpty());
         // create destination
+        assertEquals(persistentTopics.getPartitionedTopicList(property, cluster, namespace), Lists.newArrayList());
         persistentTopics.createPartitionedTopic(property, cluster, namespace, destination, 5, false);
+        assertEquals(persistentTopics.getPartitionedTopicList(property, cluster, namespace), Lists.newArrayList(
+                String.format("persistent://%s/%s/%s/%s", property, cluster, namespace, destination)));
 
         CountDownLatch notificationLatch = new CountDownLatch(2);
         configurationCache.policiesCache().registerListener((path, data, stat) -> {
