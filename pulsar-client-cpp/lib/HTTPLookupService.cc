@@ -120,10 +120,9 @@ namespace pulsar {
             return;
         }
         struct curl_slist *list = NULL;
-        if (authDataContent->hasDataFromCommand()) {
+        if (authDataContent->hasDataForHttp()) {
             // TODO - remove YCA mention from OSS and understand how other auth methods will work with this
-            const std::string authHeader = "Yahoo-App-Auth: " + authDataContent->getCommandData();
-            list = curl_slist_append(list, authHeader.c_str());
+            list = curl_slist_append(list, authDataContent->getHttpHeaders().c_str());
         }
         curl_easy_setopt(handle, CURLOPT_HTTPHEADER, list);
 
