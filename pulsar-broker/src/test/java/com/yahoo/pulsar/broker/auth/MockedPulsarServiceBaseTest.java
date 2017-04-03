@@ -165,7 +165,7 @@ public abstract class MockedPulsarServiceBaseTest {
         doReturn(sameThreadOrderedSafeExecutor).when(pulsar).getOrderedExecutor();
     }
 
-    private MockZooKeeper createMockZooKeeper() throws Exception {
+    public static MockZooKeeper createMockZooKeeper() throws Exception {
         MockZooKeeper zk = MockZooKeeper.newInstance(MoreExecutors.sameThreadExecutor());
         List<ACL> dummyAclList = new ArrayList<ACL>(0);
 
