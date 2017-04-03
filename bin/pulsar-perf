@@ -141,7 +141,7 @@ if [ "$COMMAND" == "produce" ]; then
     exec $JAVA $OPTS com.yahoo.pulsar.testclient.PerformanceProducer --conf-file $PULSAR_PERFTEST_CONF "$@"
 elif [ "$COMMAND" == "consume" ]; then
     exec $JAVA $OPTS com.yahoo.pulsar.testclient.PerformanceConsumer --conf-file $PULSAR_PERFTEST_CONF "$@"
-elif [ "$COMMAND" == "monitor" ]; then
+elif [ "$COMMAND" == "monitor-brokers" ]; then
     exec $JAVA $OPTS com.yahoo.pulsar.testclient.BrokerMonitor "$@"
 elif [ "$COMMAND" == "simulation-client" ]; then
     exec $JAVA $OPTS com.yahoo.pulsar.testclient.LoadSimulationClient "$@"

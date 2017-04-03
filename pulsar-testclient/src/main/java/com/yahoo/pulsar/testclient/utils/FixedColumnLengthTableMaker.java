@@ -1,6 +1,7 @@
 package com.yahoo.pulsar.testclient.utils;
 
 import java.util.Objects;
+import java.util.function.Function;
 
 /**
  * Light-weight utility for creating rows where each column has a fixed length in a command-line setting.
@@ -52,6 +53,11 @@ public class FixedColumnLengthTableMaker {
      */
     public char topBorder = '=';
 
+    /**
+     * If not null, lengthFunction should give the length for the given column index.
+     */
+    public Function<Integer, Integer> lengthFunction = null;
+
     // Helper function to add top and bottom borders.
     private void addHorizontalBorder(final int length, final StringBuilder builder, final char borderChar) {
         for (int i = 0; i < length; ++i) {
@@ -64,6 +70,10 @@ public class FixedColumnLengthTableMaker {
         for (int i = 0; i < amount; ++i) {
             builder.append(' ');
         }
+    }
+
+    private int lengthFor(final int column) {
+        return lengthFunction == null ? elementLength : lengthFunction.apply(column);
     }
 
     /**
@@ -80,11 +90,12 @@ public class FixedColumnLengthTableMaker {
             // Take the largest number of columns out of any row to be the total.
             numColumns = Math.max(numColumns, row.length);
         }
-        // Total amount of space between separators for a column.
-        final int columnSpace = leftPadding + rightPadding + elementLength;
         // Total length of the table in characters.
-        final int totalLength = numColumns * (columnSpace + separator.length()) - separator.length()
+        int totalLength = numColumns * (leftPadding + rightPadding + separator.length()) - separator.length()
                 + leftBorder.length() + rightBorder.length();
+        for (int i = 0; i < numColumns; ++i) {
+            totalLength += lengthFor(i);
+        }
         addHorizontalBorder(totalLength, builder, topBorder);
         builder.append('\n');
         int i;
@@ -100,13 +111,13 @@ public class FixedColumnLengthTableMaker {
                     // Avoid throwing NPE
                     elementString = Objects.toString(element, "");
                 }
-                if (elementString.length() > elementLength) {
-                    // Only take the first elementLength characters.
-                    elementString = elementString.substring(0, elementLength);
+                if (elementString.length() > lengthFor(i)) {
+                    // Trim down to the maximum number of characters.
+                    elementString = elementString.substring(0, lengthFor(i));
                 }
                 builder.append(elementString);
                 // Add the space due to remaining characters and the right padding.
-                addSpace(elementLength - elementString.length() + rightPadding, builder);
+                addSpace(lengthFor(i) - elementString.length() + rightPadding, builder);
                 if (i != numColumns - 1) {
                     // Don't add separator for the last column.
                     builder.append(separator);
@@ -115,7 +126,7 @@ public class FixedColumnLengthTableMaker {
             }
             // Put empty elements for remaining columns.
             for (; i < numColumns; ++i) {
-                addSpace(columnSpace, builder);
+                addSpace(leftPadding + rightPadding + lengthFor(i), builder);
                 if (i != numColumns - 1) {
                     builder.append(separator);
                 }

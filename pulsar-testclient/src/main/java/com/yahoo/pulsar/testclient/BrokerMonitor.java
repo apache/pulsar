@@ -20,7 +20,9 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
@@ -48,6 +50,7 @@ public class BrokerMonitor {
 
     private static final String BROKER_ROOT = "/loadbalance/brokers";
     private static final int ZOOKEEPER_TIMEOUT_MILLIS = 5000;
+    private static final int GLOBAL_STATS_PRINT_PERIOD_MILLIS = 60000;
     private final ZooKeeper zkClient;
     private static final Gson gson = new Gson();
 
@@ -69,12 +72,24 @@ public class BrokerMonitor {
     private static final Object[] ALLOC_SYSTEM_ROW = makeSystemRow("ALLOC SYSTEM");
     private static final Object[] RAW_MESSAGE_ROW = makeMessageRow("RAW MSG");
     private static final Object[] ALLOC_MESSAGE_ROW = makeMessageRow("ALLOC MSG");
+    private static final Object[] GLOBAL_HEADER = { "BROKER", "BUNDLE", "MSG/S", "KB/S", "MAX %" };
 
-    private static final FixedColumnLengthTableMaker tableMaker = new FixedColumnLengthTableMaker();
+    private final Map<String, Object> loadData;
+
+    private static final FixedColumnLengthTableMaker localTableMaker = new FixedColumnLengthTableMaker();
     static {
         // Makes the table length about 120.
-        tableMaker.elementLength = 14;
-        tableMaker.decimalFormatter = "%.2f";
+        localTableMaker.elementLength = 14;
+        localTableMaker.decimalFormatter = "%.2f";
+    }
+
+    private static final FixedColumnLengthTableMaker globalTableMaker = new FixedColumnLengthTableMaker();
+    static {
+        globalTableMaker.decimalFormatter = "%.2f";
+        globalTableMaker.topBorder = '*';
+        globalTableMaker.bottomBorder = '*';
+        // Make broker column substantially longer than other columns.
+        globalTableMaker.lengthFunction = column -> column == 0 ? 60 : 12;
     }
 
     // Take advantage of repeated labels in message rows.
@@ -105,8 +120,75 @@ public class BrokerMonitor {
                 messageThroughputOut / 1024, (messageThroughputIn + messageThroughputOut) / 1024);
     }
 
+    // Prints out the global load data.
+    private void printGlobalData() {
+        synchronized (loadData) {
+            // 1 header row, 1 total row, and loadData.size() rows for brokers.
+            Object[][] rows = new Object[loadData.size() + 2][];
+            rows[0] = GLOBAL_HEADER;
+            int totalBundles = 0;
+            double totalThroughput = 0;
+            double totalMessageRate = 0;
+            double maxMaxUsage = 0;
+            int i = 1;
+            for (final Map.Entry<String, Object> entry : loadData.entrySet()) {
+                final String broker = entry.getKey();
+                final Object data = entry.getValue();
+                rows[i] = new Object[GLOBAL_HEADER.length];
+                rows[i][0] = broker;
+                int numBundles;
+                double messageRate;
+                double messageThroughput;
+                double maxUsage;
+                if (data instanceof LoadReport) {
+                    final LoadReport loadReport = (LoadReport) data;
+                    numBundles = (int) loadReport.getNumBundles();
+                    messageRate = loadReport.getMsgRateIn() + loadReport.getMsgRateOut();
+                    messageThroughput = (loadReport.getAllocatedBandwidthIn() + loadReport.getAllocatedBandwidthOut())
+                            / 1024;
+                    final SystemResourceUsage systemResourceUsage = loadReport.getSystemResourceUsage();
+                    maxUsage = Math.max(
+                            Math.max(
+                                    Math.max(systemResourceUsage.getCpu().percentUsage(),
+                                            systemResourceUsage.getMemory().percentUsage()),
+                                    Math.max(systemResourceUsage.getDirectMemory().percentUsage(),
+                                            systemResourceUsage.getBandwidthIn().percentUsage())),
+                            systemResourceUsage.getBandwidthOut().percentUsage());
+                } else if (data instanceof LocalBrokerData) {
+                    final LocalBrokerData localData = (LocalBrokerData) data;
+                    numBundles = localData.getNumBundles();
+                    messageRate = localData.getMsgRateIn() + localData.getMsgRateOut();
+                    messageThroughput = (localData.getMsgThroughputIn() + localData.getMsgThroughputOut()) / 1024;
+                    maxUsage = localData.getMaxResourceUsage();
+                } else {
+                    throw new AssertionError("Unreachable code");
+                }
+
+                rows[i][1] = numBundles;
+                rows[i][2] = messageRate;
+                rows[i][3] = messageThroughput;
+                rows[i][4] = maxUsage;
+
+                totalBundles += numBundles;
+                totalMessageRate += messageRate;
+                totalThroughput += messageThroughput;
+                maxMaxUsage = Math.max(maxUsage, maxMaxUsage);
+                ++i;
+            }
+            final int finalRow = loadData.size() + 1;
+            rows[finalRow] = new Object[GLOBAL_HEADER.length];
+            rows[finalRow][0] = "TOTAL";
+            rows[finalRow][1] = totalBundles;
+            rows[finalRow][2] = totalMessageRate;
+            rows[finalRow][3] = totalThroughput;
+            rows[finalRow][4] = maxMaxUsage;
+            final String table = globalTableMaker.make(rows);
+            log.info("Overall Broker Data:\n{}", table);
+        }
+    }
+
     // This watcher initializes data watchers whenever a new broker is found.
-    private static class BrokerWatcher implements Watcher {
+    private class BrokerWatcher implements Watcher {
         private final ZooKeeper zkClient;
         private Set<String> brokers;
 
@@ -156,7 +238,7 @@ public class BrokerMonitor {
     }
 
     // This watcher prints tabular data for a broker after its ZNode is updated.
-    private static class BrokerDataWatcher implements Watcher {
+    private class BrokerDataWatcher implements Watcher {
         private final ZooKeeper zkClient;
 
         private BrokerDataWatcher(final ZooKeeper zkClient) {
@@ -164,7 +246,7 @@ public class BrokerMonitor {
         }
 
         // Given the path to a broker ZNode, return the broker host name.
-        private static String brokerNameFromPath(final String path) {
+        private String brokerNameFromPath(final String path) {
             return path.substring(path.lastIndexOf('/') + 1);
         }
 
@@ -184,7 +266,7 @@ public class BrokerMonitor {
             }
         }
 
-        private static double percentUsage(final double usage, final double limit) {
+        private double percentUsage(final double usage, final double limit) {
             return limit > 0 && usage >= 0 ? 100 * Math.min(1, usage / limit) : 0;
         }
 
@@ -216,6 +298,8 @@ public class BrokerMonitor {
 
         // Print the load report in a tabular form for a broker running SimpleLoadManagerImpl.
         private synchronized void printLoadReport(final String broker, final LoadReport loadReport) {
+            loadData.put(broker, loadReport);
+
             // Initialize the constant rows.
             final Object[][] rows = new Object[10][];
 
@@ -271,13 +355,14 @@ public class BrokerMonitor {
             initMessageRow(rows[9], loadReport.getAllocatedMsgRateIn(), loadReport.getAllocatedMsgRateOut(),
                     loadReport.getAllocatedBandwidthIn(), loadReport.getAllocatedBandwidthOut());
 
-            final String table = tableMaker.make(rows);
+            final String table = localTableMaker.make(rows);
             log.info("\nLoad Report for {}:\n{}\n", broker, table);
         }
 
         // Print the broker data in a tabular form for a broker using ModularLoadManagerImpl.
         private synchronized void printBrokerData(final String broker, final LocalBrokerData localBrokerData,
                 final TimeAverageBrokerData timeAverageData) {
+            loadData.put(broker, localBrokerData);
 
             // Initialize the constant rows.
             final Object[][] rows = new Object[10][];
@@ -315,7 +400,7 @@ public class BrokerMonitor {
             initMessageRow(rows[9], timeAverageData.getLongTermMsgRateIn(), timeAverageData.getLongTermMsgRateOut(),
                     timeAverageData.getLongTermMsgThroughputIn(), timeAverageData.getLongTermMsgThroughputOut());
 
-            final String table = tableMaker.make(rows);
+            final String table = localTableMaker.make(rows);
             log.info("\nBroker Data for {}:\n{}\n", broker, table);
         }
     }
@@ -333,6 +418,7 @@ public class BrokerMonitor {
      *            Client to create this from.
      */
     public BrokerMonitor(final ZooKeeper zkClient) {
+        loadData = new ConcurrentHashMap<>();
         this.zkClient = zkClient;
     }
 
@@ -344,6 +430,8 @@ public class BrokerMonitor {
             final BrokerWatcher brokerWatcher = new BrokerWatcher(zkClient);
             brokerWatcher.updateBrokers(BROKER_ROOT);
             while (true) {
+                Thread.sleep(GLOBAL_STATS_PRINT_PERIOD_MILLIS);
+                printGlobalData();
             }
         } catch (Exception ex) {
             throw new RuntimeException(ex);

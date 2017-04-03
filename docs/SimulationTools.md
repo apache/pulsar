@@ -91,10 +91,10 @@ implemented in `com.yahoo.pulsar.testclient.BrokerMonitor`. The broker monitor w
 console as it is updated using watchers.
 
 ### Usage
-To start a broker monitor, use the `monitor` command in the `pulsar-perf` script:
+To start a broker monitor, use the `monitor-brokers` command in the `pulsar-perf` script:
 
 ```
-pulsar-perf monitor --connect-string <zookeeper host:port>
+pulsar-perf monitor-brokers --connect-string <zookeeper host:port>
 ```
 
 The console will then continuously print load data until it is interrupted.
