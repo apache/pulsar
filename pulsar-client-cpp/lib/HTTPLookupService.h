@@ -22,7 +22,6 @@
 #include <lib/Url.h>
 #include <json/value.h>
 #include <json/reader.h>
-#include <lib/HTTPWrapper.h>
 
 namespace pulsar {
     class HTTPLookupService : public LookupService {
