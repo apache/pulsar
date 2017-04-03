@@ -14,26 +14,32 @@
  * limitations under the License.
  */
 #include <lib/HTTPLookupService.h>
+#include <curl/curl.h>
 
 DECLARE_LOG_OBJECT()
 
 namespace pulsar {
-    using boost::posix_time::seconds;
     const static std::string V2_PATH = "/lookup/v2/destination/";
     const static std::string PARTITION_PATH = "/admin/persistent/";
     const static int MAX_HTTP_REDIRECTS = 20;
     const static std::string PARTITION_METHOD_NAME = "partitions";
+    const static int NUMBER_OF_LOOKUP_THREADS = 4;
 
     HTTPLookupService::HTTPLookupService(const std::string &lookupUrl,
-                                         const ClientConfiguration &clientConfiguration,
-                                         ExecutorServiceProviderPtr executorProvider,
-                                         const AuthenticationPtr &authData)
-            : executorProvider_(executorProvider),
-              authenticationPtr_(authData),
-              lookupTimeout_(seconds(clientConfiguration.getOperationTimeoutSeconds())) {
-        if (!Url::parse(lookupUrl, adminUrl_)) {
-            throw "Exception: Invalid service url";
+            const ClientConfiguration &clientConfiguration,
+            const AuthenticationPtr &authData)
+    : executorProvider_(boost::make_shared<ExecutorServiceProvider>(NUMBER_OF_LOOKUP_THREADS)),
+    authenticationPtr_(authData),
+    lookupTimeoutInSeconds_(clientConfiguration.getOperationTimeoutSeconds()) {
+        if (lookupUrl[lookupUrl.length() - 1] == '/') {
+            // Remove trailing '/'
+            adminUrl_ = lookupUrl.substr(0, lookupUrl.length() - 1);
+        } else {
+            adminUrl_ = lookupUrl;
         }
+
+        // Once per application - https://curl.haxx.se/mail/lib-2015-11/0052.html
+        curl_global_init(CURL_GLOBAL_ALL);
     }
 
     Future<Result, LookupDataResultPtr> HTTPLookupService::lookupAsync(const std::string &destinationName) {
@@ -46,55 +52,131 @@ namespace pulsar {
             return promise.getFuture();
         }
 
-        std::stringstream requestStream;
-        requestStream << V2_PATH << "persistent/" << dn->getProperty() << '/' << dn->getCluster()
-                      << '/' << dn->getNamespacePortion() << '/' << dn->getEncodedLocalName();
-        sendHTTPRequest(promise, requestStream, Lookup);
+        std::stringstream completeUrlStream;
+        completeUrlStream << adminUrl_ << V2_PATH << "persistent/" << dn->getProperty() << '/' << dn->getCluster()
+        << '/' << dn->getNamespacePortion() << '/' << dn->getEncodedLocalName();
+        executorProvider_->get()->postWork(boost::bind(&HTTPLookupService::sendHTTPRequest, this, promise, completeUrlStream.str(), Lookup));
         return promise.getFuture();
 
     }
 
     Future<Result, LookupDataResultPtr> HTTPLookupService::getPartitionMetadataAsync(const DestinationNamePtr &dn) {
         LookupPromise promise;
-        std::stringstream requestStream;
-        requestStream << PARTITION_PATH << dn->getProperty() << '/' << dn->getCluster()
-                      << '/' << dn->getNamespacePortion() << '/' << dn->getEncodedLocalName() << '/'
-                      << PARTITION_METHOD_NAME;
-        sendHTTPRequest(promise, requestStream, PartitionMetaData);
+        std::stringstream completeUrlStream;
+        completeUrlStream << adminUrl_ << PARTITION_PATH << dn->getProperty() << '/' << dn->getCluster()
+        << '/' << dn->getNamespacePortion() << '/' << dn->getEncodedLocalName() << '/'
+        << PARTITION_METHOD_NAME;
+        executorProvider_->get()->postWork(boost::bind(&HTTPLookupService::sendHTTPRequest, this, promise, completeUrlStream.str(), PartitionMetaData));
         return promise.getFuture();
     }
 
-    void HTTPLookupService::sendHTTPRequest(LookupPromise promise, std::stringstream& requestStream,
-                                            RequestType requestType) {
-        DeadlineTimerPtr timerPtr = startTimer(promise);
+    static size_t curlWriteCallback(void *contents, size_t size, size_t nmemb, void *responseDataPtr) {
+        ((std::string*)responseDataPtr)->append((char*)contents, size * nmemb);
+        return size * nmemb;
+    }
 
-        HTTPWrapper::Request request;
+    void HTTPLookupService::sendHTTPRequest(LookupPromise promise, const std::string completeUrlStream,
+            RequestType requestType) {
+        CURL *handle;
+        CURLcode res;
+        std::string responseData;
 
-        // Need to think more about other Authorization methods
-        std::string authorizationData = "";
+        handle = curl_easy_init();
+
+        if(!handle) {
+            std::cout<<"JAI 87"<<std::endl;
+            LOG_ERROR("Unable to curl_easy_init for url " << completeUrlStream);
+            std::cout<<"JAI 89"<<std::endl;
+            promise.setFailed(ResultLookupError);
+            // No curl_easy_cleanup required since handle not initialized
+            return;
+        }
+        // set URL
+        std::cout<<"JAI 95"<<std::endl;
+        curl_easy_setopt(handle, CURLOPT_URL, completeUrlStream.c_str());
+        std::cout<<"JAI 97"<<std::endl;
+
+        // Write callback
+        curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, curlWriteCallback);
+        curl_easy_setopt(handle, CURLOPT_WRITEDATA, &responseData);
+
+        // New connection is made for each call
+        curl_easy_setopt(handle, CURLOPT_FRESH_CONNECT, 1L);
+        curl_easy_setopt(handle, CURLOPT_FORBID_REUSE, 1L);
+
+        // Timer
+        curl_easy_setopt(handle, CURLOPT_TIMEOUT, lookupTimeoutInSeconds_);
+
+        // Redirects
+        curl_easy_setopt(handle, CURLOPT_FOLLOWLOCATION, 1L);
+        curl_easy_setopt(handle, CURLOPT_MAXREDIRS, MAX_HTTP_REDIRECTS);
+
+        // Fail if HTTP return code >=400
+        curl_easy_setopt(handle, CURLOPT_FAILONERROR, 1L);
+
+        // Authorization data
+        struct curl_slist *list = NULL;
+
+        // TODO - Need to think more about other Authorization methods
         AuthenticationDataPtr authDataContent;
         Result authResult = authenticationPtr_->getAuthData(authDataContent);
         if (authResult != ResultOk) {
-            LOG_ERROR("All Authentication methods should have AuthenticationData");
+            std::cout<<"JAI 124"<<std::endl;
+            LOG_ERROR("All Authentication methods should have AuthenticationData and return true on getAuthData for url " << completeUrlStream);
+            std::cout<<"JAI 126"<<std::endl;
             promise.setFailed(authResult);
         }
         if (authDataContent->hasDataFromCommand()) {
-            authorizationData = authDataContent->getCommandData();
+            // TODO - remove YCA mention from OSS and understand how other auth methods will work with this
+            const std::string authHeader = "Yahoo-App-Auth: " + authDataContent->getCommandData();
+            std::cout<<"JAI 132"<<std::endl;
+            list = curl_slist_append(list, authHeader.c_str());
+            std::cout<<"JAI 134"<<std::endl;
         }
-        // TODO - remove YCA mention from OSS and understand how other auth methods will work with this
-        if (authorizationData != "") {
-            request.headers.push_back("Yahoo-App-Auth: " + authorizationData);
+
+        // Make get call to server
+        res = curl_easy_perform(handle);
+
+        // Free header list
+        curl_slist_free_all(list);
+
+        // TODO - check other return condition
+        switch(res) {
+            case CURLE_OK:
+                std::cout<<"JAI 146"<<std::endl;
+                LOG_DEBUG("Response received successfully for url " << completeUrlStream);
+                std::cout<<"JAI 148"<<std::endl;
+                promise.setValue((requestType == PartitionMetaData) ? parsePartitionData(responseData) : parseLookupData(responseData));
+                break;
+            case CURLE_COULDNT_CONNECT:
+            case CURLE_COULDNT_RESOLVE_PROXY:
+            case CURLE_COULDNT_RESOLVE_HOST:
+            case CURLE_HTTP_RETURNED_ERROR:
+                std::cout<<"JAI 155"<<std::endl;
+                LOG_ERROR("Response failed for url "<<completeUrlStream << ". Error Code "<<res);
+                std::cout<<"JAI 157"<<std::endl;
+                promise.setFailed(ResultConnectError);
+                break;
+            case CURLE_READ_ERROR:
+                std::cout<<"JAI 161"<<std::endl;
+                LOG_ERROR("Response failed for url "<<completeUrlStream << ". Error Code "<<res);
+                std::cout<<"JAI 163"<<std::endl;
+                promise.setFailed(ResultReadError);
+                break;
+            case CURLE_OPERATION_TIMEDOUT:
+                std::cout<<"JAI 167"<<std::endl;
+                LOG_ERROR("Response failed for url "<<completeUrlStream << ". Error Code "<<res);
+                std::cout<<"JAI 169"<<std::endl;
+                promise.setFailed(ResultTimeout);
+                break;
+            default:
+                std::cout<<"JAI 173"<<std::endl;
+                LOG_ERROR("Response failed for url "<<completeUrlStream << ". Error Code "<<res);
+                std::cout<<"JAI 175"<<std::endl;
+                promise.setFailed(ResultLookupError);
+                break;
         }
-        request.headers.push_back("Accept: */*");
-        request.headers.push_back("Connection: close");
-        request.method = HTTPWrapper::Request::GET;
-        request.version = "1.1";
-        request.content = "";
-        request.path = requestStream.str();
-        request.serverUrl = adminUrl_;
-        HTTPWrapper::createRequest(executorProvider_, request,
-                                   boost::bind(&HTTPLookupService::callback, _1, promise, requestType, timerPtr,
-                                               request.headers, MAX_HTTP_REDIRECTS));
+        curl_easy_cleanup(handle);
     }
 
     LookupDataResultPtr HTTPLookupService::parsePartitionData(const std::string &json) {
@@ -102,7 +184,7 @@ namespace pulsar {
         Json::Reader reader;
         if (!reader.parse(json, root, false)) {
             LOG_ERROR("Failed to parse json of Partition Metadata: " << reader.getFormatedErrorMessages()
-                                                                     << "\nInput Json = " << json);
+                    << "\nInput Json = " << json);
             return LookupDataResultPtr();
         }
         LookupDataResultPtr lookupDataResultPtr = boost::make_shared<LookupDataResult>();
@@ -115,7 +197,7 @@ namespace pulsar {
         Json::Reader reader;
         if (!reader.parse(json, root, false)) {
             LOG_ERROR("Failed to parse json : " << reader.getFormatedErrorMessages()
-                                                << "\nInput Json = " << json);
+                    << "\nInput Json = " << json);
             return LookupDataResultPtr();
         }
 
@@ -139,84 +221,7 @@ namespace pulsar {
         return lookupDataResultPtr;
     }
 
-
-    void HTTPLookupService::callback(HTTPWrapperPtr httpWrapperPtr,
-                                     Promise<Result, LookupDataResultPtr> promise, RequestType requestType,
-                                     DeadlineTimerPtr timerPtr, std::vector<std::string> headers,
-                                     int numberOfRedirects) {
-        if (promise.isComplete()) {
-            // Timer expired
-            LOG_DEBUG("Promise already fulfilled");
-            timerPtr->cancel();
-            return;
-        }
-        const HTTPWrapper::Response &response = httpWrapperPtr->getResponse();
-        LOG_DEBUG("HTTPLookupService::callback response = " << response);
-        if (response.retCode != HTTPWrapper::Response::Success) {
-            if (response.statusCode == 401) {
-                // 401 means unauthenticated
-                LOG_ERROR("Authentication failed");
-                promise.setFailed(ResultConnectError);
-                return;
-            }
-            LOG_ERROR("HTTPLookupService::callback failed - asio errCode = " << response.errCode.message());
-            promise.setFailed(ResultLookupError);
-            timerPtr->cancel();
-            return;
-        }
-        if (response.statusCode == 307 || response.statusCode == 308) {
-            LOG_DEBUG("Redirect response received");
-            if (numberOfRedirects <= 0) {
-                LOG_DEBUG("Max redirect limit reached");
-                promise.setFailed(ResultLookupError);
-                timerPtr->cancel();
-                return;
-            }
-            const std::vector<std::string>& responseHeaders = response.headers;
-            std::vector<std::string>::const_iterator iter = responseHeaders.begin();
-            while (iter != responseHeaders.end()) {
-                if ((*iter).compare(0, 8, "Location") == 0) {
-                    // Match found
-                    Url url;
-                    std::string redirectString = (*iter).substr(10);
-                    if (!Url::parse(redirectString, url)) {
-                        LOG_ERROR("Failed to parse url: " << redirectString);
-                        promise.setFailed(ResultLookupError);
-                        return;
-                    }
-
-                    HTTPWrapper::Request& request = httpWrapperPtr->getMutableRequest();
-                    request.path = url.path() + url.file() + url.parameter();
-                    request.serverUrl = url;
-                    httpWrapperPtr->createRequest(request, boost::bind(&HTTPLookupService::callback, _1, promise, requestType, timerPtr,
-                                                                       headers, numberOfRedirects - 1));
-                    return;
-                }
-                iter++;
-            }
-            return;
-        }
-        timerPtr->cancel(); // Take care
-        const std::string &content = response.content;
-        promise.setValue((requestType == PartitionMetaData) ? parsePartitionData(content) : parseLookupData(content));
-
-    }
-
-
-    DeadlineTimerPtr HTTPLookupService::startTimer(LookupPromise promise) {
-        DeadlineTimerPtr timer = executorProvider_->get()->createDeadlineTimer();
-        timer->expires_from_now(lookupTimeout_);
-        timer->async_wait(boost::bind(&HTTPLookupService::handleTimeout, this, _1, promise));
-        return timer;
-    }
-
-    void HTTPLookupService::handleTimeout(const boost::system::error_code &ec,LookupPromise promise) {
-        if (ec) {
-            LOG_DEBUG(" Ignoring timer on cancelled event, code[" << ec << "]");
-            return;
-        }
-        LOG_DEBUG("Timeout occured");
-        // Timer has reached the given timeout
-        promise.setFailed(ResultTimeout);
+    HTTPLookupService::~HTTPLookupService() {
+        curl_global_cleanup();
     }
 }

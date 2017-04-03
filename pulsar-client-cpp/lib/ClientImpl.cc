@@ -72,7 +72,6 @@ namespace pulsar {
             LOG_DEBUG("Using HTTP Lookup");
             lookupServicePtr_ = boost::make_shared<HTTPLookupService>(boost::cref(serviceUrl_),
                                                                       boost::cref(clientConfiguration_),
-                                                                      ioExecutorProvider_,
                                                                       boost::cref(
                                                                               clientConfiguration.getAuthenticationPtr()));
         } else {

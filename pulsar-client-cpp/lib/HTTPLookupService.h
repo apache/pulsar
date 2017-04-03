@@ -29,25 +29,21 @@ namespace pulsar {
         enum RequestType {Lookup, PartitionMetaData};
         typedef Promise<Result, LookupDataResultPtr> LookupPromise;
         ExecutorServiceProviderPtr executorProvider_;
-        Url adminUrl_;
+        std::string adminUrl_;
         AuthenticationPtr authenticationPtr_;
-        TimeDuration lookupTimeout_;
+        int lookupTimeoutInSeconds_;
 
         static LookupDataResultPtr parsePartitionData(const std::string&);
         static LookupDataResultPtr parseLookupData(const std::string&);
-        void sendHTTPRequest(LookupPromise, std::stringstream&, RequestType);
-        DeadlineTimerPtr startTimer(LookupPromise);
-    public:
-        HTTPLookupService(const std::string&, const ClientConfiguration&,
-                      ExecutorServiceProviderPtr, const AuthenticationPtr&);
+        void sendHTTPRequest(LookupPromise, const std::string, RequestType);
+     public:
+        ~HTTPLookupService();
+
+        HTTPLookupService(const std::string&, const ClientConfiguration&, const AuthenticationPtr&);
 
         Future<Result, LookupDataResultPtr> lookupAsync(const std::string&);
 
         Future<Result, LookupDataResultPtr> getPartitionMetadataAsync(const DestinationNamePtr&);
-
-        static void callback(HTTPWrapperPtr, Promise<Result, LookupDataResultPtr>, RequestType, DeadlineTimerPtr,
-                             std::vector<std::string>, int);
-        void handleTimeout(const boost::system::error_code&, LookupPromise);
     };
 
 }
