@@ -45,7 +45,6 @@ namespace pulsar {
     Future<Result, LookupDataResultPtr> HTTPLookupService::lookupAsync(const std::string &destinationName) {
         LookupPromise promise;
         boost::shared_ptr<DestinationName> dn = DestinationName::get(destinationName);
-
         if (!dn) {
             LOG_ERROR("Unable to parse destination - " << destinationName);
             promise.setFailed(ResultInvalidTopicName);
@@ -57,7 +56,6 @@ namespace pulsar {
         << '/' << dn->getNamespacePortion() << '/' << dn->getEncodedLocalName();
         executorProvider_->get()->postWork(boost::bind(&HTTPLookupService::sendHTTPRequest, this, promise, completeUrlStream.str(), Lookup));
         return promise.getFuture();
-
     }
 
     Future<Result, LookupDataResultPtr> HTTPLookupService::getPartitionMetadataAsync(const DestinationNamePtr &dn) {
