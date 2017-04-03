@@ -84,17 +84,13 @@ namespace pulsar {
         handle = curl_easy_init();
 
         if(!handle) {
-            std::cout<<"JAI 87"<<std::endl;
             LOG_ERROR("Unable to curl_easy_init for url " << completeUrlStream);
-            std::cout<<"JAI 89"<<std::endl;
             promise.setFailed(ResultLookupError);
             // No curl_easy_cleanup required since handle not initialized
             return;
         }
         // set URL
-        std::cout<<"JAI 95"<<std::endl;
         curl_easy_setopt(handle, CURLOPT_URL, completeUrlStream.c_str());
-        std::cout<<"JAI 97"<<std::endl;
 
         // Write callback
         curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, curlWriteCallback);
@@ -121,17 +117,13 @@ namespace pulsar {
         AuthenticationDataPtr authDataContent;
         Result authResult = authenticationPtr_->getAuthData(authDataContent);
         if (authResult != ResultOk) {
-            std::cout<<"JAI 124"<<std::endl;
             LOG_ERROR("All Authentication methods should have AuthenticationData and return true on getAuthData for url " << completeUrlStream);
-            std::cout<<"JAI 126"<<std::endl;
             promise.setFailed(authResult);
         }
         if (authDataContent->hasDataFromCommand()) {
             // TODO - remove YCA mention from OSS and understand how other auth methods will work with this
             const std::string authHeader = "Yahoo-App-Auth: " + authDataContent->getCommandData();
-            std::cout<<"JAI 132"<<std::endl;
             list = curl_slist_append(list, authHeader.c_str());
-            std::cout<<"JAI 134"<<std::endl;
         }
 
         // Make get call to server
@@ -143,36 +135,26 @@ namespace pulsar {
         // TODO - check other return condition
         switch(res) {
             case CURLE_OK:
-                std::cout<<"JAI 146"<<std::endl;
                 LOG_DEBUG("Response received successfully for url " << completeUrlStream);
-                std::cout<<"JAI 148"<<std::endl;
                 promise.setValue((requestType == PartitionMetaData) ? parsePartitionData(responseData) : parseLookupData(responseData));
                 break;
             case CURLE_COULDNT_CONNECT:
             case CURLE_COULDNT_RESOLVE_PROXY:
             case CURLE_COULDNT_RESOLVE_HOST:
             case CURLE_HTTP_RETURNED_ERROR:
-                std::cout<<"JAI 155"<<std::endl;
                 LOG_ERROR("Response failed for url "<<completeUrlStream << ". Error Code "<<res);
-                std::cout<<"JAI 157"<<std::endl;
                 promise.setFailed(ResultConnectError);
                 break;
             case CURLE_READ_ERROR:
-                std::cout<<"JAI 161"<<std::endl;
                 LOG_ERROR("Response failed for url "<<completeUrlStream << ". Error Code "<<res);
-                std::cout<<"JAI 163"<<std::endl;
                 promise.setFailed(ResultReadError);
                 break;
             case CURLE_OPERATION_TIMEDOUT:
-                std::cout<<"JAI 167"<<std::endl;
                 LOG_ERROR("Response failed for url "<<completeUrlStream << ". Error Code "<<res);
-                std::cout<<"JAI 169"<<std::endl;
                 promise.setFailed(ResultTimeout);
                 break;
             default:
-                std::cout<<"JAI 173"<<std::endl;
                 LOG_ERROR("Response failed for url "<<completeUrlStream << ". Error Code "<<res);
-                std::cout<<"JAI 175"<<std::endl;
                 promise.setFailed(ResultLookupError);
                 break;
         }
