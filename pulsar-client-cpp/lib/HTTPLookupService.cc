@@ -108,8 +108,6 @@ namespace pulsar {
         // Fail if HTTP return code >=400
         curl_easy_setopt(handle, CURLOPT_FAILONERROR, 1L);
 
-        // TODO - Need to think more about other Authorization methods
-
         // Authorization data
         AuthenticationDataPtr authDataContent;
         Result authResult = authenticationPtr_->getAuthData(authDataContent);
@@ -121,7 +119,6 @@ namespace pulsar {
         }
         struct curl_slist *list = NULL;
         if (authDataContent->hasDataForHttp()) {
-            // TODO - remove YCA mention from OSS and understand how other auth methods will work with this
             list = curl_slist_append(list, authDataContent->getHttpHeaders().c_str());
         }
         curl_easy_setopt(handle, CURLOPT_HTTPHEADER, list);
@@ -132,7 +129,6 @@ namespace pulsar {
         // Free header list
         curl_slist_free_all(list);
 
-        // TODO - check other return condition
         switch(res) {
             case CURLE_OK:
                 LOG_DEBUG("Response received successfully for url " << completeUrl);
