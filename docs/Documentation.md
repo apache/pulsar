@@ -13,6 +13,7 @@
   - [WebSocket API](WebSocket.md)
   - [Apache Storm adaptor](PulsarStorm.md)
   - [Modular Load Manager](ModularLoadManager.md)
+  - [Simulation Tools](Simulation.md)
 * Internal Docs
   - [Binary protocol specification](BinaryProtocol.md)
 * Other Languages

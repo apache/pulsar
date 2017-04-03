@@ -84,7 +84,7 @@ public class PerformanceConsumer {
 
         @Parameter(names = { "-c",
                 "--max-connections" }, description = "Max number of TCP connections to a single broker")
-        public int maxConnections = 0;
+        public int maxConnections = -1;
 
         @Parameter(names = { "-i",
                 "--stats-interval-seconds" }, description = "Statistics Interval Seconds. If 0, statistics will be disabled")
@@ -183,7 +183,9 @@ public class PerformanceConsumer {
         }
 
         ClientConfiguration clientConf = new ClientConfiguration();
-        clientConf.setConnectionsPerBroker(arguments.maxConnections);
+        if (arguments.maxConnections >= 0) {
+            clientConf.setConnectionsPerBroker(arguments.maxConnections);
+        }
         clientConf.setStatsInterval(arguments.statsIntervalSeconds, TimeUnit.SECONDS);
         if (isNotBlank(arguments.authPluginClassName)) {
             clientConf.setAuthentication(arguments.authPluginClassName, arguments.authParams);

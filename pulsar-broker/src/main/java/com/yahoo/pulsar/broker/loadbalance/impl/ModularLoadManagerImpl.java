@@ -15,10 +15,7 @@
  */
 package com.yahoo.pulsar.broker.loadbalance.impl;
 
-import static com.google.common.base.Preconditions.checkArgument;
-
 import java.io.IOException;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -31,7 +28,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import com.yahoo.pulsar.broker.loadbalance.LoadManager;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.SystemUtils;
@@ -58,6 +54,7 @@ import com.yahoo.pulsar.broker.TimeAverageBrokerData;
 import com.yahoo.pulsar.broker.loadbalance.BrokerFilter;
 import com.yahoo.pulsar.broker.loadbalance.BrokerHostUsage;
 import com.yahoo.pulsar.broker.loadbalance.LoadData;
+import com.yahoo.pulsar.broker.loadbalance.LoadManager;
 import com.yahoo.pulsar.broker.loadbalance.LoadSheddingStrategy;
 import com.yahoo.pulsar.broker.loadbalance.ModularLoadManager;
 import com.yahoo.pulsar.broker.loadbalance.ModularLoadManagerStrategy;
