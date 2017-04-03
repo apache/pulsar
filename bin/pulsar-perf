@@ -75,7 +75,7 @@ Usage: pulsar <command>
 where command is one of:
     produce                 Run a producer
     consume                 Run a consumer
-    monitor                 Continuously receive broker data and/or load reports
+    monitor-brokers                 Continuously receive broker data and/or load reports
     simulation-client       Run a simulation server acting as a Pulsar client
     simulation-controller   Run a simulation controller to give commands to servers
 
