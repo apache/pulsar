@@ -180,24 +180,22 @@ namespace pulsar {
                     << "\nInput Json = " << json);
             return LookupDataResultPtr();
         }
-        // TODO  - Value.find() API not present on linux boxes - need to replace them
-        static const char brokerUrlStr[] = "brokerUrl";
-        const Json::Value* brokerUrl = root.find(brokerUrlStr, brokerUrlStr + sizeof(brokerUrlStr) - 1);
-        if (!brokerUrl || !brokerUrl->isString()) {
-            LOG_ERROR("malformed json! " << json);
+        const std::string defaultNotFoundString = "Url Not found";
+        const std::string brokerUrl = root.get("brokerUrl", defaultNotFoundString).asString();
+        if (brokerUrl == defaultNotFoundString) {
+            LOG_ERROR("malformed json! - brokerUrl not present" << json);
             return LookupDataResultPtr();
         }
 
-        static const char brokerUrlSslStr[] = "brokerUrlSsl";
-        const Json::Value* brokerUrlSsl = root.find(brokerUrlSslStr, brokerUrlSslStr + sizeof(brokerUrlSslStr) - 1);
-        if (!brokerUrlSsl || !brokerUrlSsl->isString()) {
-            LOG_ERROR("malformed json! " << json);
+        const std::string brokerUrlSsl = root.get("brokerUrlSsl", defaultNotFoundString).asString();
+        if (brokerUrlSsl == defaultNotFoundString) {
+            LOG_ERROR("malformed json! - brokerUrlSsl not present" << json);
             return LookupDataResultPtr();
         }
 
         LookupDataResultPtr lookupDataResultPtr = boost::make_shared<LookupDataResult>();
-        lookupDataResultPtr->setBrokerUrl(brokerUrl->asString());
-        lookupDataResultPtr->setBrokerUrlSsl(brokerUrlSsl->asString());
+        lookupDataResultPtr->setBrokerUrl(brokerUrl);
+        lookupDataResultPtr->setBrokerUrlSsl(brokerUrlSsl);
         return lookupDataResultPtr;
     }
 
