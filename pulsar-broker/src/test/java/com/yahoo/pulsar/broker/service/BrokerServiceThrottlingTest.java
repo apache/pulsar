@@ -69,12 +69,6 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
      */
     @Test
     public void testThrottlingLookupRequestSemaphore() throws Exception {
-        // create configuration znode
-        ZkUtils.createFullPathOptimistic(mockZookKeeper, BROKER_SERVICE_CONFIGURATION_PATH, "{}".getBytes(),
-                ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
-        // Now, znode is created: set the watch and listener on the znode
-        setWatchOnThrottlingZnode();
-
         BrokerService service = pulsar.getBrokerService();
         assertNotEquals(service.lookupRequestSemaphore.get().availablePermits(), 0);
         admin.brokers().updateDynamicConfiguration("maxConcurrentLookupRequest", Integer.toString(0));
@@ -90,12 +84,6 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
      */
     @Test
     public void testLookupThrottlingForClientByBroker0Permit() throws Exception {
-
-        // create configuration znode
-        ZkUtils.createFullPathOptimistic(mockZookKeeper, BROKER_SERVICE_CONFIGURATION_PATH, "{}".getBytes(),
-                ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
-        // Now, znode is created: set the watch and listener on the znode
-        setWatchOnThrottlingZnode();
 
         final String topicName = "persistent://prop/usw/my-ns/newTopic";
 
@@ -140,13 +128,6 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
      */
     @Test
     public void testLookupThrottlingForClientByBroker() throws Exception {
-
-        // create configuration znode
-        ZkUtils.createFullPathOptimistic(mockZookKeeper, BROKER_SERVICE_CONFIGURATION_PATH, "{}".getBytes(),
-                ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
-        // Now, znode is created: set the watch and listener on the znode
-        setWatchOnThrottlingZnode();
-
         final String topicName = "persistent://prop/usw/my-ns/newTopic";
 
         com.yahoo.pulsar.client.api.ClientConfiguration clientConf = new com.yahoo.pulsar.client.api.ClientConfiguration();
@@ -210,12 +191,6 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
      */
     @Test
     public void testLookupThrottlingForClientByBrokerInternalRetry() throws Exception {
-
-        // create configuration znode
-        ZkUtils.createFullPathOptimistic(mockZookKeeper, BROKER_SERVICE_CONFIGURATION_PATH, "{}".getBytes(),
-                ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
-        // Now, znode is created: set the watch and listener on the znode
-        setWatchOnThrottlingZnode();
 
         final String topicName = "persistent://prop/usw/my-ns/newTopic";
 
@@ -291,13 +266,6 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
             ZkUtils.createFullPathOptimistic(mockZookKeeper, BROKER_SERVICE_CONFIGURATION_PATH, content,
                     ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
         }
-    }
-
-    private void setWatchOnThrottlingZnode() throws Exception {
-        Method updateConfigListenerMethod = BrokerService.class
-                .getDeclaredMethod("updateConfigurationAndRegisterListeners");
-        updateConfigListenerMethod.setAccessible(true);
-        updateConfigListenerMethod.invoke(pulsar.getBrokerService());
     }
 
 }
