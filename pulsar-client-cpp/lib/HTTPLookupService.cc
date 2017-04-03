@@ -75,7 +75,7 @@ namespace pulsar {
         return size * nmemb;
     }
 
-    void HTTPLookupService::sendHTTPRequest(LookupPromise promise, const std::string completeUrlStream,
+    void HTTPLookupService::sendHTTPRequest(LookupPromise promise, const std::string completeUrl,
             RequestType requestType) {
         CURL *handle;
         CURLcode res;
@@ -84,13 +84,13 @@ namespace pulsar {
         handle = curl_easy_init();
 
         if(!handle) {
-            LOG_ERROR("Unable to curl_easy_init for url " << completeUrlStream);
+            LOG_ERROR("Unable to curl_easy_init for url " << completeUrl);
             promise.setFailed(ResultLookupError);
             // No curl_easy_cleanup required since handle not initialized
             return;
         }
         // set URL
-        curl_easy_setopt(handle, CURLOPT_URL, completeUrlStream.c_str());
+        curl_easy_setopt(handle, CURLOPT_URL, completeUrl.c_str());
 
         // Write callback
         curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, curlWriteCallback);
@@ -117,7 +117,7 @@ namespace pulsar {
         AuthenticationDataPtr authDataContent;
         Result authResult = authenticationPtr_->getAuthData(authDataContent);
         if (authResult != ResultOk) {
-            LOG_ERROR("All Authentication methods should have AuthenticationData and return true on getAuthData for url " << completeUrlStream);
+            LOG_ERROR("All Authentication methods should have AuthenticationData and return true on getAuthData for url " << completeUrl);
             promise.setFailed(authResult);
         }
         if (authDataContent->hasDataFromCommand()) {
@@ -135,26 +135,26 @@ namespace pulsar {
         // TODO - check other return condition
         switch(res) {
             case CURLE_OK:
-                LOG_DEBUG("Response received successfully for url " << completeUrlStream);
+                LOG_DEBUG("Response received successfully for url " << completeUrl);
                 promise.setValue((requestType == PartitionMetaData) ? parsePartitionData(responseData) : parseLookupData(responseData));
                 break;
             case CURLE_COULDNT_CONNECT:
             case CURLE_COULDNT_RESOLVE_PROXY:
             case CURLE_COULDNT_RESOLVE_HOST:
             case CURLE_HTTP_RETURNED_ERROR:
-                LOG_ERROR("Response failed for url "<<completeUrlStream << ". Error Code "<<res);
+                LOG_ERROR("Response failed for url "<<completeUrl << ". Error Code "<<res);
                 promise.setFailed(ResultConnectError);
                 break;
             case CURLE_READ_ERROR:
-                LOG_ERROR("Response failed for url "<<completeUrlStream << ". Error Code "<<res);
+                LOG_ERROR("Response failed for url "<<completeUrl << ". Error Code "<<res);
                 promise.setFailed(ResultReadError);
                 break;
             case CURLE_OPERATION_TIMEDOUT:
-                LOG_ERROR("Response failed for url "<<completeUrlStream << ". Error Code "<<res);
+                LOG_ERROR("Response failed for url "<<completeUrl << ". Error Code "<<res);
                 promise.setFailed(ResultTimeout);
                 break;
             default:
-                LOG_ERROR("Response failed for url "<<completeUrlStream << ". Error Code "<<res);
+                LOG_ERROR("Response failed for url "<<completeUrl << ". Error Code "<<res);
                 promise.setFailed(ResultLookupError);
                 break;
         }
@@ -182,7 +182,7 @@ namespace pulsar {
                     << "\nInput Json = " << json);
             return LookupDataResultPtr();
         }
-
+        // TODO  - Value.find() API not present on linux boxes - need to replace them
         static const char brokerUrlStr[] = "brokerUrl";
         const Json::Value* brokerUrl = root.find(brokerUrlStr, brokerUrlStr + sizeof(brokerUrlStr) - 1);
         if (!brokerUrl || !brokerUrl->isString()) {
