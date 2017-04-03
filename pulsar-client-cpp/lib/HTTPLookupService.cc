@@ -23,7 +23,7 @@ namespace pulsar {
     const static std::string PARTITION_PATH = "/admin/persistent/";
     const static int MAX_HTTP_REDIRECTS = 20;
     const static std::string PARTITION_METHOD_NAME = "partitions";
-    const static int NUMBER_OF_LOOKUP_THREADS = 4;
+    const static int NUMBER_OF_LOOKUP_THREADS = 1;
 
     HTTPLookupService::HTTPLookupService(const std::string &lookupUrl,
             const ClientConfiguration &clientConfiguration,
@@ -108,21 +108,24 @@ namespace pulsar {
         // Fail if HTTP return code >=400
         curl_easy_setopt(handle, CURLOPT_FAILONERROR, 1L);
 
-        // Authorization data
-        struct curl_slist *list = NULL;
-
         // TODO - Need to think more about other Authorization methods
+
+        // Authorization data
         AuthenticationDataPtr authDataContent;
         Result authResult = authenticationPtr_->getAuthData(authDataContent);
         if (authResult != ResultOk) {
             LOG_ERROR("All Authentication methods should have AuthenticationData and return true on getAuthData for url " << completeUrl);
             promise.setFailed(authResult);
+            curl_easy_cleanup(handle);
+            return;
         }
+        struct curl_slist *list = NULL;
         if (authDataContent->hasDataFromCommand()) {
             // TODO - remove YCA mention from OSS and understand how other auth methods will work with this
             const std::string authHeader = "Yahoo-App-Auth: " + authDataContent->getCommandData();
             list = curl_slist_append(list, authHeader.c_str());
         }
+        curl_easy_setopt(handle, CURLOPT_HTTPHEADER, list);
 
         // Make get call to server
         res = curl_easy_perform(handle);
