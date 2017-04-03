@@ -15,6 +15,7 @@
  */
 package com.yahoo.pulsar.broker.service;
 
+import static com.yahoo.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMockZooKeeper;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyObject;
 import static org.mockito.Matchers.anyString;
@@ -130,7 +131,7 @@ public class PersistentTopicTest {
         mlFactoryMock = mock(ManagedLedgerFactory.class);
         doReturn(mlFactoryMock).when(pulsar).getManagedLedgerFactory();
 
-        ZooKeeper mockZk = mock(ZooKeeper.class);
+        ZooKeeper mockZk = createMockZooKeeper();
         doReturn(mockZk).when(pulsar).getZkClient();
 
         configCacheService = mock(ConfigurationCacheService.class);
