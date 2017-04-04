@@ -11,5 +11,6 @@
   - [ジオレプリケーション](GeoReplication.md)
   - [WebSocket API](WebSocket.md)
   - [Apache Stormのためのアダプタ](PulsarStorm.md)
+  - [Spark Streaming Pulsar Receiver](PulsarSpark.md)
 * 内部仕様
   - [バイナリプロトコルの仕様](BinaryProtocol.md)
