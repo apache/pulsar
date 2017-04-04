@@ -111,7 +111,7 @@ public class PerformanceProducer {
 
         @Parameter(names = { "-c",
                 "--max-connections" }, description = "Max number of TCP connections to a single broker")
-        public int maxConnections = -1;
+        public int maxConnections = 0;
 
         @Parameter(names = { "-m",
                 "--num-messages" }, description = "Number of messages to publish in total. If 0, it will keep publishing")
@@ -214,9 +214,7 @@ public class PerformanceProducer {
         }
 
         ClientConfiguration clientConf = new ClientConfiguration();
-        if (arguments.maxConnections >= 0) {
-            clientConf.setConnectionsPerBroker(arguments.maxConnections);
-        }
+        clientConf.setConnectionsPerBroker(arguments.maxConnections);
         clientConf.setStatsInterval(arguments.statsIntervalSeconds, TimeUnit.SECONDS);
         if (isNotBlank(arguments.authPluginClassName)) {
             clientConf.setAuthentication(arguments.authPluginClassName, arguments.authParams);
