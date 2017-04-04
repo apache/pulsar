@@ -98,6 +98,9 @@ namespace pulsar {
         curl_easy_setopt(handle, CURLOPT_FRESH_CONNECT, 1L);
         curl_easy_setopt(handle, CURLOPT_FORBID_REUSE, 1L);
 
+        // Skipping signal handling - results in timeouts not honored during the DNS lookup
+        curl_easy_setopt(handle, CURLOPT_NOSIGNAL, 1L);
+
         // Timer
         curl_easy_setopt(handle, CURLOPT_TIMEOUT, lookupTimeoutInSeconds_);
 
