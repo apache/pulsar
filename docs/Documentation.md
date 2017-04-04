@@ -13,6 +13,7 @@
   - [WebSocket API](WebSocket.md)
   - [Apache Storm adaptor](PulsarStorm.md)
   - [Spark Streaming Pulsar Receiver](PulsarSpark.md)
+  - [Modular Load Manager](ModularLoadManager.md)
 * Internal Docs
   - [Binary protocol specification](BinaryProtocol.md)
 * Other Languages

@@ -19,22 +19,23 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.Runnable;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * LoadManager namespace bundle quota update task
  */
 public class LoadResourceQuotaUpdaterTask implements Runnable {
     private static final Logger LOG = LoggerFactory.getLogger(LoadResourceQuotaUpdaterTask.class);
-    private final LoadManager loadManager;
+    private final AtomicReference<LoadManager> loadManager;
 
-    public LoadResourceQuotaUpdaterTask(LoadManager loadManager) {
+    public LoadResourceQuotaUpdaterTask(AtomicReference<LoadManager> loadManager) {
         this.loadManager = loadManager;
     }
 
     @Override
     public void run() {
         try {
-            this.loadManager.writeResourceQuotasToZooKeeper();
+            this.loadManager.get().writeResourceQuotasToZooKeeper();
         } catch (Exception e) {
             LOG.warn("Error write resource quota", e);
         }

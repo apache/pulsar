@@ -22,30 +22,24 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
 
+import io.netty.util.AbstractReferenceCounted;
+import io.netty.util.ReferenceCounted;
+
 @Test
 public class RangeCacheTest {
 
-    class RefString implements ReferenceCounted {
+    class RefString extends AbstractReferenceCounted implements ReferenceCounted {
         final String s;
-        int count;
 
         RefString(String s) {
+            super();
             this.s = s;
-            this.count = 1;
+            setRefCnt(1);
         }
 
         @Override
-        public void retain() {
-            ++count;
-        }
-
-        @Override
-        public void release() {
-            --count;
-        }
-
-        public int useCount() {
-            return count;
+        protected void deallocate() {
+            // no-op
         }
 
         @Override
@@ -72,13 +66,13 @@ public class RangeCacheTest {
 
         RefString s = cache.get(0);
         assertEquals(s.s, "0");
-        assertEquals(s.count, 2);
+        assertEquals(s.refCnt(), 2);
         s.release();
 
         RefString s1 = cache.get(0);
         RefString s2 = cache.get(0);
         assertEquals(s1, s2);
-        assertEquals(s1.count, 3);
+        assertEquals(s1.refCnt(), 3);
         s1.release();
         s2.release();
 
@@ -124,9 +118,9 @@ public class RangeCacheTest {
         RangeCache<Integer, RefString> cache = new RangeCache<>();
 
         RefString s0 = new RefString("zero");
-        assertEquals(s0.count, 1);
+        assertEquals(s0.refCnt(), 1);
         assertEquals(cache.put(0, s0), true);
-        assertEquals(s0.count, 1);
+        assertEquals(s0.refCnt(), 1);
 
         cache.put(1, new RefString("one"));
 
@@ -134,12 +128,12 @@ public class RangeCacheTest {
         assertEquals(cache.getNumberOfEntries(), 2);
         RefString s = cache.get(1);
         assertEquals(s.s, "one");
-        assertEquals(s.count, 2);
+        assertEquals(s.refCnt(), 2);
 
         RefString s1 = new RefString("uno");
-        assertEquals(s1.count, 1);
+        assertEquals(s1.refCnt(), 1);
         assertEquals(cache.put(1, s1), false);
-        assertEquals(s1.count, 1);
+        assertEquals(s1.refCnt(), 1);
         s1.release();
 
         // Should not have been overridden in cache

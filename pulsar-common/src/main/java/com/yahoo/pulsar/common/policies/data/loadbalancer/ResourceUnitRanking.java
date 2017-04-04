@@ -39,6 +39,9 @@ public class ResourceUnitRanking implements Comparable<ResourceUnitRanking> {
     // estimated percentage of resource usage with the already assigned (both loaded and to-be-loaded) bundles
     private double estimatedLoadPercentage;
 
+    // estimated number of total messages with the already assigned (both loaded and to-be-loaded) bundles
+    private double estimatedMessageRate;
+
     private double allocatedLoadPercentageCPU;
     private double allocatedLoadPercentageMemory;
     private double allocatedLoadPercentageBandwidthIn;
@@ -113,6 +116,10 @@ public class ResourceUnitRanking implements Comparable<ResourceUnitRanking> {
         this.estimatedLoadPercentage = Math.max(this.estimatedLoadPercentageCPU,
                 Math.max(this.estimatedLoadPercentageMemory, Math.max(this.estimatedLoadPercentageDirectMemory,
                         Math.max(this.estimatedLoadPercentageBandwidthIn, this.estimatedLoadPercentageBandwidthOut))));
+
+        this.estimatedMessageRate = this.allocatedQuota.getMsgRateIn() + this.allocatedQuota.getMsgRateOut() +
+                this.preAllocatedQuota.getMsgRateIn() + this.preAllocatedQuota.getMsgRateOut();
+
     }
 
     public int compareTo(ResourceUnitRanking other) {
@@ -136,6 +143,13 @@ public class ResourceUnitRanking implements Comparable<ResourceUnitRanking> {
             return Double.compare(this.estimatedLoadPercentageBandwidthOut, other.estimatedLoadPercentageBandwidthOut);
         }
         return Double.compare(this.estimatedLoadPercentage, other.estimatedLoadPercentage);
+    }
+
+    /**
+     * Compare two loads based on message rate only
+     */
+    public int compareMessageRateTo(ResourceUnitRanking other) {
+        return Double.compare(this.estimatedMessageRate, other.estimatedMessageRate);
     }
 
     /**
@@ -193,6 +207,13 @@ public class ResourceUnitRanking implements Comparable<ResourceUnitRanking> {
     }
 
     /**
+     * Get the estimated message rate
+     */
+    public double getEstimatedMessageRate() {
+        return this.estimatedMessageRate;
+    }
+
+    /**
      * Percentage of CPU allocated to bundle's quota
      */
     public double getAllocatedLoadPercentageCPU() {
@@ -225,7 +246,8 @@ public class ResourceUnitRanking implements Comparable<ResourceUnitRanking> {
      */
     public String getEstimatedLoadPercentageString() {
         return String.format(
-                "load: %.1f%% - cpu: %.1f%%, mem: %.1f%%, directMemory: %.1f%%, bandwidthIn: %.1f%%, bandwidthOut: %.1f%%",
+                "msgrate: %.0f, load: %.1f%% - cpu: %.1f%%, mem: %.1f%%, directMemory: %.1f%%, bandwidthIn: %.1f%%, bandwidthOut: %.1f%%",
+                this.estimatedMessageRate,
                 this.estimatedLoadPercentage, this.estimatedLoadPercentageCPU, this.estimatedLoadPercentageMemory,
                 this.estimatedLoadPercentageDirectMemory, this.estimatedLoadPercentageBandwidthIn,
                 this.estimatedLoadPercentageBandwidthOut);

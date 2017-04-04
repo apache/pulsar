@@ -26,6 +26,8 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import com.google.common.collect.Lists;
 
+import io.netty.util.ReferenceCounted;
+
 /**
  * Special type of cache where get() and delete() operations can be done over a range of keys.
  *
