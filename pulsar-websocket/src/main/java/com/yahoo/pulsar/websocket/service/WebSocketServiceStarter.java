@@ -24,6 +24,9 @@ import com.yahoo.pulsar.common.configuration.PulsarConfigurationLoader;
 import com.yahoo.pulsar.websocket.WebSocketConsumerServlet;
 import com.yahoo.pulsar.websocket.WebSocketProducerServlet;
 import com.yahoo.pulsar.websocket.WebSocketService;
+import com.yahoo.pulsar.websocket.admin.WebSocketProxyStats;
+
+import static com.yahoo.pulsar.websocket.admin.WebSocketWebResource.ADMIN_PATH;
 
 public class WebSocketServiceStarter {
 
@@ -47,10 +50,11 @@ public class WebSocketServiceStarter {
     public static void start(ProxyServer proxyServer, WebSocketService service) throws Exception {
         proxyServer.addWebSocketServlet(WebSocketProducerServlet.SERVLET_PATH, new WebSocketProducerServlet(service));
         proxyServer.addWebSocketServlet(WebSocketConsumerServlet.SERVLET_PATH, new WebSocketConsumerServlet(service));
+        proxyServer.addRestResources(ADMIN_PATH, WebSocketProxyStats.class.getPackage().getName(), service);
         proxyServer.start();
         service.start();
     }
-    
+
     private static final Logger log = LoggerFactory.getLogger(WebSocketServiceStarter.class);
 
 }

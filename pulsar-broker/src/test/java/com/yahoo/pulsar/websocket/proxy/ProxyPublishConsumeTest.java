@@ -15,49 +15,65 @@
  */
 package com.yahoo.pulsar.websocket.proxy;
 
+import static java.util.concurrent.Executors.newFixedThreadPool;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 
 import java.net.URI;
-import static java.util.concurrent.Executors.newFixedThreadPool;
-
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+
+import javax.ws.rs.client.Client;
+import javax.ws.rs.client.ClientBuilder;
+import javax.ws.rs.client.Invocation;
+import javax.ws.rs.client.WebTarget;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
 
 import org.apache.bookkeeper.test.PortManager;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
 import org.eclipse.jetty.websocket.client.WebSocketClient;
+import org.glassfish.jersey.client.ClientConfig;
+import org.glassfish.jersey.filter.LoggingFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import com.yahoo.pulsar.client.api.ProducerConsumerBase;
+import com.yahoo.pulsar.common.stats.Metrics;
 import com.yahoo.pulsar.websocket.WebSocketService;
 import com.yahoo.pulsar.websocket.service.ProxyServer;
 import com.yahoo.pulsar.websocket.service.WebSocketProxyConfiguration;
 import com.yahoo.pulsar.websocket.service.WebSocketServiceStarter;
+import com.yahoo.pulsar.websocket.stats.ProxyTopicStat;
+import com.yahoo.pulsar.websocket.stats.ProxyTopicStat.ConsumerStats;
+import com.yahoo.pulsar.websocket.stats.ProxyTopicStat.ProducerStats;
 
 public class ProxyPublishConsumeTest extends ProducerConsumerBase {
     protected String methodName;
-    private static final int TEST_PORT = PortManager.nextFreePort();
-    private static final String CONSUME_URI = "ws://localhost:" + TEST_PORT + "/ws/consumer/persistent/my-property/use/my-ns/my-topic/my-sub?subscriptionType=Failover";
-    private static final String PRODUCE_URI = "ws://localhost:" + TEST_PORT + "/ws/producer/persistent/my-property/use/my-ns/my-topic/";
+    private int port;
 
     private ProxyServer proxyServer;
     private WebSocketService service;
 
-    @BeforeClass
+    @BeforeMethod
     public void setup() throws Exception {
         super.internalSetup();
         super.producerBaseSetup();
 
+        port = PortManager.nextFreePort();
         WebSocketProxyConfiguration config = new WebSocketProxyConfiguration();
-        config.setWebServicePort(TEST_PORT);
+        config.setWebServicePort(port);
         config.setClusterName("use");
         config.setGlobalZookeeperServers("dummy-zk-servers");
         service = spy(new WebSocketService(config));
@@ -67,7 +83,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         log.info("Proxy Server Started");
     }
 
-    @AfterClass
+    @AfterMethod
     protected void cleanup() throws Exception {
         super.internalCleanup();
         service.close();
@@ -75,10 +91,14 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         log.info("Finished Cleaning Up Test setup");
     }
 
-    @Test(timeOut=10000)
+    @Test(timeOut = 10000)
     public void socketTest() throws Exception {
-        URI consumeUri = URI.create(CONSUME_URI);
-        URI produceUri = URI.create(PRODUCE_URI);
+        String consumerUri = "ws://localhost:" + port
+                + "/ws/consumer/persistent/my-property/use/my-ns/my-topic/my-sub?subscriptionType=Failover";
+        String producerUri = "ws://localhost:" + port + "/ws/producer/persistent/my-property/use/my-ns/my-topic/";
+
+        URI consumeUri = URI.create(consumerUri);
+        URI produceUri = URI.create(producerUri);
 
         WebSocketClient consumeClient1 = new WebSocketClient();
         SimpleConsumerSocket consumeSocket1 = new SimpleConsumerSocket();
@@ -104,8 +124,15 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             Assert.assertTrue(consumerFuture2.get().isOpen());
             Assert.assertTrue(producerFuture.get().isOpen());
 
+            int retry = 0;
+            int maxRetry = 400;
             while (consumeSocket1.getReceivedMessagesCount() < 10 && consumeSocket2.getReceivedMessagesCount() < 10) {
                 Thread.sleep(10);
+                if (retry++ > maxRetry) {
+                    final String msg = String.format("Consumer still has not received the message after %s ms", (maxRetry * 10));
+                    log.warn(msg);
+                    throw new IllegalStateException(msg);
+                }
             }
 
             // if the subscription type is exclusive (default), either of the consumer sessions has already been closed
@@ -136,6 +163,130 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             }
             executor.shutdownNow();
         }
+    }
+
+    /**
+     * It verifies proxy topic-stats and proxy-metrics api
+     * 
+     * @throws Exception
+     */
+    @Test(timeOut = 10000)
+    public void testProxyStats() throws Exception {
+        final String topic = "my-property/use/my-ns/my-topic";
+        final String consumerUri = "ws://localhost:" + port + "/ws/consumer/persistent/" + topic
+                + "/my-sub?subscriptionType=Failover";
+        final String producerUri = "ws://localhost:" + port + "/ws/producer/persistent/" + topic + "/";
+
+        URI consumeUri = URI.create(consumerUri);
+        URI produceUri = URI.create(producerUri);
+
+        WebSocketClient consumeClient1 = new WebSocketClient();
+        SimpleConsumerSocket consumeSocket1 = new SimpleConsumerSocket();
+        WebSocketClient produceClient = new WebSocketClient();
+        SimpleProducerSocket produceSocket = new SimpleProducerSocket();
+
+        try {
+            consumeClient1.start();
+            ClientUpgradeRequest consumeRequest1 = new ClientUpgradeRequest();
+            Future<Session> consumerFuture1 = consumeClient1.connect(consumeSocket1, consumeUri, consumeRequest1);
+            log.info("Connecting to : {}", consumeUri);
+
+            ClientUpgradeRequest produceRequest = new ClientUpgradeRequest();
+            produceClient.start();
+            Future<Session> producerFuture = produceClient.connect(produceSocket, produceUri, produceRequest);
+            // let it connect
+            Assert.assertTrue(consumerFuture1.get().isOpen());
+            Assert.assertTrue(producerFuture.get().isOpen());
+
+            // disable executor to avoid auto-stats update
+            service.getExecutor().shutdown();
+            // sleep so, proxy can deliver few messages to consumers for stats
+            int retry = 0;
+            int maxRetry = 400;
+            while (consumeSocket1.getReceivedMessagesCount() < 2) {
+                Thread.sleep(10);
+                if (retry++ > maxRetry) {
+                    final String msg = String.format("Consumer still has not received the message after %s ms", (maxRetry * 10));
+                    log.warn(msg);
+                    throw new IllegalStateException(msg);
+                }
+            }
+
+            Client client = ClientBuilder.newClient(new ClientConfig().register(LoggingFilter.class));
+            final String baseUrl = pulsar.getWebServiceAddress()
+                    .replace(Integer.toString(pulsar.getConfiguration().getWebServicePort()), (Integer.toString(port)))
+                    + "/admin/proxy-stats/";
+
+            // verify proxy metrics
+            verifyProxyMetrics(client, baseUrl);
+
+            // verify proxy stats
+            verifyProxyStats(client, baseUrl, topic);
+
+            // verify topic stat
+            verifyTopicStat(client, baseUrl, topic);
+
+        } finally {
+            consumeClient1.stop();
+            produceClient.stop();
+            log.info("proxy clients are stopped successfully");
+        }
+    }
+
+    private void verifyTopicStat(Client client, String baseUrl, String topic) {
+        String statUrl = baseUrl + topic + "/stats";
+        WebTarget webTarget = client.target(statUrl);
+        Invocation.Builder invocationBuilder = webTarget.request(MediaType.APPLICATION_JSON);
+        Response response = (Response) invocationBuilder.get();
+        String responseStr = response.readEntity(String.class);
+        final Gson gson = new Gson();
+        final ProxyTopicStat data = gson.fromJson(responseStr, ProxyTopicStat.class);
+        Assert.assertFalse(data.producerStats.isEmpty());
+        Assert.assertFalse(data.consumerStats.isEmpty());
+    }
+
+    private void verifyProxyMetrics(Client client, String baseUrl) {
+        // generate metrics
+        service.getProxyStats().generate();
+        // collect metrics
+        String statUrl = baseUrl + "metrics";
+        WebTarget webTarget = client.target(statUrl);
+        Invocation.Builder invocationBuilder = webTarget.request(MediaType.APPLICATION_JSON);
+        Response response = (Response) invocationBuilder.get();
+        String responseStr = response.readEntity(String.class);
+        final Gson gson = new Gson();
+        final List<Metrics> data = gson.fromJson(responseStr, new TypeToken<List<Metrics>>() {
+        }.getType());
+        Assert.assertFalse(data.isEmpty());
+    }
+
+    private void verifyProxyStats(Client client, String baseUrl, String topic) {
+
+        String statUrl = baseUrl + "stats";
+        WebTarget webTarget = client.target(statUrl);
+        Invocation.Builder invocationBuilder = webTarget.request(MediaType.APPLICATION_JSON);
+        Response response = (Response) invocationBuilder.get();
+        String responseStr = response.readEntity(String.class);
+        final Gson gson = new Gson();
+        final Map<String, ProxyTopicStat> data = gson.fromJson(responseStr,
+                new TypeToken<Map<String, ProxyTopicStat>>() {
+                }.getType());
+        // number of topic is loaded = 1
+        Assert.assertEquals(data.size(), 1);
+        Entry<String, ProxyTopicStat> entry = data.entrySet().iterator().next();
+        Assert.assertEquals(entry.getKey(), "persistent://" + topic);
+        ProxyTopicStat stats = entry.getValue();
+        // number of consumers are connected = 1
+        Assert.assertEquals(stats.consumerStats.size(), 1);
+        ConsumerStats consumerStats = stats.consumerStats.iterator().next();
+        Assert.assertTrue(consumerStats.numberOfMsgDelivered > 0);
+        Assert.assertNotNull(consumerStats.remoteConnection);
+
+        // number of producers are connected = 1
+        Assert.assertEquals(stats.producerStats.size(), 1);
+        ProducerStats producerStats = stats.producerStats.iterator().next();
+        Assert.assertTrue(producerStats.numberOfMsgPublished > 0);
+        Assert.assertNotNull(producerStats.remoteConnection);
     }
 
     private static final Logger log = LoggerFactory.getLogger(ProxyPublishConsumeTest.class);

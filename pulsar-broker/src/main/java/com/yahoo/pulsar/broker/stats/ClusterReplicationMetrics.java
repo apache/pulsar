@@ -18,6 +18,7 @@ package com.yahoo.pulsar.broker.stats;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.yahoo.pulsar.common.stats.Metrics;
 import com.yahoo.pulsar.common.util.collections.ConcurrentOpenHashMap;
 
 /**

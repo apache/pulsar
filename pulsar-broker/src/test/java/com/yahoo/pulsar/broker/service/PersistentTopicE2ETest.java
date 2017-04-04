@@ -50,7 +50,6 @@ import com.google.common.collect.Sets;
 import com.yahoo.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import com.yahoo.pulsar.broker.service.persistent.PersistentSubscription;
 import com.yahoo.pulsar.broker.service.persistent.PersistentTopic;
-import com.yahoo.pulsar.broker.stats.Metrics;
 import com.yahoo.pulsar.client.admin.PulsarAdminException;
 import com.yahoo.pulsar.client.api.CompressionType;
 import com.yahoo.pulsar.client.api.Consumer;
@@ -69,6 +68,7 @@ import com.yahoo.pulsar.client.impl.ProducerImpl;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import com.yahoo.pulsar.common.naming.DestinationName;
 import com.yahoo.pulsar.common.policies.data.loadbalancer.NamespaceBundleStats;
+import com.yahoo.pulsar.common.stats.Metrics;
 
 /**
  */

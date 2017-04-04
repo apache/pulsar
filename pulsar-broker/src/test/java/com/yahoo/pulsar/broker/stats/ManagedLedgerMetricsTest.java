@@ -29,6 +29,7 @@ import org.testng.annotations.Test;
 import com.yahoo.pulsar.broker.service.BrokerTestBase;
 import com.yahoo.pulsar.broker.stats.metrics.ManagedLedgerMetrics;
 import com.yahoo.pulsar.client.api.Producer;
+import com.yahoo.pulsar.common.stats.Metrics;
 
 import junit.framework.Assert;
 
