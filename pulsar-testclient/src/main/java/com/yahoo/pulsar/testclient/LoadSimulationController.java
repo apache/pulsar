@@ -285,7 +285,7 @@ public class LoadSimulationController {
     // Makes a destination string from a tenant name, namespace name, and topic
     // name.
     private String makeDestination(final String tenant, final String namespace, final String topic) {
-        return String.format("persistent://%s/%s/%s/%s", cluster, tenant, namespace, topic);
+        return String.format("persistent://%s/%s/%s/%s", tenant, cluster, namespace, topic);
     }
 
     // Write options that are common to modifying and creating topics.
@@ -404,11 +404,11 @@ public class LoadSimulationController {
                         // Simulation will send messages in and out at about the same rate, so just make the rate the
                         // average of in and out.
 
-                        final int clusterStart = QUOTA_ROOT.length() + 1;
-                        final int tenantStart = bundle.indexOf('/', clusterStart) + 1;
-                        final String sourceCluster = bundle.substring(clusterStart, tenantStart - 1);
-                        final int namespaceStart = bundle.indexOf('/', tenantStart) + 1;
-                        final String sourceTenant = bundle.substring(tenantStart, namespaceStart - 1);
+                        final int tenantStart = QUOTA_ROOT.length() + 1;
+                        final int clusterStart = bundle.indexOf('/', tenantStart) + 1;
+                        final String sourceTenant = bundle.substring(tenantStart, clusterStart - 1);
+                        final int namespaceStart = bundle.indexOf('/', clusterStart) + 1;
+                        final String sourceCluster = bundle.substring(clusterStart, namespaceStart - 1);
                         final String namespace = bundle.substring(namespaceStart, bundle.lastIndexOf('/'));
                         final String keyRangeString = bundle.substring(bundle.lastIndexOf('/') + 1);
                         // To prevent duplicate node issues for same namespace names in different clusters/tenants.
@@ -417,10 +417,10 @@ public class LoadSimulationController {
                         final String mangledNamespace = String.format("%s-%s", manglePrefix, namespace);
                         final BundleData bundleData = initializeBundleData(quota, arguments);
                         final String oldAPITargetPath = String.format(
-                                "/loadbalance/resource-quota/namespace/%s/%s/%s/0x00000000_0xffffffff", cluster,
-                                tenantName, mangledNamespace);
+                                "/loadbalance/resource-quota/namespace/%s/%s/%s/0x00000000_0xffffffff", tenantName,
+                                cluster, mangledNamespace);
                         final String newAPITargetPath = String.format(
-                                "/loadbalance/bundle-data/%s/%s/%s/0x00000000_0xffffffff", cluster, tenantName,
+                                "/loadbalance/bundle-data/%s/%s/%s/0x00000000_0xffffffff", tenantName, cluster,
                                 mangledNamespace);
                         try {
                             ZkUtils.createFullPathOptimistic(targetZKClient, oldAPITargetPath,
@@ -478,8 +478,8 @@ public class LoadSimulationController {
                     final String bundle = entry.getKey();
                     final String newAPIPath = bundle.replace(QUOTA_ROOT, BUNDLE_DATA_ROOT);
                     final ResourceQuota quota = entry.getValue();
-                    final int clusterStart = QUOTA_ROOT.length() + 1;
-                    final String destination = String.format("persistent://%s/t", bundle.substring(clusterStart));
+                    final int tenantStart = QUOTA_ROOT.length() + 1;
+                    final String destination = String.format("persistent://%s/t", bundle.substring(tenantStart));
                     final BundleData bundleData = initializeBundleData(quota, arguments);
                     // Put the bundle data in the new ZooKeeper.
                     try {

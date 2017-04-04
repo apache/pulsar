@@ -262,7 +262,7 @@ public class LoadSimulationClient {
                 tradeConf.size = inputStream.readInt();
                 tradeConf.rate = inputStream.readDouble();
                 // See if a topic belongs to this tenant and group using this regex.
-                final String groupRegex = ".*://.*/" + tradeConf.tenant + "/" + tradeConf.group + "-.*/.*";
+                final String groupRegex = ".*://" + tradeConf.tenant + "/.*/" + tradeConf.group + "-.*/.*";
                 for (Map.Entry<String, TradeUnit> entry : topicsToTradeUnits.entrySet()) {
                     final String destination = entry.getKey();
                     final TradeUnit unit = entry.getValue();
