@@ -54,7 +54,7 @@ namespace pulsar {
         std::stringstream completeUrlStream;
         completeUrlStream << adminUrl_ << V2_PATH << "persistent/" << dn->getProperty() << '/' << dn->getCluster()
         << '/' << dn->getNamespacePortion() << '/' << dn->getEncodedLocalName();
-        executorProvider_->get()->postWork(boost::bind(&HTTPLookupService::sendHTTPRequest, this, promise, completeUrlStream.str(), Lookup));
+        executorProvider_->get()->postWork(boost::bind(&HTTPLookupService::sendHTTPRequest, shared_from_this(), promise, completeUrlStream.str(), Lookup));
         return promise.getFuture();
     }
 
@@ -64,7 +64,7 @@ namespace pulsar {
         completeUrlStream << adminUrl_ << PARTITION_PATH << dn->getProperty() << '/' << dn->getCluster()
         << '/' << dn->getNamespacePortion() << '/' << dn->getEncodedLocalName() << '/'
         << PARTITION_METHOD_NAME;
-        executorProvider_->get()->postWork(boost::bind(&HTTPLookupService::sendHTTPRequest, this, promise, completeUrlStream.str(), PartitionMetaData));
+        executorProvider_->get()->postWork(boost::bind(&HTTPLookupService::sendHTTPRequest, shared_from_this(), promise, completeUrlStream.str(), PartitionMetaData));
         return promise.getFuture();
     }
 

@@ -24,7 +24,7 @@
 #include <lib/LogUtils.h>
 
 namespace pulsar {
-class LookupService  : public boost::enable_shared_from_this<LookupService> {
+class LookupService {
 public:
     /*
      * @param    destinationName - topic name

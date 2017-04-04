@@ -25,7 +25,7 @@
 #include <boost/bind.hpp>
 
 namespace pulsar {
-    class HTTPLookupService : public LookupService {
+    class HTTPLookupService : public LookupService, public boost::enable_shared_from_this<HTTPLookupService> {
         enum RequestType {Lookup, PartitionMetaData};
         typedef Promise<Result, LookupDataResultPtr> LookupPromise;
         ExecutorServiceProviderPtr executorProvider_;
