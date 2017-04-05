@@ -23,10 +23,20 @@
 #include <json/value.h>
 #include <json/reader.h>
 #include <boost/bind.hpp>
-#include <lib/CurlInitializer.h>
+#include <curl/curl.h>
 
 namespace pulsar {
     class HTTPLookupService : public LookupService, public boost::enable_shared_from_this<HTTPLookupService> {
+        class CurlInitializer {
+         public:
+            CurlInitializer() {
+                // Once per application - https://curl.haxx.se/mail/lib-2015-11/0052.html
+                curl_global_init (CURL_GLOBAL_ALL);
+            }
+            ~CurlInitializer() {
+                curl_global_cleanup();
+            }
+        };
         static CurlInitializer curlInitializer;
         enum RequestType {Lookup, PartitionMetaData};
         typedef Promise<Result, LookupDataResultPtr> LookupPromise;

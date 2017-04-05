@@ -24,7 +24,7 @@ namespace pulsar {
     const static std::string PARTITION_METHOD_NAME = "partitions";
     const static int NUMBER_OF_LOOKUP_THREADS = 1;
 
-    CurlInitializer HTTPLookupService::curlInitializer;
+    HTTPLookupService::CurlInitializer HTTPLookupService::curlInitializer;
 
     HTTPLookupService::HTTPLookupService(const std::string &lookupUrl,
             const ClientConfiguration &clientConfiguration,
