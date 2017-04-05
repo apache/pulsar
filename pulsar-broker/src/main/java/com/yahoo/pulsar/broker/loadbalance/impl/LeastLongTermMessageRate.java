@@ -51,7 +51,7 @@ public class LeastLongTermMessageRate implements ModularLoadManagerStrategy {
     // max_usage < overload_threshold ? 1 / (overload_threshold - max_usage): Inf
     // This weight attempts to discourage the placement of bundles on brokers whose system resource usage is high.
     private static double getScore(final BrokerData brokerData, final ServiceConfiguration conf) {
-        final double overloadThreshold = conf.getLoadBalancerBrokerOverloadedThresholdPercentage() / 100;
+        final double overloadThreshold = conf.getLoadBalancerBrokerOverloadedThresholdPercentage() / 100.0;
         double totalMessageRate = 0;
         for (BundleData bundleData : brokerData.getPreallocatedBundleData().values()) {
             final TimeAverageMessageData longTermData = bundleData.getLongTermData();
