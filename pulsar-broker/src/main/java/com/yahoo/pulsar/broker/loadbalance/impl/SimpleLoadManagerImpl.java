@@ -19,6 +19,7 @@ import static org.apache.commons.lang3.StringUtils.isNotEmpty;
 
 import java.io.IOException;
 import java.net.URL;
+import java.nio.charset.Charset;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -286,6 +287,10 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
             try {
                 ZkUtils.createFullPathOptimistic(pulsar.getZkClient(), brokerZnodePath,
                         loadReportJson.getBytes(Charsets.UTF_8), Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
+            } catch (KeeperException.NodeExistsException e) {
+                // Node may already be created by another load manager: in this case update the data.
+                pulsar.getZkClient().setData(brokerZnodePath, loadReportJson.getBytes(Charsets.UTF_8), -1);
+
             } catch (Exception e) {
                 // Catching excption here to print the right error message
                 log.error("Unable to create znode - [{}] for load balance on zookeeper ", brokerZnodePath, e);

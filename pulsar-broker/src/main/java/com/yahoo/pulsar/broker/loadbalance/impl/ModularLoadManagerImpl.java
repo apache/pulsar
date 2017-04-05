@@ -527,6 +527,9 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
             try {
                 ZkUtils.createFullPathOptimistic(pulsar.getZkClient(), brokerZnodePath, localData.getJsonBytes(),
                         ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
+            } catch (KeeperException.NodeExistsException e) {
+                // Node may already be created by another load manager: in this case update the data.
+                zkClient.setData(brokerZnodePath, localData.getJsonBytes(), -1);
             } catch (Exception e) {
                 // Catching exception here to print the right error message
                 log.error("Unable to create znode - [{}] for load balance on zookeeper ", brokerZnodePath, e);
