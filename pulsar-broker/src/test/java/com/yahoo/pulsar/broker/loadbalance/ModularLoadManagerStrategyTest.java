@@ -1,5 +1,9 @@
 package com.yahoo.pulsar.broker.loadbalance;
 
+import java.util.Map;
+
+import org.testng.annotations.Test;
+
 import com.yahoo.pulsar.broker.BrokerData;
 import com.yahoo.pulsar.broker.BundleData;
 import com.yahoo.pulsar.broker.LocalBrokerData;
@@ -7,10 +11,6 @@ import com.yahoo.pulsar.broker.ServiceConfiguration;
 import com.yahoo.pulsar.broker.TimeAverageBrokerData;
 import com.yahoo.pulsar.broker.loadbalance.impl.LeastLongTermMessageRate;
 import com.yahoo.pulsar.common.policies.data.loadbalancer.ResourceUsage;
-import org.testng.annotations.Test;
-
-import java.util.HashMap;
-import java.util.Map;
 
 public class ModularLoadManagerStrategyTest {
     // Test that least long term message rate works correctly.
