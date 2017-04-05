@@ -427,7 +427,6 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
      */
     @Override
     public void disableBroker() throws PulsarServerException {
-        stop();
         if (StringUtils.isNotEmpty(brokerZnodePath)) {
             try {
                 pulsar.getZkClient().delete(brokerZnodePath, -1);
