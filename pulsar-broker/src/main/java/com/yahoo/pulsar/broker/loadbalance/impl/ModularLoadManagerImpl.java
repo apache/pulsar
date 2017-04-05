@@ -427,6 +427,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
      */
     @Override
     public void disableBroker() throws PulsarServerException {
+        brokerDataCache.unregisterListener(this);
+        scheduler.shutdown();
         if (StringUtils.isNotEmpty(brokerZnodePath)) {
             try {
                 pulsar.getZkClient().delete(brokerZnodePath, -1);
@@ -486,19 +488,15 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
      */
     @Override
     public synchronized String selectBrokerForAssignment(final ServiceUnitId serviceUnit) {
-        // ?: Is it too inefficient to make this synchronized? If so, it may be
-        // a good idea to use weighted random
-        // or atomic data.
-
         final String bundle = serviceUnit.toString();
         if (preallocatedBundleToBroker.containsKey(bundle)) {
-            // If the given bundle is already in preallocated, return the
-            // selected broker.
+            // If the given bundle is already in preallocated, return the selected broker.
             return preallocatedBundleToBroker.get(bundle);
         }
         final BundleData data = loadData.getBundleData().computeIfAbsent(bundle, key -> getBundleDataOrDefault(bundle));
         brokerCandidateCache.clear();
         LoadManagerShared.applyPolicies(serviceUnit, policies, brokerCandidateCache, loadData.getBrokerData().keySet());
+        log.info("{} brokers being considered for assignment of {}", brokerCandidateCache.size(), bundle);
 
         // Use the filter pipeline to finalize broker candidates.
         for (BrokerFilter filter : filterPipeline) {
