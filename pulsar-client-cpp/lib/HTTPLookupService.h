@@ -23,10 +23,11 @@
 #include <json/value.h>
 #include <json/reader.h>
 #include <boost/bind.hpp>
+#include <lib/CurlInitializer.h>
 
 namespace pulsar {
     class HTTPLookupService : public LookupService, public boost::enable_shared_from_this<HTTPLookupService> {
-        static boost::mutex curlGlobalMutex_;
+        static CurlInitializer curlInitializer;
         enum RequestType {Lookup, PartitionMetaData};
         typedef Promise<Result, LookupDataResultPtr> LookupPromise;
         ExecutorServiceProviderPtr executorProvider_;
@@ -38,8 +39,6 @@ namespace pulsar {
         static LookupDataResultPtr parseLookupData(const std::string&);
         void sendHTTPRequest(LookupPromise, const std::string, RequestType);
      public:
-        ~HTTPLookupService();
-
         HTTPLookupService(const std::string&, const ClientConfiguration&, const AuthenticationPtr&);
 
         Future<Result, LookupDataResultPtr> lookupAsync(const std::string&);

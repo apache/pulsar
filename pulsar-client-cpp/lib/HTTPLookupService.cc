@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 #include <lib/HTTPLookupService.h>
-#include <curl/curl.h>
 
 DECLARE_LOG_OBJECT()
 
@@ -25,7 +24,7 @@ namespace pulsar {
     const static std::string PARTITION_METHOD_NAME = "partitions";
     const static int NUMBER_OF_LOOKUP_THREADS = 1;
 
-    boost::mutex HTTPLookupService::curlGlobalMutex_;
+    CurlInitializer HTTPLookupService::curlInitializer;
 
     HTTPLookupService::HTTPLookupService(const std::string &lookupUrl,
             const ClientConfiguration &clientConfiguration,
@@ -39,9 +38,6 @@ namespace pulsar {
         } else {
             adminUrl_ = lookupUrl;
         }
-        // Once per application - https://curl.haxx.se/mail/lib-2015-11/0052.html
-        Lock lock(curlGlobalMutex_);
-        curl_global_init(CURL_GLOBAL_ALL);
     }
 
     Future<Result, LookupDataResultPtr> HTTPLookupService::lookupAsync(const std::string &destinationName) {
@@ -200,10 +196,5 @@ namespace pulsar {
         lookupDataResultPtr->setBrokerUrl(brokerUrl);
         lookupDataResultPtr->setBrokerUrlSsl(brokerUrlSsl);
         return lookupDataResultPtr;
-    }
-
-    HTTPLookupService::~HTTPLookupService() {
-        Lock lock(curlGlobalMutex_);
-        curl_global_cleanup();
     }
 }
