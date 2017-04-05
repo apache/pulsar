@@ -715,8 +715,7 @@ public class LoadBalancerTest {
             Assert.assertNotEquals(newLeader, oldLeader);
         }
     }
-
-    @Test
+    
     private void createNamespacePolicies(PulsarService pulsar) throws Exception {
         // // prepare three policies for the namespace isolation
         NamespaceIsolationPolicies policies = new NamespaceIsolationPolicies();
