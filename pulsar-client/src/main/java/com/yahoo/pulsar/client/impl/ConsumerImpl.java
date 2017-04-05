@@ -503,6 +503,14 @@ public class ConsumerImpl extends ConsumerBase {
                 cnx.channel().close();
                 return null;
             }
+            
+            if (client.getConfiguration().getConnectionsPerBroker() == 0) {
+                // Pooling is disabled - we have only one consumer/producer per connection
+                // Hence we can close the connection before attempting to reconnect.
+                log.info("Closing the connection {} before trying to reconnect ", cnx.channel().remoteAddress());
+                cnx.channel().close();
+            }
+            
             log.warn("[{}][{}] Failed to subscribe to topic on {}", topic, subscription,
                 cnx.channel().remoteAddress());
             if (e.getCause() instanceof PulsarClientException
