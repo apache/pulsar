@@ -31,9 +31,6 @@ typedef boost::shared_ptr<boost::asio::ip::tcp::socket> SocketPtr;
 typedef boost::shared_ptr<boost::asio::ssl::stream<boost::asio::ip::tcp::socket&> > TlsSocketPtr;
 typedef boost::shared_ptr<boost::asio::ip::tcp::resolver> TcpResolverPtr;
 typedef boost::shared_ptr<boost::asio::deadline_timer> DeadlineTimerPtr;
-typedef boost::shared_ptr<boost::asio::streambuf> ReadStreamPtr;
-
-
 class ExecutorService : private boost::noncopyable {
  friend class ClientConnection;
  public:
@@ -41,7 +38,6 @@ class ExecutorService : private boost::noncopyable {
     ~ExecutorService();
 
     SocketPtr createSocket();
-    ReadStreamPtr createReadStream();
     TlsSocketPtr createTlsSocket(SocketPtr &socket, boost::asio::ssl::context &ctx);
     TcpResolverPtr createTcpResolver();
     DeadlineTimerPtr createDeadlineTimer();
@@ -79,7 +75,9 @@ typedef boost::shared_ptr<ExecutorService> ExecutorServicePtr;
 class ExecutorServiceProvider {
  public:
     explicit ExecutorServiceProvider(int nthreads);
+
     ExecutorServicePtr get();
+
     void close();
 
  private:
@@ -89,6 +87,7 @@ class ExecutorServiceProvider {
     boost::mutex mutex_;
     typedef boost::unique_lock<boost::mutex> Lock;
 };
+
 typedef boost::shared_ptr<ExecutorServiceProvider> ExecutorServiceProviderPtr;
 
 }

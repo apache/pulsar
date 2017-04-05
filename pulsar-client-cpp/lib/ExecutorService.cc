@@ -68,10 +68,6 @@ void ExecutorService::postWork(boost::function<void(void)> task) {
     io_service_.post(task);
 }
 
-ReadStreamPtr ExecutorService::createReadStream() {
-    return boost::make_shared<boost::asio::streambuf>();
-}
-
 /////////////////////
 
 ExecutorServiceProvider::ExecutorServiceProvider(int nthreads)
@@ -99,4 +95,5 @@ void ExecutorServiceProvider::close() {
         it->reset();
     }
 }
+
 }
