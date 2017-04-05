@@ -312,8 +312,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
 
     @Override
     public void disableBroker() throws Exception {
-        loadReportCacheZk.unregisterListener(this);
-        scheduler.shutdown();
+        stop();
         if (isNotEmpty(brokerZnodePath)) {
             pulsar.getZkClient().delete(brokerZnodePath, -1);
         }
@@ -1425,6 +1424,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
 
     @Override
     public void stop() throws PulsarServerException {
-        // do nothing
+        loadReportCacheZk.unregisterListener(this);
+        scheduler.shutdown();
     }
 }

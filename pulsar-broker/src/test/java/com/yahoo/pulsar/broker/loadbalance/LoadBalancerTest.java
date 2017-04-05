@@ -85,6 +85,7 @@ import com.yahoo.pulsar.common.util.ObjectMapperFactory;
 import com.yahoo.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import com.yahoo.pulsar.zookeeper.LocalZooKeeperCache;
 import com.yahoo.pulsar.zookeeper.ZooKeeperCache;
+import com.yahoo.pulsar.zookeeper.ZooKeeperDataCache;
 
 /**
  * Start two brokers in the same cluster and have them connect to the same zookeeper. When the PulsarService starts, it
@@ -279,7 +280,8 @@ public class LoadBalancerTest {
 
     private AtomicReference<Map<Long, Set<ResourceUnit>>> getSortedRanking(PulsarService pulsar)
             throws NoSuchFieldException, IllegalAccessException {
-        Field ranking = ((SimpleLoadManagerImpl) pulsar.getLoadManager().get()).getClass().getDeclaredField("sortedRankings");
+        Field ranking = ((SimpleLoadManagerImpl) pulsar.getLoadManager().get()).getClass()
+                .getDeclaredField("sortedRankings");
         ranking.setAccessible(true);
         AtomicReference<Map<Long, Set<ResourceUnit>>> sortedRanking = (AtomicReference<Map<Long, Set<ResourceUnit>>>) ranking
                 .get(pulsar.getLoadManager().get());
@@ -418,6 +420,22 @@ public class LoadBalancerTest {
                     lookupAddresses[i], actualValue, expectedValue, String.format("%.2f", variation));
             assertTrue(variation < expectedMaxVariation);
         }
+    }
+
+    /**
+     * Ensure that the load manager is unregistered as a listener after invoking stop.
+     */
+    @Test
+    public void testStop() throws Exception {
+        final SimpleLoadManagerImpl loadManager = (SimpleLoadManagerImpl) pulsarServices[0].getLoadManager().get();
+        loadManager.stop();
+        Field loadReportCacheField = SimpleLoadManagerImpl.class.getDeclaredField("loadReportCacheZk");
+        loadReportCacheField.setAccessible(true);
+        ZooKeeperDataCache<LoadReport> loadReportCache = (ZooKeeperDataCache<LoadReport>) loadReportCacheField
+                .get(loadManager);
+        Field listenersField = ZooKeeperDataCache.class.getDeclaredField("listeners");
+        listenersField.setAccessible(true);
+        assert (((List) (listenersField.get(loadReportCache))).isEmpty());
     }
 
     private AtomicReference<Map<String, ResourceQuota>> getRealtimeResourceQuota(PulsarService pulsar)
@@ -698,6 +716,7 @@ public class LoadBalancerTest {
         }
     }
 
+    @Test
     private void createNamespacePolicies(PulsarService pulsar) throws Exception {
         // // prepare three policies for the namespace isolation
         NamespaceIsolationPolicies policies = new NamespaceIsolationPolicies();
