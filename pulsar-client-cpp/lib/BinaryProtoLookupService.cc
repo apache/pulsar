@@ -16,7 +16,6 @@
 
 #include "DestinationName.h"
 #include "BinaryProtoLookupService.h"
-#include "LogUtils.h"
 #include "SharedBuffer.h"
 
 #include <boost/shared_ptr.hpp>

@@ -17,6 +17,8 @@
 #ifndef _PULSAR_LOOKUP_DATA_RESULT_HEADER_
 #define _PULSAR_LOOKUP_DATA_RESULT_HEADER_
 #include <string>
+#include <lib/Future.h>
+#include <pulsar/Result.h>
 
 namespace pulsar {
 class LookupDataResult;
