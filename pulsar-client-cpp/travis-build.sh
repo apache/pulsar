@@ -55,7 +55,7 @@ exec_cmd() {
 
 if [ "$3" = "all" -o "$3" = "dep" ]; then
   # Install dependant packages
-  exec_cmd "apt-get update && apt-get install -y cmake gcc-4.4 cpp-4.4 gcc-4.4-base libssl-dev libcurl4-openssl-dev liblog4cxx10-dev libprotobuf-dev libboost1.55-all-dev libgtest-dev libxml2-utils g++-4.4";
+  exec_cmd "apt-get update && apt-get install -y cmake gcc-4.4 cpp-4.4 gcc-4.4-base libssl-dev libcurl4-openssl-dev liblog4cxx10-dev libprotobuf-dev libboost1.55-all-dev libgtest-dev libxml2-utils g++-4.4 libjsoncpp-dev";
   if [ ! -f "$1/libgtest.a" ]; then
     echo "Not Found: $1/libgtest.a"
     exec_cmd "pushd /usr/src/gtest && CC=gcc-4.4 CXX=g++-4.4 cmake . && make && cp libgtest.a $1/ && popd";
