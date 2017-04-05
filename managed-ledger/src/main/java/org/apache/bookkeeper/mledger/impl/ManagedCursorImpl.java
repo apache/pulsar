@@ -1179,8 +1179,6 @@ public class ManagedCursorImpl implements ManagedCursor {
             if (log.isDebugEnabled()) {
                 log.debug("Moved read position from: {} to: {}", oldReadPosition, readPosition);
             }
-
-            oldReadPosition.recycle();
         }
 
         PositionImpl oldMarkDeletePosition = markDeletePosition;
@@ -1211,7 +1209,6 @@ public class ManagedCursorImpl implements ManagedCursor {
         // markDelete-position and clear out deletedMsgSet
         markDeletePosition = PositionImpl.get(newMarkDeletePosition);
         individualDeletedMessages.remove(Range.atMost(markDeletePosition));
-        oldMarkDeletePosition.recycle();
 
         return newMarkDeletePosition;
     }
@@ -1599,7 +1596,6 @@ public class ManagedCursorImpl implements ManagedCursor {
             }
 
             readPosition = newReadPosition;
-            oldReadPosition.recycle();
         } finally {
             lock.writeLock().unlock();
         }
@@ -1619,7 +1615,6 @@ public class ManagedCursorImpl implements ManagedCursor {
 
             PositionImpl oldReadPosition = readPosition;
             readPosition = newReadPosition;
-            oldReadPosition.recycle();
         } finally {
             lock.writeLock().unlock();
         }

@@ -128,7 +128,8 @@ TEST(BatchMessageTest, testProducerTimeout) {
         /* End the timer */
         end = time(NULL);
         LOG_INFO("end = "<<end);
-        ASSERT_EQ(timeout/1000.0, (double)(end - start));
+        // Greater than or equal to since there may be delay in sending messaging
+        ASSERT_GE((double)(end - start), timeout/1000.0);
     }
 
     Message receivedMsg;

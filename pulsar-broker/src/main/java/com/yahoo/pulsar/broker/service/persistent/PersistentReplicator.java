@@ -444,7 +444,7 @@ public class PersistentReplicator implements ReadEntriesCallback, DeleteCallback
 
         private void recycle() {
             replicator = null;
-            entry = null;
+            entry = null; //already released and recycled on sendComplete
             if (msg != null) {
                 msg.recycle();
                 msg = null;

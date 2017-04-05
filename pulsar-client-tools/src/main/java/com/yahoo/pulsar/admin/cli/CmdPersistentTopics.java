@@ -43,6 +43,7 @@ public class CmdPersistentTopics extends CmdBase {
         persistentTopics = admin.persistentTopics();
 
         jcommander.addCommand("list", new ListCmd());
+        jcommander.addCommand("list-partitioned-topics", new PartitionedTopicListCmd());
         jcommander.addCommand("permissions", new Permissions());
         jcommander.addCommand("grant-permission", new GrantPermissions());
         jcommander.addCommand("revoke-permission", new RevokePermissions());
@@ -74,6 +75,18 @@ public class CmdPersistentTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
             print(persistentTopics.getList(namespace));
+        }
+    }
+
+    @Parameters(commandDescription = "Get the list of partitioned topics under a namespace.")
+    private class PartitionedTopicListCmd extends CliCommand {
+        @Parameter(description = "property/cluster/namespace\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            print(persistentTopics.getPartitionedTopicList(namespace));
         }
     }
 

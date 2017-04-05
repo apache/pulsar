@@ -24,6 +24,7 @@ import java.util.List;
 
 import org.apache.bookkeeper.client.AsyncCallback.ReadCallback;
 import org.apache.bookkeeper.client.BKException;
+import org.apache.bookkeeper.client.LedgerEntry;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
@@ -118,12 +119,15 @@ public class EntryCacheImpl implements EntryCache {
             entryBuf.readerIndex(readerIdx);
         }
 
-        if (entries.put(entry.getPosition(), new EntryImpl(entry.getPosition(), cachedData))) {
+        PositionImpl position = entry.getPosition();
+        EntryImpl cacheEntry = EntryImpl.create(position, cachedData);
+        cachedData.release();
+        if (entries.put(position, cacheEntry)) {
             manager.entryAdded(entry.getLength());
             return true;
         } else {
-            // Buffer was not inserted into cache, we need to discard it
-            cachedData.release();
+            // entry was not inserted into cache, we need to discard it
+            cacheEntry.release();
             return false;
         }
     }
@@ -140,7 +144,6 @@ public class EntryCacheImpl implements EntryCache {
                     lastPosition, entriesRemoved, sizeRemoved);
         }
 
-        firstPosition.recycle();
         manager.entriesRemoved(sizeRemoved);
     }
 
@@ -157,8 +160,6 @@ public class EntryCacheImpl implements EntryCache {
                     ml.getName(), ledgerId, entriesRemoved, sizeRemoved);
         }
 
-        firstPosition.recycle();
-        lastPosition.recycle();
         manager.entriesRemoved(sizeRemoved);
     }
 
@@ -170,7 +171,7 @@ public class EntryCacheImpl implements EntryCache {
         }
         EntryImpl entry = entries.get(position);
         if (entry != null) {
-            EntryImpl cachedEntry = new EntryImpl(entry);
+            EntryImpl cachedEntry = EntryImpl.create(entry);
             entry.release();
             manager.mlFactoryMBean.recordCacheHit(cachedEntry.getLength());
             callback.readEntryComplete(cachedEntry, ctx);
@@ -183,7 +184,11 @@ public class EntryCacheImpl implements EntryCache {
                 }
 
                 if (sequence.hasMoreElements()) {
-                    EntryImpl returnEntry = new EntryImpl(sequence.nextElement());
+                    LedgerEntry ledgerEntry = sequence.nextElement();
+                    EntryImpl returnEntry = EntryImpl.create(ledgerEntry);
+
+                    // The EntryImpl is now the owner of the buffer, so we can release the original one
+                    ledgerEntry.getEntryBuffer().release();
 
                     manager.mlFactoryMBean.recordCacheMiss(1, returnEntry.getLength());
                     ml.mbean.addReadEntriesSample(1, returnEntry.getLength());
@@ -212,8 +217,6 @@ public class EntryCacheImpl implements EntryCache {
         }
 
         Collection<EntryImpl> cachedEntries = entries.getRange(firstPosition, lastPosition);
-        firstPosition.recycle();
-        lastPosition.recycle();
 
         if (cachedEntries.size() == entriesToRead) {
             long totalCachedSize = 0;
@@ -221,7 +224,7 @@ public class EntryCacheImpl implements EntryCache {
 
             // All entries found in cache
             for (EntryImpl entry : cachedEntries) {
-                entriesToReturn.add(new EntryImpl(entry));
+                entriesToReturn.add(EntryImpl.create(entry));
                 totalCachedSize += entry.getLength();
                 entry.release();
             }
@@ -261,7 +264,10 @@ public class EntryCacheImpl implements EntryCache {
                     final List<EntryImpl> entriesToReturn = Lists.newArrayListWithExpectedSize(entriesToRead);
                     while (sequence.hasMoreElements()) {
                         // Insert the entries at the end of the list (they will be unsorted for now)
-                        EntryImpl entry = new EntryImpl(sequence.nextElement());
+                        LedgerEntry ledgerEntry = sequence.nextElement();
+                        EntryImpl entry = EntryImpl.create(ledgerEntry);
+                        ledgerEntry.getEntryBuffer().release();
+
                         entriesToReturn.add(entry);
 
                         totalSize += entry.getLength();

@@ -71,7 +71,7 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
 
         byte[] data = new byte[10];
         for (int i = 0; i < 10; i++) {
-            entryCache.insert(new EntryImpl(0, i, data));
+            entryCache.insert(EntryImpl.create(0, i, data));
         }
 
         final CountDownLatch counter = new CountDownLatch(1);
@@ -103,7 +103,7 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
 
         byte[] data = new byte[10];
         for (int i = 3; i < 10; i++) {
-            entryCache.insert(new EntryImpl(0, i, data));
+            entryCache.insert(EntryImpl.create(0, i, data));
         }
 
         final CountDownLatch counter = new CountDownLatch(1);
@@ -131,7 +131,7 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
 
         byte[] data = new byte[10];
         for (int i = 0; i < 8; i++) {
-            entryCache.insert(new EntryImpl(0, i, data));
+            entryCache.insert(EntryImpl.create(0, i, data));
         }
 
         final CountDownLatch counter = new CountDownLatch(1);
@@ -158,10 +158,10 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
         EntryCache entryCache = cacheManager.getEntryCache(ml);
 
         byte[] data = new byte[10];
-        entryCache.insert(new EntryImpl(0, 0, data));
-        entryCache.insert(new EntryImpl(0, 1, data));
-        entryCache.insert(new EntryImpl(0, 8, data));
-        entryCache.insert(new EntryImpl(0, 9, data));
+        entryCache.insert(EntryImpl.create(0, 0, data));
+        entryCache.insert(EntryImpl.create(0, 1, data));
+        entryCache.insert(EntryImpl.create(0, 8, data));
+        entryCache.insert(EntryImpl.create(0, 9, data));
 
         final CountDownLatch counter = new CountDownLatch(1);
 
@@ -187,10 +187,10 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
         EntryCache entryCache = cacheManager.getEntryCache(ml);
 
         byte[] data = new byte[10];
-        entryCache.insert(new EntryImpl(0, 0, data));
-        entryCache.insert(new EntryImpl(0, 2, data));
-        entryCache.insert(new EntryImpl(0, 5, data));
-        entryCache.insert(new EntryImpl(0, 8, data));
+        entryCache.insert(EntryImpl.create(0, 0, data));
+        entryCache.insert(EntryImpl.create(0, 2, data));
+        entryCache.insert(EntryImpl.create(0, 5, data));
+        entryCache.insert(EntryImpl.create(0, 8, data));
 
         final CountDownLatch counter = new CountDownLatch(1);
 
@@ -226,7 +226,7 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
         EntryCache entryCache = cacheManager.getEntryCache(ml);
 
         byte[] data = new byte[10];
-        entryCache.insert(new EntryImpl(0, 2, data));
+        entryCache.insert(EntryImpl.create(0, 2, data));
 
         final CountDownLatch counter = new CountDownLatch(1);
 

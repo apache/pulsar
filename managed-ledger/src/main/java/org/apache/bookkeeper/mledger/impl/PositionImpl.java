@@ -31,52 +31,34 @@ import io.netty.util.Recycler.Handle;
 
 public class PositionImpl implements Position, Comparable<PositionImpl> {
 
-    private long ledgerId;
-    private long entryId;
-
-    private final Handle recyclerHandle;
+    private final long ledgerId;
+    private final long entryId;
 
     public PositionImpl(PositionInfo pi) {
         this.ledgerId = pi.getLedgerId();
         this.entryId = pi.getEntryId();
-        this.recyclerHandle = null;
     }
 
     public PositionImpl(NestedPositionInfo npi) {
         this.ledgerId = npi.getLedgerId();
         this.entryId = npi.getEntryId();
-        this.recyclerHandle = null;
     }
 
     public PositionImpl(long ledgerId, long entryId) {
         this.ledgerId = ledgerId;
         this.entryId = entryId;
-        this.recyclerHandle = null;
     }
 
     public PositionImpl(PositionImpl other) {
         this.ledgerId = other.ledgerId;
         this.entryId = other.entryId;
-        this.recyclerHandle = null;
-    }
-
-    private PositionImpl(Handle recyclerHandle) {
-        this.recyclerHandle = recyclerHandle;
     }
 
     public static PositionImpl get(long ledgerId, long entryId) {
-        // PositionImpl position = RECYCLER.get();
-        // position.ledgerId = ledgerId;
-        // position.entryId = entryId;
-        // return position;
         return new PositionImpl(ledgerId, entryId);
     }
 
     public static PositionImpl get(PositionImpl other) {
-        // PositionImpl position = RECYCLER.get();
-        // position.ledgerId = other.ledgerId;
-        // position.entryId = other.entryId;
-        // return position;
         return new PositionImpl(other);
     }
 
@@ -126,17 +108,5 @@ public class PositionImpl implements Position, Comparable<PositionImpl> {
 
     public PositionInfo getPositionInfo() {
         return PositionInfo.newBuilder().setLedgerId(ledgerId).setEntryId(entryId).build();
-    }
-
-    private static final Recycler<PositionImpl> RECYCLER = new Recycler<PositionImpl>() {
-        protected PositionImpl newObject(Recycler.Handle handle) {
-            return new PositionImpl(handle);
-        }
-    };
-
-    public void recycle() {
-        if (recyclerHandle != null) {
-            RECYCLER.recycle(this, recyclerHandle);
-        }
     }
 }
