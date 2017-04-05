@@ -34,6 +34,7 @@ public:
     const std::string& host() const;
     const int port() const;
     const std::string& path() const;
+    const std::string& pathWithoutFile() const;
     const std::string& file() const;
     const std::string& parameter() const;
     friend std::ostream& operator<<(std::ostream &os, const Url& obj);
@@ -42,6 +43,7 @@ private:
     std::string host_;
     int port_;
     std::string path_;
+    std::string pathWithoutFile_;
     std::string file_;
     std::string parameter_;
 };

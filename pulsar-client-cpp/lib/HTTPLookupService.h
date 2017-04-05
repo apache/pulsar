@@ -26,6 +26,7 @@
 
 namespace pulsar {
     class HTTPLookupService : public LookupService, public boost::enable_shared_from_this<HTTPLookupService> {
+        static boost::mutex curlGlobalMutex_;
         enum RequestType {Lookup, PartitionMetaData};
         typedef Promise<Result, LookupDataResultPtr> LookupPromise;
         ExecutorServiceProviderPtr executorProvider_;

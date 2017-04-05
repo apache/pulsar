@@ -37,8 +37,8 @@ namespace pulsar {
         } else {
             adminUrl_ = lookupUrl;
         }
-
         // Once per application - https://curl.haxx.se/mail/lib-2015-11/0052.html
+        Lock lock(curlGlobalMutex_);
         curl_global_init(CURL_GLOBAL_ALL);
     }
 
@@ -201,6 +201,7 @@ namespace pulsar {
     }
 
     HTTPLookupService::~HTTPLookupService() {
+        Lock lock(curlGlobalMutex_);
         curl_global_cleanup();
     }
 }
