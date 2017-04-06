@@ -71,7 +71,7 @@ if [ "$3" = "all" -o "$3" = "dep" ]; then
 fi
 
 if [ "$3" = "all" -o "$3" = "compile" ]; then
-  export PATH=$PATH:$1/
+  export PATH=$PATH:$1/:/usr/include/jsoncpp/
   # Compile and run unit tests
   exec_cmd "pushd $2/pulsar-client-cpp && CC=gcc-4.4 CXX=g++-4.4 cmake . && make && popd";
   PULSAR_STANDALONE_CONF=$2/pulsar-client-cpp/tests/standalone.conf $2/bin/pulsar standalone &
