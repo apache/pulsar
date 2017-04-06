@@ -472,6 +472,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             String msg = String.format("Namespace is being unloaded, cannot add topic %s", topic);
             log.warn(msg);
             topicFuture.completeExceptionally(new ServiceUnitNotReadyException(msg));
+            return;
         }
 
         getManagedLedgerConfig(destinationName).thenAccept(config -> {
