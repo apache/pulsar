@@ -32,11 +32,18 @@ find_library(LOG4CXX_LIBRARY_PATH log4cxx)
 find_library(CURL_LIBRARY_PATH curl)
 find_path(LOG4CXX_INCLUDE_PATH log4cxx/logger.h)
 find_path(GTEST_INCLUDE_PATH gtest/gtest.h)
+find_path(JSON_INCLUDE_PATH jsoncpp)
 find_library(LIB_JSON jsoncpp)
 
 if (NOT LIB_JSON)
     find_library(LIB_JSON json_cpp)
 endif (NOT LIB_JSON)
+
+if (NOT JSON_INCLUDE_PATH)
+    find_path(JSON_INCLUDE_PATH json)
+else (NOT JSON_INCLUDE_PATH)
+    set(JSON_INCLUDE_PATH ${JSON_INCLUDE_PATH}/jsoncpp/)
+endif (NOT JSON_INCLUDE_PATH)
 
 set(ADDITIONAL_LIBRARIES $ENV{PULSAR_ADDITIONAL_LIBRARIES})
 link_directories( $ENV{PULSAR_ADDITIONAL_LIBRARY_PATH} )
@@ -50,6 +57,7 @@ include_directories(
   ${PROTOBUF_INCLUDE_DIR}
   ${LOG4CXX_INCLUDE_PATH}
   ${GTEST_INCLUDE_PATH}
+  ${JSON_INCLUDE_PATH}
 )
 
 set(COMMON_LIBS

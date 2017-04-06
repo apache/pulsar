@@ -129,6 +129,7 @@ void resendMessage(Result r, const Message& msg, Producer &producer) {
 		}
 		lock.unlock();
     }
+    usleep(2 * 1000);
     producer.sendAsync(MessageBuilder().build(),
                                boost::bind(resendMessage, _1, _2, producer));
 }
@@ -780,10 +781,10 @@ TEST(BasicEndToEndTest, testMessageListenerPause)
     int temp = 1000;
     for (int i = 0; i < 10000; i++ ) {
         if(i && i%1000 == 0) {
-            usleep(5 * 1000 * 1000);
+            usleep(2 * 1000 * 1000);
             ASSERT_EQ(globalCount, temp);
             consumer.resumeMessageListener();
-            usleep(5 * 1000 * 1000);
+            usleep(2 * 1000 * 1000);
             ASSERT_EQ(globalCount, i);
             temp = globalCount;
             consumer.pauseMessageListener();
@@ -794,8 +795,8 @@ TEST(BasicEndToEndTest, testMessageListenerPause)
 
     ASSERT_EQ(globalCount, temp);
     consumer.resumeMessageListener();
-    // Sleeping for 5 seconds
-    usleep(5 * 1000 * 1000);
+    // Sleeping for 2 seconds
+    usleep(2 * 1000 * 1000);
     ASSERT_EQ(globalCount, 10000);
     consumer.close();
     producer.closeAsync(0);
@@ -804,7 +805,9 @@ TEST(BasicEndToEndTest, testMessageListenerPause)
 
     TEST(BasicEndToEndTest, testResendViaSendCallback)
 {
-    Client client(lookupUrl);
+    ClientConfiguration clientConfiguration;
+    clientConfiguration.setIOThreads(1);
+    Client client(lookupUrl, clientConfiguration);
     std::string topicName = "persistent://my-property/my-cluster/my-namespace/testResendViaListener";
 
     Producer producer;
@@ -822,8 +825,9 @@ TEST(BasicEndToEndTest, testMessageListenerPause)
     // Send asynchronously for 3 seconds
     // Expect timeouts since we have set timeout to 1 ms
     // On receiving timeout send the message using the CMS client IO thread via cb function.
-    producer.sendAsync(MessageBuilder().build(), boost::bind(resendMessage, _1, _2, producer));
-
+    for (int i = 0; i<1000; i++) {
+        producer.sendAsync(MessageBuilder().build(), boost::bind(resendMessage, _1, _2, producer));
+    }
     // 3 seconds
     usleep(3 * 1000 * 1000);
     Lock lock(mutex_);
