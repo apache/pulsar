@@ -18,121 +18,82 @@
 #include <lib/BrokerConsumerStatsImplBase.h>
 
 namespace pulsar {
-    BrokerConsumerStats::BrokerConsumerStats(boost::shared_ptr<BrokerConsumerStatsImplBase> impl) : impl_(impl) {}
+BrokerConsumerStats::BrokerConsumerStats(boost::shared_ptr<BrokerConsumerStatsImplBase> impl)
+        : impl_(impl) {
+}
 
-    BrokerConsumerStats::BrokerConsumerStats() {}
+BrokerConsumerStats::BrokerConsumerStats() {
+}
 
-    boost::shared_ptr<BrokerConsumerStatsImplBase> BrokerConsumerStats::getImpl() const {
-        return impl_;
+boost::shared_ptr<BrokerConsumerStatsImplBase> BrokerConsumerStats::getImpl() const {
+    return impl_;
+}
+
+bool BrokerConsumerStats::isValid() const {
+    return impl_->isValid();
+}
+
+std::ostream& operator<<(std::ostream &os, const BrokerConsumerStats& obj) {
+    os << "\nBrokerConsumerStats [" << "validTill_ = " << obj.isValid() << ", msgRateOut_ = "
+       << obj.getMsgRateOut() << ", msgThroughputOut_ = " << obj.getMsgThroughputOut()
+       << ", msgRateRedeliver_ = " << obj.getMsgRateRedeliver() << ", consumerName_ = "
+       << obj.getConsumerName() << ", availablePermits_ = " << obj.getAvailablePermits()
+       << ", unackedMessages_ = " << obj.getUnackedMessages()
+       << ", blockedConsumerOnUnackedMsgs_ = " << obj.isBlockedConsumerOnUnackedMsgs()
+       << ", address_ = " << obj.getAddress() << ", connectedSince_ = " << obj.getConnectedSince()
+       << ", type_ = " << obj.getType() << ", msgRateExpired_ = " << obj.getMsgRateExpired()
+       << ", msgBacklog_ = " << obj.getMsgBacklog() << "]";
+    return os;
+}
+
+double BrokerConsumerStats::getMsgRateOut() const {
+    if (impl_) {
+        return impl_->getMsgRateOut();
     }
+    return 0;
+}
 
-    bool BrokerConsumerStats::isValid() const {
-        if (impl_) {
-            return impl_->isValid();
-        }
-        return false;
-    }
+double BrokerConsumerStats::getMsgThroughputOut() const {
+    return impl_->getMsgThroughputOut();
+}
 
-    std::ostream& operator<<(std::ostream &os, const BrokerConsumerStats& obj) {
-        os << "\nBrokerConsumerStats ["
-           << "validTill_ = " << obj.isValid()
-           << ", msgRateOut_ = " << obj.getMsgRateOut()
-           << ", msgThroughputOut_ = " << obj.getMsgThroughputOut()
-           << ", msgRateRedeliver_ = " << obj.getMsgRateRedeliver()
-           << ", consumerName_ = " << obj.getConsumerName()
-           << ", availablePermits_ = " << obj.getAvailablePermits()
-           << ", unackedMessages_ = " << obj.getUnackedMessages()
-           << ", blockedConsumerOnUnackedMsgs_ = " << obj.isBlockedConsumerOnUnackedMsgs()
-           << ", address_ = " << obj.getAddress()
-           << ", connectedSince_ = " << obj.getConnectedSince()
-           << ", type_ = " << obj.getType()
-           << ", msgRateExpired_ = " << obj.getMsgRateExpired()
-           << ", msgBacklog_ = " << obj.getMsgBacklog()
-           << "]";
-        return os;
-    }
+double BrokerConsumerStats::getMsgRateRedeliver() const {
+    return impl_->getMsgRateRedeliver();
+}
 
-    double BrokerConsumerStats::getMsgRateOut() const {
-        if (impl_) {
-            return impl_->getMsgRateOut();
-        }
-        return 0;
-    }
+const std::string BrokerConsumerStats::getConsumerName() const {
+    return impl_->getConsumerName();
+}
 
-    double BrokerConsumerStats::getMsgThroughputOut() const {
-        if (impl_) {
-            return impl_->getMsgThroughputOut();
-        }
-        return 0;
-    }
+uint64_t BrokerConsumerStats::getAvailablePermits() const {
+    return impl_->getAvailablePermits();
+}
 
-    double BrokerConsumerStats::getMsgRateRedeliver() const {
-        if (impl_) {
-            return impl_->getMsgRateRedeliver();
-        }
-        return 0;
-    }
+uint64_t BrokerConsumerStats::getUnackedMessages() const {
+    return impl_->getUnackedMessages();
+}
 
-    const std::string BrokerConsumerStats::getConsumerName() const {
-        if (impl_) {
-            return impl_->getConsumerName();
-        }
-        return "";
-    }
+bool BrokerConsumerStats::isBlockedConsumerOnUnackedMsgs() const {
+    return impl_->isBlockedConsumerOnUnackedMsgs();
+}
 
-    uint64_t BrokerConsumerStats::getAvailablePermits() const {
-        if (impl_) {
-            return impl_->getAvailablePermits();
-        }
-        return 0;
-    }
+const std::string BrokerConsumerStats::getAddress() const {
+    return impl_->getAddress();
+}
 
-    uint64_t BrokerConsumerStats::getUnackedMessages() const {
-        if (impl_) {
-            return impl_->getUnackedMessages();
-        }
-        return 0;
-    }
+const std::string BrokerConsumerStats::getConnectedSince() const {
+    return impl_->getConnectedSince();
+}
 
-    bool BrokerConsumerStats::isBlockedConsumerOnUnackedMsgs() const {
-        if (impl_) {
-            return impl_->isBlockedConsumerOnUnackedMsgs();
-        }
-        return false;
-    }
+const ConsumerType BrokerConsumerStats::getType() const {
+    return impl_->getType();
+}
 
-    const std::string BrokerConsumerStats::getAddress() const {
-        if (impl_) {
-            return impl_->getAddress();
-        }
-        return "";
-    }
+double BrokerConsumerStats::getMsgRateExpired() const {
+    return impl_->getMsgRateExpired();
+}
 
-    const std::string BrokerConsumerStats::getConnectedSince() const {
-        if (impl_) {
-            return impl_->getConnectedSince();
-        }
-        return "";
-    }
-
-    const ConsumerType BrokerConsumerStats::getType() const {
-        if (impl_) {
-            return impl_->getType();
-        }
-        return ConsumerExclusive;
-    }
-
-    double BrokerConsumerStats::getMsgRateExpired() const {
-        if (impl_) {
-            return impl_->getMsgRateExpired();
-        }
-        return 0;
-    }
-
-    uint64_t BrokerConsumerStats::getMsgBacklog() const {
-        if (impl_) {
-            return impl_->getMsgBacklog();
-        }
-        return 0;
-    }
+uint64_t BrokerConsumerStats::getMsgBacklog() const {
+    return impl_->getMsgBacklog();
+}
 }
