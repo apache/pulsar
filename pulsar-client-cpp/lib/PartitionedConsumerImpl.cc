@@ -15,11 +15,6 @@
  */
 
 #include "PartitionedConsumerImpl.h"
-#include "LogUtils.h"
-#include <boost/bind.hpp>
-#include "pulsar/Result.h"
-#include "MessageImpl.h"
-#include "Utils.h"
 
 DECLARE_LOG_OBJECT()
 
@@ -380,12 +375,39 @@ namespace pulsar {
         return messages_.size();
     }
 
-    Result PartitionedConsumerImpl::getConsumerStats(BrokerConsumerStats& BrokerConsumerStats, int partitionIndex) {
-        if (partitionIndex >= numPartitions_ && partitionIndex < 0 && consumers_.size() <= partitionIndex)
-        {
-            LOG_ERROR(getName() << " PartitionIndex must be positive and less than number of partitiones")
-            return ResultInvalidConfiguration;
+    void PartitionedConsumerImpl::getConsumerStatsAsync(BrokerConsumerStatsCallback callback) {
+        Lock lock(mutex_);
+        PartitionedBrokerConsumerStatsPtr statsPtr = boost::make_shared<PartitionedBrokerConsumerStatsImpl>(numPartitions_);
+        if (numPartitions_ != consumers_.size()) {
+            lock.unlock();
+            return callback(ResultConsumerNotInitialized, *statsPtr);
         }
-        return consumers_[partitionIndex]->getConsumerStats(BrokerConsumerStats);
+        LatchPtr latchPtr = boost::make_shared<Latch>(numPartitions_);
+        ConsumerList consumerList = consumers_;
+        lock.unlock();
+
+        for (int i = 0; i<consumerList.size(); i++) {
+            consumerList[i]->getConsumerStatsAsync(boost::bind(&PartitionedConsumerImpl::handleGetConsumerStats,
+                                                               shared_from_this(), _1, _2, latchPtr,
+                                                               statsPtr, i, callback));
+        }
+
+    }
+
+    void PartitionedConsumerImpl::handleGetConsumerStats(Result res, BrokerConsumerStats& brokerConsumerStats,
+                                                         LatchPtr latchPtr, PartitionedBrokerConsumerStatsPtr statsPtr,
+                                                         size_t index, BrokerConsumerStatsCallback callback) {
+        Lock lock(mutex_);
+        if (res == ResultOk) {
+            latchPtr->countdown();
+            statsPtr->add((BrokerConsumerStatsImpl&)brokerConsumerStats, index);
+        } else {
+            lock.unlock();
+            return callback(res, *statsPtr);
+        }
+        if (latchPtr->getCount() == 0) {
+            lock.unlock();
+            callback(ResultOk, *statsPtr);
+        }
     }
 }

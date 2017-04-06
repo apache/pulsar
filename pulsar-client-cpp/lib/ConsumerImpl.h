@@ -36,6 +36,7 @@
 #include <map>
 #include "BatchAcknowledgementTracker.h"
 #include <limits>
+#include <lib/BrokerConsumerStatsImpl.h>
 
 using namespace pulsar;
 
@@ -91,8 +92,8 @@ enum ConsumerTopicType {
     virtual Result pauseMessageListener();
     virtual Result resumeMessageListener();
     virtual void redeliverUnacknowledgedMessages();
-    virtual Result getConsumerStats(BrokerConsumerStats& brokerConsumerStats, int partitionIndex = -1);
-protected:
+    virtual void getConsumerStatsAsync(BrokerConsumerStatsCallback callback);
+ protected:
     void connectionOpened(const ClientConnectionPtr& cnx);
     void connectionFailed(Result result);
     void handleCreateConsumer(const ClientConnectionPtr& cnx, Result result);
@@ -114,6 +115,7 @@ private:
     void increaseAvailablePermits(const ClientConnectionPtr& currentCnx);
     void drainIncomingMessageQueue(size_t count);
     unsigned int receiveIndividualMessagesFromBatch(Message &batchedMessage);
+    void brokerConsumerStatsListener(Result, BrokerConsumerStatsImpl, BrokerConsumerStatsCallback);
 
     boost::mutex mutexForReceiveWithZeroQueueSize;
     const ConsumerConfiguration config_;
@@ -134,7 +136,7 @@ private:
     CompressionCodecProvider compressionCodecProvider_;
     UnAckedMessageTrackerScopedPtr unAckedMessageTrackerPtr_;
     BatchAcknowledgementTracker batchAcknowledgementTracker_;
-    BrokerConsumerStats brokerConsumerStats_;
+    BrokerConsumerStatsImpl brokerConsumerStats_;
 };
 
 } /* namespace pulsar */

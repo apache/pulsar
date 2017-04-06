@@ -687,22 +687,21 @@ int ConsumerImpl::getNumOfPrefetchedMessages() const {
     return incomingMessages_.size();
 }
 
-Result ConsumerImpl::getConsumerStats(BrokerConsumerStats& brokerConsumerStats, int partitionIndex) {
-    if (partitionIndex != -1) {
-        LOG_WARN(getName() << "Ignoring the partitionIndex since the topic is not partitioned")
-    }
-
-    if (!isOpen()) {
+void ConsumerImpl::getConsumerStatsAsync(BrokerConsumerStatsCallback callback) {
+    Lock lock(mutex_);
+    if (state_ != Ready) {
         LOG_ERROR(getName() << "Client connection is not open, please try again later.")
-        return ResultConsumerNotInitialized;
+        lock.unlock();
+        return callback(ResultConsumerNotInitialized, brokerConsumerStats_);
     }
 
     if (brokerConsumerStats_.isValid()) {
         LOG_DEBUG(getName() << "Serving data from cache");
-        brokerConsumerStats = brokerConsumerStats_;
-        return ResultOk;
+        BrokerConsumerStatsImpl brokerConsumerStats = brokerConsumerStats_;
+        lock.unlock();
+        return callback(ResultOk, brokerConsumerStats);
     }
-
+    lock.unlock();
 
     ClientConnectionPtr cnx = getCnx().lock();
     if (cnx) {
@@ -712,19 +711,31 @@ Result ConsumerImpl::getConsumerStats(BrokerConsumerStats& brokerConsumerStats, 
             LOG_DEBUG(getName() <<
                     " Sending ConsumerStats Command for Consumer - " << getConsumerId() << ", requestId - "<<requestId);
 
-            BrokerConsumerStats consumerStats;
-            Result res = cnx->newConsumerStats(topic_, subscription_, consumerId_, requestId).get(consumerStats);
-            if (res == ResultOk) {
-                brokerConsumerStats = brokerConsumerStats_ = consumerStats;
-            }
-            return res;
+            cnx->newConsumerStats(topic_, subscription_, consumerId_, requestId).addListener(
+                    boost::bind(&ConsumerImpl::brokerConsumerStatsListener, shared_from_this(), _1, _2, callback));
+            return;
         } else {
             LOG_ERROR(getName() << " Operation not supported since server protobuf version " << cnx->getServerProtocolVersion() << " is older than proto::v7");
-            return ResultOperationNotSupported;
+            return callback(ResultUnsupportedVersionError, brokerConsumerStats_);
         }
     }
     LOG_ERROR(getName() << " Client Connection not ready for Consumer");
-    return ResultNotConnected;
+    return callback(ResultNotConnected, brokerConsumerStats_);
+}
+
+void ConsumerImpl::brokerConsumerStatsListener(Result res, BrokerConsumerStatsImpl brokerConsumerStats
+        , BrokerConsumerStatsCallback callback) {
+
+    if (res == ResultOk) {
+        Lock lock(mutex_);
+        LOG_ERROR("JAI: RECEIVED "<<brokerConsumerStats);
+        brokerConsumerStats_ = brokerConsumerStats;
+        // TODO - add logic to set expiry time
+    }
+
+    if (!callback.empty()) {
+        callback(res, (BrokerConsumerStatsImpl&) brokerConsumerStats_);
+    }
 }
 
 } /* namespace pulsar */
