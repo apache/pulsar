@@ -19,7 +19,6 @@ import static org.apache.commons.lang3.StringUtils.isNotEmpty;
 
 import java.io.IOException;
 import java.net.URL;
-import java.nio.charset.Charset;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -1430,7 +1429,8 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
 
     @Override
     public void stop() throws PulsarServerException {
-        loadReportCacheZk.unregisterListener(this);
+        loadReportCacheZk.shutdown();
+        availableActiveBrokers.shutdown();
         scheduler.shutdown();
     }
 }

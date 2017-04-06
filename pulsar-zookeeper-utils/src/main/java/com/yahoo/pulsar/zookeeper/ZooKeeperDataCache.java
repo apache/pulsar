@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
@@ -43,8 +44,11 @@ public abstract class ZooKeeperDataCache<T> implements Deserializer<T>, CacheUpd
     private final ZooKeeperCache cache;
     private final List<ZooKeeperCacheListener<T>> listeners = Lists.newCopyOnWriteArrayList();
 
+    private final AtomicBoolean isShutdown;
+
     public ZooKeeperDataCache(final ZooKeeperCache cache) {
         this.cache = cache;
+        isShutdown = new AtomicBoolean(false);
     }
 
     public CompletableFuture<Optional<T>> getAsync(String path) {
@@ -129,6 +133,12 @@ public abstract class ZooKeeperDataCache<T> implements Deserializer<T>, CacheUpd
     @Override
     public void process(WatchedEvent event) {
         LOG.info("[{}] Received ZooKeeper watch event: {}", cache.zkSession.get(), event);
-        cache.process(event, this);
+        if (!isShutdown.get()) {
+            cache.process(event, this);
+        }
+    }
+
+    public void shutdown() {
+        isShutdown.set(true);
     }
 }

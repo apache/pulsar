@@ -553,7 +553,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
      */
     @Override
     public void stop() throws PulsarServerException {
-        brokerDataCache.unregisterListener(this);
+        availableActiveBrokers.shutdown();
+        brokerDataCache.shutdown();
         scheduler.shutdown();
     }
 
