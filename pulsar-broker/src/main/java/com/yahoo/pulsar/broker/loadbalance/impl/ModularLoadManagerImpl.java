@@ -15,6 +15,8 @@
  */
 package com.yahoo.pulsar.broker.loadbalance.impl;
 
+import static com.yahoo.pulsar.broker.admin.AdminResource.jsonMapper;
+
 import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
@@ -65,6 +67,7 @@ import com.yahoo.pulsar.common.policies.data.ResourceQuota;
 import com.yahoo.pulsar.common.policies.data.loadbalancer.NamespaceBundleStats;
 import com.yahoo.pulsar.common.policies.data.loadbalancer.SystemResourceUsage;
 import com.yahoo.pulsar.common.util.ObjectMapperFactory;
+import com.yahoo.pulsar.zookeeper.ZooKeeperCache.Deserializer;
 import com.yahoo.pulsar.zookeeper.ZooKeeperCacheListener;
 import com.yahoo.pulsar.zookeeper.ZooKeeperChildrenCache;
 import com.yahoo.pulsar.zookeeper.ZooKeeperDataCache;
@@ -158,6 +161,9 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
 
     // ZooKeeper belonging to the pulsar service.
     private ZooKeeper zkClient;
+    
+    private static final Deserializer<LocalBrokerData> loadReportDeserializer = (key, content) -> jsonMapper()
+            .readValue(content, LocalBrokerData.class);
 
     /**
      * Initializes fields which do not depend on PulsarService. initialize(PulsarService) should subsequently be called.
@@ -577,6 +583,11 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
         } catch (Exception e) {
             log.warn("Error writing broker data on ZooKeeper: {}", e);
         }
+    }
+
+    @Override
+    public Deserializer<LocalBrokerData> getLoadReportDeserializer() {
+        return loadReportDeserializer;
     }
 
     /**

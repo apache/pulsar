@@ -31,14 +31,19 @@ import static org.testng.Assert.fail;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.net.URI;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.bookkeeper.mledger.ManagedLedger;
+import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.zookeeper.CreateMode;
+import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.data.Stat;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -49,9 +54,18 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.google.common.collect.Lists;
 import com.google.common.hash.Hashing;
+import com.yahoo.pulsar.broker.LocalBrokerData;
+import com.yahoo.pulsar.broker.PulsarServerException;
+import com.yahoo.pulsar.broker.PulsarService;
+import com.yahoo.pulsar.broker.loadbalance.LoadManager;
+import com.yahoo.pulsar.broker.loadbalance.ModularLoadManager;
+import com.yahoo.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
+import com.yahoo.pulsar.broker.loadbalance.impl.ModularLoadManagerWrapper;
+import com.yahoo.pulsar.broker.lookup.LookupResult;
 import com.yahoo.pulsar.broker.service.BrokerTestBase;
 import com.yahoo.pulsar.broker.service.Topic;
 import com.yahoo.pulsar.broker.service.persistent.PersistentTopic;
@@ -62,9 +76,13 @@ import com.yahoo.pulsar.common.naming.NamespaceBundle;
 import com.yahoo.pulsar.common.naming.NamespaceBundleFactory;
 import com.yahoo.pulsar.common.naming.NamespaceBundles;
 import com.yahoo.pulsar.common.naming.NamespaceName;
+import com.yahoo.pulsar.common.naming.ServiceUnitId;
 import com.yahoo.pulsar.common.policies.data.Policies;
+import com.yahoo.pulsar.common.policies.data.loadbalancer.LoadReport;
+import com.yahoo.pulsar.common.policies.data.loadbalancer.ServiceLookupData;
 import com.yahoo.pulsar.common.util.ObjectMapperFactory;
 import com.yahoo.pulsar.common.util.collections.ConcurrentOpenHashMap;
+import com.yahoo.pulsar.zookeeper.ZooKeeperCache.Deserializer;
 
 public class NamespaceServiceTest extends BrokerTestBase {
 
@@ -279,7 +297,43 @@ public class NamespaceServiceTest extends BrokerTestBase {
             // ok
         }
     }
-    
+
+    /**
+     * <pre>
+     *  It verifies that namespace service deserialize the load-report based on load-manager which active.
+     *  1. write candidate1- load report using {@link LoadReport} which is used by SimpleLoadManagerImpl
+     *  2. Write candidate2- load report using {@link LocalBrokerData} which is used by ModularLoadManagerImpl
+     *  3. try to get Lookup Result based on active load-manager
+     * </pre>
+     * @throws Exception
+     */
+    @Test
+    public void testLoadReportDeserialize() throws Exception {
+
+        final String candidateBroker1 = "http://localhost:8000";
+        final String candidateBroker2 = "http://localhost:3000";
+        LoadReport lr = new LoadReport(null, null, candidateBroker1, null);
+        LocalBrokerData ld = new LocalBrokerData(null, null, candidateBroker2, null);
+        URI uri1 = new URI(candidateBroker1);
+        URI uri2 = new URI(candidateBroker2);
+        String path1 = String.format("%s/%s:%s", LoadManager.LOADBALANCE_BROKERS_ROOT, uri1.getHost(), uri1.getPort());
+        String path2 = String.format("%s/%s:%s", LoadManager.LOADBALANCE_BROKERS_ROOT, uri2.getHost(), uri2.getPort());
+        ZkUtils.createFullPathOptimistic(pulsar.getZkClient(), path1,
+                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(lr), ZooDefs.Ids.OPEN_ACL_UNSAFE,
+                CreateMode.EPHEMERAL);
+        ZkUtils.createFullPathOptimistic(pulsar.getZkClient(), path2,
+                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(ld), ZooDefs.Ids.OPEN_ACL_UNSAFE,
+                CreateMode.EPHEMERAL);
+        LookupResult result1 = pulsar.getNamespaceService().createLookupResult(candidateBroker1).get();
+
+        // update to new load mananger
+        pulsar.getLoadManager().set(new ModularLoadManagerWrapper(new ModularLoadManagerImpl()));
+        LookupResult result2 = pulsar.getNamespaceService().createLookupResult(candidateBroker2).get();
+        Assert.assertEquals(result1.getLookupData().getBrokerUrl(), candidateBroker1);
+        Assert.assertEquals(result2.getLookupData().getBrokerUrl(), candidateBroker2);
+        System.out.println(result2);
+    }
+
     @SuppressWarnings("unchecked")
     private Pair<NamespaceBundles, List<NamespaceBundle>> splitBundles(NamespaceBundleFactory utilityFactory,
             NamespaceName nsname, NamespaceBundles bundles, NamespaceBundle targetBundle) throws Exception {
