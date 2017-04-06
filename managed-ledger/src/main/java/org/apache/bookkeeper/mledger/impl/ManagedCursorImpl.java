@@ -240,7 +240,6 @@ public class ManagedCursorImpl implements ManagedCursor {
             }
 
             // Read the last entry in the ledger
-            cursorLedger = lh;
             lh.asyncReadLastEntry((rc1, lh1, seq, ctx1) -> {
                 if (log.isDebugEnabled()) {
                     log.debug("readComplete rc={} entryId={}", rc1, lh1.getLastAddConfirmed());
@@ -762,24 +761,17 @@ public class ManagedCursorImpl implements ManagedCursor {
 
         };
 
-        if (cursorLedger == null) {
-            persistPositionMetaStore(-1, newPosition, new MetaStoreCallback<Void>() {
-                @Override
-                public void operationComplete(Void result, Stat stat) {
-                    log.info("[{}] Updated cursor {} with ledger id {} md-position={} rd-position={}",
-                            ledger.getName(), name, -1, markDeletePosition, readPosition);
-                    cursorLedgerStat = stat;
-                    finalCallback.operationComplete();
-                }
+        internalAsyncMarkDelete(newPosition, new MarkDeleteCallback() {
+            @Override
+            public void markDeleteComplete(Object ctx) {
+                finalCallback.operationComplete();
+            }
 
-                @Override
-                public void operationFailed(MetaStoreException e) {
-                    finalCallback.operationFailed(e);
-                }
-            });
-        } else {
-            persistPosition(cursorLedger, newPosition, finalCallback);
-        }
+            @Override
+            public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
+                finalCallback.operationFailed(exception);
+            }
+        }, null);
     }
 
     @Override
@@ -1187,8 +1179,6 @@ public class ManagedCursorImpl implements ManagedCursor {
             if (log.isDebugEnabled()) {
                 log.debug("Moved read position from: {} to: {}", oldReadPosition, readPosition);
             }
-
-            oldReadPosition.recycle();
         }
 
         PositionImpl oldMarkDeletePosition = markDeletePosition;
@@ -1219,7 +1209,6 @@ public class ManagedCursorImpl implements ManagedCursor {
         // markDelete-position and clear out deletedMsgSet
         markDeletePosition = PositionImpl.get(newMarkDeletePosition);
         individualDeletedMessages.remove(Range.atMost(markDeletePosition));
-        oldMarkDeletePosition.recycle();
 
         return newMarkDeletePosition;
     }
@@ -1607,7 +1596,6 @@ public class ManagedCursorImpl implements ManagedCursor {
             }
 
             readPosition = newReadPosition;
-            oldReadPosition.recycle();
         } finally {
             lock.writeLock().unlock();
         }
@@ -1627,7 +1615,6 @@ public class ManagedCursorImpl implements ManagedCursor {
 
             PositionImpl oldReadPosition = readPosition;
             readPosition = newReadPosition;
-            oldReadPosition.recycle();
         } finally {
             lock.writeLock().unlock();
         }
@@ -1817,19 +1804,8 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     private void flushPendingMarkDeletes() {
         if (!pendingMarkDeleteOps.isEmpty()) {
-            if (RESET_CURSOR_IN_PROGRESS_UPDATER.get(this) == TRUE) {
-                failPendingMarkDeletes();
-            } else {
-                internalFlushPendingMarkDeletes();
-            }
+            internalFlushPendingMarkDeletes();
         }
-    }
-
-    private void failPendingMarkDeletes() {
-        for (PendingMarkDeleteEntry e : pendingMarkDeleteOps) {
-            e.callback.markDeleteFailed(new ManagedLedgerException("reset cursor in progress"), e.ctx);
-        }
-        pendingMarkDeleteOps.clear();
     }
 
     void internalFlushPendingMarkDeletes() {

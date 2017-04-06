@@ -23,14 +23,14 @@
 #include <Future.h>
 #include <Utils.h>
 #include "ConnectionPool.h"
-#include <pulsar/Auth.h>
+#include <pulsar/Authentication.h>
 #include <boost/exception/all.hpp>
 
 using namespace pulsar;
 
 TEST(BinaryLookupServiceTest, basicLookup) {
     ExecutorServiceProviderPtr service = boost::make_shared<ExecutorServiceProvider>(1);
-    AuthenticationPtr authData = Auth::Disabled();
+    AuthenticationPtr authData = AuthFactory::Disabled();
     std::string url = "pulsar://localhost:8885";
     ClientConfiguration conf;
     ExecutorServiceProviderPtr ioExecutorProvider_(boost::make_shared<ExecutorServiceProvider>(1));

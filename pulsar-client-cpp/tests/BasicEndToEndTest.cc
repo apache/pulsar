@@ -25,6 +25,7 @@
 #include "boost/date_time/posix_time/posix_time.hpp"
 #include "CustomRoutingPolicy.h"
 #include <boost/thread.hpp>
+#include <boost/thread/mutex.hpp>
 
 #include "HttpHelper.h"
 
@@ -34,9 +35,10 @@ DECLARE_LOG_OBJECT()
 
 using namespace pulsar;
 
+boost::mutex mutex_;
 static int globalTestBatchMessagesCounter = 0;
 static int globalCount = 0;
-static int globalResendMessageCount = 0;
+static long globalResendMessageCount = 0;
 static std::string lookupUrl = "pulsar://localhost:8885";
 static std::string adminUrl = "http://localhost:8765/";
 
@@ -119,14 +121,17 @@ TEST(BasicEndToEndTest, testBatchMessages)
 }
 
 void resendMessage(Result r, const Message& msg, Producer &producer) {
+	Lock lock(mutex_);
     if (r != ResultOk) {
-        int attemptNumber = boost::lexical_cast<int>(msg.getProperty("attempt#"));
-        if (attemptNumber++ < 3) {
-            globalResendMessageCount++;
-            producer.sendAsync(MessageBuilder().setProperty("attempt#", boost::lexical_cast<std::string>(attemptNumber)).build(),
-                                   boost::bind(resendMessage, _1, _2, producer));
-        }
+        LOG_DEBUG("globalResendMessageCount" << globalResendMessageCount);
+		if (globalResendMessageCount++ >= 3) {
+			return;
+		}
+		lock.unlock();
     }
+    usleep(2 * 1000);
+    producer.sendAsync(MessageBuilder().build(),
+                               boost::bind(resendMessage, _1, _2, producer));
 }
 
     TEST(BasicEndToEndTest, testProduceConsume)
@@ -378,6 +383,11 @@ TEST(BasicEndToEndTest, testPartitionedProducerConsumer)
     Producer producer;
     Result result = client.createProducer(topicName, producer);
     ASSERT_EQ(ResultOk, result);
+
+    Consumer consumer;
+    result = client.subscribe(topicName, "subscription-A", consumer);
+    ASSERT_EQ(ResultOk, result);
+
     for (int i = 0; i < 10; i++ ) {
         boost::posix_time::ptime t(boost::posix_time::microsec_clock::universal_time());
         long nanoSeconds = t.time_of_day().total_nanoseconds();
@@ -388,9 +398,7 @@ TEST(BasicEndToEndTest, testPartitionedProducerConsumer)
         LOG_INFO("Message Timestamp is " << msg.getPublishTimestamp());
         LOG_INFO("Message is " << msg);
     }
-    Consumer consumer;
-    result = client.subscribe(topicName, "subscription-A", consumer);
-    ASSERT_EQ(ResultOk, result);
+
     ASSERT_EQ(consumer.getSubscriptionName(), "subscription-A");
     for (int i = 0; i < 10; i++) {
         Message m;
@@ -512,7 +520,7 @@ TEST(BasicEndToEndTest, testMessageTooBig)
 
     ClientConfiguration config2 = config1;
     AuthenticationDataPtr authData;
-    ASSERT_EQ(ResultOk, config1.getAuthentication().getAuthData(authData));
+    ASSERT_EQ(ResultOk, config1.getAuth().getAuthData(authData));
     ASSERT_EQ(100, config2.getOperationTimeoutSeconds());
     ASSERT_EQ(10, config2.getIOThreads());
     ASSERT_EQ(1, config2.getMessageListenerThreads());
@@ -535,8 +543,12 @@ TEST(BasicEndToEndTest, testSinglePartitionRoutingPolicy)
     Producer producer;
     ProducerConfiguration producerConfiguration;
     producerConfiguration.setPartitionsRoutingMode(ProducerConfiguration::UseSinglePartition);
-
     Result result = client.createProducer(topicName, producerConfiguration, producer);
+
+    Consumer consumer;
+    result = client.subscribe(topicName, "subscription-A", consumer);
+    ASSERT_EQ(ResultOk, result);
+
     ASSERT_EQ(ResultOk, result);
     for (int i = 0; i < 10; i++ ) {
         boost::posix_time::ptime t(boost::posix_time::microsec_clock::universal_time());
@@ -546,9 +558,7 @@ TEST(BasicEndToEndTest, testSinglePartitionRoutingPolicy)
         Message msg = MessageBuilder().setContent(ss.str()).build();
         ASSERT_EQ(ResultOk, producer.send(msg));
     }
-    Consumer consumer;
-    result = client.subscribe(topicName, "subscription-A", consumer);
-    ASSERT_EQ(ResultOk, result);
+
     for (int i = 0; i < 10; i++) {
         Message m;
         consumer.receive(m);
@@ -771,10 +781,10 @@ TEST(BasicEndToEndTest, testMessageListenerPause)
     int temp = 1000;
     for (int i = 0; i < 10000; i++ ) {
         if(i && i%1000 == 0) {
-            usleep(5 * 1000 * 1000);
+            usleep(2 * 1000 * 1000);
             ASSERT_EQ(globalCount, temp);
             consumer.resumeMessageListener();
-            usleep(5 * 1000 * 1000);
+            usleep(2 * 1000 * 1000);
             ASSERT_EQ(globalCount, i);
             temp = globalCount;
             consumer.pauseMessageListener();
@@ -785,17 +795,19 @@ TEST(BasicEndToEndTest, testMessageListenerPause)
 
     ASSERT_EQ(globalCount, temp);
     consumer.resumeMessageListener();
-    // Sleeping for 5 seconds
-    usleep(5 * 1000 * 1000);
+    // Sleeping for 2 seconds
+    usleep(2 * 1000 * 1000);
     ASSERT_EQ(globalCount, 10000);
     consumer.close();
     producer.closeAsync(0);
     client.close();
 }
 
-    TEST(BasicEndToEndTest, testResendViaListener)
+    TEST(BasicEndToEndTest, testResendViaSendCallback)
 {
-    Client client(lookupUrl);
+    ClientConfiguration clientConfiguration;
+    clientConfiguration.setIOThreads(1);
+    Client client(lookupUrl, clientConfiguration);
     std::string topicName = "persistent://my-property/my-cluster/my-namespace/testResendViaListener";
 
     Producer producer;
@@ -810,11 +822,14 @@ TEST(BasicEndToEndTest, testMessageListenerPause)
     Result result = producerFuture.get(producer);
     ASSERT_EQ(ResultOk, result);
 
-    // Send asynchronously
-    producer.sendAsync(MessageBuilder().setProperty("attempt#", boost::lexical_cast<std::string>(0)).build(), boost::bind(resendMessage, _1, _2, producer));
-
+    // Send asynchronously for 3 seconds
+    // Expect timeouts since we have set timeout to 1 ms
+    // On receiving timeout send the message using the CMS client IO thread via cb function.
+    for (int i = 0; i<1000; i++) {
+        producer.sendAsync(MessageBuilder().build(), boost::bind(resendMessage, _1, _2, producer));
+    }
     // 3 seconds
     usleep(3 * 1000 * 1000);
-
-    ASSERT_EQ(globalResendMessageCount, 3);
+    Lock lock(mutex_);
+    ASSERT_GE(globalResendMessageCount, 3);
 }

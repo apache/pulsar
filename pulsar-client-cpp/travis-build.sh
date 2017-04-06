@@ -55,7 +55,7 @@ exec_cmd() {
 
 if [ "$3" = "all" -o "$3" = "dep" ]; then
   # Install dependant packages
-  exec_cmd "apt-get update && apt-get install -y cmake gcc-4.4 cpp-4.4 gcc-4.4-base libssl-dev libcurl4-openssl-dev liblog4cxx10-dev libprotobuf-dev libboost1.55-all-dev libgtest-dev libxml2-utils g++-4.4";
+  exec_cmd "apt-get update && apt-get install -y cmake gcc-4.4 cpp-4.4 gcc-4.4-base libssl-dev libcurl4-openssl-dev liblog4cxx10-dev libprotobuf-dev libboost1.55-all-dev libgtest-dev libxml2-utils g++-4.4 libjsoncpp-dev";
   if [ ! -f "$1/libgtest.a" ]; then
     echo "Not Found: $1/libgtest.a"
     exec_cmd "pushd /usr/src/gtest && CC=gcc-4.4 CXX=g++-4.4 cmake . && make && cp libgtest.a $1/ && popd";
@@ -81,6 +81,6 @@ if [ "$3" = "all" -o "$3" = "compile" ]; then
   sleep 10
   PULSAR_CLIENT_CONF=$2/pulsar-client-cpp/tests/client.conf $2/bin/pulsar-admin clusters create --url http://localhost:9765/ --url-secure https://localhost:9766/ --broker-url pulsar://localhost:9885/ --broker-url-secure pulsar+ssl://localhost:9886/ cluster
   exec_cmd "sleep 5 && pushd $2/pulsar-client-cpp/tests && ./main && popd";
-  exec_cmd "kill -SIGTERM $pid";
+  exec_cmd "kill -SIGTERM $standalone_pid";
   exec_cmd "kill -SIGTERM $auth_pid";
 fi

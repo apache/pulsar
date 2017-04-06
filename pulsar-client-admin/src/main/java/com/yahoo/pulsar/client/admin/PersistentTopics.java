@@ -22,6 +22,7 @@ import java.util.concurrent.CompletableFuture;
 
 import org.omg.CosNaming.NamingContextPackage.NotFound;
 
+import com.google.gson.JsonObject;
 import com.yahoo.pulsar.client.admin.PulsarAdminException.ConflictException;
 import com.yahoo.pulsar.client.admin.PulsarAdminException.NotAllowedException;
 import com.yahoo.pulsar.client.admin.PulsarAdminException.NotAuthorizedException;
@@ -58,6 +59,29 @@ public interface PersistentTopics {
      *             Unexpected error
      */
     List<String> getList(String namespace) throws PulsarAdminException;
+
+    /**
+     * Get the list of partitioned topics under a namespace.
+     * <p>
+     * Response example:
+     *
+     * <pre>
+     * <code>["persistent://my-property/use/my-namespace/topic-1",
+     *  "persistent://my-property/use/my-namespace/topic-2"]</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @return a list of partitioned topics
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    List<String> getPartitionedTopicList(String namespace) throws PulsarAdminException;
 
     /**
      * Get permissions on a destination.
@@ -398,6 +422,36 @@ public interface PersistentTopics {
      * @return a future that can be used to track when the internal topic statistics are returned
      */
     CompletableFuture<PersistentTopicInternalStats> getInternalStatsAsync(String destination);
+
+    /**
+     * Get a JSON representation of the topic metadata stored in ZooKeeper
+     *
+     * @param destination
+     *            Destination name
+     * @return the topic internal metadata
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Topic does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    JsonObject getInternalInfo(String destination) throws PulsarAdminException;
+
+    /**
+     * Get a JSON representation of the topic metadata stored in ZooKeeper
+     *
+     * @param destination
+     *            Destination name
+     * @return a future to receive the topic internal metadata
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Topic does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    CompletableFuture<JsonObject> getInternalInfoAsync(String destination);
 
     /**
      * Get the stats for the partitioned topic

@@ -34,7 +34,7 @@ DECLARE_LOG_OBJECT();
 
 using namespace pulsar;
 
-static std::string lookupUrl = "pulsar://localhost:8885";
+static std::string lookupUrl = "http://localhost:8765";
 static std::string adminUrl = "http://localhost:8765/";
 
 void partitionedCallbackFunction(Result result, BrokerConsumerStats brokerConsumerStats, long expectedBacklog, Latch& latch, int index) {

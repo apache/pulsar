@@ -21,9 +21,12 @@ import java.util.concurrent.TimeUnit;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 import com.beust.jcommander.converters.CommaParameterSplitter;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
+import com.yahoo.pulsar.client.admin.PersistentTopics;
 import com.yahoo.pulsar.client.admin.PulsarAdmin;
 import com.yahoo.pulsar.client.admin.PulsarAdminException;
-import com.yahoo.pulsar.client.admin.PersistentTopics;
 import com.yahoo.pulsar.client.api.Message;
 import com.yahoo.pulsar.client.impl.MessageIdImpl;
 
@@ -40,6 +43,7 @@ public class CmdPersistentTopics extends CmdBase {
         persistentTopics = admin.persistentTopics();
 
         jcommander.addCommand("list", new ListCmd());
+        jcommander.addCommand("list-partitioned-topics", new PartitionedTopicListCmd());
         jcommander.addCommand("permissions", new Permissions());
         jcommander.addCommand("grant-permission", new GrantPermissions());
         jcommander.addCommand("revoke-permission", new RevokePermissions());
@@ -49,6 +53,7 @@ public class CmdPersistentTopics extends CmdBase {
         jcommander.addCommand("unsubscribe", new DeleteSubscription());
         jcommander.addCommand("stats", new GetStats());
         jcommander.addCommand("stats-internal", new GetInternalStats());
+        jcommander.addCommand("info-internal", new GetInternalInfo());
         jcommander.addCommand("partitioned-stats", new GetPartitionedStats());
         jcommander.addCommand("skip", new Skip());
         jcommander.addCommand("skip-all", new SkipAll());
@@ -70,6 +75,18 @@ public class CmdPersistentTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
             print(persistentTopics.getList(namespace));
+        }
+    }
+
+    @Parameters(commandDescription = "Get the list of partitioned topics under a namespace.")
+    private class PartitionedTopicListCmd extends CliCommand {
+        @Parameter(description = "property/cluster/namespace\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            print(persistentTopics.getPartitionedTopicList(namespace));
         }
     }
 
@@ -245,6 +262,20 @@ public class CmdPersistentTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
             print(persistentTopics.getInternalStats(persistentTopic));
+        }
+    }
+
+    @Parameters(commandDescription = "Get the internal metadata info for the topic")
+    private class GetInternalInfo extends CliCommand {
+        @Parameter(description = "persistent://property/cluster/namespace/destination\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            JsonObject result = persistentTopics.getInternalInfo(persistentTopic);
+            Gson gson = new GsonBuilder().setPrettyPrinting().create();
+            System.out.println(gson.toJson(result));
         }
     }
 

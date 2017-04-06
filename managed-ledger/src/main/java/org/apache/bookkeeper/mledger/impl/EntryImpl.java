@@ -17,41 +17,82 @@ package org.apache.bookkeeper.mledger.impl;
 
 import org.apache.bookkeeper.client.LedgerEntry;
 import org.apache.bookkeeper.mledger.Entry;
-import org.apache.bookkeeper.mledger.util.ReferenceCounted;
+
+import com.google.common.collect.ComparisonChain;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.RecyclableDuplicateByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.util.AbstractReferenceCounted;
+import io.netty.util.Recycler;
+import io.netty.util.Recycler.Handle;
+import io.netty.util.ReferenceCounted;
 
-final class EntryImpl implements Entry, Comparable<EntryImpl>, ReferenceCounted {
+final class EntryImpl extends AbstractReferenceCounted implements Entry, Comparable<EntryImpl>, ReferenceCounted {
 
-    private final PositionImpl position;
-    private final ByteBuf data;
+    private static final Recycler<EntryImpl> RECYCLER = new Recycler<EntryImpl>() {
+        @Override
+        protected EntryImpl newObject(Handle handle) {
+            return new EntryImpl(handle);
+        }
+    };
 
-    EntryImpl(LedgerEntry ledgerEntry) {
-        this.position = new PositionImpl(ledgerEntry.getLedgerId(), ledgerEntry.getEntryId());
-        this.data = ledgerEntry.getEntryBuffer();
+    private final Handle recyclerHandle;
+    private long ledgerId;
+    private long entryId;
+    ByteBuf data;
+
+    public static EntryImpl create(LedgerEntry ledgerEntry) {
+        EntryImpl entry = RECYCLER.get();
+        entry.ledgerId = ledgerEntry.getLedgerId();
+        entry.entryId = ledgerEntry.getEntryId();
+        entry.data = ledgerEntry.getEntryBuffer();
+        entry.data.retain();
+        entry.setRefCnt(1);
+        return entry;
     }
 
     // Used just for tests
-    EntryImpl(long ledgerId, long entryId, byte[] data) {
-        this.position = new PositionImpl(ledgerId, entryId);
-        this.data = Unpooled.wrappedBuffer(data);
+    public static EntryImpl create(long ledgerId, long entryId, byte[] data) {
+        EntryImpl entry = RECYCLER.get();
+        entry.ledgerId = ledgerId;
+        entry.entryId = entryId;
+        entry.data = Unpooled.wrappedBuffer(data);
+        entry.setRefCnt(1);
+        return entry;
     }
 
-    EntryImpl(long ledgerId, long entryId, ByteBuf data) {
-        this.position = new PositionImpl(ledgerId, entryId);
-        this.data = data;
+    public static EntryImpl create(long ledgerId, long entryId, ByteBuf data) {
+        EntryImpl entry = RECYCLER.get();
+        entry.ledgerId = ledgerId;
+        entry.entryId = entryId;
+        entry.data = data;
+        entry.data.retain();
+        entry.setRefCnt(1);
+        return entry;
     }
 
-    EntryImpl(PositionImpl position, ByteBuf data) {
-        this.position = position;
-        this.data = data;
+    public static EntryImpl create(PositionImpl position, ByteBuf data) {
+        EntryImpl entry = RECYCLER.get();
+        entry.ledgerId = position.getLedgerId();
+        entry.entryId = position.getEntryId();
+        entry.data = data;
+        entry.data.retain();
+        entry.setRefCnt(1);
+        return entry;
     }
 
-    EntryImpl(EntryImpl other) {
-        this.position = new PositionImpl(other.position);
-        this.data = RecyclableDuplicateByteBuf.create(other.data);
+    public static EntryImpl create(EntryImpl other) {
+        EntryImpl entry = RECYCLER.get();
+        entry.ledgerId = other.ledgerId;
+        entry.entryId = other.entryId;
+        entry.data = RecyclableDuplicateByteBuf.create(other.data);
+        entry.setRefCnt(1);
+        return entry;
+    }
+
+    private EntryImpl(Recycler.Handle recyclerHandle) {
+        this.recyclerHandle = recyclerHandle;
     }
 
     @Override
@@ -66,6 +107,7 @@ final class EntryImpl implements Entry, Comparable<EntryImpl>, ReferenceCounted 
         return array;
     }
 
+    // Only for test
     @Override
     public byte[] getDataAndRelease() {
         byte[] array = getData();
@@ -80,24 +122,22 @@ final class EntryImpl implements Entry, Comparable<EntryImpl>, ReferenceCounted 
 
     @Override
     public PositionImpl getPosition() {
-        return position;
+        return new PositionImpl(ledgerId, entryId);
     }
 
     @Override
     public int compareTo(EntryImpl other) {
-        return position.compareTo(other.getPosition());
-    }
-
-    public void retain() {
-        data.retain();
+        return ComparisonChain.start().compare(ledgerId, other.ledgerId).compare(entryId, other.entryId).result();
     }
 
     @Override
-    public void release() {
+    protected void deallocate() {
+        // This method is called whenever the ref-count of the EntryImpl reaches 0, so that now we can recycle it
         data.release();
+        data = null;
+        ledgerId = -1;
+        entryId = -1;
+        RECYCLER.recycle(this, recyclerHandle);
     }
 
-    public int refCnt() {
-        return data.refCnt();
-    }
 }

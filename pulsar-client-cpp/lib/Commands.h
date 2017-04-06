@@ -17,7 +17,7 @@
 #ifndef LIB_COMMANDS_H_
 #define LIB_COMMANDS_H_
 
-#include <pulsar/Auth.h>
+#include <pulsar/Authentication.h>
 #include <pulsar/Message.h>
 
 #include "PulsarApi.pb.h"

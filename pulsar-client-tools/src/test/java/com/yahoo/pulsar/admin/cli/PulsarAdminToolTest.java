@@ -359,6 +359,9 @@ public class PulsarAdminToolTest {
         topics.run(split("stats-internal persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).getInternalStats("persistent://myprop/clust/ns1/ds1");
 
+        topics.run(split("info-internal persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).getInternalInfo("persistent://myprop/clust/ns1/ds1");
+
         topics.run(split("partitioned-stats persistent://myprop/clust/ns1/ds1 --per-partition"));
         verify(mockTopics).getPartitionedStats("persistent://myprop/clust/ns1/ds1", true);
 
@@ -376,6 +379,9 @@ public class PulsarAdminToolTest {
 
         topics.run(split("create-partitioned-topic persistent://myprop/clust/ns1/ds1 --partitions 32"));
         verify(mockTopics).createPartitionedTopic("persistent://myprop/clust/ns1/ds1", 32);
+
+        topics.run(split("list-partitioned-topics myprop/clust/ns1"));
+        verify(mockTopics).getPartitionedTopicList("myprop/clust/ns1");
 
         topics.run(split("get-partitioned-topic-metadata persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).getPartitionedTopicMetadata("persistent://myprop/clust/ns1/ds1");

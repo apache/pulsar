@@ -384,11 +384,18 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
 
     @Override
     public CompletableFuture<Void> closeAsync() {
-        if (getState() == State.Closing || getState() == State.Closed) {
+        final State currentState = getAndUpdateState(state -> {
+            if (state == State.Closed) {
+                return state;
+            }
+            return State.Closing;
+        });
+
+        if (currentState == State.Closed || currentState == State.Closing) {
             return CompletableFuture.completedFuture(null);
         }
 
-        if (!isConnected()) {
+        if (getClientCnx() == null || currentState != State.Ready) {
             log.info("[{}] [{}] Closed Producer (not connected)", topic, producerName);
             synchronized (this) {
                 setState(State.Closed);
@@ -402,8 +409,6 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
 
             return CompletableFuture.completedFuture(null);
         }
-
-        setState(State.Closing);
 
         Timeout timeout = sendTimeout;
         if (timeout != null) {

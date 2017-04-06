@@ -203,11 +203,11 @@ public class LoadBalancerTest {
                 assertFalse(loadReport.isOverLoaded());
 
                 // Check Initial Ranking is populated in both the brokers
-                Field ranking = ((SimpleLoadManagerImpl) pulsarServices[i].getLoadManager()).getClass()
+                Field ranking = ((SimpleLoadManagerImpl) pulsarServices[i].getLoadManager().get()).getClass()
                         .getDeclaredField("sortedRankings");
                 ranking.setAccessible(true);
                 AtomicReference<Map<Long, Set<ResourceUnit>>> sortedRanking = (AtomicReference<Map<Long, Set<ResourceUnit>>>) ranking
-                        .get(pulsarServices[i].getLoadManager());
+                        .get(pulsarServices[i].getLoadManager().get());
                 printSortedRanking(sortedRanking);
 
                 // all brokers have same rank to it would be 0 --> set-of-all-the-brokers
@@ -217,7 +217,7 @@ public class LoadBalancerTest {
                 }
                 assertEquals(brokerCount, BROKER_COUNT);
                 DestinationName fqdn = DestinationName.get("persistent://pulsar/use/primary-ns/test-topic");
-                ResourceUnit found = pulsarServices[i].getLoadManager()
+                ResourceUnit found = pulsarServices[i].getLoadManager().get()
                         .getLeastLoaded(pulsarServices[i].getNamespaceService().getBundle(fqdn));
                 assertTrue(found != null);
             }
@@ -256,7 +256,7 @@ public class LoadBalancerTest {
         Map<String, Integer> namespaceOwner = new HashMap<>();
         for (int i = 0; i < totalNamespaces; i++) {
             DestinationName fqdn = DestinationName.get("persistent://pulsar/use/primary-ns-" + i + "/test-topic");
-            ResourceUnit found = pulsarServices[0].getLoadManager()
+            ResourceUnit found = pulsarServices[0].getLoadManager().get()
                     .getLeastLoaded(pulsarServices[0].getNamespaceService().getBundle(fqdn));
             if (namespaceOwner.containsKey(found.getResourceId())) {
                 namespaceOwner.put(found.getResourceId(), namespaceOwner.get(found.getResourceId()) + 1);
@@ -279,10 +279,10 @@ public class LoadBalancerTest {
 
     private AtomicReference<Map<Long, Set<ResourceUnit>>> getSortedRanking(PulsarService pulsar)
             throws NoSuchFieldException, IllegalAccessException {
-        Field ranking = ((SimpleLoadManagerImpl) pulsar.getLoadManager()).getClass().getDeclaredField("sortedRankings");
+        Field ranking = ((SimpleLoadManagerImpl) pulsar.getLoadManager().get()).getClass().getDeclaredField("sortedRankings");
         ranking.setAccessible(true);
         AtomicReference<Map<Long, Set<ResourceUnit>>> sortedRanking = (AtomicReference<Map<Long, Set<ResourceUnit>>>) ranking
-                .get(pulsar.getLoadManager());
+                .get(pulsar.getLoadManager().get());
         return sortedRanking;
     }
 
@@ -395,7 +395,7 @@ public class LoadBalancerTest {
         Map<String, Integer> namespaceOwner = new HashMap<>();
         for (int i = 0; i < totalNamespaces; i++) {
             DestinationName fqdn = DestinationName.get("persistent://pulsar/use/primary-ns-" + i + "/test-topic");
-            ResourceUnit found = pulsarServices[0].getLoadManager()
+            ResourceUnit found = pulsarServices[0].getLoadManager().get()
                     .getLeastLoaded(pulsarServices[0].getNamespaceService().getBundle(fqdn));
             if (namespaceOwner.containsKey(found.getResourceId())) {
                 namespaceOwner.put(found.getResourceId(), namespaceOwner.get(found.getResourceId()) + 1);
@@ -422,11 +422,11 @@ public class LoadBalancerTest {
 
     private AtomicReference<Map<String, ResourceQuota>> getRealtimeResourceQuota(PulsarService pulsar)
             throws NoSuchFieldException, IllegalAccessException {
-        Field quotasField = ((SimpleLoadManagerImpl) pulsar.getLoadManager()).getClass()
+        Field quotasField = ((SimpleLoadManagerImpl) pulsar.getLoadManager().get()).getClass()
                 .getDeclaredField("realtimeResourceQuotas");
         quotasField.setAccessible(true);
         AtomicReference<Map<String, ResourceQuota>> realtimeResourceQuotas = (AtomicReference<Map<String, ResourceQuota>>) quotasField
-                .get(pulsar.getLoadManager());
+                .get(pulsar.getLoadManager().get());
         return realtimeResourceQuotas;
     }
 
@@ -637,14 +637,14 @@ public class LoadBalancerTest {
                 newBundleStats(maxTopics + 1, 0, 0, 0, 0, 0, 0));
         lr.setBundleStats(bundleStats);
 
-        setObjectField(SimpleLoadManagerImpl.class, pulsarServices[0].getLoadManager(), "lastLoadReport", lr);
+        setObjectField(SimpleLoadManagerImpl.class, pulsarServices[0].getLoadManager().get(), "lastLoadReport", lr);
         String znodePath = String.format("%s/%s", SimpleLoadManagerImpl.LOADBALANCE_BROKERS_ROOT, lookupAddresses[0]);
         String loadReportJson = objectMapper.writeValueAsString(lr);
         bkEnsemble.getZkClient().setData(znodePath, loadReportJson.getBytes(Charsets.UTF_8), -1);
 
         // sleep to wait load ranking be triggered and trigger bundle split
         Thread.sleep(5000);
-        pulsarServices[0].getLoadManager().doNamespaceBundleSplit();
+        pulsarServices[0].getLoadManager().get().doNamespaceBundleSplit();
 
         // verify bundles are split
         verify(namespaceAdmin, times(1)).splitNamespaceBundle("pulsar/use/primary-ns-01", "0x00000000_0x80000000");

@@ -162,8 +162,8 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
             conf.setAckTimeout(Integer.parseInt(queryParams.get("ackTimeoutMillis")), TimeUnit.MILLISECONDS);
         }
 
-        if (queryParams.containsKey("suscriptionType")) {
-            conf.setSubscriptionType(SubscriptionType.valueOf(queryParams.get("suscriptionType")));
+        if (queryParams.containsKey("subscriptionType")) {
+            conf.setSubscriptionType(SubscriptionType.valueOf(queryParams.get("subscriptionType")));
         }
 
         if (queryParams.containsKey("receiverQueueSize")) {

@@ -400,19 +400,18 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
      */
     @Test
     public void testUpdateDynamicConfigurationWithZkWatch() throws Exception {
-        // create configuration znode
-        ZkUtils.createFullPathOptimistic(mockZookKeeper, BROKER_SERVICE_CONFIGURATION_PATH, "{}".getBytes(),
-                ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
-        // Now, znode is created: set the watch and listener on the znode
-        Method updateConfigListenerMethod = BrokerService.class
-                .getDeclaredMethod("updateConfigurationAndRegisterListeners");
-        updateConfigListenerMethod.setAccessible(true);
-        updateConfigListenerMethod.invoke(pulsar.getBrokerService());
-        pulsar.getConfiguration().setBrokerShutdownTimeoutMs(30000);
+        final int initValue = 30000;
+        pulsar.getConfiguration().setBrokerShutdownTimeoutMs(initValue);
         // (1) try to update dynamic field
         final long shutdownTime = 10;
         // update configuration
         admin.brokers().updateDynamicConfiguration("brokerShutdownTimeoutMs", Long.toString(shutdownTime));
+        // sleep incrementally as zk-watch notification is async and may take some time
+        for (int i = 0; i < 5; i++) {
+            if (pulsar.getConfiguration().getBrokerShutdownTimeoutMs() != initValue) {
+                Thread.sleep(50 + (i * 10));
+            }
+        }
         // wait config to be updated
         for (int i = 0; i < 5; i++) {
             if (pulsar.getConfiguration().getBrokerShutdownTimeoutMs() != shutdownTime) {
@@ -443,9 +442,6 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     /**
      * <pre>
      * verifies: that registerListener updates pulsar.config value with newly updated zk-dynamic config
-     * NOTE: pulsar can't set the watch on non-existing znode
-     * So, when pulsar starts it is not able to set the watch on non-existing znode of dynamicConfiguration
-     * So, here, after creating znode we will trigger register explicitly
      * 1.start pulsar
      * 2.update zk-config with admin api
      * 3. trigger watch and listener
@@ -456,14 +452,17 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testUpdateDynamicLocalConfiguration() throws Exception {
         // (1) try to update dynamic field
+        final long initValue = 30000;
         final long shutdownTime = 10;
-        pulsar.getConfiguration().setBrokerShutdownTimeoutMs(30000);
+        pulsar.getConfiguration().setBrokerShutdownTimeoutMs(initValue);
         // update configuration
         admin.brokers().updateDynamicConfiguration("brokerShutdownTimeoutMs", Long.toString(shutdownTime));
-        // Now, znode is created: updateConfigurationAndregisterListeners and check if configuration updated
-        Method getPermitZkNodeMethod = BrokerService.class.getDeclaredMethod("updateConfigurationAndRegisterListeners");
-        getPermitZkNodeMethod.setAccessible(true);
-        getPermitZkNodeMethod.invoke(pulsar.getBrokerService());
+        // sleep incrementally as zk-watch notification is async and may take some time
+        for (int i = 0; i < 5; i++) {
+            if (pulsar.getConfiguration().getBrokerShutdownTimeoutMs() != initValue) {
+                Thread.sleep(50 + (i * 10));
+            }
+        }
         // verify value is updated
         assertEquals(pulsar.getConfiguration().getBrokerShutdownTimeoutMs(), shutdownTime);
     }
@@ -481,12 +480,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         final String configName = "brokerShutdownTimeoutMs";
         final long shutdownTime = 10;
         pulsar.getConfiguration().setBrokerShutdownTimeoutMs(30000);
-        try {
-            admin.brokers().getAllDynamicConfigurations();
-            fail("should have fail as configuration is not exist");
-        } catch (PulsarAdminException.NotFoundException ne) {
-            // ok : expected
-        }
+        Map<String, String> configs = admin.brokers().getAllDynamicConfigurations();
+        assertTrue(configs.isEmpty());
         assertNotEquals(pulsar.getConfiguration().getBrokerShutdownTimeoutMs(), shutdownTime);
         // update configuration
         admin.brokers().updateDynamicConfiguration(configName, Long.toString(shutdownTime));
@@ -700,8 +695,11 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
     @Test(dataProvider = "topicName")
     public void partitionedTopics(String topicName) throws Exception {
+        assertEquals(admin.persistentTopics().getPartitionedTopicList("prop-xyz/use/ns1"), Lists.newArrayList());
         final String partitionedTopicName = "persistent://prop-xyz/use/ns1/" + topicName;
         admin.persistentTopics().createPartitionedTopic(partitionedTopicName, 4);
+        assertEquals(admin.persistentTopics().getPartitionedTopicList("prop-xyz/use/ns1"), Lists.newArrayList(partitionedTopicName));
+
 
         assertEquals(admin.persistentTopics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 4);
 

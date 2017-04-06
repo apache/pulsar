@@ -116,7 +116,7 @@ public final class ServiceUnitZkUtils {
         // we don't need a watch here since we are only cleaning up the stale ephemeral nodes from previous session
         for (String node : zkc.getChildren(root, false)) {
             String currentPath = root + "/" + node;
-            // retrieve the content and try to decode with LookupData
+            // retrieve the content and try to decode with ServiceLookupData
             List<String> children = zkc.getChildren(currentPath, false);
             if (children.size() == 0) {
                 // clean up a single namespace node

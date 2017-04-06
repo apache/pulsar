@@ -13,10 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.bookkeeper.mledger.util;
+package com.yahoo.pulsar.common.policies.data.loadbalancer;
 
-public interface ReferenceCounted {
-    void retain();
+// For backwards compatibility purposes.
+public interface ServiceLookupData {
+    public String getWebServiceUrl();
 
-    void release();
+    public String getWebServiceUrlTls();
+
+    public String getPulsarServiceUrl();
+
+    public String getPulsarServiceUrlTls();
 }

@@ -45,7 +45,7 @@ import com.yahoo.pulsar.websocket.service.WebSocketServiceStarter;
 public class ProxyPublishConsumeTest extends ProducerConsumerBase {
     protected String methodName;
     private static final int TEST_PORT = PortManager.nextFreePort();
-    private static final String CONSUME_URI = "ws://localhost:" + TEST_PORT + "/ws/consumer/persistent/my-property/use/my-ns/my-topic/my-sub";
+    private static final String CONSUME_URI = "ws://localhost:" + TEST_PORT + "/ws/consumer/persistent/my-property/use/my-ns/my-topic/my-sub?subscriptionType=Failover";
     private static final String PRODUCE_URI = "ws://localhost:" + TEST_PORT + "/ws/producer/persistent/my-property/use/my-ns/my-topic/";
 
     private ProxyServer proxyServer;
@@ -80,36 +80,51 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         URI consumeUri = URI.create(CONSUME_URI);
         URI produceUri = URI.create(PRODUCE_URI);
 
-        WebSocketClient consumeClient = new WebSocketClient();
-        SimpleConsumerSocket consumeSocket = new SimpleConsumerSocket();
+        WebSocketClient consumeClient1 = new WebSocketClient();
+        SimpleConsumerSocket consumeSocket1 = new SimpleConsumerSocket();
+        WebSocketClient consumeClient2 = new WebSocketClient();
+        SimpleConsumerSocket consumeSocket2 = new SimpleConsumerSocket();
         WebSocketClient produceClient = new WebSocketClient();
         SimpleProducerSocket produceSocket = new SimpleProducerSocket();
 
         try {
-            consumeClient.start();
-            ClientUpgradeRequest consumeRequest = new ClientUpgradeRequest();
-            Future<Session> consumerFuture = consumeClient.connect(consumeSocket, consumeUri, consumeRequest);
+            consumeClient1.start();
+            consumeClient2.start();
+            ClientUpgradeRequest consumeRequest1 = new ClientUpgradeRequest();
+            ClientUpgradeRequest consumeRequest2 = new ClientUpgradeRequest();
+            Future<Session> consumerFuture1 = consumeClient1.connect(consumeSocket1, consumeUri, consumeRequest1);
+            Future<Session> consumerFuture2 = consumeClient2.connect(consumeSocket2, consumeUri, consumeRequest2);
             log.info("Connecting to : {}", consumeUri);
 
             ClientUpgradeRequest produceRequest = new ClientUpgradeRequest();
             produceClient.start();
             Future<Session> producerFuture = produceClient.connect(produceSocket, produceUri, produceRequest);
             // let it connect
-            Assert.assertTrue(consumerFuture.get().isOpen());
+            Assert.assertTrue(consumerFuture1.get().isOpen());
+            Assert.assertTrue(consumerFuture2.get().isOpen());
             Assert.assertTrue(producerFuture.get().isOpen());
 
-            while (consumeSocket.getReceivedMessagesCount() < 10) {
+            while (consumeSocket1.getReceivedMessagesCount() < 10 && consumeSocket2.getReceivedMessagesCount() < 10) {
                 Thread.sleep(10);
             }
 
+            // if the subscription type is exclusive (default), either of the consumer sessions has already been closed
+            Assert.assertTrue(consumerFuture1.get().isOpen());
+            Assert.assertTrue(consumerFuture2.get().isOpen());
             Assert.assertTrue(produceSocket.getBuffer().size() > 0);
-            Assert.assertEquals(produceSocket.getBuffer(), consumeSocket.getBuffer());
+
+            if (consumeSocket1.getBuffer().size() > consumeSocket2.getBuffer().size()) {
+                Assert.assertEquals(produceSocket.getBuffer(), consumeSocket1.getBuffer());
+            } else {
+                Assert.assertEquals(produceSocket.getBuffer(), consumeSocket2.getBuffer());
+            }
         } finally {
             ExecutorService executor = newFixedThreadPool(1);
             try {
                 executor.submit(() -> {
                     try {
-                        consumeClient.stop();
+                        consumeClient1.stop();
+                        consumeClient2.stop();
                         produceClient.stop();
                         log.info("proxy clients are stopped successfully");
                     } catch (Exception e) {

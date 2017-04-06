@@ -30,7 +30,7 @@ import com.yahoo.pulsar.common.configuration.PulsarConfiguration;
  * Pulsar service configuration object.
  *
  */
-public class ServiceConfiguration implements PulsarConfiguration{
+public class ServiceConfiguration implements PulsarConfiguration {
 
     /***** --- pulsar configuration --- ****/
     // Zookeeper quorum connection string
@@ -91,6 +91,9 @@ public class ServiceConfiguration implements PulsarConfiguration{
     // Max number of concurrent lookup request broker allows to throttle heavy incoming lookup traffic
     @FieldContext(dynamic = true)
     private int maxConcurrentLookupRequest = 10000;
+    // Max number of concurrent topic loading request broker allows to control number of zk-operations
+    @FieldContext(dynamic = true)
+    private int maxConcurrentTopicLoadRequest = 5000;
 
     /***** --- TLS --- ****/
     // Enable TLS
@@ -252,6 +255,9 @@ public class ServiceConfiguration implements PulsarConfiguration{
     private int brokerServicePurgeInactiveFrequencyInSeconds = 60;
     private List<String> bootstrapNamespaces = new ArrayList<String>();
     private Properties properties = new Properties();
+    // Name of load manager to use
+    @FieldContext(dynamic = true)
+    private String loadManagerClassName = "com.yahoo.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl";
 
     public String getZookeeperServers() {
         return zookeeperServers;
@@ -432,6 +438,14 @@ public class ServiceConfiguration implements PulsarConfiguration{
 
     public void setMaxConcurrentLookupRequest(int maxConcurrentLookupRequest) {
         this.maxConcurrentLookupRequest = maxConcurrentLookupRequest;
+    }
+
+    public int getMaxConcurrentTopicLoadRequest() {
+        return maxConcurrentTopicLoadRequest;
+    }
+
+    public void setMaxConcurrentTopicLoadRequest(int maxConcurrentTopicLoadRequest) {
+        this.maxConcurrentTopicLoadRequest = maxConcurrentTopicLoadRequest;
     }
 
     public boolean isTlsEnabled() {
@@ -940,5 +954,13 @@ public class ServiceConfiguration implements PulsarConfiguration{
 
     public void setReplicatorPrefix(String replicatorPrefix) {
         this.replicatorPrefix = replicatorPrefix;
+    }
+
+    public String getLoadManagerClassName() {
+        return loadManagerClassName;
+    }
+
+    public void setLoadManagerClassName(String loadManagerClassName) {
+        this.loadManagerClassName = loadManagerClassName;
     }
 }

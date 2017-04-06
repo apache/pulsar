@@ -18,22 +18,16 @@
 #define _PULSAR_BINARY_LOOKUP_SERVICE_HEADER_
 
 #include <iostream>
-
-#include <boost/shared_ptr.hpp>
-#include <pulsar/Auth.h>
-#include <pulsar/Result.h>
+#include <pulsar/Authentication.h>
 #include "ConnectionPool.h"
-#include "DestinationName.h"
-#include "Future.h"
-#include "LookupDataResult.h"
 #include "Backoff.h"
-
+#include <lib/LookupService.h>
 #pragma GCC visibility push(default)
 
 namespace pulsar {
 class LookupDataResult;
 
-class BinaryProtoLookupService {
+class BinaryProtoLookupService : public LookupService {
  public:
     /*
      * constructor
@@ -70,7 +64,7 @@ class BinaryProtoLookupService {
     uint64_t newRequestId();
 
 };
-
+typedef boost::shared_ptr<BinaryProtoLookupService> BinaryProtoLookupServicePtr;
 }
 
 #pragma GCC visibility pop
