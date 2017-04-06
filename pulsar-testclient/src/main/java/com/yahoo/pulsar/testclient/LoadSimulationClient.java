@@ -30,6 +30,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 
 import org.apache.commons.lang.SystemUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
@@ -49,8 +51,6 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * LoadSimulationClient is used to simulate client load by maintaining producers and consumers for topics. Instances of
@@ -59,22 +59,24 @@ import org.slf4j.LoggerFactory;
 public class LoadSimulationClient {
     private final static Logger log = LoggerFactory.getLogger(LoadSimulationClient.class);
 
-    // Values for command responses.
-    public static final byte FOUND_TOPIC = 0;
-    public static final byte NO_SUCH_TOPIC = 1;
-    public static final byte REDUNDANT_COMMAND = 2;
-
     // Values for command encodings.
     public static final byte CHANGE_COMMAND = 0;
     public static final byte STOP_COMMAND = 1;
     public static final byte TRADE_COMMAND = 2;
     public static final byte CHANGE_GROUP_COMMAND = 3;
     public static final byte STOP_GROUP_COMMAND = 4;
+    public static final byte FIND_COMMAND = 5;
 
     private final ExecutorService executor;
+    // Map from a message size to a cached byte[] of that size.
     private final Map<Integer, byte[]> payloadCache;
+
+    // Map from a full topic name to the TradeUnit created for that topic.
     private final Map<String, TradeUnit> topicsToTradeUnits;
+
+    // Pulsar client to create producers and consumers with.
     private final PulsarClient client;
+
     private final ProducerConfiguration producerConf;
     private final ConsumerConfiguration consumerConf;
     private final ClientConfiguration clientConf;
@@ -100,8 +102,8 @@ public class LoadSimulationClient {
         final Map<Integer, byte[]> payloadCache;
 
         public TradeUnit(final TradeConfiguration tradeConf, final PulsarClient client,
-                final ProducerConfiguration producerConf, final ConsumerConfiguration consumerConf,
-                final Map<Integer, byte[]> payloadCache) throws Exception {
+                         final ProducerConfiguration producerConf, final ConsumerConfiguration consumerConf,
+                         final Map<Integer, byte[]> payloadCache) throws Exception {
             consumerFuture = client.subscribeAsync(tradeConf.topic, "Subscriber-" + tradeConf.topic, consumerConf);
             producerFuture = client.createProducerAsync(tradeConf.topic, producerConf);
             this.payload = new AtomicReference<>();
@@ -227,95 +229,86 @@ public class LoadSimulationClient {
         final TradeConfiguration tradeConf = new TradeConfiguration();
         tradeConf.command = command;
         switch (command) {
-        case CHANGE_COMMAND:
-            // Change the topic's settings if it exists. Report whether the
-            // topic was found on this server.
-            decodeProducerOptions(tradeConf, inputStream);
-            if (topicsToTradeUnits.containsKey(tradeConf.topic)) {
-                topicsToTradeUnits.get(tradeConf.topic).change(tradeConf);
-                outputStream.write(FOUND_TOPIC);
-            } else {
-                outputStream.write(NO_SUCH_TOPIC);
-            }
-            break;
-        case STOP_COMMAND:
-            // Stop the topic if it exists. Report whether the topic was found,
-            // and whether it was already stopped.
-            tradeConf.topic = inputStream.readUTF();
-            if (topicsToTradeUnits.containsKey(tradeConf.topic)) {
-                final boolean wasStopped = topicsToTradeUnits.get(tradeConf.topic).stop.getAndSet(true);
-                outputStream.write(wasStopped ? REDUNDANT_COMMAND : FOUND_TOPIC);
-            } else {
-                outputStream.write(NO_SUCH_TOPIC);
-            }
-            break;
-        case TRADE_COMMAND:
-            // Create the topic. It is assumed that the topic does not already
-            // exist.
-            decodeProducerOptions(tradeConf, inputStream);
-            final TradeUnit tradeUnit = new TradeUnit(tradeConf, client, producerConf, consumerConf, payloadCache);
-            topicsToTradeUnits.put(tradeConf.topic, tradeUnit);
-            executor.submit(() -> {
-                try {
-                    tradeUnit.start();
-                } catch (Exception ex) {
-                    throw new RuntimeException(ex);
+            case CHANGE_COMMAND:
+                // Change the topic's settings if it exists.
+                decodeProducerOptions(tradeConf, inputStream);
+                if (topicsToTradeUnits.containsKey(tradeConf.topic)) {
+                    topicsToTradeUnits.get(tradeConf.topic).change(tradeConf);
                 }
-            });
-            // Tell controller topic creation is finished.
-            outputStream.write(NO_SUCH_TOPIC);
-            break;
-        case CHANGE_GROUP_COMMAND:
-            // Change the settings of all topics belonging to a group. Report
-            // the number of topics changed.
-            decodeGroupOptions(tradeConf, inputStream);
-            tradeConf.size = inputStream.readInt();
-            tradeConf.rate = inputStream.readDouble();
-            // See if a topic belongs to this tenant and group using this regex.
-            final String groupRegex = ".*://.*/" + tradeConf.tenant + "/" + tradeConf.group + "-.*/.*";
-            int numFound = 0;
-            for (Map.Entry<String, TradeUnit> entry : topicsToTradeUnits.entrySet()) {
-                final String destination = entry.getKey();
-                final TradeUnit unit = entry.getValue();
-                if (destination.matches(groupRegex)) {
-                    ++numFound;
-                    unit.change(tradeConf);
+                break;
+            case STOP_COMMAND:
+                // Stop the topic if it exists.
+                tradeConf.topic = inputStream.readUTF();
+                if (topicsToTradeUnits.containsKey(tradeConf.topic)) {
+                    topicsToTradeUnits.get(tradeConf.topic).stop.set(true);
                 }
-            }
-            outputStream.writeInt(numFound);
-            break;
-        case STOP_GROUP_COMMAND:
-            // Stop all topics belonging to a group. Report the number of topics
-            // stopped.
-            decodeGroupOptions(tradeConf, inputStream);
-            // See if a topic belongs to this tenant and group using this regex.
-            final String regex = ".*://.*/" + tradeConf.tenant + "/" + tradeConf.group + "-.*/.*";
-            int numStopped = 0;
-            for (Map.Entry<String, TradeUnit> entry : topicsToTradeUnits.entrySet()) {
-                final String destination = entry.getKey();
-                final TradeUnit unit = entry.getValue();
-                if (destination.matches(regex) && !unit.stop.getAndSet(true)) {
-                    ++numStopped;
+                break;
+            case TRADE_COMMAND:
+                // Create the topic. It is assumed that the topic does not already exist.
+                decodeProducerOptions(tradeConf, inputStream);
+                final TradeUnit tradeUnit = new TradeUnit(tradeConf, client, producerConf, consumerConf, payloadCache);
+                topicsToTradeUnits.put(tradeConf.topic, tradeUnit);
+                executor.submit(() -> {
+                    try {
+                        tradeUnit.start();
+                    } catch (Exception ex) {
+                        throw new RuntimeException(ex);
+                    }
+                });
+                break;
+            case CHANGE_GROUP_COMMAND:
+                // Change the settings of all topics belonging to a group.
+                decodeGroupOptions(tradeConf, inputStream);
+                tradeConf.size = inputStream.readInt();
+                tradeConf.rate = inputStream.readDouble();
+                // See if a topic belongs to this tenant and group using this regex.
+                final String groupRegex = ".*://" + tradeConf.tenant + "/.*/" + tradeConf.group + "-.*/.*";
+                for (Map.Entry<String, TradeUnit> entry : topicsToTradeUnits.entrySet()) {
+                    final String destination = entry.getKey();
+                    final TradeUnit unit = entry.getValue();
+                    if (destination.matches(groupRegex)) {
+                        unit.change(tradeConf);
+                    }
                 }
-            }
-            outputStream.writeInt(numStopped);
-            break;
-        default:
-            throw new IllegalArgumentException("Unrecognized command code received: " + command);
+                break;
+            case STOP_GROUP_COMMAND:
+                // Stop all topics belonging to a group.
+                decodeGroupOptions(tradeConf, inputStream);
+                // See if a topic belongs to this tenant and group using this regex.
+                final String regex = ".*://" + tradeConf.tenant + "/.*/" + tradeConf.group + "-.*/.*";
+                for (Map.Entry<String, TradeUnit> entry : topicsToTradeUnits.entrySet()) {
+                    final String destination = entry.getKey();
+                    final TradeUnit unit = entry.getValue();
+                    if (destination.matches(regex)) {
+                        unit.stop.set(true);
+                    }
+                }
+                break;
+            case FIND_COMMAND:
+                // Write a single boolean indicating if the topic was found.
+                outputStream.writeBoolean(topicsToTradeUnits.containsKey(inputStream.readUTF()));
+                outputStream.flush();
+                break;
+            default:
+                throw new IllegalArgumentException("Unrecognized command code received: " + command);
         }
-        outputStream.flush();
     }
 
+    // Make listener as lightweight as possible.
     private static final MessageListener ackListener = Consumer::acknowledgeAsync;
 
+    /**
+     * Create a LoadSimulationClient with the given JCommander arguments.
+     * @param arguments Arguments to configure this from.
+     */
     public LoadSimulationClient(final MainArguments arguments) throws Exception {
         payloadCache = new ConcurrentHashMap<>();
         topicsToTradeUnits = new ConcurrentHashMap<>();
         final EventLoopGroup eventLoopGroup = SystemUtils.IS_OS_LINUX
                 ? new EpollEventLoopGroup(Runtime.getRuntime().availableProcessors(),
-                        new DefaultThreadFactory("pulsar-test-client"))
+                new DefaultThreadFactory("pulsar-test-client"))
                 : new NioEventLoopGroup(Runtime.getRuntime().availableProcessors(),
-                        new DefaultThreadFactory("pulsar-test-client"));
+                new DefaultThreadFactory("pulsar-test-client"));
         clientConf = new ClientConfiguration();
 
         clientConf.setConnectionsPerBroker(4);
@@ -340,6 +333,10 @@ public class LoadSimulationClient {
         executor = Executors.newCachedThreadPool(new DefaultThreadFactory("test-client"));
     }
 
+    /**
+     * Start a client with command line arguments.
+     * @param args Command line arguments to pass in.
+     */
     public static void main(String[] args) throws Exception {
         final MainArguments mainArguments = new MainArguments();
         final JCommander jc = new JCommander(mainArguments);
@@ -352,6 +349,9 @@ public class LoadSimulationClient {
         (new LoadSimulationClient(mainArguments)).run();
     }
 
+    /**
+     * Start listening for controller commands to create producers and consumers.
+     */
     public void run() throws Exception {
         final ServerSocket serverSocket = new ServerSocket(port);
 
@@ -361,7 +361,7 @@ public class LoadSimulationClient {
             // has not been tested or considered and is not recommended.
             log.info("Listening for controller command...");
             final Socket socket = serverSocket.accept();
-            log.info("Connected to {}\n", socket.getInetAddress().getHostName());
+            log.info("Connected to {}", socket.getInetAddress().getHostName());
             executor.submit(() -> {
                 try {
                     handle(socket);
