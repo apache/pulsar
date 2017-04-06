@@ -15,12 +15,7 @@
  */
 package com.yahoo.pulsar.broker.loadbalance.impl;
 
-import com.yahoo.pulsar.broker.loadbalance.BrokerHostUsage;
-import com.yahoo.pulsar.common.naming.NamespaceName;
-import com.yahoo.pulsar.common.naming.ServiceUnitId;
-import com.yahoo.pulsar.common.policies.data.loadbalancer.SystemResourceUsage;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import static com.google.common.base.Preconditions.checkArgument;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -28,7 +23,13 @@ import java.net.URL;
 import java.util.HashSet;
 import java.util.Set;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.yahoo.pulsar.broker.loadbalance.BrokerHostUsage;
+import com.yahoo.pulsar.common.naming.NamespaceName;
+import com.yahoo.pulsar.common.naming.ServiceUnitId;
+import com.yahoo.pulsar.common.policies.data.loadbalancer.SystemResourceUsage;
 
 /**
  * This class contains code which in shared between the two load manager implementations.
