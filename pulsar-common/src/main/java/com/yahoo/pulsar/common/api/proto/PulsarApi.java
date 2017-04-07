@@ -14266,15 +14266,7 @@ public final class PulsarApi {
     boolean hasRequestId();
     long getRequestId();
     
-    // required string topic_name = 2;
-    boolean hasTopicName();
-    String getTopicName();
-    
-    // required string subscription_name = 3;
-    boolean hasSubscriptionName();
-    String getSubscriptionName();
-    
-    // required uint64 consumer_id = 4;
+    // required uint64 consumer_id = 2;
     boolean hasConsumerId();
     long getConsumerId();
   }
@@ -14323,75 +14315,11 @@ public final class PulsarApi {
       return requestId_;
     }
     
-    // required string topic_name = 2;
-    public static final int TOPIC_NAME_FIELD_NUMBER = 2;
-    private java.lang.Object topicName_;
-    public boolean hasTopicName() {
-      return ((bitField0_ & 0x00000002) == 0x00000002);
-    }
-    public String getTopicName() {
-      java.lang.Object ref = topicName_;
-      if (ref instanceof String) {
-        return (String) ref;
-      } else {
-        com.google.protobuf.ByteString bs = 
-            (com.google.protobuf.ByteString) ref;
-        String s = bs.toStringUtf8();
-        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
-          topicName_ = s;
-        }
-        return s;
-      }
-    }
-    private com.google.protobuf.ByteString getTopicNameBytes() {
-      java.lang.Object ref = topicName_;
-      if (ref instanceof String) {
-        com.google.protobuf.ByteString b = 
-            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
-        topicName_ = b;
-        return b;
-      } else {
-        return (com.google.protobuf.ByteString) ref;
-      }
-    }
-    
-    // required string subscription_name = 3;
-    public static final int SUBSCRIPTION_NAME_FIELD_NUMBER = 3;
-    private java.lang.Object subscriptionName_;
-    public boolean hasSubscriptionName() {
-      return ((bitField0_ & 0x00000004) == 0x00000004);
-    }
-    public String getSubscriptionName() {
-      java.lang.Object ref = subscriptionName_;
-      if (ref instanceof String) {
-        return (String) ref;
-      } else {
-        com.google.protobuf.ByteString bs = 
-            (com.google.protobuf.ByteString) ref;
-        String s = bs.toStringUtf8();
-        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
-          subscriptionName_ = s;
-        }
-        return s;
-      }
-    }
-    private com.google.protobuf.ByteString getSubscriptionNameBytes() {
-      java.lang.Object ref = subscriptionName_;
-      if (ref instanceof String) {
-        com.google.protobuf.ByteString b = 
-            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
-        subscriptionName_ = b;
-        return b;
-      } else {
-        return (com.google.protobuf.ByteString) ref;
-      }
-    }
-    
-    // required uint64 consumer_id = 4;
-    public static final int CONSUMER_ID_FIELD_NUMBER = 4;
+    // required uint64 consumer_id = 2;
+    public static final int CONSUMER_ID_FIELD_NUMBER = 2;
     private long consumerId_;
     public boolean hasConsumerId() {
-      return ((bitField0_ & 0x00000008) == 0x00000008);
+      return ((bitField0_ & 0x00000002) == 0x00000002);
     }
     public long getConsumerId() {
       return consumerId_;
@@ -14399,8 +14327,6 @@ public final class PulsarApi {
     
     private void initFields() {
       requestId_ = 0L;
-      topicName_ = "";
-      subscriptionName_ = "";
       consumerId_ = 0L;
     }
     private byte memoizedIsInitialized = -1;
@@ -14409,14 +14335,6 @@ public final class PulsarApi {
       if (isInitialized != -1) return isInitialized == 1;
       
       if (!hasRequestId()) {
-        memoizedIsInitialized = 0;
-        return false;
-      }
-      if (!hasTopicName()) {
-        memoizedIsInitialized = 0;
-        return false;
-      }
-      if (!hasSubscriptionName()) {
         memoizedIsInitialized = 0;
         return false;
       }
@@ -14440,13 +14358,7 @@ public final class PulsarApi {
         output.writeUInt64(1, requestId_);
       }
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
-        output.writeBytes(2, getTopicNameBytes());
-      }
-      if (((bitField0_ & 0x00000004) == 0x00000004)) {
-        output.writeBytes(3, getSubscriptionNameBytes());
-      }
-      if (((bitField0_ & 0x00000008) == 0x00000008)) {
-        output.writeUInt64(4, consumerId_);
+        output.writeUInt64(2, consumerId_);
       }
     }
     
@@ -14462,15 +14374,7 @@ public final class PulsarApi {
       }
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
         size += com.google.protobuf.CodedOutputStream
-          .computeBytesSize(2, getTopicNameBytes());
-      }
-      if (((bitField0_ & 0x00000004) == 0x00000004)) {
-        size += com.google.protobuf.CodedOutputStream
-          .computeBytesSize(3, getSubscriptionNameBytes());
-      }
-      if (((bitField0_ & 0x00000008) == 0x00000008)) {
-        size += com.google.protobuf.CodedOutputStream
-          .computeUInt64Size(4, consumerId_);
+          .computeUInt64Size(2, consumerId_);
       }
       memoizedSerializedSize = size;
       return size;
@@ -14587,12 +14491,8 @@ public final class PulsarApi {
         super.clear();
         requestId_ = 0L;
         bitField0_ = (bitField0_ & ~0x00000001);
-        topicName_ = "";
-        bitField0_ = (bitField0_ & ~0x00000002);
-        subscriptionName_ = "";
-        bitField0_ = (bitField0_ & ~0x00000004);
         consumerId_ = 0L;
-        bitField0_ = (bitField0_ & ~0x00000008);
+        bitField0_ = (bitField0_ & ~0x00000002);
         return this;
       }
       
@@ -14633,14 +14533,6 @@ public final class PulsarApi {
         if (((from_bitField0_ & 0x00000002) == 0x00000002)) {
           to_bitField0_ |= 0x00000002;
         }
-        result.topicName_ = topicName_;
-        if (((from_bitField0_ & 0x00000004) == 0x00000004)) {
-          to_bitField0_ |= 0x00000004;
-        }
-        result.subscriptionName_ = subscriptionName_;
-        if (((from_bitField0_ & 0x00000008) == 0x00000008)) {
-          to_bitField0_ |= 0x00000008;
-        }
         result.consumerId_ = consumerId_;
         result.bitField0_ = to_bitField0_;
         return result;
@@ -14651,12 +14543,6 @@ public final class PulsarApi {
         if (other.hasRequestId()) {
           setRequestId(other.getRequestId());
         }
-        if (other.hasTopicName()) {
-          setTopicName(other.getTopicName());
-        }
-        if (other.hasSubscriptionName()) {
-          setSubscriptionName(other.getSubscriptionName());
-        }
         if (other.hasConsumerId()) {
           setConsumerId(other.getConsumerId());
         }
@@ -14665,14 +14551,6 @@ public final class PulsarApi {
       
       public final boolean isInitialized() {
         if (!hasRequestId()) {
-          
-          return false;
-        }
-        if (!hasTopicName()) {
-          
-          return false;
-        }
-        if (!hasSubscriptionName()) {
           
           return false;
         }
@@ -14710,18 +14588,8 @@ public final class PulsarApi {
               requestId_ = input.readUInt64();
               break;
             }
-            case 18: {
+            case 16: {
               bitField0_ |= 0x00000002;
-              topicName_ = input.readBytes();
-              break;
-            }
-            case 26: {
-              bitField0_ |= 0x00000004;
-              subscriptionName_ = input.readBytes();
-              break;
-            }
-            case 32: {
-              bitField0_ |= 0x00000008;
               consumerId_ = input.readUInt64();
               break;
             }
@@ -14752,94 +14620,22 @@ public final class PulsarApi {
         return this;
       }
       
-      // required string topic_name = 2;
-      private java.lang.Object topicName_ = "";
-      public boolean hasTopicName() {
-        return ((bitField0_ & 0x00000002) == 0x00000002);
-      }
-      public String getTopicName() {
-        java.lang.Object ref = topicName_;
-        if (!(ref instanceof String)) {
-          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
-          topicName_ = s;
-          return s;
-        } else {
-          return (String) ref;
-        }
-      }
-      public Builder setTopicName(String value) {
-        if (value == null) {
-    throw new NullPointerException();
-  }
-  bitField0_ |= 0x00000002;
-        topicName_ = value;
-        
-        return this;
-      }
-      public Builder clearTopicName() {
-        bitField0_ = (bitField0_ & ~0x00000002);
-        topicName_ = getDefaultInstance().getTopicName();
-        
-        return this;
-      }
-      void setTopicName(com.google.protobuf.ByteString value) {
-        bitField0_ |= 0x00000002;
-        topicName_ = value;
-        
-      }
-      
-      // required string subscription_name = 3;
-      private java.lang.Object subscriptionName_ = "";
-      public boolean hasSubscriptionName() {
-        return ((bitField0_ & 0x00000004) == 0x00000004);
-      }
-      public String getSubscriptionName() {
-        java.lang.Object ref = subscriptionName_;
-        if (!(ref instanceof String)) {
-          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
-          subscriptionName_ = s;
-          return s;
-        } else {
-          return (String) ref;
-        }
-      }
-      public Builder setSubscriptionName(String value) {
-        if (value == null) {
-    throw new NullPointerException();
-  }
-  bitField0_ |= 0x00000004;
-        subscriptionName_ = value;
-        
-        return this;
-      }
-      public Builder clearSubscriptionName() {
-        bitField0_ = (bitField0_ & ~0x00000004);
-        subscriptionName_ = getDefaultInstance().getSubscriptionName();
-        
-        return this;
-      }
-      void setSubscriptionName(com.google.protobuf.ByteString value) {
-        bitField0_ |= 0x00000004;
-        subscriptionName_ = value;
-        
-      }
-      
-      // required uint64 consumer_id = 4;
+      // required uint64 consumer_id = 2;
       private long consumerId_ ;
       public boolean hasConsumerId() {
-        return ((bitField0_ & 0x00000008) == 0x00000008);
+        return ((bitField0_ & 0x00000002) == 0x00000002);
       }
       public long getConsumerId() {
         return consumerId_;
       }
       public Builder setConsumerId(long value) {
-        bitField0_ |= 0x00000008;
+        bitField0_ |= 0x00000002;
         consumerId_ = value;
         
         return this;
       }
       public Builder clearConsumerId() {
-        bitField0_ = (bitField0_ & ~0x00000008);
+        bitField0_ = (bitField0_ & ~0x00000002);
         consumerId_ = 0L;
         
         return this;

@@ -920,8 +920,7 @@ void ClientConnection::handleIncomingCommand() {
 }
 
 Future<Result, BrokerConsumerStatsImpl>
-ClientConnection::newConsumerStats(const std::string topicName, const std::string subscriptionName,
-                                   uint64_t consumerId, uint64_t requestId) {
+ClientConnection::newConsumerStats(uint64_t consumerId, uint64_t requestId) {
     Lock lock(mutex_);
     Promise<Result, BrokerConsumerStatsImpl> promise;
     if (isClosed()) {
@@ -931,7 +930,7 @@ ClientConnection::newConsumerStats(const std::string topicName, const std::strin
     }
     pendingConsumerStatsMap_.insert(std::make_pair(requestId, promise));
     lock.unlock();
-    sendCommand(Commands::newConsumerStats(outgoingCmd_, topicName, subscriptionName, consumerId, requestId));
+    sendCommand(Commands::newConsumerStats(outgoingCmd_, consumerId, requestId));
     return promise.getFuture();
 }
 

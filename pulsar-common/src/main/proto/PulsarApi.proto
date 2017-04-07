@@ -285,9 +285,7 @@ message CommandPong {
 
 message CommandConsumerStats {
         required uint64 request_id         = 1;
-        required string topic_name         = 2;
-        required string subscription_name  = 3;
-        required uint64 consumer_id        = 4;
+        required uint64 consumer_id        = 2;
 }
 
 message CommandConsumerStatsResponse {

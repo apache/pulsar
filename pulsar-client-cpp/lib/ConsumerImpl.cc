@@ -711,7 +711,7 @@ void ConsumerImpl::getBrokerConsumerStatsAsync(BrokerConsumerStatsCallback callb
             LOG_DEBUG(getName() <<
                     " Sending ConsumerStats Command for Consumer - " << getConsumerId() << ", requestId - "<<requestId);
 
-            cnx->newConsumerStats(topic_, subscription_, consumerId_, requestId).addListener(
+            cnx->newConsumerStats(consumerId_, requestId).addListener(
                     boost::bind(&ConsumerImpl::brokerConsumerStatsListener, shared_from_this(), _1, _2, callback));
             return;
         } else {

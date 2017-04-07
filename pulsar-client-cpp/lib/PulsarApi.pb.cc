@@ -165,6 +165,7 @@ bool ServerError_IsValid(int value) {
     case 11:
     case 12:
     case 13:
+    case 14:
       return true;
     default:
       return false;
@@ -2189,6 +2190,7 @@ const int CommandSubscribe::kSubTypeFieldNumber;
 const int CommandSubscribe::kConsumerIdFieldNumber;
 const int CommandSubscribe::kRequestIdFieldNumber;
 const int CommandSubscribe::kConsumerNameFieldNumber;
+const int CommandSubscribe::kPriorityLevelFieldNumber;
 #endif  // !_MSC_VER
 
 CommandSubscribe::CommandSubscribe()
@@ -2216,6 +2218,7 @@ void CommandSubscribe::SharedCtor() {
   consumer_id_ = GOOGLE_ULONGLONG(0);
   request_id_ = GOOGLE_ULONGLONG(0);
   consumer_name_ = const_cast< ::std::string*>(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  priority_level_ = 0;
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
 
@@ -2273,8 +2276,8 @@ void CommandSubscribe::Clear() {
     ::memset(&first, 0, n);                                \
   } while (0)
 
-  if (_has_bits_[0 / 32] & 63) {
-    ZR_(consumer_id_, request_id_);
+  if (_has_bits_[0 / 32] & 127) {
+    ZR_(consumer_id_, priority_level_);
     if (has_topic()) {
       if (topic_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
         topic_->clear();
@@ -2285,7 +2288,6 @@ void CommandSubscribe::Clear() {
         subscription_->clear();
       }
     }
-    subtype_ = 0;
     if (has_consumer_name()) {
       if (consumer_name_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
         consumer_name_->clear();
@@ -2399,6 +2401,21 @@ bool CommandSubscribe::MergePartialFromCodedStream(
         } else {
           goto handle_unusual;
         }
+        if (input->ExpectTag(56)) goto parse_priority_level;
+        break;
+      }
+
+      // optional int32 priority_level = 7;
+      case 7: {
+        if (tag == 56) {
+         parse_priority_level:
+          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
+                   ::google::protobuf::int32, ::google::protobuf::internal::WireFormatLite::TYPE_INT32>(
+                 input, &priority_level_)));
+          set_has_priority_level();
+        } else {
+          goto handle_unusual;
+        }
         if (input->ExpectAtEnd()) goto success;
         break;
       }
@@ -2462,6 +2479,11 @@ void CommandSubscribe::SerializeWithCachedSizes(
       6, this->consumer_name(), output);
   }
 
+  // optional int32 priority_level = 7;
+  if (has_priority_level()) {
+    ::google::protobuf::internal::WireFormatLite::WriteInt32(7, this->priority_level(), output);
+  }
+
   output->WriteRaw(unknown_fields().data(),
                    unknown_fields().size());
   // @@protoc_insertion_point(serialize_end:pulsar.proto.CommandSubscribe)
@@ -2512,6 +2534,13 @@ int CommandSubscribe::ByteSize() const {
           this->consumer_name());
     }
 
+    // optional int32 priority_level = 7;
+    if (has_priority_level()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::Int32Size(
+          this->priority_level());
+    }
+
   }
   total_size += unknown_fields().size();
 
@@ -2547,6 +2576,9 @@ void CommandSubscribe::MergeFrom(const CommandSubscribe& from) {
     if (from.has_consumer_name()) {
       set_consumer_name(from.consumer_name());
     }
+    if (from.has_priority_level()) {
+      set_priority_level(from.priority_level());
+    }
   }
   mutable_unknown_fields()->append(from.unknown_fields());
 }
@@ -2571,6 +2603,7 @@ void CommandSubscribe::Swap(CommandSubscribe* other) {
     std::swap(consumer_id_, other->consumer_id_);
     std::swap(request_id_, other->request_id_);
     std::swap(consumer_name_, other->consumer_name_);
+    std::swap(priority_level_, other->priority_level_);
     std::swap(_has_bits_[0], other->_has_bits_[0]);
     _unknown_fields_.swap(other->_unknown_fields_);
     std::swap(_cached_size_, other->_cached_size_);
@@ -7930,8 +7963,6 @@ void CommandPong::Swap(CommandPong* other) {
 
 #ifndef _MSC_VER
 const int CommandConsumerStats::kRequestIdFieldNumber;
-const int CommandConsumerStats::kTopicNameFieldNumber;
-const int CommandConsumerStats::kSubscriptionNameFieldNumber;
 const int CommandConsumerStats::kConsumerIdFieldNumber;
 #endif  // !_MSC_VER
 
@@ -7952,11 +7983,8 @@ CommandConsumerStats::CommandConsumerStats(const CommandConsumerStats& from)
 }
 
 void CommandConsumerStats::SharedCtor() {
-  ::google::protobuf::internal::GetEmptyString();
   _cached_size_ = 0;
   request_id_ = GOOGLE_ULONGLONG(0);
-  topic_name_ = const_cast< ::std::string*>(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-  subscription_name_ = const_cast< ::std::string*>(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
   consumer_id_ = GOOGLE_ULONGLONG(0);
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
@@ -7967,12 +7995,6 @@ CommandConsumerStats::~CommandConsumerStats() {
 }
 
 void CommandConsumerStats::SharedDtor() {
-  if (topic_name_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
-    delete topic_name_;
-  }
-  if (subscription_name_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
-    delete subscription_name_;
-  }
   #ifdef GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER
   if (this != &default_instance()) {
   #else
@@ -8002,20 +8024,21 @@ CommandConsumerStats* CommandConsumerStats::New() const {
 }
 
 void CommandConsumerStats::Clear() {
-  if (_has_bits_[0 / 32] & 15) {
-    request_id_ = GOOGLE_ULONGLONG(0);
-    if (has_topic_name()) {
-      if (topic_name_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
-        topic_name_->clear();
-      }
-    }
-    if (has_subscription_name()) {
-      if (subscription_name_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
-        subscription_name_->clear();
-      }
-    }
-    consumer_id_ = GOOGLE_ULONGLONG(0);
-  }
+#define OFFSET_OF_FIELD_(f) (reinterpret_cast<char*>(      \
+  &reinterpret_cast<CommandConsumerStats*>(16)->f) - \
+   reinterpret_cast<char*>(16))
+
+#define ZR_(first, last) do {                              \
+    size_t f = OFFSET_OF_FIELD_(first);                    \
+    size_t n = OFFSET_OF_FIELD_(last) - f + sizeof(last);  \
+    ::memset(&first, 0, n);                                \
+  } while (0)
+
+  ZR_(request_id_, consumer_id_);
+
+#undef OFFSET_OF_FIELD_
+#undef ZR_
+
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
   mutable_unknown_fields()->clear();
 }
@@ -8044,39 +8067,13 @@ bool CommandConsumerStats::MergePartialFromCodedStream(
         } else {
           goto handle_unusual;
         }
-        if (input->ExpectTag(18)) goto parse_topic_name;
+        if (input->ExpectTag(16)) goto parse_consumer_id;
         break;
       }
 
-      // required string topic_name = 2;
+      // required uint64 consumer_id = 2;
       case 2: {
-        if (tag == 18) {
-         parse_topic_name:
-          DO_(::google::protobuf::internal::WireFormatLite::ReadString(
-                input, this->mutable_topic_name()));
-        } else {
-          goto handle_unusual;
-        }
-        if (input->ExpectTag(26)) goto parse_subscription_name;
-        break;
-      }
-
-      // required string subscription_name = 3;
-      case 3: {
-        if (tag == 26) {
-         parse_subscription_name:
-          DO_(::google::protobuf::internal::WireFormatLite::ReadString(
-                input, this->mutable_subscription_name()));
-        } else {
-          goto handle_unusual;
-        }
-        if (input->ExpectTag(32)) goto parse_consumer_id;
-        break;
-      }
-
-      // required uint64 consumer_id = 4;
-      case 4: {
-        if (tag == 32) {
+        if (tag == 16) {
          parse_consumer_id:
           DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
                    ::google::protobuf::uint64, ::google::protobuf::internal::WireFormatLite::TYPE_UINT64>(
@@ -8119,21 +8116,9 @@ void CommandConsumerStats::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormatLite::WriteUInt64(1, this->request_id(), output);
   }
 
-  // required string topic_name = 2;
-  if (has_topic_name()) {
-    ::google::protobuf::internal::WireFormatLite::WriteStringMaybeAliased(
-      2, this->topic_name(), output);
-  }
-
-  // required string subscription_name = 3;
-  if (has_subscription_name()) {
-    ::google::protobuf::internal::WireFormatLite::WriteStringMaybeAliased(
-      3, this->subscription_name(), output);
-  }
-
-  // required uint64 consumer_id = 4;
+  // required uint64 consumer_id = 2;
   if (has_consumer_id()) {
-    ::google::protobuf::internal::WireFormatLite::WriteUInt64(4, this->consumer_id(), output);
+    ::google::protobuf::internal::WireFormatLite::WriteUInt64(2, this->consumer_id(), output);
   }
 
   output->WriteRaw(unknown_fields().data(),
@@ -8152,21 +8137,7 @@ int CommandConsumerStats::ByteSize() const {
           this->request_id());
     }
 
-    // required string topic_name = 2;
-    if (has_topic_name()) {
-      total_size += 1 +
-        ::google::protobuf::internal::WireFormatLite::StringSize(
-          this->topic_name());
-    }
-
-    // required string subscription_name = 3;
-    if (has_subscription_name()) {
-      total_size += 1 +
-        ::google::protobuf::internal::WireFormatLite::StringSize(
-          this->subscription_name());
-    }
-
-    // required uint64 consumer_id = 4;
+    // required uint64 consumer_id = 2;
     if (has_consumer_id()) {
       total_size += 1 +
         ::google::protobuf::internal::WireFormatLite::UInt64Size(
@@ -8193,12 +8164,6 @@ void CommandConsumerStats::MergeFrom(const CommandConsumerStats& from) {
     if (from.has_request_id()) {
       set_request_id(from.request_id());
     }
-    if (from.has_topic_name()) {
-      set_topic_name(from.topic_name());
-    }
-    if (from.has_subscription_name()) {
-      set_subscription_name(from.subscription_name());
-    }
     if (from.has_consumer_id()) {
       set_consumer_id(from.consumer_id());
     }
@@ -8213,7 +8178,7 @@ void CommandConsumerStats::CopyFrom(const CommandConsumerStats& from) {
 }
 
 bool CommandConsumerStats::IsInitialized() const {
-  if ((_has_bits_[0] & 0x0000000f) != 0x0000000f) return false;
+  if ((_has_bits_[0] & 0x00000003) != 0x00000003) return false;
 
   return true;
 }
@@ -8221,8 +8186,6 @@ bool CommandConsumerStats::IsInitialized() const {
 void CommandConsumerStats::Swap(CommandConsumerStats* other) {
   if (other != this) {
     std::swap(request_id_, other->request_id_);
-    std::swap(topic_name_, other->topic_name_);
-    std::swap(subscription_name_, other->subscription_name_);
     std::swap(consumer_id_, other->consumer_id_);
     std::swap(_has_bits_[0], other->_has_bits_[0]);
     _unknown_fields_.swap(other->_unknown_fields_);

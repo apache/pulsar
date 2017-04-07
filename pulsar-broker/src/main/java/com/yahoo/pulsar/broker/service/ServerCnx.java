@@ -232,61 +232,30 @@ public class ServerCnx extends PulsarHandler {
         }
 
         final long requestId = commandConsumerStats.getRequestId();
-        final String topicName = commandConsumerStats.getTopicName();
-        final String subscriptionName = commandConsumerStats.getSubscriptionName();
         final long consumerId = commandConsumerStats.getConsumerId();
-        
-        if (log.isDebugEnabled()) {
-            log.debug("CommandConsumerStats[requestId = {}, topicName = {}, subscriptionName = {}, consumerId = {}]", requestId, topicName, subscriptionName, consumerId);
-        }
-        
+        CompletableFuture<Consumer> consumerFuture = consumers.get(consumerId);
+        Consumer consumer = consumerFuture.getNow(null);
         ByteBuf msg = null;
-        try {
-            PersistentTopic topic = (PersistentTopic) getBrokerService().getTopicReference(topicName);
-            if (topic != null) {
-                if (topic.getSubscriptions().containsKey(subscriptionName)) {
-                    PersistentSubscription subscription = topic.getSubscriptions().get(subscriptionName);
-                    boolean consumerFound = false;
-                    for (Consumer consumer : subscription.getConsumers()) {
-                        if (consumer.consumerId() == consumerId) {
-                            consumerFound = true;
-                            msg = Commands.newConsumerStatsResponse(createConsumerStatsResponse(consumer, subscription, requestId));
-                            break;
-                        }
-                    }
-                    if (!consumerFound) {
-                        log.error(
-                                "Failed to get consumer-stats response - Consumer not found for CommandConsumerStats[remoteAddress = {}, requestId = {}, topicName = {}, subscriptionName = {}, consumerId = {}]",
-                                remoteAddress, requestId, topicName, subscriptionName, consumerId);
-                        msg = Commands.newConsumerStatsResponse(ServerError.ConsumerNotFound,
-                                "Consumer " + consumerId + " not found", requestId);
-                    }
-                } else {
-                    log.error(
-                            "Failed to get consumer-stats response - Subscription  not found for CommandConsumerStats[remoteAddress = {}, requestId = {}, topicName = {}, subscriptionName = {}, consumerId = {}]",
-                            remoteAddress, requestId, topicName, subscriptionName, consumerId);
-                    msg = Commands.newConsumerStatsResponse(ServerError.SubscriptionNotFound,
-                            "Subscription " + subscriptionName + " not found", requestId);
-                }
-            } else {
-                log.error(
-                        "Failed to get consumer-stats response - Topic not found for CommandConsumerStats[remoteAddress = {}, requestId = {}, topicName = {}, subscriptionName = {}, consumerId = {}]",
-                        remoteAddress, requestId, topicName, subscriptionName, consumerId);
-                msg = Commands.newConsumerStatsResponse(ServerError.TopicNotFound, "Topic " + topicName + " not found",
-                        requestId);
-            }
-        } catch (Exception e) {
-            log.error("Failed to get consumer-stats response - Exception: {} for CommandConsumerStats[remoteAddress = {}, requestId = {}, topicName = {}, subscriptionName = {}, consumerId = {}]", 
-                    e, remoteAddress, requestId, topicName, subscriptionName, consumerId);
-            msg = Commands.newConsumerStatsResponse(ServerError.UnknownError, "Exception: " + e, requestId);
-        } finally {
-            if (msg != null) {
-                ctx.writeAndFlush(msg);
-            }
+
+        if (log.isDebugEnabled()) {
+            log.debug("CommandConsumerStats[requestId = {}, consumerId = {}]",
+                    requestId, consumerId);
         }
+
+        if (consumer == null) {
+            log.error(
+                    "Failed to get consumer-stats response - Consumer not found for CommandConsumerStats[remoteAddress = {}, requestId = {}, consumerId = {}]",
+                    remoteAddress, requestId, consumerId);
+            msg = Commands.newConsumerStatsResponse(ServerError.ConsumerNotFound,
+                    "Consumer " + consumerId + " not found", requestId);
+        } else {
+            msg = Commands.newConsumerStatsResponse(createConsumerStatsResponse(consumer, requestId));
+        }
+
+        ctx.writeAndFlush(msg);
     }
 
-    CommandConsumerStatsResponse.Builder createConsumerStatsResponse(Consumer consumer, PersistentSubscription subscription, long requestId) {
+    CommandConsumerStatsResponse.Builder createConsumerStatsResponse(Consumer consumer, long requestId) {
         CommandConsumerStatsResponse.Builder commandConsumerStatsResponseBuilder = CommandConsumerStatsResponse
                 .newBuilder();
         ConsumerStats consumerStats = consumer.getStats();
@@ -301,9 +270,19 @@ public class ServerCnx extends PulsarHandler {
         commandConsumerStatsResponseBuilder.setAddress(consumerStats.address);
         commandConsumerStatsResponseBuilder.setConnectedSince(consumerStats.connectedSince);
         
-        commandConsumerStatsResponseBuilder.setType(subscription.getTypeString());
-        commandConsumerStatsResponseBuilder.setMsgRateExpired(subscription.getExpiredMessageRate());
+        Subscription subscription = consumer.getSubscription();
         commandConsumerStatsResponseBuilder.setMsgBacklog(subscription.getNumberOfEntriesInBacklog());
+        
+        String subsTypeString = "Null";
+        double msgExpireRate = -1; 
+        if (subscription instanceof PersistentSubscription) {
+            msgExpireRate = ((PersistentSubscription)subscription).getExpiredMessageRate();
+            subsTypeString = ((PersistentSubscription)subscription).getTypeString();
+        }
+        
+        commandConsumerStatsResponseBuilder.setType(subsTypeString);
+        commandConsumerStatsResponseBuilder.setMsgRateExpired(msgExpireRate);
+
         return commandConsumerStatsResponseBuilder;
     }
 
