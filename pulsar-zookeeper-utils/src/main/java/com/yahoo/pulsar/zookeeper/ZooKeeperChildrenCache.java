@@ -96,7 +96,7 @@ public class ZooKeeperChildrenCache implements Watcher, CacheUpdater<Set<String>
         }
     }
 
-    public void shutdown() {
+    public void close() {
         isShutdown.set(true);
     }
 }
