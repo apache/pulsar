@@ -18,6 +18,8 @@ package com.yahoo.pulsar.broker.loadbalance;
 import com.yahoo.pulsar.broker.PulsarServerException;
 import com.yahoo.pulsar.broker.PulsarService;
 import com.yahoo.pulsar.common.naming.ServiceUnitId;
+import com.yahoo.pulsar.common.policies.data.loadbalancer.ServiceLookupData;
+import com.yahoo.pulsar.zookeeper.ZooKeeperCache.Deserializer;
 
 /**
  * New proposal for a load manager interface which attempts to use more intuitive method names and provide a starting
@@ -88,4 +90,11 @@ public interface ModularLoadManager {
      * As the leader broker, write bundle data aggregated from all brokers to ZooKeeper.
      */
     void writeBundleDataOnZooKeeper();
+
+    /**
+     * Return :{@link Deserializer} to deserialize load-manager load report
+     * 
+     * @return
+     */
+    Deserializer<? extends ServiceLookupData> getLoadReportDeserializer();
 }

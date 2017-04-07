@@ -26,6 +26,8 @@ import com.yahoo.pulsar.broker.loadbalance.ResourceUnit;
 import com.yahoo.pulsar.broker.stats.Metrics;
 import com.yahoo.pulsar.common.naming.ServiceUnitId;
 import com.yahoo.pulsar.common.policies.data.loadbalancer.LoadReport;
+import com.yahoo.pulsar.common.policies.data.loadbalancer.ServiceLookupData;
+import com.yahoo.pulsar.zookeeper.ZooKeeperCache.Deserializer;
 
 /**
  * Wrapper class allowing classes of instance ModularLoadManager to be compatible with the interface LoadManager.
@@ -102,5 +104,10 @@ public class ModularLoadManagerWrapper implements LoadManager {
     @Override
     public void writeResourceQuotasToZooKeeper() {
         loadManager.writeBundleDataOnZooKeeper();
+    }
+
+    @Override
+    public Deserializer<? extends ServiceLookupData> getLoadReportDeserializer() {
+        return loadManager.getLoadReportDeserializer();
     }
 }

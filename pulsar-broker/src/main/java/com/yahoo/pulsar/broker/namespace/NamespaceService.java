@@ -150,10 +150,6 @@ public class NamespaceService {
         return bundleFactory.getFullBundle(fqnn);
     }
 
-    private static final Deserializer<ServiceLookupData> serviceLookupDataDeserializer = (key, content) ->
-            jsonMapper().readValue(content, ServiceLookupData.class);
-
-
 	public URL getWebServiceUrl(ServiceUnitId suName, boolean authoritative, boolean isRequestHttps, boolean readOnly)
 			throws Exception {
         if (suName instanceof DestinationName) {
@@ -399,7 +395,7 @@ public class NamespaceService {
         }
     }
 
-    private CompletableFuture<LookupResult> createLookupResult(String candidateBroker) throws Exception {
+    protected CompletableFuture<LookupResult> createLookupResult(String candidateBroker) throws Exception {
 
         CompletableFuture<LookupResult> lookupFuture = new CompletableFuture<>();
         try {
@@ -407,7 +403,7 @@ public class NamespaceService {
             URI uri = new URI(candidateBroker);
             String path = String.format("%s/%s:%s", LoadManager.LOADBALANCE_BROKERS_ROOT, uri.getHost(),
                     uri.getPort());
-            pulsar.getLocalZkCache().getDataAsync(path, serviceLookupDataDeserializer).thenAccept(reportData -> {
+            pulsar.getLocalZkCache().getDataAsync(path, pulsar.getLoadManager().get().getLoadReportDeserializer()).thenAccept(reportData -> {
                 if (reportData.isPresent()) {
                     ServiceLookupData lookupData = reportData.get();
                     lookupFuture.complete(new LookupResult(lookupData.getWebServiceUrl(),
