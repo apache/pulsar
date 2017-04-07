@@ -362,11 +362,11 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
                         brokerDataMap.put(broker, new BrokerData(localData));
                     }
                 } catch (Exception e) {
-                    log.warn("Error reading broker data from cache for broker - [{}], [{}]", broker, e);
+                    log.warn("Error reading broker data from cache for broker - [{}], [{}]", broker, e.getMessage());
                 }
             }
         } catch (Exception e) {
-            log.warn("Error reading active brokers list from zookeeper while updating broker data [{}]", e);
+            log.warn("Error reading active brokers list from zookeeper while updating broker data [{}]", e.getMessage());
         }
     }
 
@@ -554,6 +554,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
     @Override
     public void stop() throws PulsarServerException {
         availableActiveBrokers.shutdown();
+        brokerDataCache.clear();
         brokerDataCache.shutdown();
         scheduler.shutdown();
     }
