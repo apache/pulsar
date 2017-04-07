@@ -15,29 +15,34 @@
  */
 package com.yahoo.pulsar.broker.namespace;
 
-import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
-import com.google.common.collect.Lists;
-import com.google.common.hash.Hashing;
-import com.yahoo.pulsar.broker.LocalBrokerData;
-import com.yahoo.pulsar.broker.loadbalance.LoadManager;
-import com.yahoo.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
-import com.yahoo.pulsar.broker.loadbalance.impl.ModularLoadManagerWrapper;
-import com.yahoo.pulsar.broker.lookup.LookupResult;
-import com.yahoo.pulsar.broker.service.BrokerTestBase;
-import com.yahoo.pulsar.broker.service.Topic;
-import com.yahoo.pulsar.broker.service.persistent.PersistentTopic;
-import com.yahoo.pulsar.client.api.Consumer;
-import com.yahoo.pulsar.client.api.ConsumerConfiguration;
-import com.yahoo.pulsar.common.naming.*;
-import com.yahoo.pulsar.common.policies.data.Policies;
-import com.yahoo.pulsar.common.policies.data.loadbalancer.LoadReport;
-import com.yahoo.pulsar.common.util.ObjectMapperFactory;
-import com.yahoo.pulsar.common.util.collections.ConcurrentOpenHashMap;
+import static com.yahoo.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
+import static com.yahoo.pulsar.broker.web.PulsarWebResource.joinPath;
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
+
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.net.URI;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.zookeeper.CreateMode;
+import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.data.Stat;
 import org.mockito.invocation.InvocationOnMock;
@@ -49,19 +54,35 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
-import java.net.URI;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-
-import static com.yahoo.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
-import static com.yahoo.pulsar.broker.web.PulsarWebResource.joinPath;
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.*;
-import static org.testng.Assert.*;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
+import com.google.common.collect.Lists;
+import com.google.common.hash.Hashing;
+import com.yahoo.pulsar.broker.LocalBrokerData;
+import com.yahoo.pulsar.broker.PulsarServerException;
+import com.yahoo.pulsar.broker.PulsarService;
+import com.yahoo.pulsar.broker.loadbalance.LoadManager;
+import com.yahoo.pulsar.broker.loadbalance.ModularLoadManager;
+import com.yahoo.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
+import com.yahoo.pulsar.broker.loadbalance.impl.ModularLoadManagerWrapper;
+import com.yahoo.pulsar.broker.lookup.LookupResult;
+import com.yahoo.pulsar.broker.service.BrokerTestBase;
+import com.yahoo.pulsar.broker.service.Topic;
+import com.yahoo.pulsar.broker.service.persistent.PersistentTopic;
+import com.yahoo.pulsar.client.api.Consumer;
+import com.yahoo.pulsar.client.api.ConsumerConfiguration;
+import com.yahoo.pulsar.common.naming.DestinationName;
+import com.yahoo.pulsar.common.naming.NamespaceBundle;
+import com.yahoo.pulsar.common.naming.NamespaceBundleFactory;
+import com.yahoo.pulsar.common.naming.NamespaceBundles;
+import com.yahoo.pulsar.common.naming.NamespaceName;
+import com.yahoo.pulsar.common.naming.ServiceUnitId;
+import com.yahoo.pulsar.common.policies.data.Policies;
+import com.yahoo.pulsar.common.policies.data.loadbalancer.LoadReport;
+import com.yahoo.pulsar.common.policies.data.loadbalancer.ServiceLookupData;
+import com.yahoo.pulsar.common.util.ObjectMapperFactory;
+import com.yahoo.pulsar.common.util.collections.ConcurrentOpenHashMap;
+import com.yahoo.pulsar.zookeeper.ZooKeeperCache.Deserializer;
 
 public class NamespaceServiceTest extends BrokerTestBase {
 
@@ -311,7 +332,6 @@ public class NamespaceServiceTest extends BrokerTestBase {
         Assert.assertEquals(result1.getLookupData().getBrokerUrl(), candidateBroker1);
         Assert.assertEquals(result2.getLookupData().getBrokerUrl(), candidateBroker2);
         System.out.println(result2);
-
     }
 
     @SuppressWarnings("unchecked")
