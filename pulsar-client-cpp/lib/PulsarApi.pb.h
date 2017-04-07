@@ -3530,10 +3530,34 @@ class CommandConsumerStats : public ::google::protobuf::MessageLite {
   inline ::google::protobuf::uint64 request_id() const;
   inline void set_request_id(::google::protobuf::uint64 value);
 
-  // required uint64 consumer_id = 2;
+  // optional string topic_name = 2 [default = ""];
+  inline bool has_topic_name() const;
+  inline void clear_topic_name();
+  static const int kTopicNameFieldNumber = 2;
+  inline const ::std::string& topic_name() const;
+  inline void set_topic_name(const ::std::string& value);
+  inline void set_topic_name(const char* value);
+  inline void set_topic_name(const char* value, size_t size);
+  inline ::std::string* mutable_topic_name();
+  inline ::std::string* release_topic_name();
+  inline void set_allocated_topic_name(::std::string* topic_name);
+
+  // optional string subscription_name = 3 [default = ""];
+  inline bool has_subscription_name() const;
+  inline void clear_subscription_name();
+  static const int kSubscriptionNameFieldNumber = 3;
+  inline const ::std::string& subscription_name() const;
+  inline void set_subscription_name(const ::std::string& value);
+  inline void set_subscription_name(const char* value);
+  inline void set_subscription_name(const char* value, size_t size);
+  inline ::std::string* mutable_subscription_name();
+  inline ::std::string* release_subscription_name();
+  inline void set_allocated_subscription_name(::std::string* subscription_name);
+
+  // required uint64 consumer_id = 4;
   inline bool has_consumer_id() const;
   inline void clear_consumer_id();
-  static const int kConsumerIdFieldNumber = 2;
+  static const int kConsumerIdFieldNumber = 4;
   inline ::google::protobuf::uint64 consumer_id() const;
   inline void set_consumer_id(::google::protobuf::uint64 value);
 
@@ -3541,6 +3565,10 @@ class CommandConsumerStats : public ::google::protobuf::MessageLite {
  private:
   inline void set_has_request_id();
   inline void clear_has_request_id();
+  inline void set_has_topic_name();
+  inline void clear_has_topic_name();
+  inline void set_has_subscription_name();
+  inline void clear_has_subscription_name();
   inline void set_has_consumer_id();
   inline void clear_has_consumer_id();
 
@@ -3549,6 +3577,8 @@ class CommandConsumerStats : public ::google::protobuf::MessageLite {
   ::google::protobuf::uint32 _has_bits_[1];
   mutable int _cached_size_;
   ::google::protobuf::uint64 request_id_;
+  ::std::string* topic_name_;
+  ::std::string* subscription_name_;
   ::google::protobuf::uint64 consumer_id_;
   #ifdef GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER
   friend void  protobuf_AddDesc_PulsarApi_2eproto_impl();
@@ -7817,15 +7847,167 @@ inline void CommandConsumerStats::set_request_id(::google::protobuf::uint64 valu
   // @@protoc_insertion_point(field_set:pulsar.proto.CommandConsumerStats.request_id)
 }
 
-// required uint64 consumer_id = 2;
-inline bool CommandConsumerStats::has_consumer_id() const {
+// optional string topic_name = 2 [default = ""];
+inline bool CommandConsumerStats::has_topic_name() const {
   return (_has_bits_[0] & 0x00000002u) != 0;
 }
-inline void CommandConsumerStats::set_has_consumer_id() {
+inline void CommandConsumerStats::set_has_topic_name() {
   _has_bits_[0] |= 0x00000002u;
 }
-inline void CommandConsumerStats::clear_has_consumer_id() {
+inline void CommandConsumerStats::clear_has_topic_name() {
   _has_bits_[0] &= ~0x00000002u;
+}
+inline void CommandConsumerStats::clear_topic_name() {
+  if (topic_name_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+    topic_name_->clear();
+  }
+  clear_has_topic_name();
+}
+inline const ::std::string& CommandConsumerStats::topic_name() const {
+  // @@protoc_insertion_point(field_get:pulsar.proto.CommandConsumerStats.topic_name)
+  return *topic_name_;
+}
+inline void CommandConsumerStats::set_topic_name(const ::std::string& value) {
+  set_has_topic_name();
+  if (topic_name_ == &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+    topic_name_ = new ::std::string;
+  }
+  topic_name_->assign(value);
+  // @@protoc_insertion_point(field_set:pulsar.proto.CommandConsumerStats.topic_name)
+}
+inline void CommandConsumerStats::set_topic_name(const char* value) {
+  set_has_topic_name();
+  if (topic_name_ == &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+    topic_name_ = new ::std::string;
+  }
+  topic_name_->assign(value);
+  // @@protoc_insertion_point(field_set_char:pulsar.proto.CommandConsumerStats.topic_name)
+}
+inline void CommandConsumerStats::set_topic_name(const char* value, size_t size) {
+  set_has_topic_name();
+  if (topic_name_ == &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+    topic_name_ = new ::std::string;
+  }
+  topic_name_->assign(reinterpret_cast<const char*>(value), size);
+  // @@protoc_insertion_point(field_set_pointer:pulsar.proto.CommandConsumerStats.topic_name)
+}
+inline ::std::string* CommandConsumerStats::mutable_topic_name() {
+  set_has_topic_name();
+  if (topic_name_ == &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+    topic_name_ = new ::std::string;
+  }
+  // @@protoc_insertion_point(field_mutable:pulsar.proto.CommandConsumerStats.topic_name)
+  return topic_name_;
+}
+inline ::std::string* CommandConsumerStats::release_topic_name() {
+  clear_has_topic_name();
+  if (topic_name_ == &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+    return NULL;
+  } else {
+    ::std::string* temp = topic_name_;
+    topic_name_ = const_cast< ::std::string*>(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+    return temp;
+  }
+}
+inline void CommandConsumerStats::set_allocated_topic_name(::std::string* topic_name) {
+  if (topic_name_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+    delete topic_name_;
+  }
+  if (topic_name) {
+    set_has_topic_name();
+    topic_name_ = topic_name;
+  } else {
+    clear_has_topic_name();
+    topic_name_ = const_cast< ::std::string*>(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  }
+  // @@protoc_insertion_point(field_set_allocated:pulsar.proto.CommandConsumerStats.topic_name)
+}
+
+// optional string subscription_name = 3 [default = ""];
+inline bool CommandConsumerStats::has_subscription_name() const {
+  return (_has_bits_[0] & 0x00000004u) != 0;
+}
+inline void CommandConsumerStats::set_has_subscription_name() {
+  _has_bits_[0] |= 0x00000004u;
+}
+inline void CommandConsumerStats::clear_has_subscription_name() {
+  _has_bits_[0] &= ~0x00000004u;
+}
+inline void CommandConsumerStats::clear_subscription_name() {
+  if (subscription_name_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+    subscription_name_->clear();
+  }
+  clear_has_subscription_name();
+}
+inline const ::std::string& CommandConsumerStats::subscription_name() const {
+  // @@protoc_insertion_point(field_get:pulsar.proto.CommandConsumerStats.subscription_name)
+  return *subscription_name_;
+}
+inline void CommandConsumerStats::set_subscription_name(const ::std::string& value) {
+  set_has_subscription_name();
+  if (subscription_name_ == &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+    subscription_name_ = new ::std::string;
+  }
+  subscription_name_->assign(value);
+  // @@protoc_insertion_point(field_set:pulsar.proto.CommandConsumerStats.subscription_name)
+}
+inline void CommandConsumerStats::set_subscription_name(const char* value) {
+  set_has_subscription_name();
+  if (subscription_name_ == &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+    subscription_name_ = new ::std::string;
+  }
+  subscription_name_->assign(value);
+  // @@protoc_insertion_point(field_set_char:pulsar.proto.CommandConsumerStats.subscription_name)
+}
+inline void CommandConsumerStats::set_subscription_name(const char* value, size_t size) {
+  set_has_subscription_name();
+  if (subscription_name_ == &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+    subscription_name_ = new ::std::string;
+  }
+  subscription_name_->assign(reinterpret_cast<const char*>(value), size);
+  // @@protoc_insertion_point(field_set_pointer:pulsar.proto.CommandConsumerStats.subscription_name)
+}
+inline ::std::string* CommandConsumerStats::mutable_subscription_name() {
+  set_has_subscription_name();
+  if (subscription_name_ == &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+    subscription_name_ = new ::std::string;
+  }
+  // @@protoc_insertion_point(field_mutable:pulsar.proto.CommandConsumerStats.subscription_name)
+  return subscription_name_;
+}
+inline ::std::string* CommandConsumerStats::release_subscription_name() {
+  clear_has_subscription_name();
+  if (subscription_name_ == &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+    return NULL;
+  } else {
+    ::std::string* temp = subscription_name_;
+    subscription_name_ = const_cast< ::std::string*>(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+    return temp;
+  }
+}
+inline void CommandConsumerStats::set_allocated_subscription_name(::std::string* subscription_name) {
+  if (subscription_name_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+    delete subscription_name_;
+  }
+  if (subscription_name) {
+    set_has_subscription_name();
+    subscription_name_ = subscription_name;
+  } else {
+    clear_has_subscription_name();
+    subscription_name_ = const_cast< ::std::string*>(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  }
+  // @@protoc_insertion_point(field_set_allocated:pulsar.proto.CommandConsumerStats.subscription_name)
+}
+
+// required uint64 consumer_id = 4;
+inline bool CommandConsumerStats::has_consumer_id() const {
+  return (_has_bits_[0] & 0x00000008u) != 0;
+}
+inline void CommandConsumerStats::set_has_consumer_id() {
+  _has_bits_[0] |= 0x00000008u;
+}
+inline void CommandConsumerStats::clear_has_consumer_id() {
+  _has_bits_[0] &= ~0x00000008u;
 }
 inline void CommandConsumerStats::clear_consumer_id() {
   consumer_id_ = GOOGLE_ULONGLONG(0);

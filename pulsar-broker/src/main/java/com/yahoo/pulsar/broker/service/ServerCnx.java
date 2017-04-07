@@ -271,16 +271,8 @@ public class ServerCnx extends PulsarHandler {
         
         Subscription subscription = consumer.getSubscription();
         commandConsumerStatsResponseBuilder.setMsgBacklog(subscription.getNumberOfEntriesInBacklog());
-        
-        String subsTypeString = "Null";
-        double msgExpireRate = -1; 
-        if (subscription instanceof PersistentSubscription) {
-            msgExpireRate = ((PersistentSubscription)subscription).getExpiredMessageRate();
-            subsTypeString = ((PersistentSubscription)subscription).getTypeString();
-        }
-        
-        commandConsumerStatsResponseBuilder.setType(subsTypeString);
-        commandConsumerStatsResponseBuilder.setMsgRateExpired(msgExpireRate);
+        commandConsumerStatsResponseBuilder.setMsgRateExpired(subscription.getExpiredMessageRate());
+        commandConsumerStatsResponseBuilder.setType(subscription.getTypeString());
 
         return commandConsumerStatsResponseBuilder;
     }
