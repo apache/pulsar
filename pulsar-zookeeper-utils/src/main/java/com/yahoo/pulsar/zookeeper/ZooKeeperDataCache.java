@@ -138,7 +138,7 @@ public abstract class ZooKeeperDataCache<T> implements Deserializer<T>, CacheUpd
     @Override
     public void process(WatchedEvent event) {
         LOG.info("[{}] Received ZooKeeper watch event: {}", cache.zkSession.get(), event);
-        if (IS_SHUTDOWN_UPDATER.get(this) == TRUE) {
+        if (IS_SHUTDOWN_UPDATER.get(this) == FALSE) {
             cache.process(event, this);
         }
     }
