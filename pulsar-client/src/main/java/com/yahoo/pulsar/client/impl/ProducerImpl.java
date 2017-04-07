@@ -730,14 +730,6 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
                         cnx.channel().close();
                         return null;
                     }
-                    
-                    if (client.getConfiguration().getConnectionsPerBroker() == 0) {
-                        // Pooling is disabled - we have only one consumer/producer per connection
-                        // Hence we can close the connection before attempting to reconnect.
-                        log.info("Closing the connection {} before trying to reconnect ", cnx.channel().remoteAddress());
-                        cnx.channel().close();
-                    }
-                    
                     log.error("[{}] [{}] Failed to create producer: {}", topic, producerName,
                             e.getCause().getMessage());
 
