@@ -22,7 +22,7 @@
 	<parent>
 		<groupId>com.yahoo.pulsar</groupId>
 		<artifactId>pulsar</artifactId>
-		<version>1.17.2-SNAPSHOT</version>
+		<version>1.17.2</version>
 		<relativePath>..</relativePath>
 	</parent>
 
