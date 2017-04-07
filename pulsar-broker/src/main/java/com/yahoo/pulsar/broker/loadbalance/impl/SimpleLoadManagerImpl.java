@@ -75,9 +75,11 @@ import com.yahoo.pulsar.common.policies.data.loadbalancer.ResourceUnitRanking;
 import com.yahoo.pulsar.common.policies.data.loadbalancer.SystemResourceUsage;
 import com.yahoo.pulsar.common.policies.data.loadbalancer.SystemResourceUsage.ResourceType;
 import com.yahoo.pulsar.common.util.ObjectMapperFactory;
+import com.yahoo.pulsar.zookeeper.ZooKeeperCache.Deserializer;
 import com.yahoo.pulsar.zookeeper.ZooKeeperCacheListener;
 import com.yahoo.pulsar.zookeeper.ZooKeeperChildrenCache;
 import com.yahoo.pulsar.zookeeper.ZooKeeperDataCache;
+import static com.yahoo.pulsar.broker.admin.AdminResource.jsonMapper;
 
 public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListener<LoadReport> {
 
@@ -176,6 +178,8 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
     private long lastResourceUsageTimestamp = -1;
     // flag to force update load report
     private boolean forceLoadReportUpdate = false;
+    private static final Deserializer<LoadReport> loadReportDeserializer = (key, content) -> jsonMapper()
+            .readValue(content, LoadReport.class); 
 
     // Perform initializations which may be done without a PulsarService.
     public SimpleLoadManagerImpl() {
@@ -313,6 +317,11 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
         if (isNotEmpty(brokerZnodePath)) {
             pulsar.getZkClient().delete(brokerZnodePath, -1);
         }
+    }
+
+    @Override
+    public Deserializer<LoadReport> getLoadReportDeserializer() {
+        return loadReportDeserializer;
     }
 
     public ZooKeeperChildrenCache getActiveBrokersCache() {

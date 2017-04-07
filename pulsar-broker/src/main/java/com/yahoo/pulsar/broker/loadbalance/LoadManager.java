@@ -27,6 +27,8 @@ import com.yahoo.pulsar.common.naming.ServiceUnitId;
 import com.yahoo.pulsar.common.policies.data.loadbalancer.LoadReport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.yahoo.pulsar.common.policies.data.loadbalancer.ServiceLookupData;
+import com.yahoo.pulsar.zookeeper.ZooKeeperCache.Deserializer;
 
 /**
  * LoadManager runs though set of load reports collected from different brokers and generates a recommendation of
@@ -56,6 +58,13 @@ public interface LoadManager {
      * Generate the load report
      */
     LoadReport generateLoadReport() throws Exception;
+    
+    /**
+     * Returns {@link Deserializer} to deserialize load report 
+     * 
+     * @return
+     */
+    Deserializer<? extends ServiceLookupData> getLoadReportDeserializer();
 
     /**
      * Set flag to force load report update
