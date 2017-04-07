@@ -198,7 +198,7 @@ void ClientConnection::handlePulsarConnected(const CommandConnected& cmdConnecte
                 boost::bind(&ClientConnection::handleKeepAliveTimeout, shared_from_this()));
     }
 
-    if (serverProtocolVersion_ >= v7) {
+    if (serverProtocolVersion_ >= v8) {
         startConsumerStatsTimer(std::vector<uint64_t>());
     }
 }

@@ -193,6 +193,7 @@ bool ProtocolVersion_IsValid(int value) {
     case 5:
     case 6:
     case 7:
+    case 8:
       return true;
     default:
       return false;
@@ -7963,8 +7964,6 @@ void CommandPong::Swap(CommandPong* other) {
 
 #ifndef _MSC_VER
 const int CommandConsumerStats::kRequestIdFieldNumber;
-const int CommandConsumerStats::kTopicNameFieldNumber;
-const int CommandConsumerStats::kSubscriptionNameFieldNumber;
 const int CommandConsumerStats::kConsumerIdFieldNumber;
 #endif  // !_MSC_VER
 
@@ -7985,11 +7984,8 @@ CommandConsumerStats::CommandConsumerStats(const CommandConsumerStats& from)
 }
 
 void CommandConsumerStats::SharedCtor() {
-  ::google::protobuf::internal::GetEmptyString();
   _cached_size_ = 0;
   request_id_ = GOOGLE_ULONGLONG(0);
-  topic_name_ = const_cast< ::std::string*>(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-  subscription_name_ = const_cast< ::std::string*>(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
   consumer_id_ = GOOGLE_ULONGLONG(0);
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
@@ -8000,12 +7996,6 @@ CommandConsumerStats::~CommandConsumerStats() {
 }
 
 void CommandConsumerStats::SharedDtor() {
-  if (topic_name_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
-    delete topic_name_;
-  }
-  if (subscription_name_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
-    delete subscription_name_;
-  }
   #ifdef GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER
   if (this != &default_instance()) {
   #else
@@ -8035,20 +8025,21 @@ CommandConsumerStats* CommandConsumerStats::New() const {
 }
 
 void CommandConsumerStats::Clear() {
-  if (_has_bits_[0 / 32] & 15) {
-    request_id_ = GOOGLE_ULONGLONG(0);
-    if (has_topic_name()) {
-      if (topic_name_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
-        topic_name_->clear();
-      }
-    }
-    if (has_subscription_name()) {
-      if (subscription_name_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
-        subscription_name_->clear();
-      }
-    }
-    consumer_id_ = GOOGLE_ULONGLONG(0);
-  }
+#define OFFSET_OF_FIELD_(f) (reinterpret_cast<char*>(      \
+  &reinterpret_cast<CommandConsumerStats*>(16)->f) - \
+   reinterpret_cast<char*>(16))
+
+#define ZR_(first, last) do {                              \
+    size_t f = OFFSET_OF_FIELD_(first);                    \
+    size_t n = OFFSET_OF_FIELD_(last) - f + sizeof(last);  \
+    ::memset(&first, 0, n);                                \
+  } while (0)
+
+  ZR_(request_id_, consumer_id_);
+
+#undef OFFSET_OF_FIELD_
+#undef ZR_
+
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
   mutable_unknown_fields()->clear();
 }
@@ -8077,39 +8068,13 @@ bool CommandConsumerStats::MergePartialFromCodedStream(
         } else {
           goto handle_unusual;
         }
-        if (input->ExpectTag(18)) goto parse_topic_name;
+        if (input->ExpectTag(16)) goto parse_consumer_id;
         break;
       }
 
-      // optional string topic_name = 2 [default = ""];
+      // required uint64 consumer_id = 2;
       case 2: {
-        if (tag == 18) {
-         parse_topic_name:
-          DO_(::google::protobuf::internal::WireFormatLite::ReadString(
-                input, this->mutable_topic_name()));
-        } else {
-          goto handle_unusual;
-        }
-        if (input->ExpectTag(26)) goto parse_subscription_name;
-        break;
-      }
-
-      // optional string subscription_name = 3 [default = ""];
-      case 3: {
-        if (tag == 26) {
-         parse_subscription_name:
-          DO_(::google::protobuf::internal::WireFormatLite::ReadString(
-                input, this->mutable_subscription_name()));
-        } else {
-          goto handle_unusual;
-        }
-        if (input->ExpectTag(32)) goto parse_consumer_id;
-        break;
-      }
-
-      // required uint64 consumer_id = 4;
-      case 4: {
-        if (tag == 32) {
+        if (tag == 16) {
          parse_consumer_id:
           DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
                    ::google::protobuf::uint64, ::google::protobuf::internal::WireFormatLite::TYPE_UINT64>(
@@ -8152,21 +8117,9 @@ void CommandConsumerStats::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormatLite::WriteUInt64(1, this->request_id(), output);
   }
 
-  // optional string topic_name = 2 [default = ""];
-  if (has_topic_name()) {
-    ::google::protobuf::internal::WireFormatLite::WriteStringMaybeAliased(
-      2, this->topic_name(), output);
-  }
-
-  // optional string subscription_name = 3 [default = ""];
-  if (has_subscription_name()) {
-    ::google::protobuf::internal::WireFormatLite::WriteStringMaybeAliased(
-      3, this->subscription_name(), output);
-  }
-
-  // required uint64 consumer_id = 4;
+  // required uint64 consumer_id = 2;
   if (has_consumer_id()) {
-    ::google::protobuf::internal::WireFormatLite::WriteUInt64(4, this->consumer_id(), output);
+    ::google::protobuf::internal::WireFormatLite::WriteUInt64(2, this->consumer_id(), output);
   }
 
   output->WriteRaw(unknown_fields().data(),
@@ -8185,21 +8138,7 @@ int CommandConsumerStats::ByteSize() const {
           this->request_id());
     }
 
-    // optional string topic_name = 2 [default = ""];
-    if (has_topic_name()) {
-      total_size += 1 +
-        ::google::protobuf::internal::WireFormatLite::StringSize(
-          this->topic_name());
-    }
-
-    // optional string subscription_name = 3 [default = ""];
-    if (has_subscription_name()) {
-      total_size += 1 +
-        ::google::protobuf::internal::WireFormatLite::StringSize(
-          this->subscription_name());
-    }
-
-    // required uint64 consumer_id = 4;
+    // required uint64 consumer_id = 2;
     if (has_consumer_id()) {
       total_size += 1 +
         ::google::protobuf::internal::WireFormatLite::UInt64Size(
@@ -8226,12 +8165,6 @@ void CommandConsumerStats::MergeFrom(const CommandConsumerStats& from) {
     if (from.has_request_id()) {
       set_request_id(from.request_id());
     }
-    if (from.has_topic_name()) {
-      set_topic_name(from.topic_name());
-    }
-    if (from.has_subscription_name()) {
-      set_subscription_name(from.subscription_name());
-    }
     if (from.has_consumer_id()) {
       set_consumer_id(from.consumer_id());
     }
@@ -8246,7 +8179,7 @@ void CommandConsumerStats::CopyFrom(const CommandConsumerStats& from) {
 }
 
 bool CommandConsumerStats::IsInitialized() const {
-  if ((_has_bits_[0] & 0x00000009) != 0x00000009) return false;
+  if ((_has_bits_[0] & 0x00000003) != 0x00000003) return false;
 
   return true;
 }
@@ -8254,8 +8187,6 @@ bool CommandConsumerStats::IsInitialized() const {
 void CommandConsumerStats::Swap(CommandConsumerStats* other) {
   if (other != this) {
     std::swap(request_id_, other->request_id_);
-    std::swap(topic_name_, other->topic_name_);
-    std::swap(subscription_name_, other->subscription_name_);
     std::swap(consumer_id_, other->consumer_id_);
     std::swap(_has_bits_[0], other->_has_bits_[0]);
     _unknown_fields_.swap(other->_unknown_fields_);

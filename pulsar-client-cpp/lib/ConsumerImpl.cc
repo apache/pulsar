@@ -705,7 +705,7 @@ void ConsumerImpl::getBrokerConsumerStatsAsync(BrokerConsumerStatsCallback callb
 
     ClientConnectionPtr cnx = getCnx().lock();
     if (cnx) {
-        if (cnx->getServerProtocolVersion() >= proto::v7) {
+        if (cnx->getServerProtocolVersion() >= proto::v8) {
             ClientImplPtr client = client_.lock();
             uint64_t requestId = client->newRequestId();
             LOG_DEBUG(getName() <<

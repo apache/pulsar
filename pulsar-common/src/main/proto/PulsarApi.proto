@@ -100,7 +100,8 @@ enum ProtocolVersion {
 	v4 = 4;  // Added batch message support
 	v5 = 5;  // Added disconnect client w/o closing connection
 	v6 = 6;  // Added checksum computation for metadata + payload
-	v7 = 7;  // Added Lookup and GetStats Command
+	v7 = 7;  // Added Lookup and CommandConsumerStats Command
+    v8 = 8;  // Modified the CommandConsumerStats Command
 }
 
 message CommandConnect {
@@ -285,9 +286,7 @@ message CommandPong {
 
 message CommandConsumerStats {
         required uint64 request_id         = 1;
-        optional string topic_name         = 2 [default = ""];/* Not used */
-        optional string subscription_name  = 3 [default = ""];/* Not used */
-        required uint64 consumer_id        = 4;
+        required uint64 consumer_id        = 2;
 }
 
 message CommandConsumerStatsResponse {
