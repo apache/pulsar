@@ -237,11 +237,6 @@ public class ServerCnx extends PulsarHandler {
         Consumer consumer = consumerFuture.getNow(null);
         ByteBuf msg = null;
 
-        if (log.isDebugEnabled()) {
-            log.debug("CommandConsumerStats[requestId = {}, consumerId = {}]",
-                    requestId, consumerId);
-        }
-
         if (consumer == null) {
             log.error(
                     "Failed to get consumer-stats response - Consumer not found for CommandConsumerStats[remoteAddress = {}, requestId = {}, consumerId = {}]",
@@ -249,6 +244,10 @@ public class ServerCnx extends PulsarHandler {
             msg = Commands.newConsumerStatsResponse(ServerError.ConsumerNotFound,
                     "Consumer " + consumerId + " not found", requestId);
         } else {
+            if (log.isDebugEnabled()) {
+                log.debug("CommandConsumerStats[requestId = {}, consumer = {}]",
+                        requestId, consumer);
+            }
             msg = Commands.newConsumerStatsResponse(createConsumerStatsResponse(consumer, requestId));
         }
 
