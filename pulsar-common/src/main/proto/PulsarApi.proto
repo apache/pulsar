@@ -100,8 +100,8 @@ enum ProtocolVersion {
 	v4 = 4;  // Added batch message support
 	v5 = 5;  // Added disconnect client w/o closing connection
 	v6 = 6;  // Added checksum computation for metadata + payload
-	v7 = 7;  // Added Lookup and CommandConsumerStats Command
-    v8 = 8;  // Modified the CommandConsumerStats Command
+	v7 = 7;  // Added CommandLookupTopic - Binary Lookup 
+	v8 = 8;  // Added CommandConsumerStats - Client fetches broker side consumer stats
 }
 
 message CommandConnect {
