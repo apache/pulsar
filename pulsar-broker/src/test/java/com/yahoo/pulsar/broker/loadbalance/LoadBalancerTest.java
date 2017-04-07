@@ -39,6 +39,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.bookkeeper.test.PortManager;
@@ -434,9 +435,10 @@ public class LoadBalancerTest {
         loadReportCacheField.setAccessible(true);
         ZooKeeperDataCache<LoadReport> loadReportCache = (ZooKeeperDataCache<LoadReport>) loadReportCacheField
                 .get(loadManager);
-        Field isShutdownField = ZooKeeperDataCache.class.getDeclaredField("isShutdown");
-        isShutdownField.setAccessible(true);
-        assert (((AtomicBoolean) (isShutdownField.get(loadReportCache))).get());
+        Field IS_SHUTDOWN_UPDATER = ZooKeeperDataCache.class.getDeclaredField("IS_SHUTDOWN_UPDATER");
+        IS_SHUTDOWN_UPDATER.setAccessible(true);
+        final int TRUE = 1;
+        assert (((AtomicIntegerFieldUpdater<ZooKeeperDataCache>) (IS_SHUTDOWN_UPDATER.get(loadReportCache))).get(loadReportCache) == TRUE);
     }
 
     private AtomicReference<Map<String, ResourceQuota>> getRealtimeResourceQuota(PulsarService pulsar)
