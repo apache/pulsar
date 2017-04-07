@@ -1429,6 +1429,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
 
     @Override
     public void stop() throws PulsarServerException {
+        loadReportCacheZk.clear();
         loadReportCacheZk.close();
         availableActiveBrokers.close();
         scheduler.shutdown();
