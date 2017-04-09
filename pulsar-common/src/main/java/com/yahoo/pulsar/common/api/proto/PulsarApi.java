@@ -14269,7 +14269,7 @@ public final class PulsarApi {
     boolean hasRequestId();
     long getRequestId();
     
-    // required uint64 consumer_id = 2;
+    // required uint64 consumer_id = 4;
     boolean hasConsumerId();
     long getConsumerId();
   }
@@ -14318,8 +14318,8 @@ public final class PulsarApi {
       return requestId_;
     }
     
-    // required uint64 consumer_id = 2;
-    public static final int CONSUMER_ID_FIELD_NUMBER = 2;
+    // required uint64 consumer_id = 4;
+    public static final int CONSUMER_ID_FIELD_NUMBER = 4;
     private long consumerId_;
     public boolean hasConsumerId() {
       return ((bitField0_ & 0x00000002) == 0x00000002);
@@ -14361,7 +14361,7 @@ public final class PulsarApi {
         output.writeUInt64(1, requestId_);
       }
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
-        output.writeUInt64(2, consumerId_);
+        output.writeUInt64(4, consumerId_);
       }
     }
     
@@ -14377,7 +14377,7 @@ public final class PulsarApi {
       }
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
         size += com.google.protobuf.CodedOutputStream
-          .computeUInt64Size(2, consumerId_);
+          .computeUInt64Size(4, consumerId_);
       }
       memoizedSerializedSize = size;
       return size;
@@ -14591,7 +14591,7 @@ public final class PulsarApi {
               requestId_ = input.readUInt64();
               break;
             }
-            case 16: {
+            case 32: {
               bitField0_ |= 0x00000002;
               consumerId_ = input.readUInt64();
               break;
@@ -14623,7 +14623,7 @@ public final class PulsarApi {
         return this;
       }
       
-      // required uint64 consumer_id = 2;
+      // required uint64 consumer_id = 4;
       private long consumerId_ ;
       public boolean hasConsumerId() {
         return ((bitField0_ & 0x00000002) == 0x00000002);

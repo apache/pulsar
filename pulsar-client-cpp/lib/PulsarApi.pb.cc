@@ -8068,13 +8068,13 @@ bool CommandConsumerStats::MergePartialFromCodedStream(
         } else {
           goto handle_unusual;
         }
-        if (input->ExpectTag(16)) goto parse_consumer_id;
+        if (input->ExpectTag(32)) goto parse_consumer_id;
         break;
       }
 
-      // required uint64 consumer_id = 2;
-      case 2: {
-        if (tag == 16) {
+      // required uint64 consumer_id = 4;
+      case 4: {
+        if (tag == 32) {
          parse_consumer_id:
           DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
                    ::google::protobuf::uint64, ::google::protobuf::internal::WireFormatLite::TYPE_UINT64>(
@@ -8117,9 +8117,9 @@ void CommandConsumerStats::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormatLite::WriteUInt64(1, this->request_id(), output);
   }
 
-  // required uint64 consumer_id = 2;
+  // required uint64 consumer_id = 4;
   if (has_consumer_id()) {
-    ::google::protobuf::internal::WireFormatLite::WriteUInt64(2, this->consumer_id(), output);
+    ::google::protobuf::internal::WireFormatLite::WriteUInt64(4, this->consumer_id(), output);
   }
 
   output->WriteRaw(unknown_fields().data(),
@@ -8138,7 +8138,7 @@ int CommandConsumerStats::ByteSize() const {
           this->request_id());
     }
 
-    // required uint64 consumer_id = 2;
+    // required uint64 consumer_id = 4;
     if (has_consumer_id()) {
       total_size += 1 +
         ::google::protobuf::internal::WireFormatLite::UInt64Size(

@@ -3531,10 +3531,10 @@ class CommandConsumerStats : public ::google::protobuf::MessageLite {
   inline ::google::protobuf::uint64 request_id() const;
   inline void set_request_id(::google::protobuf::uint64 value);
 
-  // required uint64 consumer_id = 2;
+  // required uint64 consumer_id = 4;
   inline bool has_consumer_id() const;
   inline void clear_consumer_id();
-  static const int kConsumerIdFieldNumber = 2;
+  static const int kConsumerIdFieldNumber = 4;
   inline ::google::protobuf::uint64 consumer_id() const;
   inline void set_consumer_id(::google::protobuf::uint64 value);
 
@@ -7818,7 +7818,7 @@ inline void CommandConsumerStats::set_request_id(::google::protobuf::uint64 valu
   // @@protoc_insertion_point(field_set:pulsar.proto.CommandConsumerStats.request_id)
 }
 
-// required uint64 consumer_id = 2;
+// required uint64 consumer_id = 4;
 inline bool CommandConsumerStats::has_consumer_id() const {
   return (_has_bits_[0] & 0x00000002u) != 0;
 }
