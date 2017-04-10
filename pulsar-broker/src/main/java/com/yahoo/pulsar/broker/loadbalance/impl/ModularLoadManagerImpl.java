@@ -493,14 +493,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
         }
         final BundleData data = loadData.getBundleData().computeIfAbsent(bundle, key -> getBundleDataOrDefault(bundle));
         brokerCandidateCache.clear();
-        try {
-            LoadManagerShared.applyPolicies(serviceUnit, policies, brokerCandidateCache, availableActiveBrokers.get());
-        } catch (Exception e) {
-            // This try-catch block is mostly here to catch an exception when calling availableActiveBrokers.get():
-            // We should really only see this if something has gone seriously wrong.
-            log.warn("Error while trying to apply policies: ", e);
-            brokerCandidateCache.addAll(loadData.getBrokerData().keySet());
-        }
+        LoadManagerShared.applyPolicies(serviceUnit, policies, brokerCandidateCache, loadData.getBrokerData().keySet());
         log.info("{} brokers being considered for assignment of {}", brokerCandidateCache.size(), bundle);
 
         // Use the filter pipeline to finalize broker candidates.
