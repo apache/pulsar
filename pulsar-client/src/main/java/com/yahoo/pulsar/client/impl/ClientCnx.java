@@ -433,7 +433,7 @@ public class ClientCnx extends PulsarHandler {
     }
 
     void closeIfNotUsedAgain() {
-        if (producers.size() == 0 && consumers.size() == 0 && isConnectionPoolingDisabled) {
+        if (isConnectionPoolingDisabled && producers.size() == 0 && consumers.size() == 0) {
             // Pooling is disabled, hence if a connection has no producers or consumers, it will be GC'ed
             // Need to free system resources before GC.
             log.info("Closing the connection {} ", ctx.channel().remoteAddress());

@@ -686,7 +686,10 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
     void connectionOpened(final ClientCnx cnx) {
         // we set the cnx reference before registering the producer on the cnx, so if the cnx breaks before creating the
         // producer, it will try to grab a new cnx
-        setClientCnx(cnx);
+        ClientCnx currCnx = getAndSetClientCnx(cnx);
+        if (currCnx != null) {
+            currCnx.removeProducer(producerId);
+        }
         cnx.registerProducer(producerId, this);
 
         log.info("[{}] [{}] Creating producer on cnx {}", topic, producerName, cnx.ctx().channel());
