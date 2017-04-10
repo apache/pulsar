@@ -705,13 +705,13 @@ void ConsumerImpl::getBrokerConsumerStatsAsync(BrokerConsumerStatsCallback callb
 
     ClientConnectionPtr cnx = getCnx().lock();
     if (cnx) {
-        if (cnx->getServerProtocolVersion() >= proto::v7) {
+        if (cnx->getServerProtocolVersion() >= proto::v8) {
             ClientImplPtr client = client_.lock();
             uint64_t requestId = client->newRequestId();
             LOG_DEBUG(getName() <<
                     " Sending ConsumerStats Command for Consumer - " << getConsumerId() << ", requestId - "<<requestId);
 
-            cnx->newConsumerStats(topic_, subscription_, consumerId_, requestId).addListener(
+            cnx->newConsumerStats(consumerId_, requestId).addListener(
                     boost::bind(&ConsumerImpl::brokerConsumerStatsListener, shared_from_this(), _1, _2, callback));
             return;
         } else {
