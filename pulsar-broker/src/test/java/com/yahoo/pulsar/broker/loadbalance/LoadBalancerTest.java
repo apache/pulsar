@@ -38,6 +38,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.bookkeeper.test.PortManager;
@@ -85,6 +87,7 @@ import com.yahoo.pulsar.common.util.ObjectMapperFactory;
 import com.yahoo.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import com.yahoo.pulsar.zookeeper.LocalZooKeeperCache;
 import com.yahoo.pulsar.zookeeper.ZooKeeperCache;
+import com.yahoo.pulsar.zookeeper.ZooKeeperDataCache;
 
 /**
  * Start two brokers in the same cluster and have them connect to the same zookeeper. When the PulsarService starts, it
@@ -279,7 +282,8 @@ public class LoadBalancerTest {
 
     private AtomicReference<Map<Long, Set<ResourceUnit>>> getSortedRanking(PulsarService pulsar)
             throws NoSuchFieldException, IllegalAccessException {
-        Field ranking = ((SimpleLoadManagerImpl) pulsar.getLoadManager().get()).getClass().getDeclaredField("sortedRankings");
+        Field ranking = ((SimpleLoadManagerImpl) pulsar.getLoadManager().get()).getClass()
+                .getDeclaredField("sortedRankings");
         ranking.setAccessible(true);
         AtomicReference<Map<Long, Set<ResourceUnit>>> sortedRanking = (AtomicReference<Map<Long, Set<ResourceUnit>>>) ranking
                 .get(pulsar.getLoadManager().get());
@@ -418,6 +422,23 @@ public class LoadBalancerTest {
                     lookupAddresses[i], actualValue, expectedValue, String.format("%.2f", variation));
             assertTrue(variation < expectedMaxVariation);
         }
+    }
+
+    /**
+     * Ensure that the load manager's zookeeper data cache is shutdown after invoking stop().
+     */
+    @Test
+    public void testStop() throws Exception {
+        final SimpleLoadManagerImpl loadManager = (SimpleLoadManagerImpl) pulsarServices[0].getLoadManager().get();
+        loadManager.stop();
+        Field loadReportCacheField = SimpleLoadManagerImpl.class.getDeclaredField("loadReportCacheZk");
+        loadReportCacheField.setAccessible(true);
+        ZooKeeperDataCache<LoadReport> loadReportCache = (ZooKeeperDataCache<LoadReport>) loadReportCacheField
+                .get(loadManager);
+        Field IS_SHUTDOWN_UPDATER = ZooKeeperDataCache.class.getDeclaredField("IS_SHUTDOWN_UPDATER");
+        IS_SHUTDOWN_UPDATER.setAccessible(true);
+        final int TRUE = 1;
+        assert (((AtomicIntegerFieldUpdater<ZooKeeperDataCache>) (IS_SHUTDOWN_UPDATER.get(loadReportCache))).get(loadReportCache) == TRUE);
     }
 
     private AtomicReference<Map<String, ResourceQuota>> getRealtimeResourceQuota(PulsarService pulsar)

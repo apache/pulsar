@@ -19,6 +19,8 @@ import java.util.List;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
@@ -43,6 +45,13 @@ public abstract class ZooKeeperDataCache<T> implements Deserializer<T>, CacheUpd
 
     private final ZooKeeperCache cache;
     private final List<ZooKeeperCacheListener<T>> listeners = Lists.newCopyOnWriteArrayList();
+
+    private static final int FALSE = 0;
+    private static final int TRUE = 1;
+
+    private static final AtomicIntegerFieldUpdater<ZooKeeperDataCache> IS_SHUTDOWN_UPDATER = AtomicIntegerFieldUpdater
+            .newUpdater(ZooKeeperDataCache.class, "isShutdown");
+    private volatile int isShutdown = FALSE;
 
     public ZooKeeperDataCache(final ZooKeeperCache cache) {
         this.cache = cache;
@@ -131,6 +140,12 @@ public abstract class ZooKeeperDataCache<T> implements Deserializer<T>, CacheUpd
     @Override
     public void process(WatchedEvent event) {
         LOG.info("[{}] Received ZooKeeper watch event: {}", cache.zkSession.get(), event);
-        cache.process(event, this);
+        if (IS_SHUTDOWN_UPDATER.get(this) == FALSE) {
+            cache.process(event, this);
+        }
+    }
+
+    public void close() {
+        IS_SHUTDOWN_UPDATER.set(this, TRUE);
     }
 }

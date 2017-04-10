@@ -361,11 +361,11 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
                         brokerDataMap.put(broker, new BrokerData(localData));
                     }
                 } catch (Exception e) {
-                    log.warn("Error reading broker data from cache for broker - [{}], [{}]", broker, e);
+                    log.warn("Error reading broker data from cache for broker - [{}], [{}]", broker, e.getMessage());
                 }
             }
         } catch (Exception e) {
-            log.warn("Error reading active brokers list from zookeeper while updating broker data [{}]", e);
+            log.warn("Error reading active brokers list from zookeeper while updating broker data [{}]", e.getMessage());
         }
     }
 
@@ -485,19 +485,15 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
      */
     @Override
     public synchronized String selectBrokerForAssignment(final ServiceUnitId serviceUnit) {
-        // ?: Is it too inefficient to make this synchronized? If so, it may be
-        // a good idea to use weighted random
-        // or atomic data.
-
         final String bundle = serviceUnit.toString();
         if (preallocatedBundleToBroker.containsKey(bundle)) {
-            // If the given bundle is already in preallocated, return the
-            // selected broker.
+            // If the given bundle is already in preallocated, return the selected broker.
             return preallocatedBundleToBroker.get(bundle);
         }
         final BundleData data = loadData.getBundleData().computeIfAbsent(bundle, key -> getBundleDataOrDefault(bundle));
         brokerCandidateCache.clear();
         LoadManagerShared.applyPolicies(serviceUnit, policies, brokerCandidateCache, loadData.getBrokerData().keySet());
+        log.info("{} brokers being considered for assignment of {}", brokerCandidateCache.size(), bundle);
 
         // Use the filter pipeline to finalize broker candidates.
         for (BrokerFilter filter : filterPipeline) {
@@ -530,6 +526,9 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
             try {
                 ZkUtils.createFullPathOptimistic(pulsar.getZkClient(), brokerZnodePath, localData.getJsonBytes(),
                         ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
+            } catch (KeeperException.NodeExistsException e) {
+                // Node may already be created by another load manager: in this case update the data.
+                zkClient.setData(brokerZnodePath, localData.getJsonBytes(), -1);
             } catch (Exception e) {
                 // Catching exception here to print the right error message
                 log.error("Unable to create znode - [{}] for load balance on zookeeper ", brokerZnodePath, e);
@@ -553,7 +552,10 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
      */
     @Override
     public void stop() throws PulsarServerException {
-        // Do nothing.
+        availableActiveBrokers.close();
+        brokerDataCache.clear();
+        brokerDataCache.close();
+        scheduler.shutdown();
     }
 
     /**
