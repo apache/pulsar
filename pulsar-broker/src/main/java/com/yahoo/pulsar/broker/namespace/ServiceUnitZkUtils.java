@@ -114,17 +114,21 @@ public final class ServiceUnitZkUtils {
      */
     private static final void cleanupNamespaceNodes(ZooKeeper zkc, String root, String selfBrokerUrl) throws Exception {
         // we don't need a watch here since we are only cleaning up the stale ephemeral nodes from previous session
-        for (String node : zkc.getChildren(root, false)) {
-            String currentPath = root + "/" + node;
-            // retrieve the content and try to decode with ServiceLookupData
-            List<String> children = zkc.getChildren(currentPath, false);
-            if (children.size() == 0) {
-                // clean up a single namespace node
-                cleanupSingleNamespaceNode(zkc, currentPath, selfBrokerUrl);
-            } else {
-                // this is an intermediate node, which means this is v2 namespace path
-                cleanupNamespaceNodes(zkc, currentPath, selfBrokerUrl);
+        try {
+            for (String node : zkc.getChildren(root, false)) {
+                String currentPath = root + "/" + node;
+                // retrieve the content and try to decode with ServiceLookupData
+                List<String> children = zkc.getChildren(currentPath, false);
+                if (children.size() == 0) {
+                    // clean up a single namespace node
+                    cleanupSingleNamespaceNode(zkc, currentPath, selfBrokerUrl);
+                } else {
+                    // this is an intermediate node, which means this is v2 namespace path
+                    cleanupNamespaceNodes(zkc, currentPath, selfBrokerUrl);
+                }
             }
+        } catch (NoNodeException nne) {
+            LOG.info("No children for [{}]", nne.getPath());
         }
     }
 

@@ -17,6 +17,7 @@ package com.yahoo.pulsar.zookeeper;
 
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.WatchedEvent;
@@ -36,10 +37,12 @@ public class ZooKeeperChildrenCache implements Watcher, CacheUpdater<Set<String>
     private final ZooKeeperCache cache;
     private final String path;
     private final List<ZooKeeperCacheListener<Set<String>>> listeners = Lists.newCopyOnWriteArrayList();
+    private final AtomicBoolean isShutdown;
 
     public ZooKeeperChildrenCache(ZooKeeperCache cache, String path) {
         this.cache = cache;
         this.path = path;
+        isShutdown = new AtomicBoolean(false);
     }
 
     public Set<String> get() throws KeeperException, InterruptedException {
@@ -88,6 +91,12 @@ public class ZooKeeperChildrenCache implements Watcher, CacheUpdater<Set<String>
     @Override
     public void process(WatchedEvent event) {
         LOG.debug("[{}] Received ZooKeeper watch event: {}", cache.zkSession.get(), event);
-        cache.process(event, this);
+        if (!isShutdown.get()) {
+            cache.process(event, this);
+        }
+    }
+
+    public void close() {
+        isShutdown.set(true);
     }
 }

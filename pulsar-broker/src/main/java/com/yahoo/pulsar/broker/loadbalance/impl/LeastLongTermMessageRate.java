@@ -24,6 +24,7 @@ import org.slf4j.LoggerFactory;
 
 import com.yahoo.pulsar.broker.BrokerData;
 import com.yahoo.pulsar.broker.BundleData;
+import com.yahoo.pulsar.broker.LocalBrokerData;
 import com.yahoo.pulsar.broker.ServiceConfiguration;
 import com.yahoo.pulsar.broker.TimeAverageBrokerData;
 import com.yahoo.pulsar.broker.TimeAverageMessageData;
@@ -50,7 +51,7 @@ public class LeastLongTermMessageRate implements ModularLoadManagerStrategy {
     // max_usage < overload_threshold ? 1 / (overload_threshold - max_usage): Inf
     // This weight attempts to discourage the placement of bundles on brokers whose system resource usage is high.
     private static double getScore(final BrokerData brokerData, final ServiceConfiguration conf) {
-        final double overloadThreshold = conf.getLoadBalancerBrokerOverloadedThresholdPercentage() / 100;
+        final double overloadThreshold = conf.getLoadBalancerBrokerOverloadedThresholdPercentage() / 100.0;
         double totalMessageRate = 0;
         for (BundleData bundleData : brokerData.getPreallocatedBundleData().values()) {
             final TimeAverageMessageData longTermData = bundleData.getLongTermData();
@@ -61,14 +62,10 @@ public class LeastLongTermMessageRate implements ModularLoadManagerStrategy {
         if (maxUsage > overloadThreshold) {
             return Double.POSITIVE_INFINITY;
         }
-        // 1 / weight is the proportion of load this machine should receive in
-        // proportion to a machine with no system resource burden.
-        // This attempts to spread out the load in such a way that
-        // machines only become overloaded if there is too much
-        // load for the system to handle (e.g., all machines are
-        // at least nearly overloaded).
-        final double weight = maxUsage < overloadThreshold ? 1 / (overloadThreshold - maxUsage)
-                : Double.POSITIVE_INFINITY;
+        // 1 / weight is the proportion of load this machine should receive in proportion to a machine with no system
+        // resource burden. This attempts to spread out the load in such a way that machines only become overloaded if
+        // there is too much load for the system to handle (e.g., all machines are at least nearly overloaded).
+        final double weight = 1 / (overloadThreshold - maxUsage);
         final double totalMessageRateEstimate = totalMessageRate + timeAverageData.getLongTermMsgRateIn()
                 + timeAverageData.getLongTermMsgRateOut();
         return weight * totalMessageRateEstimate;
@@ -95,16 +92,26 @@ public class LeastLongTermMessageRate implements ModularLoadManagerStrategy {
         // Maintain of list of all the best scoring brokers and then randomly
         // select one of them at the end.
         for (String broker : candidates) {
-            final double score = getScore(loadData.getBrokerData().get(broker), conf);
-            log.info("{} got score {}", broker, score);
+            final BrokerData brokerData = loadData.getBrokerData().get(broker);
+            final double score = getScore(brokerData, conf);
+            if (score == Double.POSITIVE_INFINITY) {
+                final LocalBrokerData localData = brokerData.getLocalData();
+                log.warn(
+                        "Broker {} is overloaded: CPU: {}%, MEMORY: {}%, DIRECT MEMORY: {}%, BANDWIDTH IN: {}%, "
+                                + "BANDWIDTH OUT: {}%",
+                        broker, localData.getCpu().percentUsage(), localData.getMemory().percentUsage(),
+                        localData.getDirectMemory().percentUsage(), localData.getBandwidthIn().percentUsage(),
+                        localData.getBandwidthOut().percentUsage());
+
+            }
+            log.debug("{} got score {}", broker, score);
             if (score < minScore) {
                 // Clear best brokers since this score beats the other brokers.
                 bestBrokers.clear();
                 bestBrokers.add(broker);
                 minScore = score;
             } else if (score == minScore) {
-                // Add this broker to best brokers since it ties with the best
-                // score.
+                // Add this broker to best brokers since it ties with the best score.
                 bestBrokers.add(broker);
             }
         }
