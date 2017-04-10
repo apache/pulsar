@@ -22,7 +22,7 @@
 	<parent>
 		<groupId>com.yahoo.pulsar</groupId>
 		<artifactId>pulsar</artifactId>
-		<version>1.17-SNAPSHOT</version>
+		<version>1.18-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -39,8 +39,22 @@
 			<scope>test</scope>
 		</dependency>
 		<dependency>
+			<groupId>org.apache.zookeeper</groupId>
+			<artifactId>zookeeper</artifactId>
+		</dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>pulsar-client-admin</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+		<dependency>
 			<groupId>${project.groupId}</groupId>
 			<artifactId>pulsar-client</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>${project.groupId}</groupId>
+			<artifactId>pulsar-broker</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 		<dependency>

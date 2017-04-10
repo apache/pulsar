@@ -59,12 +59,9 @@ SharedBuffer Commands::newLookup(BaseCommand& cmd, const std::string& topic, con
     return writeMessageWithSize(cmd);
 }
 
-SharedBuffer Commands::newConsumerStats(BaseCommand& cmd, const std::string& topicName, const std::string& subscriptionName,
-                                 uint64_t consumerId, uint64_t requestId) {
+SharedBuffer Commands::newConsumerStats(BaseCommand& cmd, uint64_t consumerId, uint64_t requestId) { 
     cmd.set_type(BaseCommand::CONSUMER_STATS);
     CommandConsumerStats* consumerStats = cmd.mutable_consumerstats();
-    consumerStats->set_topic_name(topicName);
-    consumerStats->set_subscription_name(subscriptionName);
     consumerStats->set_consumer_id(consumerId);
     consumerStats->set_request_id(requestId);
     return writeMessageWithSize(cmd);

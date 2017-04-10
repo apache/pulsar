@@ -64,4 +64,8 @@ public interface Subscription {
     void redeliverUnacknowledgedMessages(Consumer consumer, List<PositionImpl> positions);
 
     void markTopicWithBatchMessagePublished();
+    
+    double getExpiredMessageRate();
+    
+    String getTypeString();
 }

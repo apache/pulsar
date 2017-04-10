@@ -15,11 +15,6 @@
  */
 
 #include "PartitionedConsumerImpl.h"
-#include "LogUtils.h"
-#include <boost/bind.hpp>
-#include "pulsar/Result.h"
-#include "MessageImpl.h"
-#include "Utils.h"
 
 DECLARE_LOG_OBJECT()
 
@@ -176,6 +171,7 @@ namespace pulsar {
         // all the partitioned-consumer belonging to one partitioned topic should have same name
         config.setConsumerName(conf_.getConsumerName());
         config.setConsumerType(conf_.getConsumerType());
+        config.setBrokerConsumerStatsCacheTimeInMs(conf_.getBrokerConsumerStatsCacheTimeInMs());
         config.setMessageListener(boost::bind(&PartitionedConsumerImpl::messageReceived, shared_from_this(), _1, _2));
         // create consumer on each partition
         for (unsigned int i = 0; i < numPartitions_; i++ ) {
@@ -380,12 +376,37 @@ namespace pulsar {
         return messages_.size();
     }
 
-    Result PartitionedConsumerImpl::getConsumerStats(BrokerConsumerStats& BrokerConsumerStats, int partitionIndex) {
-        if (partitionIndex >= numPartitions_ && partitionIndex < 0 && consumers_.size() <= partitionIndex)
-        {
-            LOG_ERROR(getName() << " PartitionIndex must be positive and less than number of partitiones")
-            return ResultInvalidConfiguration;
+    void PartitionedConsumerImpl::getBrokerConsumerStatsAsync(BrokerConsumerStatsCallback callback) {
+        Lock lock(mutex_);
+        if (state_ != Ready) {
+            lock.unlock();
+            return callback(ResultConsumerNotInitialized, BrokerConsumerStats());
         }
-        return consumers_[partitionIndex]->getConsumerStats(BrokerConsumerStats);
+        PartitionedBrokerConsumerStatsPtr statsPtr = boost::make_shared<PartitionedBrokerConsumerStatsImpl>(numPartitions_);
+        LatchPtr latchPtr = boost::make_shared<Latch>(numPartitions_);
+        ConsumerList consumerList = consumers_;
+        lock.unlock();
+        for (int i = 0; i<consumerList.size(); i++) {
+            consumerList[i]->getBrokerConsumerStatsAsync(boost::bind(&PartitionedConsumerImpl::handleGetConsumerStats,
+                                                               shared_from_this(), _1, _2, latchPtr,
+                                                               statsPtr, i, callback));
+        }
+    }
+
+    void PartitionedConsumerImpl::handleGetConsumerStats(Result res, BrokerConsumerStats brokerConsumerStats,
+                                                         LatchPtr latchPtr, PartitionedBrokerConsumerStatsPtr statsPtr,
+                                                         size_t index, BrokerConsumerStatsCallback callback) {
+        Lock lock(mutex_);
+        if (res == ResultOk) {
+            latchPtr->countdown();
+            statsPtr->add(brokerConsumerStats, index);
+        } else {
+            lock.unlock();
+            return callback(res, BrokerConsumerStats());
+        }
+        if (latchPtr->getCount() == 0) {
+            lock.unlock();
+            callback(ResultOk, BrokerConsumerStats(statsPtr));
+        }
     }
 }

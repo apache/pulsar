@@ -16,6 +16,7 @@
 package com.yahoo.pulsar.broker.loadbalance;
 
 import java.lang.Runnable;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,16 +26,16 @@ import org.slf4j.LoggerFactory;
  */
 public class LoadReportUpdaterTask implements Runnable {
     private static final Logger LOG = LoggerFactory.getLogger(LoadReportUpdaterTask.class);
-    private final LoadManager loadManager;
+    private final AtomicReference<LoadManager> loadManager;
 
-    public LoadReportUpdaterTask(LoadManager manager) {
+    public LoadReportUpdaterTask(AtomicReference<LoadManager> manager) {
         loadManager = manager;
     }
 
     @Override
     public void run() {
         try {
-            loadManager.writeLoadReportOnZookeeper();
+            loadManager.get().writeLoadReportOnZookeeper();
         } catch (Exception e) {
             LOG.warn("Unable to write load report on Zookeeper - [{}]", e);
         }

@@ -30,7 +30,7 @@ import com.yahoo.pulsar.common.configuration.PulsarConfiguration;
  * Pulsar service configuration object.
  *
  */
-public class ServiceConfiguration implements PulsarConfiguration{
+public class ServiceConfiguration implements PulsarConfiguration {
 
     /***** --- pulsar configuration --- ****/
     // Zookeeper quorum connection string
@@ -255,6 +255,9 @@ public class ServiceConfiguration implements PulsarConfiguration{
     private int brokerServicePurgeInactiveFrequencyInSeconds = 60;
     private List<String> bootstrapNamespaces = new ArrayList<String>();
     private Properties properties = new Properties();
+    // Name of load manager to use
+    @FieldContext(dynamic = true)
+    private String loadManagerClassName = "com.yahoo.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl";
 
     public String getZookeeperServers() {
         return zookeeperServers;
@@ -951,5 +954,13 @@ public class ServiceConfiguration implements PulsarConfiguration{
 
     public void setReplicatorPrefix(String replicatorPrefix) {
         this.replicatorPrefix = replicatorPrefix;
+    }
+
+    public String getLoadManagerClassName() {
+        return loadManagerClassName;
+    }
+
+    public void setLoadManagerClassName(String loadManagerClassName) {
+        this.loadManagerClassName = loadManagerClassName;
     }
 }

@@ -40,8 +40,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
+import com.yahoo.pulsar.broker.loadbalance.LoadManager;
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
+import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -49,12 +51,15 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.commons.lang.SystemUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.ZooDefs.Ids;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Queues;
 import com.yahoo.pulsar.broker.PulsarService;
 import com.yahoo.pulsar.broker.ServiceConfiguration;
@@ -343,7 +348,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         try {
             // make broker-node unavailable from the cluster
             if (pulsar.getLoadManager() != null) {
-                pulsar.getLoadManager().disableBroker();
+                pulsar.getLoadManager().get().disableBroker();
             }
 
             // unload all namespace-bundles gracefully
@@ -467,6 +472,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             String msg = String.format("Namespace is being unloaded, cannot add topic %s", topic);
             log.warn(msg);
             topicFuture.completeExceptionally(new ServiceUnitNotReadyException(msg));
+            return;
         }
 
         getManagedLedgerConfig(destinationName).thenAccept(config -> {
@@ -910,6 +916,17 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         // add listener on "maxConcurrentTopicLoadRequest" value change
         registerConfigurationListener("maxConcurrentTopicLoadRequest",
                 (maxConcurrentTopicLoadRequest) -> topicLoadRequestSemaphore.set(new Semaphore((int) maxConcurrentTopicLoadRequest, false)));
+        registerConfigurationListener("loadManagerClassName", className -> {
+            try {
+                final LoadManager newLoadManager = LoadManager.create(pulsar);
+                log.info("Created load manager: {}", className);
+                pulsar.getLoadManager().get().disableBroker();
+                newLoadManager.start();
+                pulsar.getLoadManager().set(newLoadManager);
+            } catch (Exception ex) {
+                log.warn("Failed to change load manager due to {}", ex);
+            }
+        });
         // add more listeners here
     }
 
@@ -944,6 +961,16 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
     private void updateDynamicServiceConfiguration() {
         try {
+            // create dynamic-config znode if not present
+            if (pulsar.getZkClient().exists(BROKER_SERVICE_CONFIGURATION_PATH, false) == null) {
+                try {
+                    byte[] data = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(Maps.newHashMap());
+                    ZkUtils.createFullPathOptimistic(pulsar.getZkClient(), BROKER_SERVICE_CONFIGURATION_PATH, data,
+                            Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+                } catch (KeeperException.NodeExistsException e) {
+                    // Ok
+                }
+            }
             Optional<Map<String, String>> data = dynamicConfigurationCache.get(BROKER_SERVICE_CONFIGURATION_PATH);
             if (data.isPresent() && data.get() != null) {
                 data.get().forEach((key,value)-> {

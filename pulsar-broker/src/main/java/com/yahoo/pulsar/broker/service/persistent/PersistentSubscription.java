@@ -177,7 +177,6 @@ public class PersistentSubscription implements Subscription {
             if (log.isDebugEnabled()) {
                 log.debug("[{}][{}] Mark deleted messages until position {}", topicName, subName, pos);
             }
-            pos.recycle();
         }
 
         @Override
@@ -196,8 +195,6 @@ public class PersistentSubscription implements Subscription {
             if (log.isDebugEnabled()) {
                 log.debug("[{}][{}] Deleted message at {}", topicName, subName, pos);
             }
-
-            pos.recycle();
         }
 
         @Override

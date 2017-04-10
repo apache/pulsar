@@ -12,7 +12,7 @@ https://github.com/yahoo/pulsar/tree/master/pulsar-client-cpp/examples
  * [Log4CXX](https://logging.apache.org/log4cxx)
  * LibCurl
  * [GTest](https://github.com/google/googletest)
-
+ * JsonCpp
 ## Platforms
 
 Pulsar C++ Client Library has been tested on:
@@ -27,7 +27,7 @@ Pulsar C++ Client Library has been tested on:
 
 ```shell
 apt-get install cmake libssl-dev libcurl4-openssl-dev liblog4cxx-dev \
-                libprotobuf-dev libboost-all-dev  libgtest-dev
+                libprotobuf-dev libboost-all-dev  libgtest-dev libjsoncpp-dev
 ```
 
 #### Compile and install Google Test:

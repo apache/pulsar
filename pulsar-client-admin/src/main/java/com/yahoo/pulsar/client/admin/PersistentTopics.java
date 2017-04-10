@@ -61,6 +61,29 @@ public interface PersistentTopics {
     List<String> getList(String namespace) throws PulsarAdminException;
 
     /**
+     * Get the list of partitioned topics under a namespace.
+     * <p>
+     * Response example:
+     *
+     * <pre>
+     * <code>["persistent://my-property/use/my-namespace/topic-1",
+     *  "persistent://my-property/use/my-namespace/topic-2"]</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @return a list of partitioned topics
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    List<String> getPartitionedTopicList(String namespace) throws PulsarAdminException;
+
+    /**
      * Get permissions on a destination.
      * <p>
      * Retrieve the effective permissions for a destination. These permissions are defined by the permissions set at the

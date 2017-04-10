@@ -132,7 +132,8 @@ public class Consumer {
     }
 
     /**
-     * Dispatch a list of entries to the consumer.
+     * Dispatch a list of entries to the consumer. <br/>
+     * <b>It is also responsible to release entries data and recycle entries object.</b>
      *
      * @return a promise that can be use to track when all the data has been written into the socket
      */
@@ -174,7 +175,8 @@ public class Consumer {
                         .build();
 
                 ByteBuf metadataAndPayload = entry.getDataBuffer();
-
+                // increment ref-count of data and release at the end of process: so, we can get chance to call entry.release
+                metadataAndPayload.retain();
                 // skip checksum by incrementing reader-index if consumer-client doesn't support checksum verification
                 if (cnx.getRemoteEndpointProtocolVersion() < ProtocolVersion.v6.getNumber()) {
                     readChecksum(metadataAndPayload);
@@ -196,6 +198,7 @@ public class Consumer {
                 ctx.write(Commands.newMessage(consumerId, messageId, metadataAndPayload), promise);
                 messageId.recycle();
                 messageIdBuilder.recycle();
+                entry.release();
             }
 
             ctx.flush();
@@ -240,13 +243,13 @@ public class Consumer {
             if (batchSize == -1) {
                 // this would suggest that the message might have been corrupted
                 iter.remove();
+                PositionImpl pos = (PositionImpl) entry.getPosition();
                 entry.release();
-                PositionImpl pos = PositionImpl.get((PositionImpl) entry.getPosition());
                 subscription.acknowledgeMessage(pos, AckType.Individual);
                 continue;
             }
             if (pendingAcks != null) {
-                PositionImpl pos = PositionImpl.get((PositionImpl) entry.getPosition());
+                PositionImpl pos = (PositionImpl) entry.getPosition();
                 pendingAcks.put(pos, batchSize);
             }
             // check if consumer supports batch message
@@ -536,6 +539,10 @@ public class Consumer {
             MESSAGE_PERMITS_UPDATER.getAndAdd(this, numberOfBlockedPermits);
             subscription.consumerFlow(this, numberOfBlockedPermits);
         }
+    }
+    
+    public Subscription getSubscription() {
+        return subscription;
     }
     
     private static final Logger log = LoggerFactory.getLogger(Consumer.class);

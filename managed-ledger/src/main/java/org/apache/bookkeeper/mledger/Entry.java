@@ -15,9 +15,9 @@
  */
 package org.apache.bookkeeper.mledger;
 
-import io.netty.buffer.ByteBuf;
-
 import com.google.common.annotations.Beta;
+
+import io.netty.buffer.ByteBuf;
 
 /**
  * An Entry represent a ledger entry data and its associated position.
@@ -48,7 +48,8 @@ public interface Entry {
     Position getPosition();
 
     /**
-     * Release the resources allocated for this entry
+     * Release the resources (data) allocated for this entry and recycle if all the resources are deallocated (ref-count
+     * of data reached to 0)
      */
-    void release();
+    boolean release();
 }
