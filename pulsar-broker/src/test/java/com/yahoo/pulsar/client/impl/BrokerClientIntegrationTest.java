@@ -39,6 +39,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -478,50 +479,63 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         final PulsarClient pulsarClient2;
 
         final String topicName = "persistent://prop/usw/my-ns/newTopic";
-
-        final int concurrentLookupRequests = 20;
-        ClientConfiguration clientConf = new ClientConfiguration();
-        clientConf.setStatsInterval(0, TimeUnit.SECONDS);
-        clientConf.setMaxNumberOfRejectedRequestPerConnection(0);
-        stopBroker();
         final int maxConccurentLookupRequest = pulsar.getConfiguration().getMaxConcurrentLookupRequest();
-        pulsar.getConfiguration().setMaxConcurrentLookupRequest(1);
-        startBroker();
-        String lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT).toString();
-        pulsarClient = PulsarClient.create(lookupUrl, clientConf);
+        try {
+            final int concurrentLookupRequests = 20;
+            ClientConfiguration clientConf = new ClientConfiguration();
+            clientConf.setStatsInterval(0, TimeUnit.SECONDS);
+            clientConf.setMaxNumberOfRejectedRequestPerConnection(0);
+            stopBroker();
+            pulsar.getConfiguration().setMaxConcurrentLookupRequest(1);
+            startBroker();
+            String lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT).toString();
+            pulsarClient = PulsarClient.create(lookupUrl, clientConf);
 
-        ClientConfiguration clientConf2 = new ClientConfiguration();
-        clientConf2.setStatsInterval(0, TimeUnit.SECONDS);
-        clientConf2.setIoThreads(concurrentLookupRequests);
-        clientConf2.setConnectionsPerBroker(20);
-        pulsarClient2 = PulsarClient.create(lookupUrl, clientConf2);
+            ClientConfiguration clientConf2 = new ClientConfiguration();
+            clientConf2.setStatsInterval(0, TimeUnit.SECONDS);
+            clientConf2.setIoThreads(concurrentLookupRequests);
+            clientConf2.setConnectionsPerBroker(20);
+            pulsarClient2 = PulsarClient.create(lookupUrl, clientConf2);
 
-        ProducerImpl producer = (ProducerImpl) pulsarClient.createProducer(topicName);
-        ClientCnx cnx = producer.cnx();
-        assertTrue(cnx.channel().isActive());
-        ExecutorService executor = Executors.newFixedThreadPool(concurrentLookupRequests);
-        for (int i = 0; i < 100; i++) {
-            executor.submit(() -> {
-                pulsarClient2.createProducerAsync(topicName).handle((ok, e) -> {
-                    return null;
+            ProducerImpl producer = (ProducerImpl) pulsarClient.createProducer(topicName);
+            ClientCnx cnx = producer.cnx();
+            assertTrue(cnx.channel().isActive());
+            ExecutorService executor = Executors.newFixedThreadPool(concurrentLookupRequests);
+            final int totalProducer = 100;
+            CountDownLatch latch = new CountDownLatch(totalProducer * 2);
+            AtomicInteger failed = new AtomicInteger(0);
+            for (int i = 0; i < totalProducer; i++) {
+                executor.submit(() -> {
+                    pulsarClient2.createProducerAsync(topicName).handle((ok, e) -> {
+                        if (e != null) {
+                            failed.set(1);
+                        }
+                        latch.countDown();
+                        return null;
+                    });
+                    pulsarClient.createProducerAsync(topicName).handle((ok, e) -> {
+                        if (e != null) {
+                            failed.set(1);
+                        }
+                        latch.countDown();
+                        return null;
+                    });
                 });
-                pulsarClient.createProducerAsync(topicName).handle((ok, e) -> {
-                    return null;
-                });
+                
+            }
 
-            });
-            if (!cnx.channel().isActive()) {
-                break;
+            latch.await(10, TimeUnit.SECONDS);
+            // connection must be closed
+            assertTrue(failed.get() == 1);
+            try {
+                pulsarClient.close();
+                pulsarClient2.close();
+            } catch (Exception e) {
+                // Ok
             }
-            if (i % 10 == 0) {
-                Thread.sleep(100);
-            }
+        } finally {
+            pulsar.getConfiguration().setMaxConcurrentLookupRequest(maxConccurentLookupRequest);
         }
-        // connection must be closed
-        assertFalse(cnx.channel().isActive());
-        pulsar.getConfiguration().setMaxConcurrentLookupRequest(maxConccurentLookupRequest);
-        pulsarClient.close();
-        pulsarClient2.close();
     }
 
     /**
@@ -539,49 +553,58 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
     @Test(timeOut = 5000)
     public void testMaxConcurrentTopicLoading() throws Exception {
 
-        final PulsarClient pulsarClient;
-        final PulsarClient pulsarClient2;
+        final PulsarClientImpl pulsarClient;
+        final PulsarClientImpl pulsarClient2;
 
-        final String topicName = "persistent://prop/usw/my-ns/newTopic";
+        final String topicName = "persistent://prop/usw/my-ns/cocurrentLoadingTopic";
+        int concurrentTopic = pulsar.getConfiguration().getMaxConcurrentTopicLoadRequest();
 
-        final int concurrentLookupRequests = 20;
-        ClientConfiguration clientConf = new ClientConfiguration();
-        clientConf.setMaxNumberOfRejectedRequestPerConnection(0);
-        clientConf.setOperationTimeout(1, TimeUnit.MILLISECONDS);
-        clientConf.setStatsInterval(0, TimeUnit.SECONDS);
-        stopBroker();
-        pulsar.getConfiguration().setMaxConcurrentTopicLoadRequest(1);
-        startBroker();
-        String lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT).toString();
-        pulsarClient = PulsarClient.create(lookupUrl, clientConf);
+        try {
+            final int concurrentLookupRequests = 20;
+            ClientConfiguration clientConf = new ClientConfiguration();
+            clientConf.setMaxNumberOfRejectedRequestPerConnection(0);
+            clientConf.setOperationTimeout(1, TimeUnit.MILLISECONDS);
+            clientConf.setStatsInterval(0, TimeUnit.SECONDS);
+            stopBroker();
+            pulsar.getConfiguration().setMaxConcurrentTopicLoadRequest(1);
+            startBroker();
+            String lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT).toString();
+            pulsarClient = (PulsarClientImpl) PulsarClient.create(lookupUrl, clientConf);
 
-        ClientConfiguration clientConf2 = new ClientConfiguration();
-        clientConf2.setStatsInterval(0, TimeUnit.SECONDS);
-        clientConf2.setIoThreads(concurrentLookupRequests);
-        clientConf2.setConnectionsPerBroker(20);
-        clientConf2.setOperationTimeout(1, TimeUnit.MILLISECONDS);
-        pulsarClient2 = PulsarClient.create(lookupUrl, clientConf2);
+            ClientConfiguration clientConf2 = new ClientConfiguration();
+            clientConf2.setStatsInterval(0, TimeUnit.SECONDS);
+            clientConf2.setIoThreads(concurrentLookupRequests);
+            clientConf2.setConnectionsPerBroker(20);
+            clientConf2.setOperationTimeout(1, TimeUnit.MILLISECONDS);
+            pulsarClient2 = (PulsarClientImpl) PulsarClient.create(lookupUrl, clientConf2);
 
-        ProducerImpl producer = (ProducerImpl) pulsarClient.createProducer(topicName);
-        ClientCnx cnx = producer.cnx();
-        assertTrue(cnx.channel().isActive());
-        ExecutorService executor = Executors.newFixedThreadPool(concurrentLookupRequests);
-        List<CompletableFuture<Producer>> futures = Lists.newArrayList();
-        final int totalProducers = 10;
-        CountDownLatch latch = new CountDownLatch(totalProducers);
-        for (int i = 0; i < totalProducers; i++) {
-            executor.submit(() -> {
-                futures.add(pulsarClient2.createProducerAsync(topicName + randomUUID().toString()));
-                futures.add(pulsarClient.createProducerAsync(topicName + randomUUID().toString()));
-                latch.countDown();
-            });
+            ProducerImpl producer = (ProducerImpl) pulsarClient.createProducer(topicName);
+            ClientCnx cnx = producer.cnx();
+            assertTrue(cnx.channel().isActive());
+            ExecutorService executor = Executors.newFixedThreadPool(concurrentLookupRequests);
+            List<CompletableFuture<Producer>> futures = Lists.newArrayList();
+            final int totalProducers = 10;
+            CountDownLatch latch = new CountDownLatch(totalProducers);
+            final ProducerConfiguration config1 = new ProducerConfiguration();
+            for (int i = 0; i < totalProducers; i++) {
+                executor.submit(() -> {
+                    final String randomTopicName1 = topicName + randomUUID().toString();
+                    final String randomTopicName2 = topicName + randomUUID().toString();
+                    // pass producer-name to avoid exception: producer is already connected to topic
+                    futures.add(pulsarClient2.createProducerAsync(randomTopicName1, config1, randomTopicName1));
+                    futures.add(pulsarClient.createProducerAsync(randomTopicName2, config1, randomTopicName2));
+                    latch.countDown();
+                });
+            }
+
+            latch.await();
+            FutureUtil.waitForAll(futures).get();
+            pulsarClient.close();
+            pulsarClient2.close();
+        } finally {
+            // revert back to original value
+            pulsar.getConfiguration().setMaxConcurrentTopicLoadRequest(concurrentTopic);
         }
-
-        latch.await();
-        FutureUtil.waitForAll(futures).get();
-
-        pulsarClient.close();
-        pulsarClient2.close();
     }
     /**
      * It verifies that client closes the connection on internalSerevrError which is "ServiceNotReady" from Broker-side

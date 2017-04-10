@@ -80,7 +80,7 @@ public class ProxyStats {
         tempRef.clear();
     }
 
-    public List<Metrics> getMetrics() {
+    public synchronized List<Metrics> getMetrics() {
         return metricsCollection;
     }
 
