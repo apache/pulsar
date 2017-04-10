@@ -920,7 +920,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             try {
                 final LoadManager newLoadManager = LoadManager.create(pulsar);
                 log.info("Created load manager: {}", className);
-                pulsar.getLoadManager().get().disableBroker();
+                pulsar.getLoadManager().get().stop();
                 newLoadManager.start();
                 pulsar.getLoadManager().set(newLoadManager);
             } catch (Exception ex) {
