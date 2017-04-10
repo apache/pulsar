@@ -133,8 +133,7 @@ class ClientConnection : public boost::enable_shared_from_this<ClientConnection>
 
     Commands::ChecksumType getChecksumType() const;
 
-    Future<Result, BrokerConsumerStatsImpl> newConsumerStats(const std::string topicName, const std::string subscriptionName,
-                                                                               uint64_t consumerId, uint64_t requestId) ;
+    Future<Result, BrokerConsumerStatsImpl> newConsumerStats(uint64_t consumerId, uint64_t requestId) ;
  private:
     struct PendingRequestData {
         Promise<Result, std::string> promise;

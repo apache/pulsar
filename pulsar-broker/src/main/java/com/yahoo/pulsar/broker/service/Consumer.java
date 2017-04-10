@@ -541,5 +541,9 @@ public class Consumer {
         }
     }
     
+    public Subscription getSubscription() {
+        return subscription;
+    }
+    
     private static final Logger log = LoggerFactory.getLogger(Consumer.class);
 }
