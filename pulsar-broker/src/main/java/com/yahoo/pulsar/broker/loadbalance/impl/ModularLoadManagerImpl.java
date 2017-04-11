@@ -161,7 +161,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
 
     // ZooKeeper belonging to the pulsar service.
     private ZooKeeper zkClient;
-    
+
     private static final Deserializer<LocalBrokerData> loadReportDeserializer = (key, content) -> jsonMapper()
             .readValue(content, LocalBrokerData.class);
 
@@ -347,7 +347,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
         try {
             Set<String> activeBrokers = availableActiveBrokers.get();
             final Map<String, BrokerData> brokerDataMap = loadData.getBrokerData();
-            for (String broker : activeBrokers) {
+            for (final String broker : activeBrokers) {
                 try {
                     String key = String.format("%s/%s", LoadManager.LOADBALANCE_BROKERS_ROOT, broker);
                     final LocalBrokerData localData = brokerDataCache.get(key)
@@ -357,16 +357,24 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
                         // Replace previous local broker data.
                         brokerDataMap.get(broker).setLocalData(localData);
                     } else {
-                        // Initialize BrokerData object for previously unseen
-                        // brokers.
+                        // Initialize BrokerData object for previously unseen brokers.
                         brokerDataMap.put(broker, new BrokerData(localData));
                     }
                 } catch (Exception e) {
                     log.warn("Error reading broker data from cache for broker - [{}], [{}]", broker, e.getMessage());
                 }
             }
+            // Remove obsolete brokers.
+            for (final String broker : brokerDataMap.keySet()) {
+                if (!activeBrokers.contains(broker)) {
+                    synchronized (loadData) {
+                        brokerDataMap.remove(broker);
+                    }
+                }
+            }
         } catch (Exception e) {
-            log.warn("Error reading active brokers list from zookeeper while updating broker data [{}]", e.getMessage());
+            log.warn("Error reading active brokers list from zookeeper while updating broker data [{}]",
+                    e.getMessage());
         }
     }
 
