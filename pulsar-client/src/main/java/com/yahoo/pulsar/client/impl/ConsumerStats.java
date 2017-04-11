@@ -183,6 +183,9 @@ public class ConsumerStats implements Serializable {
     }
 
     void updateCumulativeStats(ConsumerStats stats) {
+        if (stats == null) {
+            return;
+        }
         numMsgsReceived.add(stats.numMsgsReceived.longValue());
         numBytesReceived.add(stats.numBytesReceived.longValue());
         numReceiveFailed.add(stats.numReceiveFailed.longValue());

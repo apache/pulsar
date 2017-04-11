@@ -158,7 +158,7 @@ public class NamespaceIsolationPolicies {
         BrokerAssignment brokerAssignment = this.getBrokerAssignment(nsPolicy, brkStatus.getBrokerAddress());
         if (brokerAssignment == BrokerAssignment.primary) {
             // Only add to candidates if allowed by policy
-            if (nsPolicy.isPrimaryBrokerAvailable(brkStatus)) {
+            if (nsPolicy != null && nsPolicy.isPrimaryBrokerAvailable(brkStatus)) {
                 primaryCandidates.add(brkStatus);
             }
         } else if (brokerAssignment == BrokerAssignment.secondary) {
