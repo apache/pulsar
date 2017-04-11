@@ -189,6 +189,15 @@ public class ModularLoadManagerImplTest {
 
         // Now disable the secondary broker.
         secondaryLoadManager.disableBroker();
+
+        LoadData loadData = (LoadData) getField(primaryLoadManager, "loadData");
+
+        // Give some time for the watch to fire.
+        Thread.sleep(500);
+
+        // Make sure the second broker is not in the internal map.
+        assert (!loadData.getBrokerData().containsKey(secondaryHost));
+
         // Try 5 more selections, ensure they all go to the first broker.
         for (int i = 2; i < 7; ++i) {
             final ServiceUnitId serviceUnit = makeBundle(Integer.toString(i));
