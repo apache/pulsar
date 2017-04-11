@@ -493,27 +493,57 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
      * @return The name of the selected broker, as it appears on ZooKeeper.
      */
     @Override
-    public synchronized String selectBrokerForAssignment(final ServiceUnitId serviceUnit) {
-        final String bundle = serviceUnit.toString();
-        if (preallocatedBundleToBroker.containsKey(bundle)) {
-            // If the given bundle is already in preallocated, return the selected broker.
-            return preallocatedBundleToBroker.get(bundle);
-        }
-        final BundleData data = loadData.getBundleData().computeIfAbsent(bundle, key -> getBundleDataOrDefault(bundle));
-        brokerCandidateCache.clear();
-        LoadManagerShared.applyPolicies(serviceUnit, policies, brokerCandidateCache, loadData.getBrokerData().keySet());
-        log.info("{} brokers being considered for assignment of {}", brokerCandidateCache.size(), bundle);
+    public String selectBrokerForAssignment(final ServiceUnitId serviceUnit) {
+        // Use brokerCandidateCache as a lock to reduce synchronization.
+        synchronized(brokerCandidateCache) {
+            final String bundle = serviceUnit.toString();
+            if (preallocatedBundleToBroker.containsKey(bundle)) {
+                // If the given bundle is already in preallocated, return the selected broker.
+                return preallocatedBundleToBroker.get(bundle);
+            }
+            final BundleData data = loadData.getBundleData().computeIfAbsent(bundle, key -> getBundleDataOrDefault(bundle));
+            brokerCandidateCache.clear();
+            Set<String> activeBrokers;
+            try {
+                activeBrokers = availableActiveBrokers.get();
+            } catch (Exception e) {
+                // Try-catch block inserted because ZooKeeperChildrenCache.get throws checked exception, though we
+                // should not really see this happen unless something goes very wrong.
+                log.warn("Unexpected error when trying to get active brokers", e);
 
-        // Use the filter pipeline to finalize broker candidates.
-        for (BrokerFilter filter : filterPipeline) {
-            filter.filter(brokerCandidateCache, data, loadData, conf);
-        }
-        final String broker = placementStrategy.selectBroker(brokerCandidateCache, data, loadData, conf);
+                // Fall back to using loadData key set.
+                activeBrokers = loadData.getBrokerData().keySet();
+            }
+            LoadManagerShared.applyPolicies(serviceUnit, policies, brokerCandidateCache, activeBrokers);
+            log.info("{} brokers being considered for assignment of {}", brokerCandidateCache.size(), bundle);
 
-        // Add new bundle to preallocated.
-        loadData.getBrokerData().get(broker).getPreallocatedBundleData().put(bundle, data);
-        preallocatedBundleToBroker.put(bundle, broker);
-        return broker;
+            // Use the filter pipeline to finalize broker candidates.
+            for (BrokerFilter filter : filterPipeline) {
+                filter.filter(brokerCandidateCache, data, loadData, conf);
+            }
+            final String broker = placementStrategy.selectBroker(brokerCandidateCache, data, loadData, conf);
+
+            // Add new bundle to preallocated.
+            loadData.getBrokerData().get(broker).getPreallocatedBundleData().put(bundle, data);
+            preallocatedBundleToBroker.put(bundle, broker);
+
+            // Make sure broker is still active.
+            try {
+                if (!availableActiveBrokers.get().contains(broker)) {
+                    // Remove bundle from preallocated.
+                    // updateAllBrokerData should handle removing the broker from the data map, so we don't have to
+                    // remove it there.
+                    preallocatedBundleToBroker.remove(bundle);
+
+                    // Try again.
+                    return selectBrokerForAssignment(serviceUnit);
+                }
+            } catch (Exception e) {
+                log.warn("Unexpected error when trying to get active brokers", e);
+                // Continue, best we can do is assume broker is still active.
+            }
+            return broker;
+        }
     }
 
     /**
