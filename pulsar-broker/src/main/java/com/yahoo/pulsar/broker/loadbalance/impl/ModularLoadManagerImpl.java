@@ -56,6 +56,7 @@ import com.yahoo.pulsar.broker.TimeAverageBrokerData;
 import com.yahoo.pulsar.broker.TimeAverageMessageData;
 import com.yahoo.pulsar.broker.loadbalance.BrokerFilter;
 import com.yahoo.pulsar.broker.loadbalance.BrokerHostUsage;
+import com.yahoo.pulsar.broker.loadbalance.DataUpdateCondition;
 import com.yahoo.pulsar.broker.loadbalance.LoadData;
 import com.yahoo.pulsar.broker.loadbalance.LoadManager;
 import com.yahoo.pulsar.broker.loadbalance.LoadSheddingStrategy;
@@ -129,11 +130,17 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
     // Timestamp of last invocation of updateBundleData.
     private long lastBundleDataUpdate;
 
+    // LocalBrokerData available before most recent update.
+    private LocalBrokerData lastData;
+
     // Pipeline used to determine what namespaces, if any, should be unloaded.
     private final List<LoadSheddingStrategy> loadSheddingPipeline;
 
     // Local data for the broker this is running on.
     private LocalBrokerData localData;
+
+    // Condition to use for writing the local data to ZooKeeper.
+    private final DataUpdateCondition localDataUpdateCondition;
 
     // Load data comprising data available for each broker.
     private final LoadData loadData;
@@ -161,7 +168,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
 
     // ZooKeeper belonging to the pulsar service.
     private ZooKeeper zkClient;
-    
+
     private static final Deserializer<LocalBrokerData> loadReportDeserializer = (key, content) -> jsonMapper()
             .readValue(content, LocalBrokerData.class);
 
@@ -174,6 +181,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
         filterPipeline = new ArrayList<>();
         loadData = new LoadData();
         loadSheddingPipeline = new ArrayList<>();
+        localDataUpdateCondition = new HighDeltaCondition();
         preallocatedBundleToBroker = new ConcurrentHashMap<>();
         primariesCache = new HashSet<>();
         scheduler = Executors.newScheduledThreadPool(1);
@@ -236,6 +244,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
         defaultStats.msgRateIn = DEFAULT_MESSAGE_RATE;
         defaultStats.msgRateOut = DEFAULT_MESSAGE_RATE;
 
+        lastData = new LocalBrokerData(pulsar.getWebServiceAddress(), pulsar.getWebServiceAddressTls(),
+                pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
         localData = new LocalBrokerData(pulsar.getWebServiceAddress(), pulsar.getWebServiceAddressTls(),
                 pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
         placementStrategy = ModularLoadManagerStrategy.create(conf);
@@ -321,18 +331,9 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
         return ObjectMapperFactory.getThreadLocal().readValue(data, clazz);
     }
 
-    // Determine if the broker data requires an update by measuring the time
-    // past since the last update.
+    // Determine if the broker data requires an update by delegating to the update condition.
     private boolean needBrokerDataUpdate() {
-        return System.currentTimeMillis() > localData.getLastUpdate()
-                + TimeUnit.MINUTES.toMillis(conf.getLoadBalancerReportUpdateMaxIntervalMinutes());
-    }
-
-    // Determine if the bundle data requires an update by measuring the time
-    // past since the last update.
-    private boolean needBundleDataUpdate() {
-        return System.currentTimeMillis() > lastBundleDataUpdate
-                + TimeUnit.MINUTES.toMillis(conf.getLoadBalancerResourceQuotaUpdateIntervalMinutes());
+        return localDataUpdateCondition.shouldUpdate(lastData, localData, conf);
     }
 
     // Update both the broker data and the bundle data.
@@ -366,7 +367,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
                 }
             }
         } catch (Exception e) {
-            log.warn("Error reading active brokers list from zookeeper while updating broker data [{}]", e.getMessage());
+            log.warn("Error reading active brokers list from zookeeper while updating broker data [{}]",
+                    e.getMessage());
         }
     }
 
@@ -578,9 +580,17 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
     @Override
     public void writeBrokerDataOnZooKeeper() {
         try {
+            updateLocalBrokerData();
             if (needBrokerDataUpdate()) {
-                updateLocalBrokerData();
+                localData.setLastUpdate(System.currentTimeMillis());
                 zkClient.setData(brokerZnodePath, localData.getJsonBytes(), -1);
+
+                // Clear deltas.
+                localData.getLastBundleGains().clear();
+                localData.getLastBundleLosses().clear();
+
+                // Update previous data.
+                lastData.update(localData);
             }
         } catch (Exception e) {
             log.warn("Error writing broker data on ZooKeeper: {}", e);
@@ -597,33 +607,30 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
      */
     @Override
     public void writeBundleDataOnZooKeeper() {
-        if (needBundleDataUpdate()) {
-            updateBundleData();
-            // Write the bundle data to ZooKeeper.
-            for (Map.Entry<String, BundleData> entry : loadData.getBundleData().entrySet()) {
-                final String bundle = entry.getKey();
-                final BundleData data = entry.getValue();
-                try {
-                    final String zooKeeperPath = getBundleDataZooKeeperPath(bundle);
-                    createZPathIfNotExists(zkClient, zooKeeperPath);
-                    zkClient.setData(zooKeeperPath, data.getJsonBytes(), -1);
-                } catch (Exception e) {
-                    log.warn("Error when writing data for bundle {} to ZooKeeper: {}", bundle, e);
-                }
+        updateBundleData();
+        // Write the bundle data to ZooKeeper.
+        for (Map.Entry<String, BundleData> entry : loadData.getBundleData().entrySet()) {
+            final String bundle = entry.getKey();
+            final BundleData data = entry.getValue();
+            try {
+                final String zooKeeperPath = getBundleDataZooKeeperPath(bundle);
+                createZPathIfNotExists(zkClient, zooKeeperPath);
+                zkClient.setData(zooKeeperPath, data.getJsonBytes(), -1);
+            } catch (Exception e) {
+                log.warn("Error when writing data for bundle {} to ZooKeeper: {}", bundle, e);
             }
-            // Write the time average broker data to ZooKeeper.
-            for (Map.Entry<String, BrokerData> entry : loadData.getBrokerData().entrySet()) {
-                final String broker = entry.getKey();
-                final TimeAverageBrokerData data = entry.getValue().getTimeAverageData();
-                try {
-                    final String zooKeeperPath = TIME_AVERAGE_BROKER_ZPATH + "/" + broker;
-                    createZPathIfNotExists(zkClient, zooKeeperPath);
-                    zkClient.setData(zooKeeperPath, data.getJsonBytes(), -1);
-                } catch (Exception e) {
-                    log.warn("Error when writing time average broker data for {} to ZooKeeper: {}", broker, e);
-                }
+        }
+        // Write the time average broker data to ZooKeeper.
+        for (Map.Entry<String, BrokerData> entry : loadData.getBrokerData().entrySet()) {
+            final String broker = entry.getKey();
+            final TimeAverageBrokerData data = entry.getValue().getTimeAverageData();
+            try {
+                final String zooKeeperPath = TIME_AVERAGE_BROKER_ZPATH + "/" + broker;
+                createZPathIfNotExists(zkClient, zooKeeperPath);
+                zkClient.setData(zooKeeperPath, data.getJsonBytes(), -1);
+            } catch (Exception e) {
+                log.warn("Error when writing time average broker data for {} to ZooKeeper: {}", broker, e);
             }
         }
     }
-
 }
