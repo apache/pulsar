@@ -150,18 +150,12 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
     // Pulsar service used to initialize this.
     private PulsarService pulsar;
 
-    // Cache for primary brokers according to policies.
-    private final Set<String> primariesCache;
-
     // Executor service used to regularly update broker data.
     private final ScheduledExecutorService scheduler;
 
-    // Cache for shard brokers according to policies.
-    private final Set<String> sharedCache;
-
     // ZooKeeper belonging to the pulsar service.
     private ZooKeeper zkClient;
-    
+
     private static final Deserializer<LocalBrokerData> loadReportDeserializer = (key, content) -> jsonMapper()
             .readValue(content, LocalBrokerData.class);
 
@@ -174,10 +168,9 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
         filterPipeline = new ArrayList<>();
         loadData = new LoadData();
         loadSheddingPipeline = new ArrayList<>();
+        loadSheddingPipeline.add(new OverloadShedder(conf));
         preallocatedBundleToBroker = new ConcurrentHashMap<>();
-        primariesCache = new HashSet<>();
         scheduler = Executors.newScheduledThreadPool(1);
-        sharedCache = new HashSet<>();
     }
 
     /**
@@ -267,6 +260,15 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
         }
     }
 
+    private Set<String> getAvailableBrokers() {
+        try {
+            return availableActiveBrokers.get();
+        } catch (Exception e) {
+            log.warn("Error when trying to get active brokers", e);
+            return loadData.getBrokerData().keySet();
+        }
+    }
+
     // Attempt to local the data for the given bundle in ZooKeeper.
     // If it cannot be found, return the default bundle data.
     private BundleData getBundleDataOrDefault(final String bundle) {
@@ -344,29 +346,25 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
     // As the leader broker, update the broker data map in loadData by querying ZooKeeper for the broker data put there
     // by each broker via updateLocalBrokerData.
     private void updateAllBrokerData() {
-        try {
-            Set<String> activeBrokers = availableActiveBrokers.get();
-            final Map<String, BrokerData> brokerDataMap = loadData.getBrokerData();
-            for (String broker : activeBrokers) {
-                try {
-                    String key = String.format("%s/%s", LoadManager.LOADBALANCE_BROKERS_ROOT, broker);
-                    final LocalBrokerData localData = brokerDataCache.get(key)
-                            .orElseThrow(KeeperException.NoNodeException::new);
+        final Set<String> activeBrokers = getAvailableBrokers();
+        final Map<String, BrokerData> brokerDataMap = loadData.getBrokerData();
+        for (String broker : activeBrokers) {
+            try {
+                String key = String.format("%s/%s", LoadManager.LOADBALANCE_BROKERS_ROOT, broker);
+                final LocalBrokerData localData = brokerDataCache.get(key)
+                        .orElseThrow(KeeperException.NoNodeException::new);
 
-                    if (brokerDataMap.containsKey(broker)) {
-                        // Replace previous local broker data.
-                        brokerDataMap.get(broker).setLocalData(localData);
-                    } else {
-                        // Initialize BrokerData object for previously unseen
-                        // brokers.
-                        brokerDataMap.put(broker, new BrokerData(localData));
-                    }
-                } catch (Exception e) {
-                    log.warn("Error reading broker data from cache for broker - [{}], [{}]", broker, e.getMessage());
+                if (brokerDataMap.containsKey(broker)) {
+                    // Replace previous local broker data.
+                    brokerDataMap.get(broker).setLocalData(localData);
+                } else {
+                    // Initialize BrokerData object for previously unseen
+                    // brokers.
+                    brokerDataMap.put(broker, new BrokerData(localData));
                 }
+            } catch (Exception e) {
+                log.warn("Error reading broker data from cache for broker - [{}], [{}]", broker, e.getMessage());
             }
-        } catch (Exception e) {
-            log.warn("Error reading active brokers list from zookeeper while updating broker data [{}]", e.getMessage());
         }
     }
 
@@ -376,7 +374,6 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
         final Map<String, BundleData> bundleData = loadData.getBundleData();
         // Iterate over the broker data.
         for (Map.Entry<String, BrokerData> brokerEntry : loadData.getBrokerData().entrySet()) {
-            final String broker = brokerEntry.getKey();
             final BrokerData brokerData = brokerEntry.getValue();
             final Map<String, NamespaceBundleStats> statsMap = brokerData.getLocalData().getLastStats();
 
@@ -401,7 +398,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
 
             // Remove all loaded bundles from the preallocated maps.
             final Map<String, BundleData> preallocatedBundleData = brokerData.getPreallocatedBundleData();
-            if (preallocatedBundleData.containsKey(broker)) {
+            // Should not iterate with more than one thread at a time.
+            synchronized (preallocatedBundleData) {
                 final Iterator<Map.Entry<String, BundleData>> preallocatedIterator = preallocatedBundleData.entrySet()
                         .iterator();
                 while (preallocatedIterator.hasNext()) {
@@ -413,8 +411,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
                 }
             }
 
-            // Using the newest data, update the aggregated time-average data
-            // for the current broker.
+            // Using the newest data, update the aggregated time-average data for the current broker.
             brokerData.getTimeAverageData().reset(statsMap.keySet(), bundleData, defaultStats);
         }
     }
@@ -442,21 +439,41 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
      */
     @Override
     public synchronized void doLoadShedding() {
-        for (LoadSheddingStrategy strategy : loadSheddingPipeline) {
-            final Map<String, String> bundlesToUnload = strategy.findBundlesForUnloading(loadData, conf);
-            if (bundlesToUnload != null && !bundlesToUnload.isEmpty()) {
-                try {
-                    for (Map.Entry<String, String> entry : bundlesToUnload.entrySet()) {
-                        final String bundle = entry.getKey();
-                        final String broker = entry.getValue();
-                        adminCache.get(broker).namespaces().unloadNamespaceBundle(
-                                LoadManagerShared.getNamespaceNameFromBundleName(bundle),
-                                LoadManagerShared.getBundleRangeFromBundleName(bundle));
+        if (!LoadManagerShared.isUnloadDisabledInLoadShedding(pulsar)) {
+            if (getAvailableBrokers().size() > 1) {
+                // Remove bundles who have been unloaded for longer than the grace period from the recently unloaded
+                // map.
+                final Iterator<Map.Entry<String, Long>> recentlyUnloadedIterator = loadData.getRecentlyUnloadedBundles()
+                        .entrySet().iterator();
+                while (recentlyUnloadedIterator.hasNext()) {
+                    final Map.Entry<String, Long> entry = recentlyUnloadedIterator.next();
+                    final long timestamp = entry.getValue();
+                    if (System.currentTimeMillis() - timestamp > TimeUnit.MINUTES
+                            .toMillis(conf.getLoadBalancerSheddingGracePeriodMinutes())) {
+                        recentlyUnloadedIterator.remove();
                     }
-                } catch (Exception e) {
-                    log.warn("Error when trying to perform load shedding: {}", e);
                 }
-                return;
+                for (LoadSheddingStrategy strategy : loadSheddingPipeline) {
+                    final Map<String, String> bundlesToUnload = strategy.findBundlesForUnloading(loadData, conf);
+                    if (bundlesToUnload != null && !bundlesToUnload.isEmpty()) {
+                        try {
+                            for (Map.Entry<String, String> entry : bundlesToUnload.entrySet()) {
+                                final String broker = entry.getKey();
+                                final String bundle = entry.getValue();
+                                log.info("Unloading bundle: {}", bundle);
+                                adminCache.get("http://" + broker).namespaces().unloadNamespaceBundle(
+                                        LoadManagerShared.getNamespaceNameFromBundleName(bundle),
+                                        LoadManagerShared.getBundleRangeFromBundleName(bundle));
+                                loadData.getRecentlyUnloadedBundles().put(bundle, System.currentTimeMillis());
+                            }
+                        } catch (Exception e) {
+                            log.warn("Error when trying to perform load shedding", e);
+                        }
+                        return;
+                    }
+                }
+            } else {
+                log.warn("Only 1 broker available: no load shedding will be performed");
             }
         }
     }
@@ -493,7 +510,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
         }
         final BundleData data = loadData.getBundleData().computeIfAbsent(bundle, key -> getBundleDataOrDefault(bundle));
         brokerCandidateCache.clear();
-        LoadManagerShared.applyPolicies(serviceUnit, policies, brokerCandidateCache, loadData.getBrokerData().keySet());
+        LoadManagerShared.applyPolicies(serviceUnit, policies, brokerCandidateCache, getAvailableBrokers());
         log.info("{} brokers being considered for assignment of {}", brokerCandidateCache.size(), bundle);
 
         // Use the filter pipeline to finalize broker candidates.
