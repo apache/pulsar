@@ -526,22 +526,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
             // Add new bundle to preallocated.
             loadData.getBrokerData().get(broker).getPreallocatedBundleData().put(bundle, data);
             preallocatedBundleToBroker.put(bundle, broker);
-
-            // Make sure broker is still active.
-            try {
-                if (!availableActiveBrokers.get().contains(broker)) {
-                    // Remove bundle from preallocated.
-                    // updateAllBrokerData should handle removing the broker from the data map, so we don't have to
-                    // remove it there.
-                    preallocatedBundleToBroker.remove(bundle);
-
-                    // Try again.
-                    return selectBrokerForAssignment(serviceUnit);
-                }
-            } catch (Exception e) {
-                log.warn("Unexpected error when trying to get active brokers", e);
-                // Continue, best we can do is assume broker is still active.
-            }
+            
             return broker;
         }
     }
