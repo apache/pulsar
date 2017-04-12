@@ -367,9 +367,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
             // Remove obsolete brokers.
             for (final String broker : brokerDataMap.keySet()) {
                 if (!activeBrokers.contains(broker)) {
-                    synchronized (loadData) {
-                        brokerDataMap.remove(broker);
-                    }
+                    brokerDataMap.remove(broker);
                 }
             }
         } catch (Exception e) {
