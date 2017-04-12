@@ -47,6 +47,7 @@ import com.yahoo.pulsar.client.api.AuthenticationDataProvider;
 import com.yahoo.pulsar.client.api.AuthenticationFactory;
 import com.yahoo.pulsar.client.api.ClientConfiguration;
 import com.yahoo.pulsar.client.api.PulsarClientException;
+import com.yahoo.pulsar.client.impl.auth.AuthenticationDisabled;
 import com.yahoo.pulsar.common.util.SecurityUtility;
 
 /**
@@ -98,7 +99,7 @@ public class PulsarAdmin implements Closeable {
      *            the ClientConfiguration object to be used to talk with Pulsar
      */
     public PulsarAdmin(URL serviceUrl, ClientConfiguration pulsarConfig) throws PulsarClientException {
-        this.auth = pulsarConfig != null ? pulsarConfig.getAuthentication() : null;
+        this.auth = pulsarConfig != null ? pulsarConfig.getAuthentication() : new AuthenticationDisabled();
         LOG.debug("created: serviceUrl={}, authMethodName={}", serviceUrl,
                 auth != null ? auth.getAuthMethodName() : null);
 
