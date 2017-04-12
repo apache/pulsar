@@ -1842,7 +1842,25 @@ public class ManagedCursorImpl implements ManagedCursor {
                                     log.debug("[{}] Persisted position {} for cursor {}", ledger.getName(), position,
                                             name);
                                 }
-                                switchToNewLedger(lh, callback);
+                                switchToNewLedger(lh, new VoidCallback() {
+                                    @Override
+                                    public void operationComplete() {
+                                        callback.operationComplete();
+                                    }
+
+                                    @Override
+                                    public void operationFailed(ManagedLedgerException exception) {
+                                        // it means it failed to switch the newly created ledger so, it should be
+                                        // deleted to prevent leak
+                                        bookkeeper.asyncDeleteLedger(lh.getId(), (int rc, Object ctx) -> {
+                                            if (rc != BKException.Code.OK) {
+                                                log.warn("[{}] Failed to delete orphan ledger {}", ledger.getName(),
+                                                        lh.getId());
+                                            }
+                                        }, null);
+                                        callback.operationFailed(exception);
+                                    }
+                                });
                             }
 
                             @Override
