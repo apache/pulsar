@@ -42,6 +42,7 @@ struct ClientConfiguration::Impl {
     std::string tlsTrustCertsFilePath;
     bool tlsAllowInsecureConnection;
     Impl() : authenticationPtr(AuthFactory::Disabled()),
+             authDataPtr(Auth::Disabled()),
              ioThreads(1),
              operationTimeoutSeconds(30),
              messageListenerThreads(1),

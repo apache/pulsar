@@ -246,7 +246,7 @@ class ManagedCursorContainer implements Iterable<ManagedCursor> {
             Item right = getRight(item);
             if (right != null && right.position.compareTo(item.position) < 0) {
                 Item left = getLeft(item);
-                if (left.position.compareTo(right.position) < 0) {
+                if (left != null && left.position.compareTo(right.position) < 0) {
                     j = left;
                 } else {
                     j = right;

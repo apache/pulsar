@@ -1296,6 +1296,11 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
                 if (isAboveLoadLevel(lr.getSystemResourceUsage(), overloadThreshold)) {
                     ResourceType bottleneckResourceType = lr.getBottleneckResourceType();
                     Map<String, NamespaceBundleStats> bundleStats = lr.getSortedBundleStats(bottleneckResourceType);
+                    if (bundleStats == null) {
+                        log.warn("Null bundle stats for bundle {}", lr.getName());
+                        continue;
+
+                    }
                     // 1. owns only one namespace
                     if (bundleStats.size() == 1) {
                         // can't unload one namespace, just issue a warning message

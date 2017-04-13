@@ -199,6 +199,9 @@ public class ProducerStats implements Serializable {
     }
 
     void updateCumulativeStats(ProducerStats stats) {
+        if (stats == null) {
+            return;
+        }
         numMsgsSent.add(stats.numMsgsSent.longValue());
         numBytesSent.add(stats.numBytesSent.longValue());
         numSendFailed.add(stats.numSendFailed.longValue());

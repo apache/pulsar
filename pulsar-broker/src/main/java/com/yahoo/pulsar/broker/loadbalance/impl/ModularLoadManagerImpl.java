@@ -366,6 +366,12 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
                 log.warn("Error reading broker data from cache for broker - [{}], [{}]", broker, e.getMessage());
             }
         }
+        // Remove obsolete brokers.
+        for (final String broker : brokerDataMap.keySet()) {
+            if (!activeBrokers.contains(broker)) {
+                brokerDataMap.remove(broker);
+            }
+        }
     }
 
     // As the leader broker, use the local broker data saved on ZooKeeper to update the bundle stats so that better load
@@ -502,27 +508,32 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
      * @return The name of the selected broker, as it appears on ZooKeeper.
      */
     @Override
-    public synchronized String selectBrokerForAssignment(final ServiceUnitId serviceUnit) {
-        final String bundle = serviceUnit.toString();
-        if (preallocatedBundleToBroker.containsKey(bundle)) {
-            // If the given bundle is already in preallocated, return the selected broker.
-            return preallocatedBundleToBroker.get(bundle);
-        }
-        final BundleData data = loadData.getBundleData().computeIfAbsent(bundle, key -> getBundleDataOrDefault(bundle));
-        brokerCandidateCache.clear();
-        LoadManagerShared.applyPolicies(serviceUnit, policies, brokerCandidateCache, getAvailableBrokers());
-        log.info("{} brokers being considered for assignment of {}", brokerCandidateCache.size(), bundle);
+    public String selectBrokerForAssignment(final ServiceUnitId serviceUnit) {
+        // Use brokerCandidateCache as a lock to reduce synchronization.
+        synchronized (brokerCandidateCache) {
+            final String bundle = serviceUnit.toString();
+            if (preallocatedBundleToBroker.containsKey(bundle)) {
+                // If the given bundle is already in preallocated, return the selected broker.
+                return preallocatedBundleToBroker.get(bundle);
+            }
+            final BundleData data = loadData.getBundleData().computeIfAbsent(bundle,
+                    key -> getBundleDataOrDefault(bundle));
+            brokerCandidateCache.clear();
+            LoadManagerShared.applyPolicies(serviceUnit, policies, brokerCandidateCache, getAvailableBrokers());
+            log.info("{} brokers being considered for assignment of {}", brokerCandidateCache.size(), bundle);
 
-        // Use the filter pipeline to finalize broker candidates.
-        for (BrokerFilter filter : filterPipeline) {
-            filter.filter(brokerCandidateCache, data, loadData, conf);
-        }
-        final String broker = placementStrategy.selectBroker(brokerCandidateCache, data, loadData, conf);
+            // Use the filter pipeline to finalize broker candidates.
+            for (BrokerFilter filter : filterPipeline) {
+                filter.filter(brokerCandidateCache, data, loadData, conf);
+            }
+            final String broker = placementStrategy.selectBroker(brokerCandidateCache, data, loadData, conf);
 
-        // Add new bundle to preallocated.
-        loadData.getBrokerData().get(broker).getPreallocatedBundleData().put(bundle, data);
-        preallocatedBundleToBroker.put(bundle, broker);
-        return broker;
+            // Add new bundle to preallocated.
+            loadData.getBrokerData().get(broker).getPreallocatedBundleData().put(bundle, data);
+            preallocatedBundleToBroker.put(bundle, broker);
+
+            return broker;
+        }
     }
 
     /**

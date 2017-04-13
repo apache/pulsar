@@ -40,6 +40,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import org.apache.bookkeeper.client.BKException;
+import org.apache.bookkeeper.client.BookKeeper.DigestType;
+import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
@@ -47,6 +49,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedCursor.IndividualDeletedEntries;
+import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.VoidCallback;
 import org.apache.bookkeeper.mledger.impl.MetaStoreImplZookeeper.ZNodeProtobufFormat;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -55,6 +58,9 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
+import org.apache.zookeeper.CreateMode;
+import org.apache.zookeeper.ZooDefs;
+import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.Factory;
@@ -2374,6 +2380,67 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         assertFalse(c1.hasMoreEntries());
         factory2.shutdown();
+    }
+
+    /**
+     * <pre>
+     * Verifies that {@link ManagedCursorImpl#createNewMetadataLedger()} cleans up orphan ledgers if fails to switch new
+     * ledger
+     * </pre>
+     * @throws Exception
+     */
+    @Test(timeOut=5000)
+    public void testLeakFailedLedgerOfManageCursor() throws Exception {
+
+        ManagedLedgerConfig mlConfig = new ManagedLedgerConfig();
+        ManagedLedger ledger = factory.open("my_test_ledger", mlConfig);
+
+        ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
+        CountDownLatch latch = new CountDownLatch(1);
+        c1.createNewMetadataLedger(new VoidCallback() {
+            @Override
+            public void operationComplete() {
+                latch.countDown();
+            }
+
+            @Override
+            public void operationFailed(ManagedLedgerException exception) {
+                latch.countDown();
+            }
+        });
+
+        // update cursor-info with data which makes bad-version for existing managed-cursor
+        CountDownLatch latch1 = new CountDownLatch(1);
+        String path = "/managed-ledgers/my_test_ledger/c1";
+        zkc.setData(path, "".getBytes(), -1, (rc, path1, ctx, stat) -> {
+            // updated path
+            latch1.countDown();
+        }, null);
+        latch1.await();
+
+        // try to create ledger again which will fail because managedCursorInfo znode is already updated with different
+        // version so, this call will fail with BadVersionException
+        CountDownLatch latch2 = new CountDownLatch(1);
+        // create ledger will create ledgerId = 6
+        long ledgerId = 6;
+        c1.createNewMetadataLedger(new VoidCallback() {
+            @Override
+            public void operationComplete() {
+                latch2.countDown();
+            }
+
+            @Override
+            public void operationFailed(ManagedLedgerException exception) {
+                latch2.countDown();
+            }
+        });
+
+        try {
+            bkc.openLedgerNoRecovery(ledgerId, mlConfig.getDigestType(), mlConfig.getPassword());
+            fail("ledger should have deleted due to update-cursor failure");
+        } catch (BKException e) {
+            // ok
+        }
     }
 
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorTest.class);
