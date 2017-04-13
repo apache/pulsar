@@ -440,6 +440,42 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     }
 
     /**
+     * Verifies broker sets watch on dynamic-configuration map even with invalid init json data
+     * <pre>
+     * 1. Set invalid json at dynamic-config znode
+     * 2. Broker fails to deserialize znode content but sets the watch on znode
+     * 3. Update znode with valid json map
+     * 4. Broker should get watch and update the dynamic-config map
+     * </pre>
+     * @throws Exception
+     */
+    @Test
+    public void testInvalidDynamicConfigContentInZK() throws Exception {
+        final int newValue = 10;
+        stopBroker();
+        // set invalid data into dynamic-config znode so, broker startup fail to deserialize data
+        mockZookKeeper.setData(BrokerService.BROKER_SERVICE_CONFIGURATION_PATH, "$".getBytes(), -1);
+        // start broker: it should have set watch even if with failure of deserialization
+        startBroker();
+        Assert.assertNotEquals(pulsar.getConfiguration().getBrokerShutdownTimeoutMs(), newValue);
+        // update zk with config-value which should fire watch and broker should update the config value
+        Map<String, String> configMap = Maps.newHashMap();
+        configMap.put("brokerShutdownTimeoutMs", Integer.toString(newValue));
+        mockZookKeeper.setData(BrokerService.BROKER_SERVICE_CONFIGURATION_PATH,
+                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(configMap), -1);
+        // wait config to be updated
+        for (int i = 0; i < 5; i++) {
+            if (pulsar.getConfiguration().getBrokerShutdownTimeoutMs() != newValue) {
+                Thread.sleep(100 + (i * 10));
+            } else {
+                break;
+            }
+        }
+        // verify value is updated
+        assertEquals(pulsar.getConfiguration().getBrokerShutdownTimeoutMs(), newValue);
+    }
+
+    /**
      * <pre>
      * verifies: that registerListener updates pulsar.config value with newly updated zk-dynamic config
      * 1.start pulsar
