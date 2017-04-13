@@ -103,6 +103,7 @@ public class CmdProduce {
                 byte[] fileBytes = new byte[(int) f.length()];
                 fis.read(fileBytes);
                 messageBodies.add(fileBytes);
+                fis.close();
 
             }
         } catch (Exception e) {
