@@ -668,14 +668,17 @@ public class NamespaceService {
 
     public void removeOwnedServiceUnit(NamespaceName nsName) throws Exception {
         ownershipCache.removeOwnership(getFullBundle(nsName)).get();
+        bundleFactory.invalidateBundleCache(nsName);
     }
 
     public void removeOwnedServiceUnit(NamespaceBundle nsBundle) throws Exception {
         ownershipCache.removeOwnership(nsBundle).get();
+        bundleFactory.invalidateBundleCache(nsBundle.getNamespaceObject());
     }
 
     public void removeOwnedServiceUnits(NamespaceName nsName, BundlesData bundleData) throws Exception {
         ownershipCache.removeOwnership(bundleFactory.getBundles(nsName, bundleData)).get();
+        bundleFactory.invalidateBundleCache(nsName);
     }
 
     public NamespaceBundleFactory getNamespaceBundleFactory() {
