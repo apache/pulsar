@@ -57,6 +57,7 @@ import com.yahoo.pulsar.broker.ServiceConfiguration;
 import com.yahoo.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import com.yahoo.pulsar.broker.namespace.NamespaceEphemeralData;
 import com.yahoo.pulsar.broker.namespace.NamespaceService;
+import com.yahoo.pulsar.broker.service.BrokerService;
 import com.yahoo.pulsar.client.admin.PulsarAdmin;
 import com.yahoo.pulsar.client.admin.PulsarAdminException;
 import com.yahoo.pulsar.client.admin.PulsarAdminException.ConflictException;

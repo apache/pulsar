@@ -27,6 +27,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -726,6 +727,35 @@ public class BrokerServiceTest extends BrokerTestBase {
             fail("It should fail as throttling should not receive any request");
         } catch (com.yahoo.pulsar.client.api.PulsarClientException.TooManyRequestsException e) {
             // ok as throttling set to 0
+        }
+    }
+
+    @Test
+    public void testTopicLoadingOnDisableNamespaceBundle() throws Exception {
+        final String namespace = "prop/use/disableBundle";
+        admin.namespaces().createNamespace(namespace);
+
+        // own namespace bundle
+        final String topicName = "persistent://" + namespace + "/my-topic";
+        DestinationName destination = DestinationName.get(topicName);
+        Producer producer = pulsarClient.createProducer(topicName);
+        producer.close();
+
+        // disable namespace-bundle
+        NamespaceBundle bundle = pulsar.getNamespaceService().getBundle(destination);
+        pulsar.getNamespaceService().getOwnershipCache().updateBundleState(bundle, false);
+
+        // try to create topic which should fail as bundle is disable
+        CompletableFuture<Topic> futureResult = pulsar.getBrokerService().createPersistentTopic(topicName);
+
+        try {
+            futureResult.get();
+            fail("Topic creation should fail due to disable bundle");
+        } catch (Exception e) {
+            if (!(e.getCause() instanceof BrokerServiceException.ServiceUnitNotReadyException)) {
+                fail("Topic creation should fail with ServiceUnitNotReadyException");
+            }
+
         }
     }
 }
