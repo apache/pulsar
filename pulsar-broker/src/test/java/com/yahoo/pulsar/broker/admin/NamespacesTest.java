@@ -24,6 +24,7 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -63,6 +64,7 @@ import com.yahoo.pulsar.broker.namespace.OwnershipCache;
 import com.yahoo.pulsar.broker.web.PulsarWebResource;
 import com.yahoo.pulsar.broker.web.RestException;
 import com.yahoo.pulsar.client.admin.PulsarAdminException;
+import com.yahoo.pulsar.client.api.Producer;
 import com.yahoo.pulsar.common.naming.DestinationName;
 import com.yahoo.pulsar.common.naming.NamespaceBundle;
 import com.yahoo.pulsar.common.naming.NamespaceBundles;
@@ -1061,6 +1063,37 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testIsLeader() throws Exception {
         assertTrue(namespaces.isLeaderBroker());
+    }
+
+    /**
+     * Verifies that deleteNamespace cleans up policies(global,local), bundle cache and bundle ownership
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testDeleteNamespace() throws Exception {
+
+        final String namespace = this.testProperty + "/use/deleteNs";
+        admin.namespaces().createNamespace(namespace, 100);
+        assertEquals(admin.namespaces().getPolicies(namespace).bundles.numBundles, 100);
+
+        // (1) Force topic creation and namespace being loaded
+        final String topicName = "persistent://" + namespace + "/my-topic";
+        DestinationName destination = DestinationName.get(topicName);
+
+        Producer producer = pulsarClient.createProducer(topicName);
+        producer.close();
+        NamespaceBundle bundle1 = pulsar.getNamespaceService().getBundle(destination);
+        // (2) Delete topic
+        admin.persistentTopics().delete(topicName);
+        // (3) Delete ns
+        admin.namespaces().deleteNamespace(namespace);
+        // (4) check bundle
+        NamespaceBundle bundle2 = pulsar.getNamespaceService().getBundle(destination);
+        assertNotEquals(bundle1.getBundleRange(), bundle2.getBundleRange());
+        // returns full bundle if policies not present 
+        assertEquals("0x00000000_0xffffffff", bundle2.getBundleRange());
+
     }
 
     private void mockWebUrl(URL localWebServiceUrl, NamespaceName namespace) throws Exception {
