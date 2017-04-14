@@ -439,7 +439,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
      * @return CompletableFuture<Topic>
      * @throws RuntimeException
      */
-    private CompletableFuture<Topic> createPersistentTopic(final String topic) throws RuntimeException {
+    protected CompletableFuture<Topic> createPersistentTopic(final String topic) throws RuntimeException {
         checkTopicNsOwnership(topic);
 
         final CompletableFuture<Topic> topicFuture = new CompletableFuture<>();

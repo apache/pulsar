@@ -57,6 +57,7 @@ import com.yahoo.pulsar.broker.ServiceConfiguration;
 import com.yahoo.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import com.yahoo.pulsar.broker.namespace.NamespaceEphemeralData;
 import com.yahoo.pulsar.broker.namespace.NamespaceService;
+import com.yahoo.pulsar.broker.service.BrokerService;
 import com.yahoo.pulsar.client.admin.PulsarAdmin;
 import com.yahoo.pulsar.client.admin.PulsarAdminException;
 import com.yahoo.pulsar.client.admin.PulsarAdminException.ConflictException;
@@ -1697,34 +1698,4 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(uriStats.get().subscriptions.size(), 1);
     }
 
-    /**
-     * Verifies that deleteNamespace cleans up policies(global,local), bundle cache and bundle ownership
-     * 
-     * @throws Exception
-     */
-    @Test
-    public void testDeleteNamespace() throws Exception {
-
-        final String namespace = "prop-xyz/use/deleteNs";
-        admin.namespaces().createNamespace(namespace, 100);
-        assertEquals(admin.namespaces().getPolicies(namespace).bundles.numBundles, 100);
-
-        // (1) Force topic creation and namespace being loaded
-        final String topicName = "persistent://" + namespace + "/my-topic";
-        DestinationName destination = DestinationName.get(topicName);
-
-        Producer producer = pulsarClient.createProducer(topicName);
-        producer.close();
-        NamespaceBundle bundle1 = pulsar.getNamespaceService().getBundle(destination);
-        // (2) Delete topic
-        admin.persistentTopics().delete(topicName);
-        // (3) Delete ns
-        admin.namespaces().deleteNamespace(namespace);
-        // (4) check bundle
-        NamespaceBundle bundle2 = pulsar.getNamespaceService().getBundle(destination);
-        assertNotEquals(bundle1.getBundleRange(), bundle2.getBundleRange());
-        // returns full bundle if policies not present 
-        assertEquals("0x00000000_0xffffffff", bundle2.getBundleRange());
-
-    }
 }
