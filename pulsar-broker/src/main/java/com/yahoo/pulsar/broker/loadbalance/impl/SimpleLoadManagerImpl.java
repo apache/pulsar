@@ -15,11 +15,9 @@
  */
 package com.yahoo.pulsar.broker.loadbalance.impl;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.commons.lang3.StringUtils.isNotEmpty;
 
 import java.io.IOException;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -75,9 +73,11 @@ import com.yahoo.pulsar.common.policies.data.loadbalancer.ResourceUnitRanking;
 import com.yahoo.pulsar.common.policies.data.loadbalancer.SystemResourceUsage;
 import com.yahoo.pulsar.common.policies.data.loadbalancer.SystemResourceUsage.ResourceType;
 import com.yahoo.pulsar.common.util.ObjectMapperFactory;
+import com.yahoo.pulsar.zookeeper.ZooKeeperCache.Deserializer;
 import com.yahoo.pulsar.zookeeper.ZooKeeperCacheListener;
 import com.yahoo.pulsar.zookeeper.ZooKeeperChildrenCache;
 import com.yahoo.pulsar.zookeeper.ZooKeeperDataCache;
+import static com.yahoo.pulsar.broker.admin.AdminResource.jsonMapper;
 
 public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListener<LoadReport> {
 
@@ -176,6 +176,8 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
     private long lastResourceUsageTimestamp = -1;
     // flag to force update load report
     private boolean forceLoadReportUpdate = false;
+    private static final Deserializer<LoadReport> loadReportDeserializer = (key, content) -> jsonMapper()
+            .readValue(content, LoadReport.class); 
 
     // Perform initializations which may be done without a PulsarService.
     public SimpleLoadManagerImpl() {
@@ -284,6 +286,12 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
             try {
                 ZkUtils.createFullPathOptimistic(pulsar.getZkClient(), brokerZnodePath,
                         loadReportJson.getBytes(Charsets.UTF_8), Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
+            } catch (KeeperException.NodeExistsException e) {
+                // Node may already be created by another load manager: in this case update the data.
+                if (loadReport != null) {
+                    pulsar.getZkClient().setData(brokerZnodePath, loadReportJson.getBytes(Charsets.UTF_8), -1);
+                }
+
             } catch (Exception e) {
                 // Catching excption here to print the right error message
                 log.error("Unable to create znode - [{}] for load balance on zookeeper ", brokerZnodePath, e);
@@ -313,6 +321,11 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
         if (isNotEmpty(brokerZnodePath)) {
             pulsar.getZkClient().delete(brokerZnodePath, -1);
         }
+    }
+
+    @Override
+    public Deserializer<LoadReport> getLoadReportDeserializer() {
+        return loadReportDeserializer;
     }
 
     public ZooKeeperChildrenCache getActiveBrokersCache() {
@@ -1306,6 +1319,11 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
                 if (isAboveLoadLevel(lr.getSystemResourceUsage(), overloadThreshold)) {
                     ResourceType bottleneckResourceType = lr.getBottleneckResourceType();
                     Map<String, NamespaceBundleStats> bundleStats = lr.getSortedBundleStats(bottleneckResourceType);
+                    if (bundleStats == null) {
+                        log.warn("Null bundle stats for bundle {}", lr.getName());
+                        continue;
+
+                    }
                     // 1. owns only one namespace
                     if (bundleStats.size() == 1) {
                         // can't unload one namespace, just issue a warning message
@@ -1416,6 +1434,9 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
 
     @Override
     public void stop() throws PulsarServerException {
-        // do nothing
+        loadReportCacheZk.clear();
+        loadReportCacheZk.close();
+        availableActiveBrokers.close();
+        scheduler.shutdown();
     }
 }

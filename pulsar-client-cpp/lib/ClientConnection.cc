@@ -124,7 +124,6 @@ havePendingPingRequest_(false),
 keepAliveTimer_(),
 maxPendingLookupRequest_(clientConfiguration.getConcurrentLookupRequest()),
 consumerStatsRequestTimer_(executor_->createDeadlineTimer()),
-consumerStatsTTLMs_(30 * 1000),
 numOfPendingLookupRequest_(0),
 isTlsAllowInsecureConnection_(false) {
     if (clientConfiguration.isUseTls()) {
@@ -199,13 +198,13 @@ void ClientConnection::handlePulsarConnected(const CommandConnected& cmdConnecte
                 boost::bind(&ClientConnection::handleKeepAliveTimeout, shared_from_this()));
     }
 
-    if (serverProtocolVersion_ >= v7) {
+    if (serverProtocolVersion_ >= v8) {
         startConsumerStatsTimer(std::vector<uint64_t>());
     }
 }
 
 void ClientConnection::startConsumerStatsTimer(std::vector<uint64_t> consumerStatsRequests) {
-    std::vector<Promise<Result, BrokerConsumerStats> > consumerStatsPromises;
+    std::vector<Promise<Result, BrokerConsumerStatsImpl> > consumerStatsPromises;
     Lock lock(mutex_);
 
     for (int i = 0; i < consumerStatsRequests.size(); i++) {
@@ -715,7 +714,7 @@ void ClientConnection::handleIncomingCommand() {
                     PendingConsumerStatsMap::iterator it = pendingConsumerStatsMap_.find(
                             consumerStatsResponse.request_id());
                     if (it != pendingConsumerStatsMap_.end()) {
-                        Promise<Result, BrokerConsumerStats> consumerStatsPromise = it->second;
+                        Promise<Result, BrokerConsumerStatsImpl> consumerStatsPromise = it->second;
                         pendingConsumerStatsMap_.erase(it);
                         lock.unlock();
 
@@ -730,10 +729,7 @@ void ClientConnection::handleIncomingCommand() {
                                     cnxString_
                                             << "ConsumerStatsResponse command - Received consumer stats response from server. req_id: "
                                             << consumerStatsResponse.request_id() << " Stats: ");
-                            boost::posix_time::ptime validTill = now() + milliseconds(consumerStatsTTLMs_);
-                            BrokerConsumerStats brokerStats =
-                                    BrokerConsumerStats(validTill,
-                                                            consumerStatsResponse.msgrateout(),
+                            BrokerConsumerStatsImpl brokerStats(consumerStatsResponse.msgrateout(),
                                                             consumerStatsResponse.msgthroughputout(),
                                                             consumerStatsResponse.msgrateredeliver(),
                                                             consumerStatsResponse.consumername(),
@@ -923,11 +919,10 @@ void ClientConnection::handleIncomingCommand() {
     }
 }
 
-Future<Result, BrokerConsumerStats>
-ClientConnection::newConsumerStats(const std::string topicName, const std::string subscriptionName,
-                                   uint64_t consumerId, uint64_t requestId) {
+Future<Result, BrokerConsumerStatsImpl>
+ClientConnection::newConsumerStats(uint64_t consumerId, uint64_t requestId) {
     Lock lock(mutex_);
-    Promise<Result, BrokerConsumerStats> promise;
+    Promise<Result, BrokerConsumerStatsImpl> promise;
     if (isClosed()) {
         lock.unlock();
         LOG_ERROR(cnxString_ << " Client is not connected to the broker");
@@ -935,7 +930,7 @@ ClientConnection::newConsumerStats(const std::string topicName, const std::strin
     }
     pendingConsumerStatsMap_.insert(std::make_pair(requestId, promise));
     lock.unlock();
-    sendCommand(Commands::newConsumerStats(outgoingCmd_, topicName, subscriptionName, consumerId, requestId));
+    sendCommand(Commands::newConsumerStats(outgoingCmd_, consumerId, requestId));
     return promise.getFuture();
 }
 

@@ -27,6 +27,7 @@
 #include <sstream>
 #include <openssl/sha.h>
 #include "boost/date_time/posix_time/posix_time.hpp"
+#include <lib/HTTPLookupService.h>
 
 DECLARE_LOG_OBJECT()
 
@@ -63,11 +64,20 @@ namespace pulsar {
           listenerExecutorProvider_(boost::make_shared<ExecutorServiceProvider>(clientConfiguration.getMessageListenerThreads())),
           partitionListenerExecutorProvider_(boost::make_shared<ExecutorServiceProvider>(clientConfiguration.getMessageListenerThreads())),
           pool_(clientConfiguration, ioExecutorProvider_, clientConfiguration.getAuthenticationPtr(), poolConnections),
-          lookup_(pool_, serviceUrl),
           producerIdGenerator_(0),
           consumerIdGenerator_(0),
           requestIdGenerator_(0) {
         LogUtils::init(clientConfiguration.getLogConfFilePath());
+        if (serviceUrl_.compare(0, 4, "http") == 0) {
+            LOG_DEBUG("Using HTTP Lookup");
+            lookupServicePtr_ = boost::make_shared<HTTPLookupService>(boost::cref(serviceUrl_),
+                                                                      boost::cref(clientConfiguration_),
+                                                                      boost::cref(
+                                                                              clientConfiguration.getAuthenticationPtr()));
+        } else {
+            LOG_DEBUG("Using Binary Lookup");
+            lookupServicePtr_ = boost::make_shared<BinaryProtoLookupService>(boost::ref(pool_), boost::ref(serviceUrl));
+        }
     }
 
     ClientImpl::~ClientImpl() {
@@ -105,7 +115,7 @@ namespace pulsar {
                 return;
             }
         }
-        lookup_.getPartitionMetadataAsync(dn).addListener(boost::bind(&ClientImpl::handleCreateProducer,
+        lookupServicePtr_->getPartitionMetadataAsync(dn).addListener(boost::bind(&ClientImpl::handleCreateProducer,
                                     shared_from_this(), _1, _2, dn, conf, callback));
     }
 
@@ -157,7 +167,7 @@ namespace pulsar {
             }
         }
 
-        lookup_.getPartitionMetadataAsync(dn).addListener(boost::bind(&ClientImpl::handleSubscribe,
+        lookupServicePtr_->getPartitionMetadataAsync(dn).addListener(boost::bind(&ClientImpl::handleSubscribe,
                                     shared_from_this(), _1, _2, dn, consumerName, conf, callback));
     }
 
@@ -211,7 +221,7 @@ namespace pulsar {
 
     Future<Result, ClientConnectionWeakPtr> ClientImpl::getConnection(const std::string& topic) {
         Promise<Result, ClientConnectionWeakPtr> promise;
-        lookup_.lookupAsync(topic).addListener(boost::bind(&ClientImpl::handleLookup, this, _1, _2, promise));
+        lookupServicePtr_->lookupAsync(topic).addListener(boost::bind(&ClientImpl::handleLookup, this, _1, _2, promise));
         return promise.getFuture();
     }
 

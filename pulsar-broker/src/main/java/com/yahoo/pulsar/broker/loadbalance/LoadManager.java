@@ -17,6 +17,9 @@ package com.yahoo.pulsar.broker.loadbalance;
 
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.yahoo.pulsar.broker.PulsarServerException;
 import com.yahoo.pulsar.broker.PulsarService;
 import com.yahoo.pulsar.broker.ServiceConfiguration;
@@ -25,8 +28,8 @@ import com.yahoo.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import com.yahoo.pulsar.broker.stats.Metrics;
 import com.yahoo.pulsar.common.naming.ServiceUnitId;
 import com.yahoo.pulsar.common.policies.data.loadbalancer.LoadReport;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.yahoo.pulsar.common.policies.data.loadbalancer.ServiceLookupData;
+import com.yahoo.pulsar.zookeeper.ZooKeeperCache.Deserializer;
 
 /**
  * LoadManager runs though set of load reports collected from different brokers and generates a recommendation of
@@ -56,6 +59,13 @@ public interface LoadManager {
      * Generate the load report
      */
     LoadReport generateLoadReport() throws Exception;
+    
+    /**
+     * Returns {@link Deserializer} to deserialize load report 
+     * 
+     * @return
+     */
+    Deserializer<? extends ServiceLookupData> getLoadReportDeserializer();
 
     /**
      * Set flag to force load report update

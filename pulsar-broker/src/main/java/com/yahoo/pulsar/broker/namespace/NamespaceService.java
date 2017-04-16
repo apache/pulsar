@@ -17,6 +17,7 @@ package com.yahoo.pulsar.broker.namespace;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.yahoo.pulsar.broker.admin.AdminResource.jsonMapper;
 import static com.yahoo.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
 import static com.yahoo.pulsar.broker.web.PulsarWebResource.joinPath;
 import static com.yahoo.pulsar.common.naming.NamespaceBundleFactory.getBundlesData;
@@ -36,7 +37,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import com.yahoo.pulsar.common.policies.data.loadbalancer.ServiceLookupData;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.zookeeper.AsyncCallback.StatCallback;
@@ -51,8 +51,6 @@ import com.yahoo.pulsar.broker.PulsarService;
 import com.yahoo.pulsar.broker.ServiceConfiguration;
 import com.yahoo.pulsar.broker.admin.AdminResource;
 import com.yahoo.pulsar.broker.loadbalance.LoadManager;
-import com.yahoo.pulsar.common.policies.data.loadbalancer.LoadReport;
-import com.yahoo.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import com.yahoo.pulsar.broker.lookup.LookupResult;
 import com.yahoo.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import com.yahoo.pulsar.client.admin.PulsarAdmin;
@@ -68,11 +66,10 @@ import com.yahoo.pulsar.common.policies.data.BrokerAssignment;
 import com.yahoo.pulsar.common.policies.data.BundlesData;
 import com.yahoo.pulsar.common.policies.data.LocalPolicies;
 import com.yahoo.pulsar.common.policies.data.NamespaceOwnershipStatus;
+import com.yahoo.pulsar.common.policies.data.loadbalancer.ServiceLookupData;
 import com.yahoo.pulsar.common.policies.impl.NamespaceIsolationPolicies;
 import com.yahoo.pulsar.common.util.Codec;
 import com.yahoo.pulsar.common.util.ObjectMapperFactory;
-import com.yahoo.pulsar.zookeeper.ZooKeeperCache.Deserializer;
-import static com.yahoo.pulsar.broker.admin.AdminResource.jsonMapper;
 
 /**
  * The <code>NamespaceService</code> provides resource ownership lookup as well as resource ownership claiming services
@@ -149,10 +146,6 @@ public class NamespaceService {
     private NamespaceBundle getFullBundle(NamespaceName fqnn) throws Exception {
         return bundleFactory.getFullBundle(fqnn);
     }
-
-    private static final Deserializer<ServiceLookupData> serviceLookupDataDeserializer = (key, content) ->
-            jsonMapper().readValue(content, ServiceLookupData.class);
-
 
 	public URL getWebServiceUrl(ServiceUnitId suName, boolean authoritative, boolean isRequestHttps, boolean readOnly)
 			throws Exception {
@@ -399,7 +392,7 @@ public class NamespaceService {
         }
     }
 
-    private CompletableFuture<LookupResult> createLookupResult(String candidateBroker) throws Exception {
+    protected CompletableFuture<LookupResult> createLookupResult(String candidateBroker) throws Exception {
 
         CompletableFuture<LookupResult> lookupFuture = new CompletableFuture<>();
         try {
@@ -407,7 +400,7 @@ public class NamespaceService {
             URI uri = new URI(candidateBroker);
             String path = String.format("%s/%s:%s", LoadManager.LOADBALANCE_BROKERS_ROOT, uri.getHost(),
                     uri.getPort());
-            pulsar.getLocalZkCache().getDataAsync(path, serviceLookupDataDeserializer).thenAccept(reportData -> {
+            pulsar.getLocalZkCache().getDataAsync(path, pulsar.getLoadManager().get().getLoadReportDeserializer()).thenAccept(reportData -> {
                 if (reportData.isPresent()) {
                     ServiceLookupData lookupData = reportData.get();
                     lookupFuture.complete(new LookupResult(lookupData.getWebServiceUrl(),
@@ -675,14 +668,17 @@ public class NamespaceService {
 
     public void removeOwnedServiceUnit(NamespaceName nsName) throws Exception {
         ownershipCache.removeOwnership(getFullBundle(nsName)).get();
+        bundleFactory.invalidateBundleCache(nsName);
     }
 
     public void removeOwnedServiceUnit(NamespaceBundle nsBundle) throws Exception {
         ownershipCache.removeOwnership(nsBundle).get();
+        bundleFactory.invalidateBundleCache(nsBundle.getNamespaceObject());
     }
 
     public void removeOwnedServiceUnits(NamespaceName nsName, BundlesData bundleData) throws Exception {
         ownershipCache.removeOwnership(bundleFactory.getBundles(nsName, bundleData)).get();
+        bundleFactory.invalidateBundleCache(nsName);
     }
 
     public NamespaceBundleFactory getNamespaceBundleFactory() {

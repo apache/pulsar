@@ -17,8 +17,7 @@
 #include "Url.h"
 
 #include <boost/regex.hpp>
-#include <stdlib.h>
-#include <map>
+#include <iostream>
 
 namespace pulsar {
 
@@ -53,6 +52,10 @@ bool Url::parse(const std::string& urlStr, Url& url) {
     url.protocol_ = std::string(groups[1].first, groups[1].second);
     url.host_ = std::string(groups[2].first, groups[2].second);
     std::string portStr(groups[3].first, groups[3].second);
+    url.pathWithoutFile_ = std::string(groups[4].first, groups[4].second);
+    url.file_ = std::string(groups[5].first, groups[5].second);
+    url.parameter_ = std::string(groups[6].first, groups[6].second);
+    url.path_ = url.pathWithoutFile_ + url.file_;
 
     if (!portStr.empty()) {
         url.port_ = atoi(groups[3].first);
@@ -79,6 +82,28 @@ const std::string& Url::host() const {
 
 const int Url::port() const {
     return port_;
+}
+
+const std::string& Url::path() const {
+    return path_;
+}
+
+const std::string& Url::pathWithoutFile() const {
+    return pathWithoutFile_;
+}
+
+const std::string& Url::file() const {
+    return file_;
+}
+
+const std::string& Url::parameter() const {
+    return parameter_;
+}
+
+std::ostream & operator<<(std::ostream &os, const Url& obj) {
+    os << "Url [Host = " << obj.host() << ", Protocol = " << obj.protocol()
+       << ", Port = " << obj.port() << "]";
+    return os;
 }
 
 } // pulsar
