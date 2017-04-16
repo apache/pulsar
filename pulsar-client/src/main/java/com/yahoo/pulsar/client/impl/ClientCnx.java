@@ -69,7 +69,6 @@ public class ClientCnx extends PulsarHandler {
     private volatile int numberOfRejectRequests = 0;
     private final int maxNumberOfRejectedRequestPerConnection;
     private final int rejectedRequestResetTimeSec = 60;
-    private final boolean isConnectionPoolingDisabled;
 
     enum State {
         None, SentConnectFrame, Ready
@@ -83,7 +82,6 @@ public class ClientCnx extends PulsarHandler {
         this.eventLoopGroup = pulsarClient.eventLoopGroup();
         this.maxNumberOfRejectedRequestPerConnection = pulsarClient.getConfiguration().getMaxNumberOfRejectedRequestPerConnection();
         this.state = State.None;
-        this.isConnectionPoolingDisabled = (pulsarClient.getConfiguration().getConnectionsPerBroker() == 0);
     }
 
     @Override
@@ -432,27 +430,16 @@ public class ClientCnx extends PulsarHandler {
         consumers.put(consumerId, consumer);
     }
 
-    void closeIfNotUsedAgain() {
-        if (isConnectionPoolingDisabled && producers.size() == 0 && consumers.size() == 0) {
-            // Pooling is disabled, hence if a connection has no producers or consumers, it will be GC'ed
-            // Need to free system resources before GC.
-            log.info("Closing the connection {} ", ctx.channel().remoteAddress());
-            ctx.channel().close();
-        }
-    }
-    
     void registerProducer(final long producerId, final ProducerImpl producer) {
         producers.put(producerId, producer);
     }
 
     void removeProducer(final long producerId) {
         producers.remove(producerId);
-        closeIfNotUsedAgain();
     }
 
     void removeConsumer(final long consumerId) {
         consumers.remove(consumerId);
-        closeIfNotUsedAgain();
     }
 
     private PulsarClientException getPulsarClientException(ServerError error, String errorMsg) {

@@ -111,15 +111,12 @@ class BinaryProtoLookupService implements LookupService {
                     log.warn("[{}] invalid url {} : {}", destination.toString(), uri, parseUrlException.getMessage(),
                             parseUrlException);
                     addressFuture.completeExceptionally(parseUrlException);
-                } finally {
-                    clientCnx.closeIfNotUsedAgain();
                 }
             }).exceptionally((sendException) -> {
                 // lookup failed
                 log.warn("[{}] failed to send lookup request : {}", destination.toString(), sendException.getMessage(),
                         sendException);
                 addressFuture.completeExceptionally(sendException);
-                clientCnx.closeIfNotUsedAgain();
                 return null;
             });
         }).exceptionally(connectionException -> {
@@ -139,13 +136,17 @@ class BinaryProtoLookupService implements LookupService {
             long requestId = client.newRequestId();
             ByteBuf request = Commands.newPartitionMetadataRequest(destination.toString(), requestId);
             clientCnx.newLookup(request, requestId).thenAccept(lookupDataResult -> {
-                partitionFuture.complete(new PartitionedTopicMetadata(lookupDataResult.partitions));
-                clientCnx.closeIfNotUsedAgain();
+                try {
+                    partitionFuture.complete(new PartitionedTopicMetadata(lookupDataResult.partitions));
+                } catch (Exception e) {
+                    partitionFuture.completeExceptionally(new PulsarClientException.LookupException(
+                            format("Failed to parse partition-response redirect=%s , partitions with %s",
+                                    lookupDataResult.redirect, lookupDataResult.partitions, e.getMessage())));
+                }
             }).exceptionally((e) -> {
                 log.warn("[{}] failed to get Partitioned metadata : {}", destination.toString(),
                         e.getCause().getMessage(), e);
                 partitionFuture.completeExceptionally(e);
-                clientCnx.closeIfNotUsedAgain();
                 return null;
             });
         }).exceptionally(connectionException -> {

@@ -157,10 +157,6 @@ abstract class HandlerBase {
     protected void setClientCnx(ClientCnx clientCnx) {
         CLIENT_CNX_UPDATER.set(this, clientCnx);
     }
-    
-    protected ClientCnx getAndSetClientCnx(ClientCnx clientCnx) {
-        return CLIENT_CNX_UPDATER.getAndSet(this, clientCnx);
-    }
 
     private boolean isValidStateForReconnection() {
         State state = STATE_UPDATER.get(this);

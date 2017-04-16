@@ -453,10 +453,7 @@ public class ConsumerImpl extends ConsumerBase {
 
     @Override
     void connectionOpened(final ClientCnx cnx) {
-        ClientCnx currCnx = getAndSetClientCnx(cnx);
-        if (currCnx != null) {
-            currCnx.removeConsumer(consumerId);
-        }
+        setClientCnx(cnx);
         cnx.registerConsumer(consumerId, this);
 
         log.info("[{}][{}] Subscribing to topic on cnx {}", topic, subscription, cnx.ctx().channel());

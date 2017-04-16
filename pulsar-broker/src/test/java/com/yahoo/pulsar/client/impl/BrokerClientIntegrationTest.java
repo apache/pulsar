@@ -28,7 +28,6 @@ import static org.testng.Assert.fail;
 
 import java.lang.reflect.Field;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NavigableMap;
@@ -66,7 +65,6 @@ import com.yahoo.pulsar.client.api.SubscriptionType;
 import com.yahoo.pulsar.client.impl.HandlerBase.State;
 import com.yahoo.pulsar.client.util.FutureUtil;
 import com.yahoo.pulsar.common.api.PulsarHandler;
-import com.yahoo.pulsar.common.configuration.PulsarConfiguration;
 import com.yahoo.pulsar.common.naming.DestinationName;
 import com.yahoo.pulsar.common.naming.NamespaceBundle;
 import com.yahoo.pulsar.common.policies.data.RetentionPolicies;
@@ -639,53 +637,5 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
             return timestamp;
         }
     }
-    
-    @Test
-    public void testCnxCloseOnPoolingOn() throws PulsarClientException, URISyntaxException {
-        String topicName = "persistent://prop/usw/my-ns/newTopic";
-        String brokerUrl = new URI("pulsar://localhost:" + BROKER_PORT).toString();
 
-        PulsarClientImpl pulsarClient = (PulsarClientImpl) PulsarClient.create(brokerUrl);
-
-        ProducerImpl producer = (ProducerImpl) pulsarClient.createProducer(topicName);
-        ClientCnx cnx = producer.cnx();
-        assertTrue(cnx.channel().isActive());
-        
-        producer.close();
-        assertTrue(cnx.channel().isActive());
-        
-        ConsumerImpl consumer = (ConsumerImpl) pulsarClient.subscribe(topicName, "my -subs");
-        cnx = consumer.cnx();
-        assertTrue(cnx.channel().isActive());
-        
-        consumer.close();
-        assertTrue(cnx.channel().isActive());
-    }
-
-    
-    @Test
-    public void testCnxCloseOnPoolingOff() throws PulsarClientException, URISyntaxException {
-        String topicName = "persistent://prop/usw/my-ns/newTopic";
-        
-        // Disable pooling
-        ClientConfiguration clientConf = new ClientConfiguration();
-        clientConf.setConnectionsPerBroker(0);
-        
-        String brokerUrl = new URI("pulsar://localhost:" + BROKER_PORT).toString();
-        PulsarClientImpl pulsarClient = (PulsarClientImpl) PulsarClient.create(brokerUrl, clientConf);
-
-        ProducerImpl producer = (ProducerImpl) pulsarClient.createProducer(topicName);
-        ClientCnx cnx = producer.cnx();
-        assertTrue(cnx.channel().isActive());
-        
-        producer.close();
-        assertFalse(cnx.channel().isActive());
-        
-        ConsumerImpl consumer = (ConsumerImpl) pulsarClient.subscribe(topicName, "my -subs");
-        cnx = consumer.cnx();
-        assertTrue(cnx.channel().isActive());
-        
-        consumer.close();
-        assertFalse(cnx.channel().isActive());
-    }
 }
