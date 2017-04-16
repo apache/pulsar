@@ -19,17 +19,16 @@
 
 #include <pulsar/Result.h>
 
-#include <lib/ClientConnectionContainer.h>
-
 #include <string>
 #include <map>
 #include <boost/thread/mutex.hpp>
 #include <lib/ClientConnection.h>
+#include <lib/RoundRobinArray.h>
 
 namespace pulsar {
 
 class ExecutorService;
-typedef boost::shared_ptr<ClientConnectionContainer<ClientConnectionWeakPtr> > ClientConnectionContainerPtr;
+typedef boost::shared_ptr<RoundRobinArray<ClientConnectionWeakPtr> > ClientConnectionContainerPtr;
 class ConnectionPool {
  public:
     ConnectionPool(const ClientConfiguration& conf, ExecutorServiceProviderPtr executorProvider,

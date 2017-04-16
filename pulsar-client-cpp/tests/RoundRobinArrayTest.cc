@@ -14,37 +14,37 @@
  * limitations under the License.
  */
 
-#include <ClientConnectionContainer.h>
 #include <stdlib.h>     /* srand, rand */
 #include <time.h>       /* time */
 #include <gtest/gtest.h>
 #include <lib/LogUtils.h>
+#include <RoundRobinArray.h>
 DECLARE_LOG_OBJECT();
 
 using namespace pulsar;
 
-TEST(ClientConnectionContainerTest, basicWorking) {
+TEST(RoundRobinArrayTest, basicWorking) {
     int nextValue;
     // Initializing a random variable
     srand(time(NULL));
 
     // Initialize a container of size 3
-    ClientConnectionContainer<int> container(3);
+    RoundRobinArray<int> container(3);
     // Successfully add 3 elements
     int obj = 0;
     ASSERT_TRUE(container.add(obj));
     obj = 1;
     ASSERT_TRUE(container.add(obj));
-    ASSERT_FALSE(container.isFull());
+    ASSERT_FALSE(container.full());
     obj = 2;
     ASSERT_TRUE(container.add(obj));
-    ASSERT_TRUE(container.isFull());
+    ASSERT_TRUE(container.full());
 
     // Fail on trying to add the fourth element
     obj = 3;
     ASSERT_FALSE(container.add(obj));
     ASSERT_EQ(container.size(), 3);
-    ASSERT_TRUE(container.isFull());
+    ASSERT_TRUE(container.full());
 
     // random number [1 100]
     int rnumber = rand() % 100 + 1;
@@ -63,7 +63,7 @@ TEST(ClientConnectionContainerTest, basicWorking) {
         sum += nextValue;
         ASSERT_TRUE(container.remove());
         ASSERT_EQ(container.size(), 3 - (i + 1));
-        ASSERT_FALSE(container.isFull());
+        ASSERT_FALSE(container.full());
     }
     // 3 = 0 + 1 + 2
     ASSERT_EQ(sum, 3);
@@ -71,10 +71,10 @@ TEST(ClientConnectionContainerTest, basicWorking) {
     ASSERT_FALSE(container.getNext(nextValue));
 }
 
-TEST(ClientConnectionContainerTest, removeOperation) {
+TEST(RoundRobinArrayTest, removeOperation) {
     int nextValue;
     // Initialize a container of size 3
-    ClientConnectionContainer<int> container(5);
+    RoundRobinArray<int> container(5);
     ASSERT_EQ(container.capacity(), 5);
 
     // Successfully add 2 elements
@@ -138,15 +138,22 @@ TEST(ClientConnectionContainerTest, removeOperation) {
     ASSERT_TRUE(container.add(obj));
     obj = 8;
     ASSERT_TRUE(container.add(obj));
-    obj = 8;
+    obj = 9;
     ASSERT_TRUE(container.add(obj));
 
-    // [5 6 7 8]
+    //  v
+    // [5 6 7 8 9]
     ASSERT_TRUE(container.remove());  // 5 removed
     // 9 removed - removes element in reverse order starting from the one returned by last getNext() call
+    //        v
+    // [6 7 8 9]
     ASSERT_TRUE(container.remove());
     // 8 removed - removes element in reverse order starting from the one returned by last getNext() call
+    //      v
+    // [6 7 8]
     ASSERT_TRUE(container.remove());
+    //    v
+    // [6 7]
     ASSERT_TRUE(container.getNext(nextValue));
     ASSERT_EQ(nextValue, 6);
     ASSERT_TRUE(container.getNext(nextValue));
@@ -159,22 +166,22 @@ TEST(ClientConnectionContainerTest, removeOperation) {
     ASSERT_FALSE(container.getNext(nextValue));
 }
 
-TEST(ClientConnectionContainerTest, negativeTests) {
+TEST(RoundRobinArrayTest, negativeTests) {
     int nextValue;
-    ClientConnectionContainer<int> container1(3);
+    RoundRobinArray<int> container1(3);
     ASSERT_FALSE(container1.getNext(nextValue));
 
-    ClientConnectionContainer<int> container2(0);
+    RoundRobinArray<int> container2(0);
     ASSERT_EQ(container2.size(), 0);
     ASSERT_EQ(container2.capacity(), 1);
-    ASSERT_TRUE(container2.isEmpty());
-    ASSERT_FALSE(container2.isFull());
+    ASSERT_TRUE(container2.empty());
+    ASSERT_FALSE(container2.full());
 }
 
-TEST(ClientConnectionContainerTest, addOperation) {
+TEST(RoundRobinArrayTest, addOperation) {
     int nextValue;
     // Initialize a container of size 3
-    ClientConnectionContainer<int> container(1);
+    RoundRobinArray<int> container(1);
     // Successfully add 2 elements
     int obj = 0;
     ASSERT_TRUE(container.add(obj));
@@ -187,7 +194,7 @@ TEST(ClientConnectionContainerTest, addOperation) {
     ASSERT_EQ(nextValue, 0);
 
     ASSERT_TRUE(container.remove());
-    ASSERT_FALSE(container.isFull());
+    ASSERT_FALSE(container.full());
     ASSERT_EQ(container.size(), 0);
 }
 

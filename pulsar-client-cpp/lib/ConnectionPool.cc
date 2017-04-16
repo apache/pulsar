@@ -43,7 +43,7 @@ Future<Result, ClientConnectionWeakPtr> ConnectionPool::getConnectionAsync(
         if (cnxIt != pool_.end()) {
             // endpoint exists in the map
                 ClientConnectionContainerPtr containerPtr = cnxIt->second;
-                if (containerPtr && containerPtr->isFull()) {
+                if (containerPtr && containerPtr->full()) {
                     // container is full - can start reusing connections
                     ClientConnectionWeakPtr weakCnx;
                     if (containerPtr->getNext(weakCnx)) {
@@ -75,7 +75,7 @@ Future<Result, ClientConnectionWeakPtr> ConnectionPool::getConnectionAsync(
     if (poolConnections_) {
         if (cnxIt == pool_.end()) {
             // Need to insert a container in the map
-            ClientConnectionContainerPtr containerPtr = boost::make_shared<ClientConnectionContainer<ClientConnectionWeakPtr> >(connectionsPerBroker);
+            ClientConnectionContainerPtr containerPtr = boost::make_shared<RoundRobinArray<ClientConnectionWeakPtr> >(connectionsPerBroker);
             LOG_DEBUG("Adding Connection to a new Container " << *containerPtr);
             ClientConnectionWeakPtr temp = cnx; // can't typecast and bind lvalue at same time
             containerPtr->add(temp);

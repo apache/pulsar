@@ -41,7 +41,7 @@ struct ClientConfiguration::Impl {
     bool useTls;
     std::string tlsTrustCertsFilePath;
     bool tlsAllowInsecureConnection;
-    long connectionsPerBroker;
+    size_t connectionsPerBroker;
     Impl() : authenticationPtr(AuthFactory::Disabled()),
              ioThreads(1),
              operationTimeoutSeconds(30),

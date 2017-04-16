@@ -24,22 +24,22 @@ namespace pulsar {
  * @note - this class is not thread safe.
  */
 template<class T>
-class ClientConnectionContainer {
+class RoundRobinArray {
  private:
     size_t capacity_;
     size_t currentIndex_;
-    std::vector<T> list_;
+    std::vector<T> array_;
  public:
     /*
      * @param - the capacity of the container (capacity > 0)
      * @note - A container of capacity 1 is created if given capacity is 0.
      */
-    ClientConnectionContainer(size_t);
+    RoundRobinArray(size_t);
 
     /*
      * @returns - true if the container has reached it's max capacity.
      */
-    inline bool isFull() const;
+    inline bool full() const;
 
     /*
      * @brief - gets the next element in the container - wraps around after the last element.
@@ -73,69 +73,73 @@ class ClientConnectionContainer {
     /*
      * @returns - true if the list is empty
      */
-    inline bool isEmpty() const;
+    inline bool empty() const;
 
     // http://web.mst.edu/~nmjxv3/articles/templates.html
-    friend std::ostream& operator<<(std::ostream& os, const ClientConnectionContainer<T>& obj) {
+    friend std::ostream& operator<<(std::ostream& os, const RoundRobinArray<T>& obj) {
         os << "ClientConnectionContainer [ size_ = " << obj.size() << ", currentIndex_ = "
                 << obj.currentIndex_ << ", capacity = " << obj.capacity_ << "]";
         return os;
     }
 };
 
-template<class T> ClientConnectionContainer<T>::ClientConnectionContainer(size_t capacity)
+template<class T> RoundRobinArray<T>::RoundRobinArray(size_t capacity)
         : capacity_(std::max(capacity, 1uL)),
           currentIndex_(-1) {
 }
 
-template<class T> bool ClientConnectionContainer<T>::isFull() const {
-    return list_.size() >= capacity_;
+template<class T> bool RoundRobinArray<T>::full() const {
+    return array_.size() >= capacity_;
 }
 
-template<class T> bool ClientConnectionContainer<T>::isEmpty() const {
-    return list_.size() == 0;
+template<class T> bool RoundRobinArray<T>::empty() const {
+    return array_.empty();
 }
 
-template<class T> bool ClientConnectionContainer<T>::getNext(T& element) {
-    if (list_.empty()) {
+template<class T> bool RoundRobinArray<T>::getNext(T& element) {
+    if (array_.empty()) {
         return false;
     }
-    currentIndex_ = (currentIndex_ + 1) % list_.size();
-    element = list_[currentIndex_];
+    if (++currentIndex_ >= array_.size()) {
+        currentIndex_ = 0;
+    }
+    element = array_[currentIndex_];
     return true;
 }
 
-template<class T> bool ClientConnectionContainer<T>::add(T& element) {
-    if (isFull()) {
+template<class T> bool RoundRobinArray<T>::add(T& element) {
+    if (full()) {
         return false;
     }
-    list_.push_back(element);
+    array_.push_back(element);
     return true;
 }
 
-template<class T> bool ClientConnectionContainer<T>::remove() {
-    if (list_.empty()) {
+template<class T> bool RoundRobinArray<T>::remove() {
+    if (array_.empty()) {
         return false;
-    } else if (list_.size() == 1) {
-        list_.clear();
+    } else if (array_.size() == 1) {
+        array_.clear();
         currentIndex_ = -1;
         return true;
     } else if (currentIndex_ == -1) {
-        list_.erase(list_.begin());
+        array_.erase(array_.begin());
         return true;
     }
-    // list size >= 2
-    list_.erase(list_.begin() + currentIndex_);
-    // list size >= 1
-    currentIndex_ = (list_.size() + currentIndex_ - 1) % list_.size();
+    // array size >= 2
+    array_.erase(array_.begin() + currentIndex_);
+    // array size >= 1
+    if (--currentIndex_ >= array_.size() ) { // unsigned
+        currentIndex_ = array_.size() - 1;
+    }
     return true;
 }
 
-template<class T> size_t ClientConnectionContainer<T>::size() const {
-    return list_.size();
+template<class T> size_t RoundRobinArray<T>::size() const {
+    return array_.size();
 }
 
-template<class T> size_t ClientConnectionContainer<T>::capacity() const {
+template<class T> size_t RoundRobinArray<T>::capacity() const {
     return capacity_;
 }
 }
