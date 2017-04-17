@@ -65,6 +65,10 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     private String tlsCertificateFilePath;
     // Path for the TLS private key file
     private String tlsKeyFilePath;
+    // Path for the trusted TLS certificate file
+    private String tlsTrustCertsFilePath = "";
+    // Accept untrusted TLS certificate from client
+    private boolean tlsAllowInsecureConnection = false;
     
     private Properties properties = new Properties();
 
@@ -202,6 +206,22 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
 
     public void setTlsKeyFilePath(String tlsKeyFilePath) {
         this.tlsKeyFilePath = tlsKeyFilePath;
+    }
+
+    public String getTlsTrustCertsFilePath() {
+        return tlsTrustCertsFilePath;
+    }
+
+    public void setTlsTrustCertsFilePath(String tlsTrustCertsFilePath) {
+        this.tlsTrustCertsFilePath = tlsTrustCertsFilePath;
+    }
+
+    public boolean isTlsAllowInsecureConnection() {
+        return tlsAllowInsecureConnection;
+    }
+
+    public void setTlsAllowInsecureConnection(boolean tlsAllowInsecureConnection) {
+        this.tlsAllowInsecureConnection = tlsAllowInsecureConnection;
     }
     
     public Properties getProperties() {

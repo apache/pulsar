@@ -160,6 +160,9 @@ public class WebSocketService implements Closeable {
     private PulsarClient createClientInstance(ClusterData clusterData) throws IOException {
         ClientConfiguration clientConf = new ClientConfiguration();
         clientConf.setStatsInterval(0, TimeUnit.SECONDS);
+        clientConf.setUseTls(config.isTlsEnabled());
+        clientConf.setTlsAllowInsecureConnection(config.isTlsAllowInsecureConnection());
+        clientConf.setTlsTrustCertsFilePath(config.getTlsTrustCertsFilePath());
         if (config.isAuthenticationEnabled()) {
             clientConf.setAuthentication(config.getBrokerClientAuthenticationPlugin(),
                     config.getBrokerClientAuthenticationParameters());
@@ -194,8 +197,10 @@ public class WebSocketService implements Closeable {
         serviceConfig.setGlobalZookeeperServers(config.getGlobalZookeeperServers());
         serviceConfig.setZooKeeperSessionTimeoutMillis(config.getZooKeeperSessionTimeoutMillis());
         serviceConfig.setTlsEnabled(config.isTlsEnabled());
+        serviceConfig.setTlsTrustCertsFilePath(config.getTlsTrustCertsFilePath());
         serviceConfig.setTlsCertificateFilePath(config.getTlsCertificateFilePath());
         serviceConfig.setTlsKeyFilePath(config.getTlsKeyFilePath());
+        serviceConfig.setTlsAllowInsecureConnection(config.isTlsAllowInsecureConnection());
         return serviceConfig;
     }
 
