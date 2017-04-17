@@ -47,10 +47,7 @@ std::ostream& operator<<(std::ostream &os, const BrokerConsumerStats& obj) {
 }
 
 double BrokerConsumerStats::getMsgRateOut() const {
-    if (impl_) {
-        return impl_->getMsgRateOut();
-    }
-    return 0;
+    return impl_->getMsgRateOut();
 }
 
 double BrokerConsumerStats::getMsgThroughputOut() const {
