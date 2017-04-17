@@ -211,12 +211,13 @@ public class ClientConfiguration implements Serializable {
      * By default, the connection pool will use a single connection for all the producers and consumers. Increasing this
      * parameter may improve throughput when using many producers over a high latency connection.
      * <p>
-     * Setting connections per broker to 0 will disable the connection pooling.
      *
      * @param connectionsPerBroker
-     *            max number of connections
+     *            max number of connections per broker (needs to be greater than 0)
      */
     public void setConnectionsPerBroker(int connectionsPerBroker) {
+        checkArgument(connectionsPerBroker > 0,
+                "Connections per broker need to be greater than 0");
         this.connectionsPerBroker = connectionsPerBroker;
     }
 

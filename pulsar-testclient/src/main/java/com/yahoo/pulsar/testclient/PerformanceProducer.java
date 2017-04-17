@@ -111,7 +111,7 @@ public class PerformanceProducer {
 
         @Parameter(names = { "-c",
                 "--max-connections" }, description = "Max number of TCP connections to a single broker")
-        public int maxConnections = 0;
+        public int maxConnections = 100;
 
         @Parameter(names = { "-m",
                 "--num-messages" }, description = "Number of messages to publish in total. If 0, it will keep publishing")
