@@ -258,7 +258,8 @@ public class PulsarService implements AutoCloseable {
 
             if (config.isWebSocketServiceEnabled()) {
                 // Use local broker address to avoid different IP address when using a VIP for service discovery
-                this.webSocketService = new WebSocketService(new ClusterData(webServiceAddress, webServiceAddressTls),
+                this.webSocketService = new WebSocketService(
+                        new ClusterData(webServiceAddress, webServiceAddressTls, brokerServiceUrl, brokerServiceUrlTls),
                         config);
                 this.webSocketService.start();
                 this.webService.addServlet(WebSocketProducerServlet.SERVLET_PATH,

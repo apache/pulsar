@@ -151,7 +151,6 @@ public class WebSocketService implements Closeable {
                 // If not explicitly set, read clusters data from ZK
                 localCluster = retrieveClusterData();
             }
-
             pulsarClient = createClientInstance(localCluster);
         }
         return pulsarClient;
@@ -168,15 +167,23 @@ public class WebSocketService implements Closeable {
                     config.getBrokerClientAuthenticationParameters());
         }
 
-        if (config.isTlsEnabled() && !clusterData.getServiceUrlTls().isEmpty()) {
-            return PulsarClient.create(clusterData.getServiceUrlTls(), clientConf);
-        } else {
-            return PulsarClient.create(clusterData.getServiceUrl(), clientConf);
+        if (config.isTlsEnabled()) {
+            if (isNotBlank(clusterData.getBrokerServiceUrlTls())) {
+                return PulsarClient.create(clusterData.getBrokerServiceUrlTls(), clientConf);
+            } else if (isNotBlank(clusterData.getServiceUrlTls())) {
+                return PulsarClient.create(clusterData.getServiceUrlTls(), clientConf);
+            }
+        } else if (isNotBlank(clusterData.getBrokerServiceUrl())) {
+            return PulsarClient.create(clusterData.getBrokerServiceUrl(), clientConf);
         }
+        return PulsarClient.create(clusterData.getServiceUrl(), clientConf);
     }
 
     private static ClusterData createClusterData(WebSocketProxyConfiguration config) {
-        if (isNotBlank(config.getServiceUrl()) || isNotBlank(config.getServiceUrlTls())) {
+        if (isNotBlank(config.getBrokerServiceUrl()) || isNotBlank(config.getBrokerServiceUrlTls())) {
+            return new ClusterData(config.getServiceUrl(), config.getServiceUrlTls(), config.getBrokerServiceUrl(),
+                    config.getBrokerServiceUrlTls());
+        } else if (isNotBlank(config.getServiceUrl()) || isNotBlank(config.getServiceUrlTls())) {
             return new ClusterData(config.getServiceUrl(), config.getServiceUrlTls());
         } else {
             return null;
