@@ -44,7 +44,7 @@
             static AuthDataPtr Disabled() {
                 return AuthDataPtr();
             }
-        }
+        };
     }
 #endif
 #pragma GCC visibility push(default)
