@@ -143,7 +143,7 @@ public abstract class ZooKeeperDataCache<T> implements Deserializer<T>, CacheUpd
         }
     }
 
-    public void close() {
+    public synchronized void close() {
         IS_SHUTDOWN_UPDATER.set(this, TRUE);
     }
 }
