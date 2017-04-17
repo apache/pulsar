@@ -65,7 +65,8 @@ public class ZookeeperCacheLoader implements Closeable {
             log.error("Shutting down ZK sessions: {}", exitCode);
         });
 
-        this.localZkCache = new LocalZooKeeperCache(localZkConnectionSvc.getLocalZooKeeper(), this.orderedExecutor);
+        this.localZkCache = new LocalZooKeeperCache(localZkConnectionSvc.getLocalZooKeeper(), this.orderedExecutor,
+                null/* cache uses ForkJoinPool if provided scheduler is null to load data-async */);
         localZkConnectionSvc.start(exitCode -> {
             try {
                 localZkCache.getZooKeeper().close();
