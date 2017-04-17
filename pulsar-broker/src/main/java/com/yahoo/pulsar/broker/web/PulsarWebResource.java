@@ -17,6 +17,8 @@ package com.yahoo.pulsar.broker.web;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.yahoo.pulsar.common.api.Commands.newLookupResponse;
+import static com.yahoo.pulsar.zookeeper.ZooKeeperCache.cacheTimeOutInSec;
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 import java.net.URI;
 import java.net.URL;
@@ -498,7 +500,11 @@ public abstract class PulsarWebResource {
      */
     protected static void validateReplicationSettingsOnNamespace(PulsarService pulsarService, NamespaceName namespace) {
         try {
-            validateReplicationSettingsOnNamespaceAsync(pulsarService, namespace).get();
+            validateReplicationSettingsOnNamespaceAsync(pulsarService, namespace).get(cacheTimeOutInSec, SECONDS);
+        } catch (InterruptedException e) {
+            log.warn("Time-out {} sec while validating policy on {} ", cacheTimeOutInSec, namespace);
+            throw new RestException(Status.SERVICE_UNAVAILABLE, String.format(
+                    "Failed to validate global cluster configuration : ns=%s  emsg=%s", namespace, e.getMessage()));
         } catch (Exception e) {
             if(e.getCause() instanceof WebApplicationException) {
                 throw (WebApplicationException) e.getCause();
