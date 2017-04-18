@@ -56,6 +56,11 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
+        public boolean isDurable() {
+            return true;
+        }
+
+        @Override
         public List<Entry> readEntries(int numberOfEntriesToRead) throws ManagedLedgerException {
             return Lists.newArrayList();
         }
