@@ -26,6 +26,7 @@
 
 namespace pulsar {
 class BrokerConsumerStatsImplBase;
+class PulsarWrapper;
 
 /* @note: isValid() or getXXX() methods are not allowed on an invalid BrokerConsumerStats */
 class BrokerConsumerStats {
@@ -78,6 +79,7 @@ class BrokerConsumerStats {
     /** @deprecated */
     boost::shared_ptr<BrokerConsumerStatsImplBase> getImpl() const;
 
+    friend class PulsarWrapper;
     friend std::ostream& operator<<(std::ostream &os, const BrokerConsumerStats &obj);
 };
 typedef boost::function<void(Result result, BrokerConsumerStats brokerConsumerStats)> BrokerConsumerStatsCallback;

@@ -20,6 +20,7 @@
 #include <pulsar/Authentication.h>
 
 namespace pulsar {
+class PulsarWrapper;
 class ClientConfigurationImpl;
 class ClientConfiguration {
  public:
@@ -118,11 +119,12 @@ class ClientConfiguration {
 
     ClientConfiguration& setTlsAllowInsecureConnection(bool allowInsecure);
     bool isTlsAllowInsecureConnection() const;
+    friend class ClientImpl;
+    friend class PulsarWrapper;
 
  private:
     const AuthenticationPtr& getAuthenticationPtr() const;
     boost::shared_ptr<ClientConfigurationImpl> impl_;
-    friend class ClientImpl;
 };
 }
 

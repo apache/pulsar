@@ -26,7 +26,7 @@
 class PulsarFriend;
 
 namespace pulsar {
-
+class PulsarWrapper;
 class ConsumerImplBase;
 
 /**
@@ -204,10 +204,11 @@ class Consumer {
     void getBrokerConsumerStatsAsync(BrokerConsumerStatsCallback callback);
 private:
     typedef boost::shared_ptr<ConsumerImplBase> ConsumerImplBasePtr;
-    friend class PulsarFriend;
     ConsumerImplBasePtr impl_;
     explicit Consumer(ConsumerImplBasePtr);
 
+    friend class PulsarFriend;
+    friend class PulsarWrapper;
     friend class PartitionedConsumerImpl;
     friend class ConsumerImpl;
     friend class ClientImpl;

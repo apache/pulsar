@@ -27,6 +27,7 @@ class PulsarFriend;
 
 namespace pulsar {
 class ProducerImplBase;
+class PulsarWrapper;
 
 class Producer {
  public:
@@ -100,6 +101,7 @@ class Producer {
 
     friend class ClientImpl;
     friend class PulsarFriend;
+    friend class PulsarWrapper;
 
     ProducerImplBasePtr impl_;
 };
