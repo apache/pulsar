@@ -31,6 +31,8 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     // Pulsar cluster url to connect to broker (optional if globalZookeeperServers present)
     private String serviceUrl;
     private String serviceUrlTls;
+    private String brokerServiceUrl;
+    private String brokerServiceUrlTls;
 
     // Global Zookeeper quorum connection string
     private String globalZookeeperServers;
@@ -94,6 +96,22 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
 
     public void setServiceUrlTls(String serviceUrlTls) {
         this.serviceUrlTls = serviceUrlTls;
+    }
+
+    public String getBrokerServiceUrl() {
+        return brokerServiceUrl;
+    }
+
+    public void setBrokerServiceUrl(String brokerServiceUrl) {
+        this.brokerServiceUrl = brokerServiceUrl;
+    }
+
+    public String getBrokerServiceUrlTls() {
+        return brokerServiceUrlTls;
+    }
+
+    public void setBrokerServiceUrlTls(String brokerServiceUrlTls) {
+        this.brokerServiceUrlTls = brokerServiceUrlTls;
     }
 
     public String getGlobalZookeeperServers() {
