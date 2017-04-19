@@ -15,7 +15,6 @@
  */
 
 #include "ConnectionPool.h"
-
 #include "LogUtils.h"
 
 DECLARE_LOG_OBJECT()
@@ -24,34 +23,45 @@ namespace pulsar {
 
 ConnectionPool::ConnectionPool(const ClientConfiguration& conf,
                                ExecutorServiceProviderPtr executorProvider,
-                               const AuthenticationPtr& authentication, bool poolConnections)
+                               const AuthenticationPtr& authentication,
+                               bool poolConnections, size_t connectionsPerBroker)
         : clientConfiguration_(conf),
           executorProvider_(executorProvider),
           authentication_(authentication),
           pool_(),
           poolConnections_(poolConnections),
-          mutex_() {
+          mutex_(),
+          connectionsPerBroker(connectionsPerBroker) {
 }
 
 Future<Result, ClientConnectionWeakPtr> ConnectionPool::getConnectionAsync(
         const std::string& endpoint) {
     boost::unique_lock<boost::mutex> lock(mutex_);
-
+    PoolMap::iterator cnxIt = pool_.end();
     if (poolConnections_) {
-        PoolMap::iterator cnxIt = pool_.find(endpoint);
+        cnxIt = pool_.find(endpoint);
         if (cnxIt != pool_.end()) {
-            ClientConnectionPtr cnx = cnxIt->second.lock();
-
-            if (cnx && !cnx->isClosed()) {
-                // Found a valid or pending connection in the pool
-                LOG_DEBUG("Got connection from pool for " << endpoint << " use_count: "  //
-                        << (cnx.use_count() - 1) << " @ " << cnx.get());
-                return cnx->getConnectFuture();
-            } else {
-                // Deleting stale connection
-                LOG_INFO("Deleting stale connection from pool for " << endpoint << " use_count: "
-                        << (cnx.use_count() - 1) << " @ " << cnx.get());
-                pool_.erase(endpoint);
+            // endpoint exists in the map
+                ClientConnectionContainerPtr containerPtr = cnxIt->second;
+                if (containerPtr && containerPtr->full()) {
+                    // container is full - can start reusing connections
+                    ClientConnectionWeakPtr weakCnx;
+                    if (containerPtr->getNext(weakCnx)) {
+                        ClientConnectionPtr cnx = weakCnx.lock();
+                        if (cnx && !cnx->isClosed()) {
+                            // Found a valid or pending connection in the pool
+                            LOG_DEBUG("Got connection from pool for " << endpoint << " use_count: "//
+                                    << (cnx.use_count() - 1) << " @ " << cnx.get()
+                                    << " " << *containerPtr);
+                            return cnx->getConnectFuture();
+                        } else {
+                            // Deleting stale connection
+                            LOG_INFO("Deleting stale connection from pool for " << endpoint << " use_count: "
+                                    << (cnx.use_count() - 1) << " @ " << cnx.get()
+                                    << " " << *containerPtr);
+                            containerPtr->remove();
+                        }
+                    }
             }
         }
     }
@@ -62,8 +72,20 @@ Future<Result, ClientConnectionWeakPtr> ConnectionPool::getConnectionAsync(
     LOG_INFO("Created connection for " << endpoint);
 
     Future<Result, ClientConnectionWeakPtr> future = cnx->getConnectFuture();
-    pool_.insert(std::make_pair(endpoint, cnx));
-
+    if (poolConnections_) {
+        if (cnxIt == pool_.end()) {
+            // Need to insert a container in the map
+            ClientConnectionContainerPtr containerPtr = boost::make_shared<RoundRobinArray<ClientConnectionWeakPtr> >(connectionsPerBroker);
+            LOG_DEBUG("Adding Connection to a new Container " << *containerPtr);
+            ClientConnectionWeakPtr temp = cnx; // can't typecast and bind lvalue at same time
+            containerPtr->add(temp);
+            pool_.insert(std::make_pair(endpoint, containerPtr));
+        } else {
+            LOG_DEBUG("Adding Connection to an existing Container " << *(cnxIt->second));
+            ClientConnectionWeakPtr temp = cnx;
+            (cnxIt->second)->add(temp);
+        }
+    }
     lock.unlock();
 
     cnx->tcpConnectAsync();

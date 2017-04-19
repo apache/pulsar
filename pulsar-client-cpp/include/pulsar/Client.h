@@ -169,6 +169,18 @@ class ClientConfiguration {
     ClientConfiguration& setTlsAllowInsecureConnection(bool allowInsecure);
     bool isTlsAllowInsecureConnection() const;
 
+    /*
+     * Set max number of of connections per broker.
+     * @param connectionsPerBroker - number of connections per brokers
+     * @note - if connections per broker < 1 then the value will be set as to 1.
+     */
+    ClientConfiguration& setConnectionsPerBroker(size_t connectionsPerBroker);
+
+    /*
+     * Get number of connections per broker.
+     */
+    size_t getConnectionsPerBroker() const;
+
  private:
     const AuthenticationPtr& getAuthenticationPtr() const;
 
