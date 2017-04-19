@@ -28,6 +28,7 @@ import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertTrue;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
@@ -416,7 +417,11 @@ public class PersistentDispatcherFailoverConsumerTest {
     }
 
     private Consumer getNextConsumer(PersistentDispatcherMultipleConsumers dispatcher) throws Exception {
-        Consumer consumer = dispatcher.getNextConsumer();
+        
+        Method getNextConsumerMethod = PersistentDispatcherMultipleConsumers.class.getDeclaredMethod("getNextConsumer");
+        getNextConsumerMethod.setAccessible(true);
+        Consumer consumer = (Consumer) getNextConsumerMethod.invoke(dispatcher);
+        
         if (consumer != null) {
             Field field = Consumer.class.getDeclaredField("MESSAGE_PERMITS_UPDATER");
             field.setAccessible(true);
