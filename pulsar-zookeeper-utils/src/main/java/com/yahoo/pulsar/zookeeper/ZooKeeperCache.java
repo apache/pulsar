@@ -74,7 +74,7 @@ public abstract class ZooKeeperCache implements Watcher {
     protected final Cache<String, Set<String>> childrenCache;
     protected final Cache<String, Boolean> existsCache;
     protected final OrderedSafeExecutor executor;
-    public static final int cacheTimeOutInSec = 120;
+    public static final int cacheTimeOutInSec = 30;
 
     protected AtomicReference<ZooKeeper> zkSession = new AtomicReference<ZooKeeper>(null);
 
