@@ -94,6 +94,7 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
         if (IS_CLOSED_UPDATER.get(this) == TRUE) {
             log.warn("[{}] Dispatcher is already closed. Closing consumer ", name, consumer);
             consumer.disconnect();
+            return;
         }
         if (consumerList.isEmpty()) {
             if (havePendingRead || havePendingReplayRead) {
@@ -456,8 +457,8 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
 
             // if resultingAvailableConsumerIndex moved ahead of currentConsumerRoundRobinIndex: then we should
             // check skipped consumer which had same priority as currentConsumerRoundRobinIndex consumer
-            boolean isLastConsumerBlocked = (currentConsumerRoundRobinIndex == (consumerList.size() - 1)
-                    && !isConsumerAvailable(consumerList.get(currentConsumerRoundRobinIndex)));
+            boolean isLastConsumerBlocked = (resultingAvailableConsumerIndex == (consumerList.size() - 1)
+                    && !isConsumerAvailable(consumerList.get(resultingAvailableConsumerIndex)));
             boolean shouldScanCurrentLevel = priorityLevel < 0
                     /* means moved to next lower-priority-level */ || isLastConsumerBlocked;
             if (shouldScanCurrentLevel && scanFromBeginningIfCurrentConsumerNotAvailable) {
@@ -483,6 +484,9 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
         } while (true);
 
         // not found unblocked consumer
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] Couldn't find available consumer ", name);
+        }
         return null;
     }
     
