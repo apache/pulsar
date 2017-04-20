@@ -136,7 +136,8 @@ public final class PersistentDispatcherSingleActiveConsumer implements Dispatche
             return;
         }
 
-        if (havePendingRead && cursor.cancelPendingReadRequest()) {
+        // if no consumer is available then clear-out pendingRead and let it read when it connects next time
+        if ((consumers.isEmpty()) || (havePendingRead && cursor.cancelPendingReadRequest())) {
             havePendingRead = false;
         }
 
