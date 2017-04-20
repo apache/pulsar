@@ -72,4 +72,15 @@ public class BatchMessageIdImpl extends MessageIdImpl implements Comparable<Mess
     public byte[] toByteArray() {
         return toByteArray(batchIndex);
     }
+    
+    @Override
+    public String getMsgIdAsString(String entitySeparator) {
+        if (entitySeparator == null) {
+            entitySeparator = ":";
+        }
+        StringBuilder str = new StringBuilder();
+        str.append(ledgerId).append(entitySeparator).append(entryId).append(entitySeparator).append(partitionIndex);
+        str.append(entitySeparator).append(batchIndex);
+        return str.toString();
+    }
 }

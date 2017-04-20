@@ -44,4 +44,11 @@ public interface MessageId {
     public static MessageId fromByteArray(byte[] data) throws IOException {
         return MessageIdImpl.fromByteArray(data);
     }
+    
+    /**
+     * Get messageId in string format
+     * 
+     * @return MessageId in string format
+     */
+    public String getMsgIdAsString(String entitySeparator);
 }

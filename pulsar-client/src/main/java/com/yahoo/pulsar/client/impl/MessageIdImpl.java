@@ -144,4 +144,14 @@ public class MessageIdImpl implements MessageId, Comparable<MessageIdImpl> {
         // there is no message batch so we pass -1
         return toByteArray(-1);
     }
+
+    @Override
+    public String getMsgIdAsString(String entitySeparator) {
+        if (entitySeparator == null) {
+            entitySeparator = ":";
+        }
+        StringBuilder str = new StringBuilder();
+        str.append(ledgerId).append(entitySeparator).append(entryId).append(entitySeparator).append(partitionIndex);
+        return str.toString();
+    }
 }
