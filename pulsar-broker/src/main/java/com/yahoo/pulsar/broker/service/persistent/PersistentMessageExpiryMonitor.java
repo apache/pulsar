@@ -26,7 +26,6 @@ import org.apache.bookkeeper.mledger.util.Rate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.yahoo.pulsar.common.util.Codec;
 import com.yahoo.pulsar.client.impl.MessageImpl;
 
 /**
@@ -44,10 +43,10 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback {
     private static final AtomicIntegerFieldUpdater<PersistentMessageExpiryMonitor> expirationCheckInProgressUpdater = AtomicIntegerFieldUpdater
             .newUpdater(PersistentMessageExpiryMonitor.class, "expirationCheckInProgress");
 
-    public PersistentMessageExpiryMonitor(String topicName, ManagedCursor cursor) {
+    public PersistentMessageExpiryMonitor(String topicName, String subscriptionName, ManagedCursor cursor) {
         this.topicName = topicName;
         this.cursor = cursor;
-        this.subName = Codec.decode(cursor.getName());
+        this.subName = subscriptionName;
         this.msgExpired = new Rate();
     }
 

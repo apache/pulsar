@@ -116,7 +116,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
                 .setSubType(PulsarApi.CommandSubscribe.SubType.Exclusive).build();
 
         Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
-                0, cmd.getConsumerName());
+                0, cmd.getConsumerName(), cmd.getDurable(), null);
         f1.get();
 
         final CyclicBarrier barrier = new CyclicBarrier(2);
@@ -174,7 +174,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
                 .setSubType(PulsarApi.CommandSubscribe.SubType.Exclusive).build();
 
         Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
-                0, cmd.getConsumerName());
+                0, cmd.getConsumerName(), cmd.getDurable(), null);
         f1.get();
 
         final CyclicBarrier barrier = new CyclicBarrier(2);
@@ -236,7 +236,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
                 .setSubType(PulsarApi.CommandSubscribe.SubType.Exclusive).build();
 
         Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
-                0, cmd.getConsumerName());
+                0, cmd.getConsumerName(), cmd.getDurable(), null);
         f1.get();
 
         final CyclicBarrier barrier = new CyclicBarrier(2);
@@ -294,7 +294,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
                 .setSubType(PulsarApi.CommandSubscribe.SubType.Exclusive).build();
 
         Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
-                0, cmd.getConsumerName());
+                0, cmd.getConsumerName(), cmd.getDurable(), null);
         f1.get();
 
         final CyclicBarrier barrier = new CyclicBarrier(2);

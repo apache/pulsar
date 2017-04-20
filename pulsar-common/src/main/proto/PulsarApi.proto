@@ -126,10 +126,20 @@ message CommandSubscribe {
 	required string topic        = 1;
 	required string subscription = 2;
 	required SubType subType     = 3;
+
 	required uint64 consumer_id  = 4;
 	required uint64 request_id   = 5;
 	optional string consumer_name = 6;
 	optional int32 priority_level = 7;
+
+	// Signal wether the subscription should be backed by a
+	// durable cursor or not
+	optional bool  durable            = 8 [default = true];
+
+	// If specified, the subscription will position the cursor
+	// markd-delete position  on the particular message id and
+	// will send messages from that point
+	optional MessageIdData start_message_id = 9;
 }
 
 message CommandPartitionedTopicMetadata {
