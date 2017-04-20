@@ -28,6 +28,7 @@ import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertTrue;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
@@ -269,15 +270,15 @@ public class PersistentDispatcherFailoverConsumerTest {
 
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
         PersistentDispatcherMultipleConsumers dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursorMock);
-        Consumer consumer1 = createConsumer(0, 2, 1);
-        Consumer consumer2 = createConsumer(0, 2, 2);
-        Consumer consumer3 = createConsumer(0, 2, 3);
-        Consumer consumer4 = createConsumer(1, 2, 4);
-        Consumer consumer5 = createConsumer(1, 1, 5);
-        Consumer consumer6 = createConsumer(1, 2, 6);
-        Consumer consumer7 = createConsumer(2, 1, 7);
-        Consumer consumer8 = createConsumer(2, 1, 8);
-        Consumer consumer9 = createConsumer(2, 1, 9);
+        Consumer consumer1 = createConsumer(0, 2, false, 1);
+        Consumer consumer2 = createConsumer(0, 2, false, 2);
+        Consumer consumer3 = createConsumer(0, 2, false, 3);
+        Consumer consumer4 = createConsumer(1, 2, false, 4);
+        Consumer consumer5 = createConsumer(1, 1, false, 5);
+        Consumer consumer6 = createConsumer(1, 2, false, 6);
+        Consumer consumer7 = createConsumer(2, 1, false, 7);
+        Consumer consumer8 = createConsumer(2, 1, false, 8);
+        Consumer consumer9 = createConsumer(2, 1, false, 9);
         dispatcher.addConsumer(consumer1);
         dispatcher.addConsumer(consumer2);
         dispatcher.addConsumer(consumer3);
@@ -301,7 +302,7 @@ public class PersistentDispatcherFailoverConsumerTest {
         Assert.assertEquals(getNextConsumer(dispatcher), consumer7);
         Assert.assertEquals(getNextConsumer(dispatcher), consumer8);
         // in between add upper priority consumer with more permits
-        Consumer consumer10 = createConsumer(0, 2, 10);
+        Consumer consumer10 = createConsumer(0, 2, false, 10);
         dispatcher.addConsumer(consumer10);
         Assert.assertEquals(getNextConsumer(dispatcher), consumer10);
         Assert.assertEquals(getNextConsumer(dispatcher), consumer10);
@@ -309,21 +310,138 @@ public class PersistentDispatcherFailoverConsumerTest {
 
     }
 
-    private Consumer getNextConsumer(PersistentDispatcherMultipleConsumers dispatcher) throws Exception {
-        Consumer consumer = dispatcher.getNextConsumer();
-        Field field = Consumer.class.getDeclaredField("MESSAGE_PERMITS_UPDATER");
-        field.setAccessible(true);
-        AtomicIntegerFieldUpdater<Consumer> messagePermits = (AtomicIntegerFieldUpdater) field.get(consumer);
-        messagePermits.decrementAndGet(consumer);
-        return consumer;
+    @Test
+    public void testFewBlockedConsumerSamePriority() throws Exception{
+        PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+        PersistentDispatcherMultipleConsumers dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursorMock);
+        Consumer consumer1 = createConsumer(0, 2, false, 1);
+        Consumer consumer2 = createConsumer(0, 2, false, 2);
+        Consumer consumer3 = createConsumer(0, 2, false, 3);
+        Consumer consumer4 = createConsumer(0, 2, false, 4);
+        Consumer consumer5 = createConsumer(0, 1, true, 5);
+        Consumer consumer6 = createConsumer(0, 2, true, 6);
+        dispatcher.addConsumer(consumer1);
+        dispatcher.addConsumer(consumer2);
+        dispatcher.addConsumer(consumer3);
+        dispatcher.addConsumer(consumer4);
+        dispatcher.addConsumer(consumer5);
+        dispatcher.addConsumer(consumer6);
+        Assert.assertEquals(getNextConsumer(dispatcher), consumer1);
+        Assert.assertEquals(getNextConsumer(dispatcher), consumer2);
+        Assert.assertEquals(getNextConsumer(dispatcher), consumer3);
+        Assert.assertEquals(getNextConsumer(dispatcher), consumer4);
+        Assert.assertEquals(getNextConsumer(dispatcher), consumer1);
+        Assert.assertEquals(getNextConsumer(dispatcher), consumer2);
+        Assert.assertEquals(getNextConsumer(dispatcher), consumer3);
+        Assert.assertEquals(getNextConsumer(dispatcher), consumer4);
+        Assert.assertEquals(getNextConsumer(dispatcher), null);
     }
 
-    private Consumer createConsumer(int priority, int permit, int id) throws BrokerServiceException {
+    @Test
+    public void testFewBlockedConsumerDifferentPriority() throws Exception {
+        PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+        PersistentDispatcherMultipleConsumers dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursorMock);
+        Consumer consumer1 = createConsumer(0, 2, false, 1);
+        Consumer consumer2 = createConsumer(0, 2, false, 2);
+        Consumer consumer3 = createConsumer(0, 2, false, 3);
+        Consumer consumer4 = createConsumer(0, 2, false, 4);
+        Consumer consumer5 = createConsumer(0, 1, true, 5);
+        Consumer consumer6 = createConsumer(0, 2, true, 6);
+        Consumer consumer7 = createConsumer(1, 2, false, 7);
+        Consumer consumer8 = createConsumer(1, 10, true, 8);
+        Consumer consumer9 = createConsumer(1, 2, false, 9);
+        Consumer consumer10 = createConsumer(2, 2, false, 10);
+        Consumer consumer11 = createConsumer(2, 10, true, 11);
+        Consumer consumer12 = createConsumer(2, 2, false, 12);
+        dispatcher.addConsumer(consumer1);
+        dispatcher.addConsumer(consumer2);
+        dispatcher.addConsumer(consumer3);
+        dispatcher.addConsumer(consumer4);
+        dispatcher.addConsumer(consumer5);
+        dispatcher.addConsumer(consumer6);
+        dispatcher.addConsumer(consumer7);
+        dispatcher.addConsumer(consumer8);
+        dispatcher.addConsumer(consumer9);
+        dispatcher.addConsumer(consumer10);
+        dispatcher.addConsumer(consumer11);
+        dispatcher.addConsumer(consumer12);
+        Assert.assertEquals(getNextConsumer(dispatcher), consumer1);
+        Assert.assertEquals(getNextConsumer(dispatcher), consumer2);
+        Assert.assertEquals(getNextConsumer(dispatcher), consumer3);
+        Assert.assertEquals(getNextConsumer(dispatcher), consumer4);
+        Assert.assertEquals(getNextConsumer(dispatcher), consumer1);
+        Assert.assertEquals(getNextConsumer(dispatcher), consumer2);
+        Assert.assertEquals(getNextConsumer(dispatcher), consumer3);
+        Assert.assertEquals(getNextConsumer(dispatcher), consumer4);
+        Assert.assertEquals(getNextConsumer(dispatcher), consumer7);
+        Assert.assertEquals(getNextConsumer(dispatcher), consumer9);
+        Assert.assertEquals(getNextConsumer(dispatcher), consumer7);
+        Assert.assertEquals(getNextConsumer(dispatcher), consumer9);
+        Assert.assertEquals(getNextConsumer(dispatcher), consumer10);
+        Assert.assertEquals(getNextConsumer(dispatcher), consumer12);
+        // add consumer with lower priority again
+        Consumer consumer13 = createConsumer(0, 2, false, 13);
+        Consumer consumer14 = createConsumer(0, 2, true, 14);
+        dispatcher.addConsumer(consumer13);
+        dispatcher.addConsumer(consumer14);
+        Assert.assertEquals(getNextConsumer(dispatcher), consumer13);
+        Assert.assertEquals(getNextConsumer(dispatcher), consumer13);
+        Assert.assertEquals(getNextConsumer(dispatcher), consumer10);
+        Assert.assertEquals(getNextConsumer(dispatcher), consumer12);
+        Assert.assertEquals(getNextConsumer(dispatcher), null);
+    }
+
+    @Test
+    public void testFewBlockedConsumerDifferentPriority2() throws Exception {
+        PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+        PersistentDispatcherMultipleConsumers dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursorMock);
+        Consumer consumer1 = createConsumer(0, 2, true, 1);
+        Consumer consumer2 = createConsumer(0, 2, true, 2);
+        Consumer consumer3 = createConsumer(0, 2, true, 3);
+        Consumer consumer4 = createConsumer(1, 2, false, 4);
+        Consumer consumer5 = createConsumer(1, 1, false, 5);
+        Consumer consumer6 = createConsumer(2, 1, false, 6);
+        Consumer consumer7 = createConsumer(2, 2, true, 7);
+        dispatcher.addConsumer(consumer1);
+        dispatcher.addConsumer(consumer2);
+        dispatcher.addConsumer(consumer3);
+        dispatcher.addConsumer(consumer4);
+        dispatcher.addConsumer(consumer5);
+        dispatcher.addConsumer(consumer6);
+        dispatcher.addConsumer(consumer7);
+        Assert.assertEquals(getNextConsumer(dispatcher), consumer4);
+        Assert.assertEquals(getNextConsumer(dispatcher), consumer5);
+        Assert.assertEquals(getNextConsumer(dispatcher), consumer4);
+        Assert.assertEquals(getNextConsumer(dispatcher), consumer6);
+        Assert.assertEquals(getNextConsumer(dispatcher), null);
+    }
+
+    private Consumer getNextConsumer(PersistentDispatcherMultipleConsumers dispatcher) throws Exception {
+        
+        Method getNextConsumerMethod = PersistentDispatcherMultipleConsumers.class.getDeclaredMethod("getNextConsumer");
+        getNextConsumerMethod.setAccessible(true);
+        Consumer consumer = (Consumer) getNextConsumerMethod.invoke(dispatcher);
+        
+        if (consumer != null) {
+            Field field = Consumer.class.getDeclaredField("MESSAGE_PERMITS_UPDATER");
+            field.setAccessible(true);
+            AtomicIntegerFieldUpdater<Consumer> messagePermits = (AtomicIntegerFieldUpdater) field.get(consumer);
+            messagePermits.decrementAndGet(consumer);
+            return consumer;
+        }
+        return null;
+    }
+
+    private Consumer createConsumer(int priority, int permit, boolean blocked, int id) throws Exception {
         Consumer consumer = new Consumer(null, SubType.Shared, id, priority, ""+id, 5000, serverCnx, "appId");
         try {
             consumer.flowPermits(permit);
         } catch (Exception e) {
         }
+        // set consumer blocked flag
+        Field blockField = Consumer.class.getDeclaredField("blockedConsumerOnUnackedMsgs");
+        blockField.setAccessible(true);
+        blockField.set(consumer, blocked);
         return consumer;
     }
 

@@ -1268,7 +1268,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             }
 
             // (2) wait for consumer to receive messages
-            Thread.sleep(200);
+            Thread.sleep(1000);
             assertEquals(consumer.numMessagesInQueue(), receiverQueueSize);
 
             // (3) wait for messages to expire, we should've received more
@@ -1833,6 +1833,122 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         consumer2.close();
         consumer3.close();
         consumer4.close();
+        log.info("-- Exiting {} test --", methodName);
+    }
+
+    /**
+     * <pre>
+     * Verifies Dispatcher dispatches messages properly with shared-subscription consumers with combination of blocked
+     * and unblocked consumers.
+     * 
+     * 1. Dispatcher will have 5 consumers : c1, c2, c3, c4, c5. 
+     *      Out of which : c1,c2,c4,c5 will be blocked due to MaxUnackedMessages limit.
+     * 2. So, dispatcher should moves round-robin and make sure it delivers unblocked consumer : c3
+     * </pre>
+     * 
+     * @throws Exception
+     */
+    @Test(timeOut=5000)
+    public void testSharedSamePriorityConsumer() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+        ConsumerConfiguration conf1 = new ConsumerConfiguration();
+        conf1.setSubscriptionType(SubscriptionType.Shared);
+        final int queueSize = 5;
+        conf1.setReceiverQueueSize(queueSize);
+        int maxUnAckMsgs = pulsar.getConfiguration().getMaxConcurrentLookupRequest();
+        pulsar.getConfiguration().setMaxUnackedMessagesPerConsumer(queueSize);
+        Consumer c1 = pulsarClient.subscribe("persistent://my-property/use/my-ns/my-topic2", "my-subscriber-name",
+                conf1);
+        Consumer c2 = pulsarClient.subscribe("persistent://my-property/use/my-ns/my-topic2", "my-subscriber-name",
+                conf1);
+        ProducerConfiguration producerConf = new ProducerConfiguration();
+        Producer producer = pulsarClient.createProducer("persistent://my-property/use/my-ns/my-topic2", producerConf);
+        List<Future<MessageId>> futures = Lists.newArrayList();
+
+        // Asynchronously produce messages
+        final int totalPublishMessages = 500;
+        for (int i = 0; i < totalPublishMessages; i++) {
+            final String message = "my-message-" + i;
+            Future<MessageId> future = producer.sendAsync(message.getBytes());
+            futures.add(future);
+        }
+
+        log.info("Waiting for async publish to complete");
+        for (Future<MessageId> future : futures) {
+            future.get();
+        }
+
+        List<Message> messages = Lists.newArrayList();
+
+        // let consumer1 and consumer2 cosume messages up to the queue will be full
+        for (int i = 0; i < totalPublishMessages; i++) {
+            Message msg = c1.receive(500, TimeUnit.MILLISECONDS);
+            if (msg != null) {
+                messages.add(msg);
+            } else {
+                break;
+            }
+        }
+        for (int i = 0; i < totalPublishMessages; i++) {
+            Message msg = c2.receive(500, TimeUnit.MILLISECONDS);
+            if (msg != null) {
+                messages.add(msg);
+            } else {
+                break;
+            }
+        }
+
+        Assert.assertEquals(queueSize * 2, messages.size());
+
+        // create new consumers with the same priority
+        Consumer c3 = pulsarClient.subscribe("persistent://my-property/use/my-ns/my-topic2", "my-subscriber-name",
+                conf1);
+        Consumer c4 = pulsarClient.subscribe("persistent://my-property/use/my-ns/my-topic2", "my-subscriber-name",
+                conf1);
+        Consumer c5 = pulsarClient.subscribe("persistent://my-property/use/my-ns/my-topic2", "my-subscriber-name",
+                conf1);
+
+        // c1 and c2 are blocked: so, let c3, c4 and c5 consume rest of the messages
+
+        for (int i = 0; i < totalPublishMessages; i++) {
+            Message msg = c4.receive(500, TimeUnit.MILLISECONDS);
+            if (msg != null) {
+                messages.add(msg);
+            } else {
+                break;
+            }
+        }
+
+        for (int i = 0; i < totalPublishMessages; i++) {
+            Message msg = c5.receive(500, TimeUnit.MILLISECONDS);
+            if (msg != null) {
+                messages.add(msg);
+            } else {
+                break;
+            }
+        }
+
+        for (int i = 0; i < totalPublishMessages; i++) {
+            Message msg = c3.receive(500, TimeUnit.MILLISECONDS);
+            if (msg != null) {
+                messages.add(msg);
+                c3.acknowledge(msg);
+            } else {
+                break;
+            }
+        }
+
+        // total messages must be consumed by all consumers
+        Assert.assertEquals(messages.size(), totalPublishMessages);
+
+        // Asynchronously acknowledge upto and including the last message
+        producer.close();
+        c1.close();
+        c2.close();
+        c3.close();
+        c4.close();
+        c5.close();
+        pulsar.getConfiguration().setMaxUnackedMessagesPerConsumer(maxUnAckMsgs);
         log.info("-- Exiting {} test --", methodName);
     }
 
