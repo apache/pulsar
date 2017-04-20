@@ -25,4 +25,5 @@ import org.apache.zookeeper.ZooKeeper;
  */
 public interface BookKeeperClientFactory {
     BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient) throws IOException;
+    void close();
 }

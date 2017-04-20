@@ -89,6 +89,7 @@ public class PulsarService implements AutoCloseable {
     private WebSocketService webSocketService = null;
     private ConfigurationCacheService configurationCacheService = null;
     private LocalZooKeeperCacheService localZkCacheService = null;
+    private BookKeeperClientFactory bkClientFactory;
     private ZooKeeperCache localZkCache;
     private GlobalZooKeeperCache globalZkCache;
     private LocalZooKeeperConnectionService localZooKeeperConnectionProvider;
@@ -163,6 +164,11 @@ public class PulsarService implements AutoCloseable {
                 this.managedLedgerClientFactory = null;
             }
 
+            if (bkClientFactory != null) {
+                this.bkClientFactory.close();
+                this.bkClientFactory = null;
+            }
+            
             if (this.leaderElectionService != null) {
                 this.leaderElectionService.stop();
                 this.leaderElectionService = null;
@@ -235,8 +241,8 @@ public class PulsarService implements AutoCloseable {
             // Initialize and start service to access configuration repository.
             this.startZkCacheService();
 
-            managedLedgerClientFactory = new ManagedLedgerClientFactory(config, getZkClient(),
-                    getBookKeeperClientFactory());
+            this.bkClientFactory = getBookKeeperClientFactory();
+            managedLedgerClientFactory = new ManagedLedgerClientFactory(config, getZkClient(), bkClientFactory);
 
             this.brokerService = new BrokerService(this);
 

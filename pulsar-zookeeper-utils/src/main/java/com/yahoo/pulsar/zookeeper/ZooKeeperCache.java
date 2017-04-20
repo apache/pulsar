@@ -49,6 +49,8 @@ import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.Sets;
 
+import io.netty.util.concurrent.DefaultThreadFactory;
+
 /**
  * Per ZK client ZooKeeper cache supporting ZNode data and children list caches. A cache entry is identified, accessed
  * and invalidated by the ZNode path. For the data cache, ZNode data parsing is done at request time with the given
@@ -94,7 +96,8 @@ public abstract class ZooKeeperCache implements Watcher {
     }
 
     public ZooKeeperCache(ZooKeeper zkSession) {
-        this(zkSession, new OrderedSafeExecutor(1, "zk-cache-executor"), Executors.newSingleThreadScheduledExecutor());
+        this(zkSession, new OrderedSafeExecutor(1, "zk-cache-executor"),
+                Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("zk-cache-callback-executor")));
     }
 
     public ZooKeeper getZooKeeper() {
@@ -365,6 +368,15 @@ public abstract class ZooKeeperCache implements Watcher {
             if (key.startsWith(root)) {
                 childrenCache.invalidate(key);
             }
+        }
+    }
+    
+    public void stop() {
+        if (this.executor != null) {
+            this.executor.shutdown();
+        }
+        if (this.scheduledExecutor != null && !this.scheduledExecutor.isShutdown()) {
+            this.scheduledExecutor.shutdown();
         }
     }
 }
