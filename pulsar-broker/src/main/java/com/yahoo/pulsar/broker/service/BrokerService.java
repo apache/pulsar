@@ -439,7 +439,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
      * @return CompletableFuture<Topic>
      * @throws RuntimeException
      */
-    private CompletableFuture<Topic> createPersistentTopic(final String topic) throws RuntimeException {
+    protected CompletableFuture<Topic> createPersistentTopic(final String topic) throws RuntimeException {
         checkTopicNsOwnership(topic);
 
         final CompletableFuture<Topic> topicFuture = new CompletableFuture<>();
@@ -471,6 +471,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             // namespace is being unloaded
             String msg = String.format("Namespace is being unloaded, cannot add topic %s", topic);
             log.warn(msg);
+            pulsar.getExecutor().submit(() -> topics.remove(topic, topicFuture));
             topicFuture.completeExceptionally(new ServiceUnitNotReadyException(msg));
             return;
         }
@@ -514,7 +515,9 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
         }).exceptionally((exception) -> {
             log.warn("[{}] Failed to get topic configuration: {}", topic, exception.getMessage(), exception);
-            topics.remove(topic, topicFuture);
+            // remove topic from topics-map in different thread to avoid possible deadlock if
+            // createPersistentTopic-thread only tries to handle this future-result
+            pulsar.getExecutor().submit(() -> topics.remove(topic, topicFuture));
             topicFuture.completeExceptionally(exception);
             return null;
         });
