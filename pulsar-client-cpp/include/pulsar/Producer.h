@@ -17,11 +17,7 @@
 #ifndef PRODUCER_HPP_
 #define PRODUCER_HPP_
 
-#include <pulsar/Result.h>
-#include <pulsar/Message.h>
-#include <pulsar/MessageRoutingPolicy.h>
-
-#include <boost/function.hpp>
+#include <pulsar/ProducerConfiguration.h>
 #include <boost/shared_ptr.hpp>
 #include <stdint.h>
 
@@ -30,66 +26,6 @@
 class PulsarFriend;
 
 namespace pulsar {
-
-typedef boost::function<void(Result, const Message& msg)> SendCallback;
-typedef boost::function<void(Result)> CloseCallback;
-
-enum CompressionType {
-    CompressionNone = 0,
-    CompressionLZ4  = 1,
-    CompressionZLib = 2
-};
-
-/**
- * Class that holds the configuration for a producer
- */
-class ProducerConfiguration {
- public:
-    enum PartitionsRoutingMode {
-        UseSinglePartition,
-        RoundRobinDistribution,
-        CustomPartition
-    };
-    ProducerConfiguration();
-    ~ProducerConfiguration();
-    ProducerConfiguration(const ProducerConfiguration&);
-    ProducerConfiguration& operator=(const ProducerConfiguration&);
-
-    ProducerConfiguration& setSendTimeout(int sendTimeoutMs);
-    int getSendTimeout() const;
-
-    ProducerConfiguration& setCompressionType(CompressionType compressionType);
-    CompressionType getCompressionType() const;
-
-    ProducerConfiguration& setMaxPendingMessages(int maxPendingMessages);
-    int getMaxPendingMessages() const;
-
-    ProducerConfiguration& setPartitionsRoutingMode(const PartitionsRoutingMode& mode);
-    PartitionsRoutingMode getPartitionsRoutingMode() const;
-
-    ProducerConfiguration& setMessageRouter(const MessageRoutingPolicyPtr& router);
-    const MessageRoutingPolicyPtr& getMessageRouterPtr() const;
-
-    ProducerConfiguration& setBlockIfQueueFull(bool);
-    bool getBlockIfQueueFull() const;
-
-    // Zero queue size feature will not be supported on consumer end if batching is enabled
-    ProducerConfiguration& setBatchingEnabled(const bool& batchingEnabled);
-    const bool& getBatchingEnabled() const;
-
-    ProducerConfiguration& setBatchingMaxMessages(const unsigned int& batchingMaxMessages);
-    const unsigned int& getBatchingMaxMessages() const;
-
-    ProducerConfiguration& setBatchingMaxAllowedSizeInBytes(const unsigned long& batchingMaxAllowedSizeInBytes);
-    const unsigned long& getBatchingMaxAllowedSizeInBytes() const;
-
-    ProducerConfiguration& setBatchingMaxPublishDelayMs(const unsigned long& batchingMaxPublishDelayMs);
-    const unsigned long& getBatchingMaxPublishDelayMs() const;
- private:
-    struct Impl;
-    boost::shared_ptr<Impl> impl_;
-};
-
 class ProducerImplBase;
 
 class Producer {

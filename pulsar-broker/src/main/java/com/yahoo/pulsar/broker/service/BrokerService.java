@@ -439,7 +439,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
      * @return CompletableFuture<Topic>
      * @throws RuntimeException
      */
-    private CompletableFuture<Topic> createPersistentTopic(final String topic) throws RuntimeException {
+    protected CompletableFuture<Topic> createPersistentTopic(final String topic) throws RuntimeException {
         checkTopicNsOwnership(topic);
 
         final CompletableFuture<Topic> topicFuture = new CompletableFuture<>();
@@ -960,6 +960,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     }
 
     private void updateDynamicServiceConfiguration() {
+        
         try {
             // create dynamic-config znode if not present
             if (pulsar.getZkClient().exists(BROKER_SERVICE_CONFIGURATION_PATH, false) == null) {
@@ -973,52 +974,53 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             }
             Optional<Map<String, String>> data = dynamicConfigurationCache.get(BROKER_SERVICE_CONFIGURATION_PATH);
             if (data.isPresent() && data.get() != null) {
-                data.get().forEach((key,value)-> {
+                data.get().forEach((key, value) -> {
                     try {
                         Field field = ServiceConfiguration.class.getDeclaredField(key);
                         if (field != null && field.isAnnotationPresent(FieldContext.class)) {
                             field.setAccessible(true);
-                            field.set(pulsar().getConfiguration(), FieldParser.value(value,field));
+                            field.set(pulsar().getConfiguration(), FieldParser.value(value, field));
                             log.info("Successfully updated {}/{}", key, value);
                         }
                     } catch (Exception e) {
-                        log.warn("Failed to update service configuration {}/{}, {}",key,value,e.getMessage());
-                    }                    
+                        log.warn("Failed to update service configuration {}/{}, {}", key, value, e.getMessage());
+                    }
                 });
             }
-            // register a listener: it updates field value and triggers appropriate registered field-listener only if
-            // field's value has been changed so, registered doesn't have to update field value in ServiceConfiguration
-            dynamicConfigurationCache.registerListener(new ZooKeeperCacheListener<Map<String, String>>() {
-                @SuppressWarnings("unchecked")
-                @Override
-                public void onUpdate(String path, Map<String, String> data, Stat stat) {
-                    if (BROKER_SERVICE_CONFIGURATION_PATH.equalsIgnoreCase(path) && data != null) {
-                        data.forEach((configKey, value) -> {
-                            Field configField = dynamicConfigurationMap.get(configKey);
-                            Object newValue = FieldParser.value(data.get(configKey), configField);
-                            if (configField != null) {
-                                Consumer listener = configRegisteredListeners.get(configKey);
-                                try {
-                                    Object existingValue = configField.get(pulsar.getConfiguration());
-                                    configField.set(pulsar.getConfiguration(), newValue);
-                                    log.info("Successfully updated configuration {}/{}", configKey,
-                                            data.get(configKey));
-                                    if (listener != null && !existingValue.equals(newValue)) {
-                                        listener.accept(newValue);
-                                    }
-                                } catch (Exception e) {
-                                    log.error("Failed to update config {}/{}", configKey, newValue);
-                                }
-                            } else {
-                                log.error("Found non-dynamic field in dynamicConfigMap {}/{}", configKey, newValue);
-                            }
-                        });
-                    }
-                }
-            });
         } catch (Exception e) {
             log.warn("Failed to read zookeeper path [{}]:", BROKER_SERVICE_CONFIGURATION_PATH, e);
         }
+        // register a listener: it updates field value and triggers appropriate registered field-listener only if
+        // field's value has been changed so, registered doesn't have to update field value in ServiceConfiguration
+        dynamicConfigurationCache.registerListener(new ZooKeeperCacheListener<Map<String, String>>() {
+            @SuppressWarnings("unchecked")
+            @Override
+            public void onUpdate(String path, Map<String, String> data, Stat stat) {
+                if (BROKER_SERVICE_CONFIGURATION_PATH.equalsIgnoreCase(path) && data != null) {
+                    data.forEach((configKey, value) -> {
+                        Field configField = dynamicConfigurationMap.get(configKey);
+                        Object newValue = FieldParser.value(data.get(configKey), configField);
+                        if (configField != null) {
+                            Consumer listener = configRegisteredListeners.get(configKey);
+                            try {
+                                Object existingValue = configField.get(pulsar.getConfiguration());
+                                configField.set(pulsar.getConfiguration(), newValue);
+                                log.info("Successfully updated configuration {}/{}", configKey,
+                                        data.get(configKey));
+                                if (listener != null && !existingValue.equals(newValue)) {
+                                    listener.accept(newValue);
+                                }
+                            } catch (Exception e) {
+                                log.error("Failed to update config {}/{}", configKey, newValue);
+                            }
+                        } else {
+                            log.error("Found non-dynamic field in dynamicConfigMap {}/{}", configKey, newValue);
+                        }
+                    });
+                }
+            }
+        });
+        
     }
     
     public static ConcurrentOpenHashMap<String, Field> getDynamicConfigurationMap() {

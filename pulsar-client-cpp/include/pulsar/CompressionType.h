@@ -13,17 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.yahoo.pulsar.broker;
 
-import java.io.IOException;
-
-import org.apache.bookkeeper.client.BookKeeper;
-import org.apache.zookeeper.ZooKeeper;
-
-/**
- * Provider of a new BookKeeper client instance
- */
-public interface BookKeeperClientFactory {
-    BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient) throws IOException;
-    void close();
+#ifndef PULSAR_COMPRESSIONTYPE_H_
+#define PULSAR_COMPRESSIONTYPE_H_
+namespace pulsar {
+enum CompressionType {
+    CompressionNone = 0,
+    CompressionLZ4 = 1,
+    CompressionZLib = 2
+};
 }
+
+#endif /* PULSAR_COMPRESSIONTYPE_H_ */

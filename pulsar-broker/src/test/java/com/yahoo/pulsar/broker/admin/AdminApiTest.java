@@ -15,7 +15,6 @@
  */
 package com.yahoo.pulsar.broker.admin;
 
-import static com.yahoo.pulsar.broker.service.BrokerService.BROKER_SERVICE_CONFIGURATION_PATH;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertFalse;
@@ -23,7 +22,6 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -39,9 +37,6 @@ import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
 
 import org.apache.bookkeeper.test.PortManager;
-import org.apache.bookkeeper.util.ZkUtils;
-import org.apache.zookeeper.CreateMode;
-import org.apache.zookeeper.ZooDefs;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -437,6 +432,42 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             assertTrue(e instanceof PreconditionFailedException);
         }
 
+    }
+
+    /**
+     * Verifies broker sets watch on dynamic-configuration map even with invalid init json data
+     * <pre>
+     * 1. Set invalid json at dynamic-config znode
+     * 2. Broker fails to deserialize znode content but sets the watch on znode
+     * 3. Update znode with valid json map
+     * 4. Broker should get watch and update the dynamic-config map
+     * </pre>
+     * @throws Exception
+     */
+    @Test
+    public void testInvalidDynamicConfigContentInZK() throws Exception {
+        final int newValue = 10;
+        stopBroker();
+        // set invalid data into dynamic-config znode so, broker startup fail to deserialize data
+        mockZookKeeper.setData(BrokerService.BROKER_SERVICE_CONFIGURATION_PATH, "$".getBytes(), -1);
+        // start broker: it should have set watch even if with failure of deserialization
+        startBroker();
+        Assert.assertNotEquals(pulsar.getConfiguration().getBrokerShutdownTimeoutMs(), newValue);
+        // update zk with config-value which should fire watch and broker should update the config value
+        Map<String, String> configMap = Maps.newHashMap();
+        configMap.put("brokerShutdownTimeoutMs", Integer.toString(newValue));
+        mockZookKeeper.setData(BrokerService.BROKER_SERVICE_CONFIGURATION_PATH,
+                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(configMap), -1);
+        // wait config to be updated
+        for (int i = 0; i < 5; i++) {
+            if (pulsar.getConfiguration().getBrokerShutdownTimeoutMs() != newValue) {
+                Thread.sleep(100 + (i * 10));
+            } else {
+                break;
+            }
+        }
+        // verify value is updated
+        assertEquals(pulsar.getConfiguration().getBrokerShutdownTimeoutMs(), newValue);
     }
 
     /**

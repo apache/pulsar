@@ -94,6 +94,7 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
         if (IS_CLOSED_UPDATER.get(this) == TRUE) {
             log.warn("[{}] Dispatcher is already closed. Closing consumer ", name, consumer);
             consumer.disconnect();
+            return;
         }
         if (consumerList.isEmpty()) {
             if (havePendingRead || havePendingReplayRead) {
@@ -399,33 +400,19 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
      * 
      * <pre>
      * <b>Algorithm:</b>
-     * 1. sorted-list: consumers stored in sorted-list: max-priority stored first 
+     * 1. consumerList: it stores consumers in sorted-list: max-priority stored first 
      * 2. currentConsumerRoundRobinIndex: it always stores last served consumer-index
-     * 3. resultingAvailableConsumerIndex: traversal index. we always start searching availableConsumer from the  
-     *    beginning of sorted-list and update resultingAvailableConsumerIndex according searching-traversal
      *    
      * Each time getNextConsumer() is called:<p>
      * 1. It always starts to traverse from the max-priority consumer (first element) from sorted-list
      * 2. Consumers on same priority-level will be treated equally and it tries to pick one of them in round-robin manner
-     * 3. If consumer is not available on given priority-level then it will go to the next lower priority-level consumers
-     * 4. Optimization: <p>
-     *    A. Consumers on same priority-level must be treated equally => dispatch message round-robin to them: 
-     *       [if Consumer of resultingAvailableConsumerIndex(current-traversal-index) has the same 
-     *       priority-level as consumer of currentConsumerRoundRobinIndex(last-Served-Consumer-Index)] 
-     *       <b>Dispatching in Round-Robin:</b> then it means we should do round-robin and skip all the consumers before 
-     *          currentConsumerRoundRobinIndex (as they are already served previously)
-     *               a. if found: if we found availableConsumer on the same priority-level after currentConsumerRoundRobinIndex 
-     *                            then return that consumer and update currentConsumerRoundRobinIndex with that consumer-index
-     *               b. else not_found: if we don't find any consumer on that same-priority level after currentConsumerRoundRobinIndex
-     *                      - a. check skipped consumers: check skipped consumer (4.A.a) which are on index before than currentConsumerRoundRobinIndex
-     *                      - b. next priority-level: if not found in previous step: then it means no consumer available in prior level. So, move to 
-     *                           next lower priority level and try to find next-available consumer as per 4.A
-     * 
+     * 3. If consumer is not available on given priority-level then only it will go to the next lower priority-level consumers
+     * 4. Returns null in case it doesn't find any available consumer
      * </pre>
      * 
      * @return nextAvailableConsumer
      */
-    public Consumer getNextConsumer() {
+    private Consumer getNextConsumer() {
         if (consumerList.isEmpty() || IS_CLOSED_UPDATER.get(this) == TRUE) {
             // abort read if no consumers are connected or if disconnect is initiated
             return null;
@@ -435,57 +422,102 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
             currentConsumerRoundRobinIndex = 0;
         }
 
-        // index of resulting consumer which will be returned
-        int resultingAvailableConsumerIndex = 0;
-        boolean scanFromBeginningIfCurrentConsumerNotAvailable = true;
-        int firstConsumerIndexOfCurrentPriorityLevel = -1;
-        do {
-            int priorityLevel = consumerList.get(currentConsumerRoundRobinIndex).getPriorityLevel()
-                    - consumerList.get(resultingAvailableConsumerIndex).getPriorityLevel();
+        int currentRoundRobinConsumerPriority = consumerList.get(currentConsumerRoundRobinIndex).getPriorityLevel();
 
-            boolean isSamePriorityLevel = priorityLevel == 0;
-            // store first-consumer index with same-priority as currentConsumerRoundRobinIndex
-            if (isSamePriorityLevel && firstConsumerIndexOfCurrentPriorityLevel == -1) {
-                firstConsumerIndexOfCurrentPriorityLevel = resultingAvailableConsumerIndex;
+        // first find available-consumer on higher level unless currentIndex is not on highest level which is 0
+        if (currentRoundRobinConsumerPriority != 0) {
+            int higherPriorityConsumerIndex = getConsumerFromHigherPriority(currentRoundRobinConsumerPriority);
+            if (higherPriorityConsumerIndex != -1) {
+                currentConsumerRoundRobinIndex = higherPriorityConsumerIndex + 1;
+                return consumerList.get(higherPriorityConsumerIndex);
             }
+        }
 
-            // skip already served same-priority-consumer to select consumer in round-robin manner
-            resultingAvailableConsumerIndex = (isSamePriorityLevel
-                    && currentConsumerRoundRobinIndex > resultingAvailableConsumerIndex)
-                            ? currentConsumerRoundRobinIndex : resultingAvailableConsumerIndex;
+        // currentIndex is already on highest level or couldn't find consumer on higher level so, find consumer on same or lower
+        // level
+        int availableConsumerIndex = getNextConsumerFromSameOrLowerLevel(currentConsumerRoundRobinIndex);
+        if (availableConsumerIndex != -1) {
+            currentConsumerRoundRobinIndex = availableConsumerIndex + 1;
+            return consumerList.get(availableConsumerIndex);
+        }
 
-            // if resultingAvailableConsumerIndex moved ahead of currentConsumerRoundRobinIndex: then we should
-            // check skipped consumer which had same priority as currentConsumerRoundRobinIndex consumer
-            boolean isLastConsumerBlocked = (currentConsumerRoundRobinIndex == (consumerList.size() - 1)
-                    && !isConsumerAvailable(consumerList.get(currentConsumerRoundRobinIndex)));
-            boolean shouldScanCurrentLevel = priorityLevel < 0
-                    /* means moved to next lower-priority-level */ || isLastConsumerBlocked;
-            if (shouldScanCurrentLevel && scanFromBeginningIfCurrentConsumerNotAvailable) {
-                for (int i = firstConsumerIndexOfCurrentPriorityLevel; i < currentConsumerRoundRobinIndex; i++) {
-                    Consumer nextConsumer = consumerList.get(i);
-                    if (isConsumerAvailable(nextConsumer)) {
-                        currentConsumerRoundRobinIndex = i + 1;
-                        return nextConsumer;
-                    }
-                }
-                // now, we have scanned from the beginning: flip the flag to avoid scan again
-                scanFromBeginningIfCurrentConsumerNotAvailable = false;
-            }
-
-            Consumer nextConsumer = consumerList.get(resultingAvailableConsumerIndex);
-            if (isConsumerAvailable(nextConsumer)) {
-                currentConsumerRoundRobinIndex = resultingAvailableConsumerIndex + 1;
-                return nextConsumer;
-            }
-            if (++resultingAvailableConsumerIndex >= consumerList.size()) {
-                break;
-            }
-        } while (true);
-
-        // not found unblocked consumer
+        // couldn't find available consumer
         return null;
     }
-    
+
+    /**
+     * Finds index of first available consumer which has higher priority then given targetPriority
+     * @param targetPriority
+     * @return -1 if couldn't find any available consumer 
+     */
+    private int getConsumerFromHigherPriority(int targetPriority) {
+        for (int i = 0; i < currentConsumerRoundRobinIndex; i++) {
+            Consumer consumer = consumerList.get(i);
+            if (consumer.getPriorityLevel() < targetPriority) {
+                if (isConsumerAvailable(consumerList.get(i))) {
+                    return i;
+                }
+            } else {
+                break;
+            }
+        }
+        return -1;
+    }
+
+    /**
+     * Finds index of round-robin available consumer that present on same level as consumer on currentRoundRobinIndex if doesn't
+     * find consumer on same level then it finds first available consumer on lower priority level else returns index=-1
+     * if couldn't find any available consumer in the list
+     * 
+     * @param currentRoundRobinIndex
+     * @return
+     */
+    private int getNextConsumerFromSameOrLowerLevel(int currentRoundRobinIndex) {
+
+        int targetPriority = consumerList.get(currentRoundRobinIndex).getPriorityLevel();
+        // use to do round-robin if can't find consumer from currentRR to last-consumer in list
+        int scanIndex = currentRoundRobinIndex;
+        int endPriorityLevelIndex = currentRoundRobinIndex;
+        do {
+            Consumer scanConsumer = scanIndex < consumerList.size() ? consumerList.get(scanIndex)
+                    : null /* reached to last consumer of list */;
+
+            // if reached to last consumer of list then check from beginning to currentRRIndex of the list
+            if (scanConsumer == null || scanConsumer.getPriorityLevel() != targetPriority) {
+                endPriorityLevelIndex = scanIndex; // last consumer on this level
+                scanIndex = getFirstConsumerIndexOfPriority(targetPriority);
+            } else {
+                if (isConsumerAvailable(scanConsumer)) {
+                    return scanIndex;
+                }
+                scanIndex++;
+            }
+        } while (scanIndex != currentRoundRobinIndex);
+
+        // it means: didn't find consumer in the same priority-level so, check available consumer lower than this level
+        for (int i = endPriorityLevelIndex; i < consumerList.size(); i++) {
+            if (isConsumerAvailable(consumerList.get(i))) {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    /**
+     * Finds index of first consumer in list which has same priority as given targetPriority
+     * @param targetPriority
+     * @return
+     */
+    private int getFirstConsumerIndexOfPriority(int targetPriority) {
+        for (int i = 0; i < consumerList.size(); i++) {
+            if (consumerList.get(i).getPriorityLevel() == targetPriority) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
     /**
      * returns true only if {@link consumerList} has atleast one unblocked consumer and have available permits
      * 

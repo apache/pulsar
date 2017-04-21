@@ -52,6 +52,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
 import com.yahoo.pulsar.broker.PulsarServerException;
+import static com.yahoo.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
 import com.yahoo.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import com.yahoo.pulsar.broker.service.persistent.PersistentReplicator;
 import com.yahoo.pulsar.broker.service.persistent.PersistentSubscription;
@@ -318,8 +319,12 @@ public class Namespaces extends AdminResource {
             }
 
             // we have successfully removed all the ownership for the namespace, the policies znode can be deleted now
-            globalZk().delete(path("policies", property, cluster, namespace), -1);
-            policiesCache().invalidate(path("policies", property, cluster, namespace));
+            final String globalZkPolicyPath = path("policies", property, cluster, namespace);
+            final String lcaolZkPolicyPath = joinPath(LOCAL_POLICIES_ROOT, property, cluster, namespace);
+            globalZk().delete(globalZkPolicyPath, -1);
+            localZk().delete(lcaolZkPolicyPath, -1);
+            policiesCache().invalidate(globalZkPolicyPath);
+            localCacheService().policiesCache().invalidate(lcaolZkPolicyPath);
         } catch (PulsarAdminException cae) {
             throw new RestException(cae);
         } catch (Exception e) {

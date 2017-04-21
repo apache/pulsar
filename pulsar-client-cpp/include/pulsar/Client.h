@@ -17,36 +17,14 @@
 #ifndef PULSAR_CLIENT_HPP_
 #define PULSAR_CLIENT_HPP_
 
-#include <pulsar/Authentication.h>
 #include <pulsar/Consumer.h>
 #include <pulsar/Producer.h>
 #include <pulsar/Result.h>
 #include <pulsar/Message.h>
 #include <pulsar/MessageBuilder.h>
+#include <pulsar/ClientConfiguration.h>
 #include <string>
 
-#ifdef PULSAR_ENABLE_DEPRECATED_METHOD
-    #include<pulsar/Auth.h>
-#else
-    // Deprecated
-    namespace pulsar {
-        class AuthData;
-        typedef boost::shared_ptr<AuthData> AuthDataPtr;
-        class AuthData {
-            public:
-            static AuthenticationPtr getAuthenticationPtr(const AuthDataPtr& authentication) {
-                AuthenticationPtr ptr;
-                return ptr;
-            }
-        };
-        class Auth {
-            public:
-            static AuthDataPtr Disabled() {
-                return AuthDataPtr();
-            }
-        }
-    }
-#endif
 #pragma GCC visibility push(default)
 
 class PulsarFriend;
@@ -56,126 +34,6 @@ namespace pulsar {
 typedef boost::function<void(Result, Producer)> CreateProducerCallback;
 typedef boost::function<void(Result, Consumer)> SubscribeCallback;
 typedef boost::function<void(Result)> CloseCallback;
-
-class ClientConfiguration {
- public:
-
-    ClientConfiguration();
-    ~ClientConfiguration();
-    ClientConfiguration(const ClientConfiguration&);
-    ClientConfiguration& operator=(const ClientConfiguration&);
-
-    /**
-     * @deprecated
-     * Set the authentication method to be used with the broker
-     *
-     * @param authentication the authentication data to use
-     */
-    ClientConfiguration& setAuthentication(const AuthDataPtr& authentication);
-
-    /**
-     * @deprecated
-     * @return the authentication data
-     */
-    const AuthData& getAuthentication() const;
-
-    /**
-     * Set the authentication method to be used with the broker
-     *
-     * @param authentication the authentication data to use
-     */
-    ClientConfiguration& setAuth(const AuthenticationPtr& authentication);
-
-    /**
-     * @return the authentication data
-     */
-    const Authentication& getAuth() const;
-
-    /**
-     * Set timeout on client operations (subscribe, create producer, close, unsubscribe)
-     * Default is 30 seconds.
-     *
-     * @param timeout the timeout after which the operation will be considered as failed
-     */
-    ClientConfiguration& setOperationTimeoutSeconds(int timeout);
-
-    /**
-     * @return the client operations timeout in seconds
-     */
-    int getOperationTimeoutSeconds() const;
-
-    /**
-     * Set the number of IO threads to be used by the Pulsar client. Default is 1
-     * thread.
-     *
-     * @param threads number of threads
-     */
-    ClientConfiguration& setIOThreads(int threads);
-
-    /**
-     * @return the number of IO threads to use
-     */
-    int getIOThreads() const;
-
-    /**
-     * Set the number of threads to be used by the Pulsar client when delivering messages
-     * through message listener. Default is 1 thread per Pulsar client.
-     *
-     * If using more than 1 thread, messages for distinct MessageListener will be
-     * delivered in different threads, however a single MessageListener will always
-     * be assigned to the same thread.
-     *
-     * @param threads number of threads
-     */
-    ClientConfiguration& setMessageListenerThreads(int threads);
-
-    /**
-     * @return the number of IO threads to use
-     */
-    int getMessageListenerThreads() const;
-
-    /**
-     * Number of concurrent lookup-requests allowed on each broker-connection to prevent overload on broker.
-     * <i>(default: 5000)</i> It should be configured with higher value only in case of it requires to produce/subscribe on
-     * thousands of topic using created {@link PulsarClient}
-     *
-     * @param concurrentLookupRequest
-     */
-    ClientConfiguration& setConcurrentLookupRequest(int concurrentLookupRequest);
-
-    /**
-     * @return Get configured total allowed concurrent lookup-request.
-     */
-    int getConcurrentLookupRequest() const;
-
-    /**
-     * Initialize the log configuration
-     *
-     * @param logConfFilePath  path of the configuration file
-     */
-    ClientConfiguration& setLogConfFilePath(const std::string& logConfFilePath);
-
-    /**
-     * Get the path of log configuration file (log4cpp)
-     */
-    const std::string& getLogConfFilePath() const;
-
-    ClientConfiguration& setUseTls(bool useTls);
-    bool isUseTls() const;
-
-    ClientConfiguration& setTlsTrustCertsFilePath(const std::string &tlsTrustCertsFilePath);
-    std::string getTlsTrustCertsFilePath() const;
-
-    ClientConfiguration& setTlsAllowInsecureConnection(bool allowInsecure);
-    bool isTlsAllowInsecureConnection() const;
-
- private:
-    const AuthenticationPtr& getAuthenticationPtr() const;
-
-    struct Impl;
-    boost::shared_ptr<Impl> impl_;
-    friend class ClientImpl;
-};
 
 class ClientImpl;
 

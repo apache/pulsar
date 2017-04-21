@@ -2435,6 +2435,9 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
             }
         });
 
+        // Wait until operation is completed and the failed ledger should have been deleted
+        latch2.await();
+
         try {
             bkc.openLedgerNoRecovery(ledgerId, mlConfig.getDigestType(), mlConfig.getPassword());
             fail("ledger should have deleted due to update-cursor failure");

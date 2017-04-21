@@ -89,6 +89,7 @@ public class PulsarService implements AutoCloseable {
     private WebSocketService webSocketService = null;
     private ConfigurationCacheService configurationCacheService = null;
     private LocalZooKeeperCacheService localZkCacheService = null;
+    private BookKeeperClientFactory bkClientFactory;
     private ZooKeeperCache localZkCache;
     private GlobalZooKeeperCache globalZkCache;
     private LocalZooKeeperConnectionService localZooKeeperConnectionProvider;
@@ -163,6 +164,11 @@ public class PulsarService implements AutoCloseable {
                 this.managedLedgerClientFactory = null;
             }
 
+            if (bkClientFactory != null) {
+                this.bkClientFactory.close();
+                this.bkClientFactory = null;
+            }
+            
             if (this.leaderElectionService != null) {
                 this.leaderElectionService.stop();
                 this.leaderElectionService = null;
@@ -235,8 +241,8 @@ public class PulsarService implements AutoCloseable {
             // Initialize and start service to access configuration repository.
             this.startZkCacheService();
 
-            managedLedgerClientFactory = new ManagedLedgerClientFactory(config, getZkClient(),
-                    getBookKeeperClientFactory());
+            this.bkClientFactory = getBookKeeperClientFactory();
+            managedLedgerClientFactory = new ManagedLedgerClientFactory(config, getZkClient(), bkClientFactory);
 
             this.brokerService = new BrokerService(this);
 
@@ -258,7 +264,8 @@ public class PulsarService implements AutoCloseable {
 
             if (config.isWebSocketServiceEnabled()) {
                 // Use local broker address to avoid different IP address when using a VIP for service discovery
-                this.webSocketService = new WebSocketService(new ClusterData(webServiceAddress, webServiceAddressTls),
+                this.webSocketService = new WebSocketService(
+                        new ClusterData(webServiceAddress, webServiceAddressTls, brokerServiceUrl, brokerServiceUrlTls),
                         config);
                 this.webSocketService.start();
                 this.webService.addServlet(WebSocketProducerServlet.SERVLET_PATH,
@@ -375,7 +382,7 @@ public class PulsarService implements AutoCloseable {
 
         LOG.info("starting configuration cache service");
 
-        this.localZkCache = new LocalZooKeeperCache(getZkClient(), getOrderedExecutor());
+        this.localZkCache = new LocalZooKeeperCache(getZkClient(), getOrderedExecutor(), this.executor);
         this.globalZkCache = new GlobalZooKeeperCache(getZooKeeperClientFactory(),
                 (int) config.getZooKeeperSessionTimeoutMillis(), config.getGlobalZookeeperServers(),
                 getOrderedExecutor(), this.executor);
