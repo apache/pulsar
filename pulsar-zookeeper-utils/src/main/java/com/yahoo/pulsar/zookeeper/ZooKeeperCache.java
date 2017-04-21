@@ -78,8 +78,9 @@ public abstract class ZooKeeperCache implements Watcher {
     protected final AsyncLoadingCache<String, Entry<Object, Stat>> dataCache;
     protected final Cache<String, Set<String>> childrenCache;
     protected final Cache<String, Boolean> existsCache;
-    protected final OrderedSafeExecutor executor;
-    protected final ScheduledExecutorService scheduledExecutor;
+    private final OrderedSafeExecutor executor;
+    private final ScheduledExecutorService scheduledExecutor;
+    private boolean shouldShutdownExecutor = false;
 
     protected AtomicReference<ZooKeeper> zkSession = new AtomicReference<ZooKeeper>(null);
 
@@ -98,6 +99,7 @@ public abstract class ZooKeeperCache implements Watcher {
     public ZooKeeperCache(ZooKeeper zkSession) {
         this(zkSession, new OrderedSafeExecutor(1, "zk-cache-executor"),
                 Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("zk-cache-callback-executor")));
+        this.shouldShutdownExecutor = true;
     }
 
     public ZooKeeper getZooKeeper() {
@@ -372,10 +374,8 @@ public abstract class ZooKeeperCache implements Watcher {
     }
     
     public void stop() {
-        if (this.executor != null) {
+        if (shouldShutdownExecutor) {
             this.executor.shutdown();
-        }
-        if (this.scheduledExecutor != null && !this.scheduledExecutor.isShutdown()) {
             this.scheduledExecutor.shutdown();
         }
     }
