@@ -40,15 +40,13 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
-import com.yahoo.pulsar.broker.loadbalance.LoadManager;
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
-import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
-import org.apache.commons.lang.SystemUtils;
+import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.zookeeper.CreateMode;
@@ -66,6 +64,7 @@ import com.yahoo.pulsar.broker.ServiceConfiguration;
 import com.yahoo.pulsar.broker.admin.AdminResource;
 import com.yahoo.pulsar.broker.authentication.AuthenticationService;
 import com.yahoo.pulsar.broker.authorization.AuthorizationManager;
+import com.yahoo.pulsar.broker.loadbalance.LoadManager;
 import com.yahoo.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import com.yahoo.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import com.yahoo.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
@@ -107,7 +106,6 @@ import io.netty.channel.epoll.EpollChannelOption;
 import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.epoll.EpollMode;
 import io.netty.channel.epoll.EpollServerSocketChannel;
-import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.util.concurrent.DefaultThreadFactory;
 
@@ -175,27 +173,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         this.pulsarStats = new PulsarStats(pulsar);
         this.offlineTopicStatCache = new ConcurrentOpenHashMap<>();
 
-        final DefaultThreadFactory acceptorThreadFactory = new DefaultThreadFactory("pulsar-acceptor");
-        final DefaultThreadFactory workersThreadFactory = new DefaultThreadFactory("pulsar-io");
-        final int numThreads = Runtime.getRuntime().availableProcessors() * 2;
-        log.info("Using {} threads for broker service IO", numThreads);
-
-        EventLoopGroup acceptorEventLoop, workersEventLoop;
-        if (SystemUtils.IS_OS_LINUX) {
-            try {
-                acceptorEventLoop = new EpollEventLoopGroup(1, acceptorThreadFactory);
-                workersEventLoop = new EpollEventLoopGroup(numThreads, workersThreadFactory);
-            } catch (UnsatisfiedLinkError e) {
-                acceptorEventLoop = new NioEventLoopGroup(1, acceptorThreadFactory);
-                workersEventLoop = new NioEventLoopGroup(numThreads, workersThreadFactory);
-            }
-        } else {
-            acceptorEventLoop = new NioEventLoopGroup(1, acceptorThreadFactory);
-            workersEventLoop = new NioEventLoopGroup(numThreads, workersThreadFactory);
-        }
-
-        this.acceptorGroup = acceptorEventLoop;
-        this.workerGroup = workersEventLoop;
+        this.acceptorGroup = pulsar.newEventLoopGroup("pulsar-acceptor", 1);
+        this.workerGroup = pulsar.getIOEventLoopGroup();
         this.statsUpdater = Executors
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-stats-updater"));
         if (pulsar.getConfiguration().isAuthorizationEnabled()) {

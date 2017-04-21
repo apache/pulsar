@@ -30,12 +30,7 @@ import java.util.function.Supplier;
 
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.util.OrderedSafeExecutor;
-import org.apache.bookkeeper.util.ZkUtils;
-import org.apache.zookeeper.CreateMode;
-import org.apache.zookeeper.KeeperException;
-import org.apache.zookeeper.WatchedEvent;
-import org.apache.zookeeper.Watcher;
-import org.apache.zookeeper.ZooDefs;
+import org.apache.commons.lang.SystemUtils;
 import org.apache.zookeeper.ZooKeeper;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.slf4j.Logger;
@@ -73,6 +68,9 @@ import com.yahoo.pulsar.zookeeper.ZooKeeperCache;
 import com.yahoo.pulsar.zookeeper.ZooKeeperClientFactory;
 import com.yahoo.pulsar.zookeeper.ZookeeperClientFactoryImpl;
 
+import io.netty.channel.EventLoopGroup;
+import io.netty.channel.epoll.EpollEventLoopGroup;
+import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
 
 /**
@@ -109,6 +107,8 @@ public class PulsarService implements AutoCloseable {
     private final String brokerServiceUrl;
     private final String brokerServiceUrlTls;
 
+    private final EventLoopGroup ioEventLoopGroup;
+
     private final MessagingServiceShutdownHook shutdownService;
 
     private MetricsGenerator metricsGenerator;
@@ -131,6 +131,7 @@ public class PulsarService implements AutoCloseable {
         this.brokerServiceUrl = brokerUrl(config);
         this.brokerServiceUrlTls = brokerUrlTls(config);
         this.config = config;
+        this.ioEventLoopGroup = newEventLoopGroup("pulsar-io", 2 * Runtime.getRuntime().availableProcessors());
         this.shutdownService = new MessagingServiceShutdownHook(this);
         loadManagerExecutor = Executors.newSingleThreadScheduledExecutor();
     }
@@ -235,7 +236,7 @@ public class PulsarService implements AutoCloseable {
             // Initialize and start service to access configuration repository.
             this.startZkCacheService();
 
-            managedLedgerClientFactory = new ManagedLedgerClientFactory(config, getZkClient(),
+            managedLedgerClientFactory = new ManagedLedgerClientFactory(this, getZooKeeperClientFactory(),
                     getBookKeeperClientFactory());
 
             this.brokerService = new BrokerService(this);
@@ -636,4 +637,23 @@ public class PulsarService implements AutoCloseable {
         return loadManager;
     }
 
+    public EventLoopGroup getIOEventLoopGroup() {
+        return ioEventLoopGroup;
+    }
+
+    public EventLoopGroup newEventLoopGroup(String name, int numberOfThreads) {
+        DefaultThreadFactory workersThreadFactory = new DefaultThreadFactory(name);
+        EventLoopGroup eventLoopGroup;
+        if (SystemUtils.IS_OS_LINUX) {
+            try {
+                eventLoopGroup = new EpollEventLoopGroup(numberOfThreads, workersThreadFactory);
+            } catch (UnsatisfiedLinkError e) {
+                eventLoopGroup = new NioEventLoopGroup(numberOfThreads, workersThreadFactory);
+            }
+        } else {
+            eventLoopGroup = new NioEventLoopGroup(numberOfThreads, workersThreadFactory);
+        }
+
+        return eventLoopGroup;
+    }
 }

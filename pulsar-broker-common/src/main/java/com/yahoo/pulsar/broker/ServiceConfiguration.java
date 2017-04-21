@@ -194,6 +194,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // crashes.
     private int managedLedgerMaxUnackedRangesToPersist = 1000;
 
+    // Number of independent ZK sessions to open. More sessions will speed
+    // up ZK operations by using different threads and connections
+    @FieldContext(minValue = 1)
+    private int managedLedgerZooKeeperSessions = 1;
+
     /*** --- Load balancer --- ****/
     // Enable load balancer
     private boolean loadBalancerEnabled = false;
@@ -720,6 +725,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public void setManagedLedgerMaxUnackedRangesToPersist(int managedLedgerMaxUnackedRangesToPersist) {
         this.managedLedgerMaxUnackedRangesToPersist = managedLedgerMaxUnackedRangesToPersist;
+    }
+
+    public int getManagedLedgerZooKeeperSessions() {
+        return managedLedgerZooKeeperSessions;
+    }
+
+    public void setManagedLedgerZooKeeperSessions(int managedLedgerZooKeeperSessions) {
+        this.managedLedgerZooKeeperSessions = managedLedgerZooKeeperSessions;
     }
 
     public boolean isLoadBalancerEnabled() {
