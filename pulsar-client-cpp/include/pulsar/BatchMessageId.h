@@ -20,6 +20,7 @@
 #include <pulsar/MessageId.h>
 
 namespace pulsar {
+class PulsarWrapper;
 class BatchMessageId : public MessageId {
  public:
     BatchMessageId(int64_t ledgerId, int64_t entryId, int batchIndex = -1)
@@ -40,6 +41,7 @@ class BatchMessageId : public MessageId {
     friend class PartitionedProducerImpl;
     friend class PartitionedConsumerImpl;
     friend class BatchAcknowledgementTracker;
+    friend class PulsarWrapper;
     friend class PulsarFriend;
     int64_t batchIndex_;
 };
