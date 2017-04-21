@@ -15,6 +15,9 @@
  */
 package com.yahoo.pulsar.broker.service;
 
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.anyObject;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
@@ -29,9 +32,14 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -41,6 +49,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.yahoo.pulsar.broker.service.persistent.PersistentTopic;
 import com.yahoo.pulsar.client.admin.BrokerStats;
+import com.yahoo.pulsar.client.admin.PulsarAdminException;
 import com.yahoo.pulsar.client.api.Authentication;
 import com.yahoo.pulsar.client.api.ClientConfiguration;
 import com.yahoo.pulsar.client.api.Consumer;
@@ -758,4 +767,53 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         }
     }
+    
+    /**
+     * Verifies brokerService should not have deadlock and successfully remove topic from topicMap on topic-failure and
+     * it should not introduce deadlock while performing it.
+     * 
+     */
+    @Test(timeOut = 3000)
+    public void testTopicFailureShouldNotHaveDeadLock() {
+        final String namespace = "prop/usw/my-ns";
+        final String deadLockTestTopic = "persistent://" + namespace + "/deadLockTestTopic";
+
+        // let this broker own this namespace bundle by creating a topic
+        try {
+            final String successfulTopic = "persistent://" + namespace + "/ownBundleTopic";
+            Producer producer = pulsarClient.createProducer(successfulTopic);
+            producer.close();
+        } catch (Exception e) {
+            fail(e.getMessage());
+        }
+
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        BrokerService service = spy(pulsar.getBrokerService());
+        // create topic will fail to get managedLedgerConfig
+        CompletableFuture<ManagedLedgerConfig> failedManagedLedgerConfig = new CompletableFuture<>();
+        failedManagedLedgerConfig.completeExceptionally(new NullPointerException("failed to peristent policy"));
+        doReturn(failedManagedLedgerConfig).when(service).getManagedLedgerConfig(anyObject());
+
+        CompletableFuture<Void> topicCreation = new CompletableFuture<Void>();
+
+        // create topic async and wait on the future completion
+        executor.submit(() -> {
+            service.getTopic(deadLockTestTopic).thenAccept(topic -> topicCreation.complete(null)).exceptionally(e -> {
+                topicCreation.completeExceptionally(e.getCause());
+                return null;
+            });
+        });
+
+        // future-result should be completed with exception
+        try {
+            topicCreation.get(1, TimeUnit.SECONDS);
+        } catch (TimeoutException | InterruptedException e) {
+            fail("there is a dead-lock and it should have been prevented");
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause() instanceof NullPointerException);
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+    
 }
