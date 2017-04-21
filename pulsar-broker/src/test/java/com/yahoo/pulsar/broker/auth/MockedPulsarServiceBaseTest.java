@@ -216,5 +216,10 @@ public abstract class MockedPulsarServiceBaseTest {
             // Always return the same instance (so that we don't loose the mock BK content on broker restart
             return mockBookKeeper;
         }
+
+        @Override
+        public void close() {
+            // no-op
+        }
     };
 }
