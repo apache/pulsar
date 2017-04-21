@@ -15,6 +15,8 @@
  */
 package com.yahoo.pulsar.zookeeper;
 
+import java.util.concurrent.ScheduledExecutorService;
+
 import org.apache.bookkeeper.util.OrderedSafeExecutor;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.ZooKeeper;
@@ -32,8 +34,9 @@ public class LocalZooKeeperCache extends ZooKeeperCache {
 
     private static final Logger LOG = LoggerFactory.getLogger(LocalZooKeeperCache.class);
 
-    public LocalZooKeeperCache(final ZooKeeper zk, final OrderedSafeExecutor executor) {
-        super(zk, executor);
+    public LocalZooKeeperCache(final ZooKeeper zk, final OrderedSafeExecutor executor,
+            ScheduledExecutorService scheduledExecutor) {
+        super(zk, executor, scheduledExecutor);
     }
 
     @Override
