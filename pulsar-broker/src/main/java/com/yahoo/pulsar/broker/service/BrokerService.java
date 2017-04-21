@@ -377,7 +377,12 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         try {
             CompletableFuture<Topic> topicFuture = topics.get(topic);
             if (topicFuture != null) {
-                return topicFuture;
+                if (topicFuture.isCompletedExceptionally()) {
+                    // Exceptional topics should be recreated.
+                    topics.remove(topic, topicFuture);
+                } else {
+                    return topicFuture;
+                }
             }
             return topics.computeIfAbsent(topic, this::createPersistentTopic);
         } catch (IllegalArgumentException e) {
