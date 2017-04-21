@@ -81,6 +81,7 @@ public abstract class ZooKeeperCache implements Watcher {
     private final OrderedSafeExecutor executor;
     private final ScheduledExecutorService scheduledExecutor;
     private boolean shouldShutdownExecutor = false;
+    public static final int cacheTimeOutInSec = 30;
 
     protected AtomicReference<ZooKeeper> zkSession = new AtomicReference<ZooKeeper>(null);
 
@@ -125,6 +126,7 @@ public abstract class ZooKeeperCache implements Watcher {
                     });
                 } catch (RejectedExecutionException e) {
                     // Ok, the service is shutting down
+                    LOG.error("Failed to updated zk-cache {} on zk-watch {}", path, e.getMessage());
                 }
             } else {
                 if (LOG.isDebugEnabled()) {
@@ -245,12 +247,14 @@ public abstract class ZooKeeperCache implements Watcher {
     public <T> Optional<Entry<T, Stat>> getData(final String path, final Watcher watcher,
             final Deserializer<T> deserializer) throws Exception {
         try {
-            return getDataAsync(path, watcher, deserializer).get();
+            return getDataAsync(path, watcher, deserializer).get(cacheTimeOutInSec, TimeUnit.SECONDS);
         } catch (ExecutionException e) {
             Throwable cause = e.getCause();
             if (cause instanceof KeeperException) {
                 throw (KeeperException) cause;
             } else if (cause instanceof InterruptedException) {
+                LOG.warn("Time-out while fetching {} zk-data in {} sec", path, cacheTimeOutInSec);
+                invalidate(path);
                 throw (InterruptedException) cause;
             } else if (cause instanceof RuntimeException) {
                 throw (RuntimeException) cause;

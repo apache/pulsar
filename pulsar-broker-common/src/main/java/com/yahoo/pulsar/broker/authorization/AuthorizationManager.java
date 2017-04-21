@@ -18,6 +18,7 @@ package com.yahoo.pulsar.broker.authorization;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,6 +27,7 @@ import com.yahoo.pulsar.broker.ServiceConfiguration;
 import com.yahoo.pulsar.broker.cache.ConfigurationCacheService;
 import com.yahoo.pulsar.common.naming.DestinationName;
 import com.yahoo.pulsar.common.policies.data.AuthAction;
+import static com.yahoo.pulsar.zookeeper.ZooKeeperCache.cacheTimeOutInSec;
 
 /**
  */
@@ -55,7 +57,10 @@ public class AuthorizationManager {
     
     public boolean canProduce(DestinationName destination, String role) throws Exception {
         try {
-            return canProduceAsync(destination, role).get();
+            return canProduceAsync(destination, role).get(cacheTimeOutInSec, SECONDS);
+        } catch (InterruptedException e) {
+            log.warn("Time-out {} sec while checking authorization on {} ", cacheTimeOutInSec, destination);
+            throw e;
         } catch (Exception e) {
             log.warn("Producer-client  with Role - {} failed to get permissions for destination - {}", role,
                     destination, e);
@@ -78,7 +83,10 @@ public class AuthorizationManager {
     
     public boolean canConsume(DestinationName destination, String role) throws Exception {
         try {
-            return canConsumeAsync(destination, role).get();
+            return canConsumeAsync(destination, role).get(cacheTimeOutInSec, SECONDS);
+        } catch (InterruptedException e) {
+            log.warn("Time-out {} sec while checking authorization on {} ", cacheTimeOutInSec, destination);
+            throw e;
         } catch (Exception e) {
             log.warn("Consumer-client  with Role - {} failed to get permissions for destination - {}", role,
                     destination, e);
