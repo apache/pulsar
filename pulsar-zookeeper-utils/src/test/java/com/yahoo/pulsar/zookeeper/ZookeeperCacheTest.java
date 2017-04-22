@@ -16,6 +16,7 @@
 package com.yahoo.pulsar.zookeeper;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.fail;
 import static org.testng.AssertJUnit.assertNotNull;
@@ -33,6 +34,7 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.apache.bookkeeper.mledger.util.Pair;
 import org.apache.bookkeeper.util.OrderedSafeExecutor;
 import org.apache.zookeeper.KeeperException.Code;
 import org.apache.zookeeper.MockZooKeeper;
@@ -349,5 +351,73 @@ public class ZookeeperCacheTest {
         });
 
         latch.await();
+    }
+    
+    /**
+     * <pre>
+     * Verifies that if {@link ZooKeeperCache} fails to fetch data into the cache then 
+     * (1) it invalidates failed future so, next time it helps to get fresh data from zk
+     * (2) handles zk.getData() unexpected exception if zkSession is lost
+     * </pre>
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testInvalidateCacheOnFailure() throws Exception {
+        ExecutorService zkExecutor = Executors.newSingleThreadExecutor(new DefaultThreadFactory("mockZk"));
+        // add readOpDelayMs so, main thread will not serve zkCacahe-returned future and let zkExecutor-thread handle
+        // callback-result process
+        MockZooKeeper zkClient = MockZooKeeper.newInstance(zkExecutor, 100);
+        ZooKeeperCache zkCacheService = new LocalZooKeeperCache(zkClient, null /* no executors in unit test */, null);
+
+        final AtomicInteger count = new AtomicInteger(0);
+        ZooKeeperDataCache<String> zkCache = new ZooKeeperDataCache<String>(zkCacheService) {
+            @Override
+            public String deserialize(String key, byte[] content) throws Exception {
+                if (count.getAndIncrement() == 0) {
+                    throw new NullPointerException("data is null");
+                } else {
+                    return new String(content);
+                }
+            }
+        };
+
+        String value = "test";
+        String key1 = "/zkDesrializationExceptionTest";
+        String key2 = "/zkSessionExceptionTest";
+        zkClient.create(key1, value.getBytes(), null, null);
+        zkClient.create(key2, value.getBytes(), null, null);
+
+        // (1) deserialization will fail so, result should be exception
+        try {
+            zkCache.getAsync(key1).get();
+            fail("it should have failed with NPE");
+        } catch (Exception e) {
+            assertTrue(e.getCause() instanceof NullPointerException);
+        }
+
+        // (2) sleep to let cache to be invalidated async
+        Thread.sleep(1000);
+        // (3) now, cache should be invalidate failed-future and should refetch the data
+        assertEquals(zkCache.getAsync(key1).get().get(), value);
+
+        // (4) make zk-session invalid
+        ZooKeeper zkSession = zkCacheService.zkSession.get();
+        zkCacheService.zkSession.set(null);
+
+        try {
+            zkCache.getAsync(key2).get();
+            fail("it should have failed with NPE");
+        } catch (Exception e) {
+            assertTrue(e.getCause() instanceof NullPointerException);
+        }
+
+        // global-Zk session is connected now
+        zkCacheService.zkSession.set(zkSession);
+        // (5) sleep to let cache to be invalidated async
+        Thread.sleep(1000);
+        // (6) now, cache should be invalidate failed-future and should refetch the data
+        assertEquals(zkCache.getAsync(key1).get().get(), value);
+
     }
 }
