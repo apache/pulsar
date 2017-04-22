@@ -37,7 +37,7 @@ persistent://my-property/us-west/my-namespace/my-topic
 
 The topic name structure is linked to the multi-tenant nature of Pulsar.
 In this example:
- * `persistent` → Identifies a topic where all messages are durably persisted
+ * `persistent` → Identifies a topic whether all messages are durably persisted
     on multiple disks. This is the only supported type of topic at this point
  * `my-property` → **Property** identifies a *tenant* in the Pulsar
     instance
