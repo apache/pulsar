@@ -33,12 +33,16 @@ namespace pulsar {
 
 ObjectPool<MessageImpl, 100000> messagePool;
 
+boost::shared_ptr<MessageImpl> MessageBuilder::getMessageImpl() {
+    return messagePool.create();
+}
+
 MessageBuilder::MessageBuilder() {
-    impl_ = messagePool.create();
+    impl_ = getMessageImpl();
 }
 
 MessageBuilder& MessageBuilder::create() {
-    impl_ = messagePool.create();
+    impl_ = getMessageImpl();
     return *this;
 }
 

@@ -23,6 +23,7 @@
 #pragma GCC visibility push(default)
 
 namespace pulsar {
+class PulsarWrapper;
 
 class MessageBuilder {
  public:
@@ -94,8 +95,10 @@ class MessageBuilder {
  private:
     MessageBuilder(const MessageBuilder&);
     void checkMetadata();
-
+    boost::shared_ptr<MessageImpl> getMessageImpl();
     Message::MessageImplPtr impl_;
+
+    friend class PulsarWrapper;
 };
 
 }
