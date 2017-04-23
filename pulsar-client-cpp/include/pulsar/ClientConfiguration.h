@@ -123,7 +123,7 @@ class ClientConfiguration {
     friend class PulsarWrapper;
 
  private:
-    const AuthenticationPtr& getAuthenticationPtr() const;
+    const AuthenticationPtr& getAuthPtr() const;
     boost::shared_ptr<ClientConfigurationImpl> impl_;
 };
 }
