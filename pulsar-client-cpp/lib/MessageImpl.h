@@ -46,6 +46,11 @@ class MessageImpl {
     bool hasPartitionKey() const;
 
     uint64_t getPublishTimestamp() const;
+
+    void setReplicationClusters(const std::vector<std::string>& clusters);
+    void setProperty(const std::string& name, const std::string& value);
+    void disableReplication(bool flag);
+
  private:
     Message::StringMap properties_;
 };
