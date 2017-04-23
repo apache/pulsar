@@ -18,7 +18,7 @@
 #define LIB_BATCHMESSAGEID_H_
 
 #include <pulsar/MessageId.h>
-
+#pragma GCC visibility push(default)
 namespace pulsar {
 class PulsarWrapper;
 class BatchMessageId : public MessageId {
@@ -55,4 +55,6 @@ bool BatchMessageId::operator<=(const BatchMessageId& mID) const {
 }
 
 }
+#pragma GCC visibility pop
+
 #endif /* LIB_BATCHMESSAGEID_H_ */

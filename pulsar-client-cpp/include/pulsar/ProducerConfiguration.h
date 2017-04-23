@@ -21,7 +21,7 @@
 #include <pulsar/Result.h>
 #include <pulsar/Message.h>
 #include <boost/function.hpp>
-
+#pragma GCC visibility push(default)
 namespace pulsar {
 
 typedef boost::function<void(Result, const Message& msg)> SendCallback;
@@ -84,5 +84,6 @@ class ProducerConfiguration {
     boost::shared_ptr<ProducerConfigurationImpl> impl_;
 };
 }
+#pragma GCC visibility pop
 #endif /* PULSAR_PRODUCERCONFIGURATION_H_ */
 

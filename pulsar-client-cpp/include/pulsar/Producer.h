@@ -23,12 +23,10 @@
 
 #pragma GCC visibility push(default)
 
-class PulsarFriend;
-
 namespace pulsar {
 class ProducerImplBase;
 class PulsarWrapper;
-
+class PulsarFriend;
 class Producer {
  public:
     /**

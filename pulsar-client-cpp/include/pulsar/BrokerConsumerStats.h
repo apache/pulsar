@@ -24,6 +24,7 @@
 #include <boost/function.hpp>
 #include <pulsar/ConsumerType.h>
 
+#pragma GCC visibility push(default)
 namespace pulsar {
 class BrokerConsumerStatsImplBase;
 class PulsarWrapper;
@@ -85,4 +86,7 @@ class BrokerConsumerStats {
 typedef boost::function<void(Result result, BrokerConsumerStats brokerConsumerStats)> BrokerConsumerStatsCallback;
 
 }
+
+#pragma GCC visibility pop
+
 #endif //PULSAR_CPP_BROKERCONSUMERSTATS_H

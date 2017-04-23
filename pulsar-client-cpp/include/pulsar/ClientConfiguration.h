@@ -18,7 +18,7 @@
 #define PULSAR_CLIENTCONFIGURATION_H_
 
 #include <pulsar/Authentication.h>
-
+#pragma GCC visibility push(default)
 namespace pulsar {
 class PulsarWrapper;
 class ClientConfigurationImpl;
@@ -127,6 +127,8 @@ class ClientConfiguration {
     boost::shared_ptr<ClientConfigurationImpl> impl_;
 };
 }
+
+#pragma GCC visibility pop
 
 #endif /* PULSAR_CLIENTCONFIGURATION_H_ */
 

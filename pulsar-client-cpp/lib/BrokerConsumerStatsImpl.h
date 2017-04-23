@@ -24,7 +24,7 @@
 #include <boost/date_time/microsec_time_clock.hpp>
 #include <pulsar/BrokerConsumerStats.h>
 #include <lib/BrokerConsumerStatsImplBase.h>
-
+#pragma GCC visibility push(default)
 namespace pulsar {
 class BrokerConsumerStatsImpl : public BrokerConsumerStatsImplBase {
  private:
@@ -123,4 +123,5 @@ public:
     static ConsumerType convertStringToConsumerType(const std::string& str);
 };
 }
+#pragma GCC visibility pop
 #endif //PULSAR_CPP_BROKERCONSUMERSTATSIMPL_H

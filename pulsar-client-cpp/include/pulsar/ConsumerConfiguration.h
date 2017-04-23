@@ -23,6 +23,7 @@
 #include <pulsar/ConsumerType.h>
 #include <pulsar/Message.h>
 
+#pragma GCC visibility push(default)
 namespace pulsar {
 
 class Consumer;
@@ -125,6 +126,6 @@ class ConsumerConfiguration {
 };
 
 }
-
+#pragma GCC visibility pop
 #endif /* PULSAR_CONSUMERCONFIGURATION_H_ */
 

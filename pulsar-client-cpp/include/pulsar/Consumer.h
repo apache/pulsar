@@ -23,12 +23,11 @@
 #include <pulsar/ConsumerConfiguration.h>
 #pragma GCC visibility push(default)
 
-class PulsarFriend;
 
 namespace pulsar {
 class PulsarWrapper;
 class ConsumerImplBase;
-
+class PulsarFriend;
 /**
  *
  */
