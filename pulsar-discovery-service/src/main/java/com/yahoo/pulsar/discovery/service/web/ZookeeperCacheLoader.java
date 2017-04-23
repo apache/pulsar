@@ -19,6 +19,8 @@ import java.io.Closeable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 
 import org.apache.bookkeeper.util.OrderedSafeExecutor;
 import org.slf4j.Logger;
@@ -32,6 +34,8 @@ import com.yahoo.pulsar.zookeeper.ZooKeeperCache;
 import com.yahoo.pulsar.zookeeper.ZooKeeperChildrenCache;
 import com.yahoo.pulsar.zookeeper.ZooKeeperClientFactory;
 import com.yahoo.pulsar.zookeeper.ZooKeeperDataCache;
+
+import io.netty.util.concurrent.DefaultThreadFactory;
 
 /**
  * Connects with ZooKeeper and sets watch to listen changes for active broker list.
@@ -47,7 +51,9 @@ public class ZookeeperCacheLoader implements Closeable {
 
     private volatile List<LoadReport> availableBrokers;
 
-    private final OrderedSafeExecutor orderedExecutor = new OrderedSafeExecutor(8, "pulsar-discovery");
+    private final OrderedSafeExecutor orderedExecutor = new OrderedSafeExecutor(8, "pulsar-discovery-ordered-cache");
+    private final ScheduledExecutorService executor = Executors.newScheduledThreadPool(8,
+            new DefaultThreadFactory("pulsar-discovery-cache"));
 
     public static final String LOADBALANCE_BROKERS_ROOT = "/loadbalance/brokers";
 
@@ -66,7 +72,7 @@ public class ZookeeperCacheLoader implements Closeable {
         });
 
         this.localZkCache = new LocalZooKeeperCache(localZkConnectionSvc.getLocalZooKeeper(), this.orderedExecutor,
-                null/* cache uses ForkJoinPool if provided scheduler is null to load data-async */);
+                executor);
         localZkConnectionSvc.start(exitCode -> {
             try {
                 localZkCache.getZooKeeper().close();
