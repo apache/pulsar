@@ -20,11 +20,12 @@ project (pulsar-cpp)
 set(Boost_NO_BOOST_CMAKE ON)
 
 set (CMAKE_CXX_FLAGS "-Wno-deprecated-declarations ${CMAKE_CXX_FLAGS}")
+set(PROTOBUF_LIBRARIES $ENV{PROTOBUF_LIBRARIES})
 
 find_package(Boost REQUIRED COMPONENTS program_options filesystem regex thread system)
 find_package(OpenSSL REQUIRED)
 find_package(ZLIB REQUIRED)
-if (NOT $ENV{PROTOBUF_LIBRARIES})
+if (NOT PROTOBUF_LIBRARIES)
   find_package(ProtoBuf QUIET)
   if (NOT ProtoBuf_FOUND)
     find_library(PROTOBUF_LIBRARIES protobuf)
