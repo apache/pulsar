@@ -28,7 +28,6 @@ import static org.testng.Assert.fail;
 
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 
 import org.apache.bookkeeper.util.OrderedSafeExecutor;
 import org.apache.zookeeper.KeeperException;
@@ -43,6 +42,7 @@ import com.yahoo.pulsar.broker.PulsarService;
 import com.yahoo.pulsar.broker.ServiceConfiguration;
 import com.yahoo.pulsar.broker.cache.LocalZooKeeperCacheService;
 import com.yahoo.pulsar.broker.service.BrokerService;
+import com.yahoo.pulsar.client.api.PulsarClientException;
 import com.yahoo.pulsar.common.naming.NamespaceBundle;
 import com.yahoo.pulsar.common.naming.NamespaceBundleFactory;
 import com.yahoo.pulsar.common.naming.NamespaceName;
@@ -258,7 +258,16 @@ public class OwnershipCacheTest {
         // case 1: no one owns the namespace
         assertFalse(cache.getOwnerAsync(bundle).get().isPresent());
 
-        cache.removeOwnership(bundle).get();
+        try {
+            // this broker doesn't own any bundle
+            cache.removeOwnership(bundle).get();
+        } catch (Exception e) {
+            // Ok
+            if (!(e.getCause() instanceof PulsarClientException)) {
+                fail("Should have failed with IllegalArgumentException instead " + e.getCause().getMessage());
+            }
+
+        }
         assertTrue(cache.getOwnedBundles().isEmpty());
 
         // case 2: this broker owns the namespace
@@ -280,4 +289,35 @@ public class OwnershipCacheTest {
         }
     }
 
+    /**
+     * It verifies that ownership-cache fails to remove ownership node if it has invalid version.
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testRemoveOwnershipWithBadVersion() throws Exception {
+        OwnershipCache cache = new OwnershipCache(this.pulsar, bundleFactory);
+        NamespaceName testNs = new NamespaceName("pulsar/test/ns-7");
+        NamespaceBundle bundle = bundleFactory.getFullBundle(testNs);
+        // case 1: no one owns the namespace
+        assertFalse(cache.getOwnerAsync(bundle).get().isPresent());
+
+        assertTrue(cache.getOwnedBundles().isEmpty());
+
+        // case 2: this broker owns the namespace
+        NamespaceEphemeralData data1 = cache.tryAcquiringOwnership(bundle).get();
+        assertEquals(data1.getNativeUrl(), selfBrokerUrl);
+
+        // corrupt version
+        cache.getOwnedBundle(bundle).setVersion(20);
+
+        try {
+            cache.removeOwnership(bundle).get();
+            fail("Should have failed");
+        } catch (Exception e) {
+            assertEquals(e.getCause().getClass(), KeeperException.BadVersionException.class);
+        }
+    }
+    
+    
 }
