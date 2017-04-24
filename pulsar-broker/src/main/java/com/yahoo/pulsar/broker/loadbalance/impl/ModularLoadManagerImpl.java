@@ -445,41 +445,36 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
      */
     @Override
     public synchronized void doLoadShedding() {
-        if (!LoadManagerShared.isUnloadDisabledInLoadShedding(pulsar)) {
-            if (getAvailableBrokers().size() > 1) {
-                // Remove bundles who have been unloaded for longer than the grace period from the recently unloaded
-                // map.
-                final Iterator<Map.Entry<String, Long>> recentlyUnloadedIterator = loadData.getRecentlyUnloadedBundles()
-                        .entrySet().iterator();
-                while (recentlyUnloadedIterator.hasNext()) {
-                    final Map.Entry<String, Long> entry = recentlyUnloadedIterator.next();
-                    final long timestamp = entry.getValue();
-                    if (System.currentTimeMillis() - timestamp > TimeUnit.MINUTES
-                            .toMillis(conf.getLoadBalancerSheddingGracePeriodMinutes())) {
-                        recentlyUnloadedIterator.remove();
+        if (LoadManagerShared.isUnloadDisabledInLoadShedding(pulsar)) {
+            return;
+        }
+        if (getAvailableBrokers().size() <= 1) {
+            log.warn("Only 1 broker available: no load shedding will be performed");
+            return;
+        }
+        // Remove bundles who have been unloaded for longer than the grace period from the recently unloaded
+        // map.
+        final long timeout = System.currentTimeMillis()
+                - TimeUnit.MINUTES.toMillis(conf.getLoadBalancerSheddingGracePeriodMinutes());
+        final Map<String, Long> recentlyUnloadedBundles = loadData.getRecentlyUnloadedBundles();
+        recentlyUnloadedBundles.keySet().removeIf(e -> recentlyUnloadedBundles.get(e) < timeout);
+        for (LoadSheddingStrategy strategy : loadSheddingPipeline) {
+            final Map<String, String> bundlesToUnload = strategy.findBundlesForUnloading(loadData, conf);
+            if (bundlesToUnload != null && !bundlesToUnload.isEmpty()) {
+                try {
+                    for (Map.Entry<String, String> entry : bundlesToUnload.entrySet()) {
+                        final String broker = entry.getKey();
+                        final String bundle = entry.getValue();
+                        log.info("Unloading bundle: {}", bundle);
+                        adminCache.get("http://" + broker).namespaces().unloadNamespaceBundle(
+                                LoadManagerShared.getNamespaceNameFromBundleName(bundle),
+                                LoadManagerShared.getBundleRangeFromBundleName(bundle));
+                        loadData.getRecentlyUnloadedBundles().put(bundle, System.currentTimeMillis());
                     }
+                } catch (Exception e) {
+                    log.warn("Error when trying to perform load shedding", e);
                 }
-                for (LoadSheddingStrategy strategy : loadSheddingPipeline) {
-                    final Map<String, String> bundlesToUnload = strategy.findBundlesForUnloading(loadData, conf);
-                    if (bundlesToUnload != null && !bundlesToUnload.isEmpty()) {
-                        try {
-                            for (Map.Entry<String, String> entry : bundlesToUnload.entrySet()) {
-                                final String broker = entry.getKey();
-                                final String bundle = entry.getValue();
-                                log.info("Unloading bundle: {}", bundle);
-                                adminCache.get("http://" + broker).namespaces().unloadNamespaceBundle(
-                                        LoadManagerShared.getNamespaceNameFromBundleName(bundle),
-                                        LoadManagerShared.getBundleRangeFromBundleName(bundle));
-                                loadData.getRecentlyUnloadedBundles().put(bundle, System.currentTimeMillis());
-                            }
-                        } catch (Exception e) {
-                            log.warn("Error when trying to perform load shedding", e);
-                        }
-                        return;
-                    }
-                }
-            } else {
-                log.warn("Only 1 broker available: no load shedding will be performed");
+                return;
             }
         }
     }

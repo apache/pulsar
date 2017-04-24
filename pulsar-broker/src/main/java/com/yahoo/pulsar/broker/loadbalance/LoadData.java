@@ -35,29 +35,29 @@ public class LoadData {
      */
     private final Map<String, BundleData> bundleData;
 
-	/**
-	 * Map from recently unloaded bundles to the timestamp of when they were last loaded.
-	 */
-	private final Map<String, Long> recentlyUnloadedBundles;
+    /**
+     * Map from recently unloaded bundles to the timestamp of when they were last loaded.
+     */
+    private final Map<String, Long> recentlyUnloadedBundles;
 
-	/**
-	 * Initialize a LoadData.
-	 */
-	public LoadData() {
-		this.brokerData = new ConcurrentHashMap<>();
-		this.bundleData = new ConcurrentHashMap<>();
-		this.recentlyUnloadedBundles = new ConcurrentHashMap<>();
-	}
+    /**
+     * Initialize a LoadData.
+     */
+    public LoadData() {
+        this.brokerData = new ConcurrentHashMap<>();
+        this.bundleData = new ConcurrentHashMap<>();
+        this.recentlyUnloadedBundles = new ConcurrentHashMap<>();
+    }
 
     public Map<String, BrokerData> getBrokerData() {
         return brokerData;
     }
 
-	public Map<String, BundleData> getBundleData() {
-		return bundleData;
-	}
+    public Map<String, BundleData> getBundleData() {
+        return bundleData;
+    }
 
-	public Map<String, Long> getRecentlyUnloadedBundles() {
-		return recentlyUnloadedBundles;
-	}
+    public Map<String, Long> getRecentlyUnloadedBundles() {
+        return recentlyUnloadedBundles;
+    }
 }

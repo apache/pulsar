@@ -30,8 +30,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 
-import com.yahoo.pulsar.client.admin.PulsarAdmin;
-import com.yahoo.pulsar.client.admin.PulsarAdminException;
 import org.apache.commons.lang.SystemUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,6 +38,8 @@ import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.google.common.util.concurrent.RateLimiter;
+import com.yahoo.pulsar.client.admin.PulsarAdmin;
+import com.yahoo.pulsar.client.admin.PulsarAdminException;
 import com.yahoo.pulsar.client.api.ClientConfiguration;
 import com.yahoo.pulsar.client.api.Consumer;
 import com.yahoo.pulsar.client.api.ConsumerConfiguration;
@@ -92,7 +92,6 @@ public class LoadSimulationClient {
     // consumption as well as size may be changed at
     // any time, and the TradeUnit may also be stopped.
     private static class TradeUnit {
-        Future<Producer> producerFuture;
         Future<Consumer> consumerFuture;
         final AtomicBoolean stop;
         final RateLimiter rateLimiter;
@@ -111,7 +110,6 @@ public class LoadSimulationClient {
                 final ProducerConfiguration producerConf, final ConsumerConfiguration consumerConf,
                 final Map<Integer, byte[]> payloadCache) throws Exception {
             consumerFuture = client.subscribeAsync(tradeConf.topic, "Subscriber-" + tradeConf.topic, consumerConf);
-            producerFuture = client.createProducerAsync(tradeConf.topic, producerConf);
             this.payload = new AtomicReference<>();
             this.producerConf = producerConf;
             this.payloadCache = payloadCache;
@@ -149,7 +147,7 @@ public class LoadSimulationClient {
         }
 
         public void start() throws Exception {
-            Producer producer = producerFuture.get();
+            Producer producer = getNewProducer();
             final Consumer consumer = consumerFuture.get();
             while (!stop.get()) {
                 final MutableBoolean wellnessFlag = new MutableBoolean();
