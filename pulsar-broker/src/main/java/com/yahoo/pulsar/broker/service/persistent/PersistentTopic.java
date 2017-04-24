@@ -893,12 +893,16 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                     destStatsStream.writePair("address", consumerStats.address);
                     destStatsStream.writePair("consumerName", consumerStats.consumerName);
                     destStatsStream.writePair("availablePermits", consumerStats.availablePermits);
-                    destStatsStream.writePair("unackedMessages", consumerStats.unackedMessages);
-                    destStatsStream.writePair("blockedConsumerOnUnackedMsgs", consumerStats.blockedConsumerOnUnackedMsgs);
                     destStatsStream.writePair("connectedSince", consumerStats.connectedSince);
                     destStatsStream.writePair("msgRateOut", consumerStats.msgRateOut);
                     destStatsStream.writePair("msgThroughputOut", consumerStats.msgThroughputOut);
                     destStatsStream.writePair("msgRateRedeliver", consumerStats.msgRateRedeliver);
+                    
+                    if (SubType.Shared.equals(subscription.getType())) {
+                        destStatsStream.writePair("unackedMessages", consumerStats.unackedMessages);
+                        destStatsStream.writePair("blockedConsumerOnUnackedMsgs",
+                                consumerStats.blockedConsumerOnUnackedMsgs);
+                    }
                     destStatsStream.endObject();
                 }
 
@@ -911,8 +915,11 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                 destStatsStream.writePair("msgRateOut", subMsgRateOut);
                 destStatsStream.writePair("msgThroughputOut", subMsgThroughputOut);
                 destStatsStream.writePair("msgRateRedeliver", subMsgRateRedeliver);
-                destStatsStream.writePair("unackedMessages", subUnackedMessages);
                 destStatsStream.writePair("type", subscription.getTypeString());
+                if (SubType.Shared.equals(subscription.getType())) {
+                    destStatsStream.writePair("unackedMessages", subUnackedMessages);
+                }
+
 
                 // Close consumers
                 destStatsStream.endObject();
