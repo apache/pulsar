@@ -62,8 +62,13 @@ public class BatchMessageIdImpl extends MessageIdImpl implements Comparable<Mess
 
     @Override
     public String toString() {
-        return Objects.toStringHelper(MessageIdImpl.class).add("ledgerId", ledgerId).add("entryId", entryId)
-                .add("partitionIndex", partitionIndex).add("batchIndex", batchIndex).toString();
+        String entitySeparator = ":";
+        StringBuilder str = new StringBuilder();
+        str.append("BatchMessageIdImpl = ");
+        str.append(ledgerId).append(entitySeparator).append(entryId).append(entitySeparator).append(partitionIndex);
+        str.append(entitySeparator).append(batchIndex);
+        return str.toString();
+
     }
 
     // Serialization
@@ -71,16 +76,5 @@ public class BatchMessageIdImpl extends MessageIdImpl implements Comparable<Mess
     @Override
     public byte[] toByteArray() {
         return toByteArray(batchIndex);
-    }
-    
-    @Override
-    public String getMsgIdAsString(String entitySeparator) {
-        if (entitySeparator == null) {
-            entitySeparator = ":";
-        }
-        StringBuilder str = new StringBuilder();
-        str.append(ledgerId).append(entitySeparator).append(entryId).append(entitySeparator).append(partitionIndex);
-        str.append(entitySeparator).append(batchIndex);
-        return str.toString();
     }
 }

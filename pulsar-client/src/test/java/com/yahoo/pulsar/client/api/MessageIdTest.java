@@ -32,15 +32,15 @@ public class MessageIdTest {
     @Test
     public void messageIdTest() {
         MessageId mId = new MessageIdImpl(1, 2, 3);
-        assertEquals(mId.getMsgIdAsString(null), "1:2:3");
+        assertEquals(mId.toString(), "MessageIdImpl = 1:2:3");
         
         mId = new BatchMessageIdImpl(0, 2, 3, 4);
-        assertEquals(mId.getMsgIdAsString(null), "0:2:3:4");
+        assertEquals(mId.toString(), "BatchMessageIdImpl = 0:2:3:4");
         
         mId = new BatchMessageIdImpl(-1, 2, -3, 4);
-        assertEquals(mId.getMsgIdAsString("-"), "-1-2--3-4");
+        assertEquals(mId.toString(), "BatchMessageIdImpl = -1:2:-3:4");
         
         mId = new MessageIdImpl(0, -23, 3);
-        assertEquals(mId.getMsgIdAsString(""), "0-233");
+        assertEquals(mId.toString(), "MessageIdImpl = 0:-23:3");
     }
 }

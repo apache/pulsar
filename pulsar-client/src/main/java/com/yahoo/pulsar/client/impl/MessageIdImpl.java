@@ -77,8 +77,11 @@ public class MessageIdImpl implements MessageId, Comparable<MessageIdImpl> {
 
     @Override
     public String toString() {
-        return Objects.toStringHelper(MessageIdImpl.class).add("ledgerId", ledgerId).add("entryId", entryId)
-                .add("partitionIndex", partitionIndex).toString();
+        String entitySeparator = ":";
+        StringBuilder str = new StringBuilder();
+        str.append("MessageIdImpl = ");
+        str.append(ledgerId).append(entitySeparator).append(entryId).append(entitySeparator).append(partitionIndex);
+        return str.toString();
     }
 
     // / Serialization
@@ -143,15 +146,5 @@ public class MessageIdImpl implements MessageId, Comparable<MessageIdImpl> {
     public byte[] toByteArray() {
         // there is no message batch so we pass -1
         return toByteArray(-1);
-    }
-
-    @Override
-    public String getMsgIdAsString(String entitySeparator) {
-        if (entitySeparator == null) {
-            entitySeparator = ":";
-        }
-        StringBuilder str = new StringBuilder();
-        str.append(ledgerId).append(entitySeparator).append(entryId).append(entitySeparator).append(partitionIndex);
-        return str.toString();
     }
 }
