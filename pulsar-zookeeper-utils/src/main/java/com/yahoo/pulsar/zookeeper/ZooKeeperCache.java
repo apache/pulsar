@@ -238,14 +238,15 @@ public abstract class ZooKeeperCache implements Watcher {
     public <T> CompletableFuture<Optional<T>> getDataAsync(final String path, final Deserializer<T> deserializer) {
         CompletableFuture<Optional<T>> future = new CompletableFuture<>();
         getDataAsync(path, this, deserializer).thenAccept(data -> {
-            if (data == null) {
-                future.complete(Optional.empty());
-            } else {
-                future.complete(data.map(e -> e.getKey()));
-            }
+            future.complete(data.map(e -> e.getKey()));
         }).exceptionally(ex -> {
             asyncInvalidate(path);
-            future.completeExceptionally(ex.getCause());
+            if (ex.getCause() instanceof NoNodeException) {
+                future.complete(Optional.empty());
+            } else {
+                future.completeExceptionally(ex.getCause());
+            }
+
             return null;
         });
         return future;
@@ -265,13 +266,7 @@ public abstract class ZooKeeperCache implements Watcher {
     public <T> Optional<Entry<T, Stat>> getData(final String path, final Watcher watcher,
             final Deserializer<T> deserializer) throws Exception {
         try {
-            Optional<Entry<T, Stat>> data = getDataAsync(path, watcher, deserializer).get(cacheTimeOutInSec,
-                    TimeUnit.SECONDS);
-            // if returned data is null, it means NoNode present into zk
-            if (data == null) {
-                throw new KeeperException.NoNodeException(path);
-            }
-            return data;
+            return getDataAsync(path, watcher, deserializer).get(cacheTimeOutInSec, TimeUnit.SECONDS);
         } catch (ExecutionException e) {
             Throwable cause = e.getCause();
             if (cause instanceof KeeperException) {
