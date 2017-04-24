@@ -77,11 +77,7 @@ public class MessageIdImpl implements MessageId, Comparable<MessageIdImpl> {
 
     @Override
     public String toString() {
-        String entitySeparator = ":";
-        StringBuilder str = new StringBuilder();
-        str.append("MessageIdImpl = ");
-        str.append(ledgerId).append(entitySeparator).append(entryId).append(entitySeparator).append(partitionIndex);
-        return str.toString();
+        return String.format("%d:%d:%d", ledgerId, entryId, partitionIndex);
     }
 
     // / Serialization

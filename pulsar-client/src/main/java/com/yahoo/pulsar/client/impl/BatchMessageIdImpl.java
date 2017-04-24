@@ -62,13 +62,7 @@ public class BatchMessageIdImpl extends MessageIdImpl implements Comparable<Mess
 
     @Override
     public String toString() {
-        String entitySeparator = ":";
-        StringBuilder str = new StringBuilder();
-        str.append("BatchMessageIdImpl = ");
-        str.append(ledgerId).append(entitySeparator).append(entryId).append(entitySeparator).append(partitionIndex);
-        str.append(entitySeparator).append(batchIndex);
-        return str.toString();
-
+        return String.format("%d:%d:%d:%d", ledgerId, entryId, partitionIndex, batchIndex);
     }
 
     // Serialization
