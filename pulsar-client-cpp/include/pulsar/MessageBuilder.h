@@ -95,7 +95,7 @@ class MessageBuilder {
  private:
     MessageBuilder(const MessageBuilder&);
     void checkMetadata();
-    boost::shared_ptr<MessageImpl> getMessageImpl();
+    static boost::shared_ptr<MessageImpl> getMessageImpl();
     Message::MessageImplPtr impl_;
 
     friend class PulsarWrapper;
