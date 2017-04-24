@@ -92,7 +92,6 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
         super.onWebSocketError(cause);
         log.info("[{}] WebSocket error on topic {} : {}", getSession().getRemoteAddress(), topic, cause.getMessage());
         try {
-            getSession().close();
             close();
         } catch (IOException e) {
             log.error("Failed in closing producer for topic[{}] with error: [{}]: ", topic, e.getMessage());
