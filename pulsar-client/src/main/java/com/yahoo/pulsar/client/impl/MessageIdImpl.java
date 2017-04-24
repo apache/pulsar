@@ -77,8 +77,7 @@ public class MessageIdImpl implements MessageId, Comparable<MessageIdImpl> {
 
     @Override
     public String toString() {
-        return Objects.toStringHelper(MessageIdImpl.class).add("ledgerId", ledgerId).add("entryId", entryId)
-                .add("partitionIndex", partitionIndex).toString();
+        return String.format("%d:%d:%d", ledgerId, entryId, partitionIndex);
     }
 
     // / Serialization
