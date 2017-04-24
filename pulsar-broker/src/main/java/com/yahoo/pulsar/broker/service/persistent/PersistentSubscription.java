@@ -213,10 +213,12 @@ public class PersistentSubscription implements Subscription {
         return this.topicName;
     }
 
+    @Override
     public SubType getType() {
         return dispatcher != null ? dispatcher.getType() : null;
     }
 
+    @Override
     public String getTypeString() {
         SubType type = getType();
         if (type == null) {
