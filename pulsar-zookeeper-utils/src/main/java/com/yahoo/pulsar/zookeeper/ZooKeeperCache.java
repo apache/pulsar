@@ -17,14 +17,17 @@ package com.yahoo.pulsar.zookeeper;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import java.util.AbstractMap;
+import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -45,6 +48,8 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.Sets;
+
+import io.netty.util.concurrent.DefaultThreadFactory;
 
 /**
  * Per ZK client ZooKeeper cache supporting ZNode data and children list caches. A cache entry is identified, accessed
@@ -73,12 +78,16 @@ public abstract class ZooKeeperCache implements Watcher {
     protected final AsyncLoadingCache<String, Entry<Object, Stat>> dataCache;
     protected final Cache<String, Set<String>> childrenCache;
     protected final Cache<String, Boolean> existsCache;
-    protected final OrderedSafeExecutor executor;
+    private final OrderedSafeExecutor executor;
+    private final ScheduledExecutorService scheduledExecutor;
+    private boolean shouldShutdownExecutor = false;
+    public static final int cacheTimeOutInSec = 30;
 
     protected AtomicReference<ZooKeeper> zkSession = new AtomicReference<ZooKeeper>(null);
 
-    public ZooKeeperCache(ZooKeeper zkSession, OrderedSafeExecutor executor) {
+    public ZooKeeperCache(ZooKeeper zkSession, OrderedSafeExecutor executor, ScheduledExecutorService scheduledExecutor) {
         this.executor = executor;
+        this.scheduledExecutor = scheduledExecutor;
         this.zkSession.set(zkSession);
 
         this.dataCache = Caffeine.newBuilder().expireAfterAccess(1, TimeUnit.HOURS)
@@ -89,7 +98,9 @@ public abstract class ZooKeeperCache implements Watcher {
     }
 
     public ZooKeeperCache(ZooKeeper zkSession) {
-        this(zkSession, new OrderedSafeExecutor(1, "zk-cache-executor"));
+        this(zkSession, new OrderedSafeExecutor(1, "zk-cache-executor"),
+                Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("zk-cache-callback-executor")));
+        this.shouldShutdownExecutor = true;
     }
 
     public ZooKeeper getZooKeeper() {
@@ -115,6 +126,7 @@ public abstract class ZooKeeperCache implements Watcher {
                     });
                 } catch (RejectedExecutionException e) {
                     // Ok, the service is shutting down
+                    LOG.error("Failed to updated zk-cache {} on zk-watch {}", path, e.getMessage());
                 }
             } else {
                 if (LOG.isDebugEnabled()) {
@@ -235,12 +247,14 @@ public abstract class ZooKeeperCache implements Watcher {
     public <T> Optional<Entry<T, Stat>> getData(final String path, final Watcher watcher,
             final Deserializer<T> deserializer) throws Exception {
         try {
-            return getDataAsync(path, watcher, deserializer).get();
+            return getDataAsync(path, watcher, deserializer).get(cacheTimeOutInSec, TimeUnit.SECONDS);
         } catch (ExecutionException e) {
             Throwable cause = e.getCause();
             if (cause instanceof KeeperException) {
                 throw (KeeperException) cause;
             } else if (cause instanceof InterruptedException) {
+                LOG.warn("Time-out while fetching {} zk-data in {} sec", path, cacheTimeOutInSec);
+                invalidate(path);
                 throw (InterruptedException) cause;
             } else if (cause instanceof RuntimeException) {
                 throw (RuntimeException) cause;
@@ -262,18 +276,20 @@ public abstract class ZooKeeperCache implements Watcher {
             CompletableFuture<Entry<Object, Stat>> zkFuture = new CompletableFuture<>();
 
             this.zkSession.get().getData(path, watcher, (rc, path1, ctx, content, stat) -> {
+                Executor exec = scheduledExecutor != null ? scheduledExecutor : executor;
                 if (rc == Code.OK.intValue()) {
                     try {
                         T obj = deserializer.deserialize(path, content);
-                        zkFuture.complete(new AbstractMap.SimpleImmutableEntry<Object, Stat>(obj, stat));
+                        // avoid using the zk-client thread to process the result
+                        exec.execute(() -> zkFuture.complete(new SimpleImmutableEntry<Object, Stat>(obj, stat)));
                     } catch (Exception e) {
-                        zkFuture.completeExceptionally(e);
+                        exec.execute(() -> zkFuture.completeExceptionally(e));
                     }
                 } else if (rc == Code.NONODE.intValue()) {
                     // Return null values for missing z-nodes, as this is not "exceptional" condition
-                    zkFuture.complete(null);
+                    exec.execute(() -> zkFuture.complete(null));
                 } else {
-                    zkFuture.completeExceptionally(KeeperException.create(rc));
+                    exec.execute(() -> zkFuture.completeExceptionally(KeeperException.create(rc)));
                 }
             }, null);
 
@@ -358,6 +374,13 @@ public abstract class ZooKeeperCache implements Watcher {
             if (key.startsWith(root)) {
                 childrenCache.invalidate(key);
             }
+        }
+    }
+    
+    public void stop() {
+        if (shouldShutdownExecutor) {
+            this.executor.shutdown();
+            this.scheduledExecutor.shutdown();
         }
     }
 }

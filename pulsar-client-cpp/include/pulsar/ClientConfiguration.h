@@ -129,6 +129,5 @@ class ClientConfiguration {
 }
 
 #pragma GCC visibility pop
-
 #endif /* PULSAR_CLIENTCONFIGURATION_H_ */
 

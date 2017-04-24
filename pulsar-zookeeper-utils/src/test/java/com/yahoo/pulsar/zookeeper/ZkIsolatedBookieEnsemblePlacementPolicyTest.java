@@ -106,7 +106,7 @@ public class ZkIsolatedBookieEnsemblePlacementPolicyTest {
 
         ZkIsolatedBookieEnsemblePlacementPolicy isolationPolicy = new ZkIsolatedBookieEnsemblePlacementPolicy();
         ClientConfiguration bkClientConf = new ClientConfiguration();
-        bkClientConf.setProperty(ZooKeeperCache.ZK_CACHE_INSTANCE, new ZooKeeperCache(localZkc, null) {
+        bkClientConf.setProperty(ZooKeeperCache.ZK_CACHE_INSTANCE, new ZooKeeperCache(localZkc, null, null) {
         });
         bkClientConf.setProperty(ZkIsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, isolationGroups);
         isolationPolicy.initialize(bkClientConf);
@@ -176,7 +176,7 @@ public class ZkIsolatedBookieEnsemblePlacementPolicyTest {
     public void testNoBookieInfo() throws Exception {
         ZkIsolatedBookieEnsemblePlacementPolicy isolationPolicy = new ZkIsolatedBookieEnsemblePlacementPolicy();
         ClientConfiguration bkClientConf = new ClientConfiguration();
-        bkClientConf.setProperty(ZooKeeperCache.ZK_CACHE_INSTANCE, new ZooKeeperCache(localZkc, null) {
+        bkClientConf.setProperty(ZooKeeperCache.ZK_CACHE_INSTANCE, new ZooKeeperCache(localZkc, null, null) {
         });
         bkClientConf.setProperty(ZkIsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, isolationGroups);
         isolationPolicy.initialize(bkClientConf);
@@ -296,7 +296,7 @@ public class ZkIsolatedBookieEnsemblePlacementPolicyTest {
 
         ZkIsolatedBookieEnsemblePlacementPolicy isolationPolicy = new ZkIsolatedBookieEnsemblePlacementPolicy();
         ClientConfiguration bkClientConf = new ClientConfiguration();
-        bkClientConf.setProperty(ZooKeeperCache.ZK_CACHE_INSTANCE, new ZooKeeperCache(localZkc, null) {
+        bkClientConf.setProperty(ZooKeeperCache.ZK_CACHE_INSTANCE, new ZooKeeperCache(localZkc, null, null) {
         });
         isolationPolicy.initialize(bkClientConf);
         isolationPolicy.onClusterChanged(writableBookies, readOnlyBookies);
