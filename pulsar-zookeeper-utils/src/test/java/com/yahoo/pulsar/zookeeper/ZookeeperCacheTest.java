@@ -23,9 +23,14 @@ import static org.testng.AssertJUnit.assertNull;
 
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.bookkeeper.util.OrderedSafeExecutor;
@@ -44,6 +49,8 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.MoreExecutors;
 
+import io.netty.util.concurrent.DefaultThreadFactory;
+
 @Test
 public class ZookeeperCacheTest {
     private MockZooKeeper zkClient;
@@ -60,7 +67,7 @@ public class ZookeeperCacheTest {
 
     @Test
     void testSimpleCache() throws Exception {
-        ZooKeeperCache zkCacheService = new LocalZooKeeperCache(zkClient, null /* no executors in unit test */);
+        ZooKeeperCache zkCacheService = new LocalZooKeeperCache(zkClient, null, null /* no executors in unit test */);
         ZooKeeperDataCache<String> zkCache = new ZooKeeperDataCache<String>(zkCacheService) {
             @Override
             public String deserialize(String key, byte[] content) throws Exception {
@@ -101,7 +108,7 @@ public class ZookeeperCacheTest {
         OrderedSafeExecutor executor = new OrderedSafeExecutor(1, "test");
         zkClient.create("/test", new byte[0], null, null);
 
-        ZooKeeperCache zkCacheService = new LocalZooKeeperCache(zkClient, executor);
+        ZooKeeperCache zkCacheService = new LocalZooKeeperCache(zkClient, executor, null);
         ZooKeeperChildrenCache cache = new ZooKeeperChildrenCache(zkCacheService, "/test");
 
         // Create callback counter
@@ -154,7 +161,7 @@ public class ZookeeperCacheTest {
         // Check existence after creation of the node
         zkClient.create("/test", new byte[0], null, null);
         Thread.sleep(20);
-        ZooKeeperCache zkCacheService = new LocalZooKeeperCache(zkClient, null /* no executor in unit test */);
+        ZooKeeperCache zkCacheService = new LocalZooKeeperCache(zkClient, null /* no executor in unit test */, null);
         boolean exists = zkCacheService.exists("/test");
         Assert.assertTrue(exists, "/test should exists in the cache");
 
@@ -171,7 +178,7 @@ public class ZookeeperCacheTest {
         zkClient.create("/test/c1", new byte[0], null, null);
         zkClient.create("/test/c2", new byte[0], null, null);
         Thread.sleep(20);
-        ZooKeeperCache zkCacheService = new LocalZooKeeperCache(zkClient, null /* no executor in unit test */);
+        ZooKeeperCache zkCacheService = new LocalZooKeeperCache(zkClient, null /* no executor in unit test */, null);
         boolean exists = zkCacheService.exists("/test");
         Assert.assertTrue(exists, "/test should exists in the cache");
 
@@ -300,5 +307,47 @@ public class ZookeeperCacheTest {
 
         // Update shouldn't happen after the last check
         assertEquals(notificationCount.get(), 1);
+    }
+    
+    /**
+     * Verifies that blocking call on zkCache-callback will not introduce deadlock because zkCache completes
+     * future-result with different thread than zookeeper-client thread.
+     * 
+     * @throws Exception
+     */
+    @Test(timeOut = 2000)
+    void testZkCallbackThreadStuck() throws Exception {
+        ExecutorService zkExecutor = Executors.newSingleThreadExecutor(new DefaultThreadFactory("mockZk"));
+        // add readOpDelayMs so, main thread will not serve zkCacahe-returned future and let zkExecutor-thread handle
+        // callback-result process
+        MockZooKeeper zkClient = MockZooKeeper.newInstance(zkExecutor, 100);
+        ZooKeeperCache zkCacheService = new LocalZooKeeperCache(zkClient, null /* no executors in unit test */, null);
+        ZooKeeperDataCache<String> zkCache = new ZooKeeperDataCache<String>(zkCacheService) {
+            @Override
+            public String deserialize(String key, byte[] content) throws Exception {
+                return new String(content);
+            }
+        };
+
+        String value = "test";
+        String key = "/" + UUID.randomUUID().toString().substring(0, 8);
+        String key1 = "/" + UUID.randomUUID().toString().substring(0, 8);
+        String key2 = "/" + UUID.randomUUID().toString().substring(0, 8);
+        zkClient.create(key, value.getBytes(), null, null);
+        zkClient.create(key1, value.getBytes(), null, null);
+        zkClient.create(key2, value.getBytes(), null, null);
+
+        CountDownLatch latch = new CountDownLatch(1);
+
+        zkCache.getAsync(key).thenAccept(val -> {
+            try {
+                zkCache.get(key1);
+            } catch (Exception e) {
+                fail("failed to get " + key2, e);
+            }
+            latch.countDown();
+        });
+
+        latch.await();
     }
 }

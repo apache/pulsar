@@ -46,7 +46,7 @@ public class ResourceQuotaCacheTest {
     public void setup() throws Exception {
         pulsar = mock(PulsarService.class);
         OrderedSafeExecutor executor = new OrderedSafeExecutor(1, "test");
-        zkCache = new LocalZooKeeperCache(MockZooKeeper.newInstance(), executor);
+        zkCache = new LocalZooKeeperCache(MockZooKeeper.newInstance(), executor, null);
         localCache = new LocalZooKeeperCacheService(zkCache, null);
         bundleFactory = new NamespaceBundleFactory(pulsar, Hashing.crc32());
 

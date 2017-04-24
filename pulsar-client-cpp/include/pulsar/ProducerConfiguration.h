@@ -22,6 +22,7 @@
 #include <pulsar/Message.h>
 #include <boost/function.hpp>
 #pragma GCC visibility push(default)
+
 namespace pulsar {
 
 typedef boost::function<void(Result, const Message& msg)> SendCallback;

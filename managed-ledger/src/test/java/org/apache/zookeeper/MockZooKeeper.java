@@ -22,7 +22,6 @@ import java.util.TreeMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import org.apache.bookkeeper.mledger.util.Pair;
 import org.apache.zookeeper.AsyncCallback.Children2Callback;
@@ -61,18 +60,24 @@ public class MockZooKeeper extends ZooKeeper {
     private KeeperException.Code failReturnCode;
     private Watcher sessionWatcher;
     private long sessionId = 0L;
+    private int readOpDelayMs;
 
     public static MockZooKeeper newInstance() {
         return newInstance(null);
     }
 
     public static MockZooKeeper newInstance(ExecutorService executor) {
+        return newInstance(executor, -1);
+    }
+    
+    public static MockZooKeeper newInstance(ExecutorService executor, int readOpDelayMs) {
         try {
             ReflectionFactory rf = ReflectionFactory.getReflectionFactory();
             Constructor objDef = Object.class.getDeclaredConstructor(new Class[0]);
             Constructor intConstr = rf.newConstructorForSerialization(MockZooKeeper.class, objDef);
             MockZooKeeper zk = MockZooKeeper.class.cast(intConstr.newInstance());
             zk.init(executor);
+            zk.readOpDelayMs = readOpDelayMs;
             return zk;
         } catch (RuntimeException e) {
             throw e;
@@ -192,7 +197,6 @@ public class MockZooKeeper extends ZooKeeper {
     @Override
     public synchronized byte[] getData(String path, Watcher watcher, Stat stat) throws KeeperException {
         checkProgrammedFail();
-
         Pair<String, Integer> value = tree.get(path);
         if (value == null) {
             throw new KeeperException.NoNodeException(path);
@@ -210,6 +214,7 @@ public class MockZooKeeper extends ZooKeeper {
     @Override
     public void getData(final String path, boolean watch, final DataCallback cb, final Object ctx) {
         executor.execute(() -> {
+            checkReadOpDelay();
             if (getProgrammedFailStatus()) {
                 cb.processResult(failReturnCode.intValue(), path, ctx, null, null);
                 return;
@@ -236,6 +241,7 @@ public class MockZooKeeper extends ZooKeeper {
     @Override
     public void getData(final String path, final Watcher watcher, final DataCallback cb, final Object ctx) {
         executor.execute(() -> {
+            checkReadOpDelay();
             synchronized (MockZooKeeper.this) {
                 if (getProgrammedFailStatus()) {
                     cb.processResult(failReturnCode.intValue(), path, ctx, null, null);
@@ -717,6 +723,16 @@ public class MockZooKeeper extends ZooKeeper {
     @Override
     public String toString() {
         return "MockZookeeper";
+    }
+
+    private void checkReadOpDelay() {
+        if (readOpDelayMs > 0) {
+            try {
+                Thread.sleep(readOpDelayMs);
+            } catch (InterruptedException e) {
+                // Ok
+            }
+        }
     }
 
     private static final Logger log = LoggerFactory.getLogger(MockZooKeeper.class);

@@ -68,7 +68,7 @@ public class OwnershipCacheTest {
         pulsar = mock(PulsarService.class);
         config = mock(ServiceConfiguration.class);
         executor = new OrderedSafeExecutor(1, "test");
-        zkCache = new LocalZooKeeperCache(MockZooKeeper.newInstance(), executor);
+        zkCache = new LocalZooKeeperCache(MockZooKeeper.newInstance(), executor, null);
         localCache = new LocalZooKeeperCacheService(zkCache, null);
         bundleFactory = new NamespaceBundleFactory(pulsar, Hashing.crc32());
         nsService = mock(NamespaceService.class);
