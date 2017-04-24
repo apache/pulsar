@@ -96,7 +96,7 @@ public class PulsarService implements AutoCloseable {
     private final ScheduledExecutorService executor = Executors.newScheduledThreadPool(20,
             new DefaultThreadFactory("pulsar"));
     private final ScheduledExecutorService cacheExecutor = Executors.newScheduledThreadPool(10,
-            new DefaultThreadFactory("cache-callback"));
+            new DefaultThreadFactory("zk-cache-callback"));
     private final OrderedSafeExecutor orderedExecutor = new OrderedSafeExecutor(8, "pulsar-ordered");
     private ScheduledExecutorService loadManagerExecutor = null;
     private ScheduledFuture<?> loadReportTask = null;

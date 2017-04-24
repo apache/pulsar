@@ -112,6 +112,7 @@ public class ZookeeperCacheLoader implements Closeable {
     @Override
     public void close() {
         orderedExecutor.shutdown();
+        executor.shutdown();
     }
 
     private void updateBrokerList(Set<String> brokerNodes) throws Exception {

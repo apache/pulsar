@@ -87,6 +87,8 @@ public abstract class ZooKeeperCache implements Watcher {
     protected AtomicReference<ZooKeeper> zkSession = new AtomicReference<ZooKeeper>(null);
 
     public ZooKeeperCache(ZooKeeper zkSession, OrderedSafeExecutor executor, ScheduledExecutorService scheduledExecutor) {
+        checkNotNull(executor);
+        checkNotNull(scheduledExecutor);
         this.executor = executor;
         this.scheduledExecutor = scheduledExecutor;
         this.zkSession.set(zkSession);
@@ -168,20 +170,7 @@ public abstract class ZooKeeperCache implements Watcher {
     }
 
     public void asyncInvalidate(String path) {
-        if (scheduledExecutor != null) {
-            scheduledExecutor.submit(() -> invalidate(path));
-        } else if (executor != null) {
-            executor.submitOrdered(path, new SafeRunnable() {
-                @Override
-                public void safeRun() {
-                    invalidate(path);
-                }
-            });
-        } else {
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("Cannot invalidte path async: {}", path);
-            }
-        }
+        scheduledExecutor.submit(() -> invalidate(path));
     }
 
     public void invalidate(final String path) {
@@ -268,18 +257,16 @@ public abstract class ZooKeeperCache implements Watcher {
         try {
             return getDataAsync(path, watcher, deserializer).get(cacheTimeOutInSec, TimeUnit.SECONDS);
         } catch (ExecutionException e) {
+            asyncInvalidate(path);
             Throwable cause = e.getCause();
             if (cause instanceof KeeperException) {
                 throw (KeeperException) cause;
             } else if (cause instanceof InterruptedException) {
                 LOG.warn("Time-out while fetching {} zk-data in {} sec", path, cacheTimeOutInSec);
-                asyncInvalidate(path);
                 throw (InterruptedException) cause;
             } else if (cause instanceof RuntimeException) {
-                asyncInvalidate(path);
                 throw (RuntimeException) cause;
             } else {
-                asyncInvalidate(path);
                 throw new RuntimeException(cause);
             }
         } catch (TimeoutException e) {
