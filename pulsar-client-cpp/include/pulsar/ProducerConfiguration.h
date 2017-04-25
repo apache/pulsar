@@ -21,6 +21,7 @@
 #include <pulsar/Result.h>
 #include <pulsar/Message.h>
 #include <boost/function.hpp>
+#pragma GCC visibility push(default)
 
 namespace pulsar {
 
@@ -28,6 +29,7 @@ typedef boost::function<void(Result, const Message& msg)> SendCallback;
 typedef boost::function<void(Result)> CloseCallback;
 
 class ProducerConfigurationImpl;
+class PulsarWrapper;
 
 /**
  * Class that holds the configuration for a producer
@@ -76,10 +78,13 @@ class ProducerConfiguration {
     ProducerConfiguration& setBatchingMaxPublishDelayMs(
             const unsigned long& batchingMaxPublishDelayMs);
     const unsigned long& getBatchingMaxPublishDelayMs() const;
+    friend class PulsarWrapper;
+
  private:
     struct Impl;
     boost::shared_ptr<ProducerConfigurationImpl> impl_;
 };
 }
+#pragma GCC visibility pop
 #endif /* PULSAR_PRODUCERCONFIGURATION_H_ */
 

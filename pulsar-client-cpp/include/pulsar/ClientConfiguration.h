@@ -18,8 +18,9 @@
 #define PULSAR_CLIENTCONFIGURATION_H_
 
 #include <pulsar/Authentication.h>
-
+#pragma GCC visibility push(default)
 namespace pulsar {
+class PulsarWrapper;
 class ClientConfigurationImpl;
 class ClientConfiguration {
  public:
@@ -118,13 +119,15 @@ class ClientConfiguration {
 
     ClientConfiguration& setTlsAllowInsecureConnection(bool allowInsecure);
     bool isTlsAllowInsecureConnection() const;
+    friend class ClientImpl;
+    friend class PulsarWrapper;
 
  private:
-    const AuthenticationPtr& getAuthenticationPtr() const;
+    const AuthenticationPtr& getAuthPtr() const;
     boost::shared_ptr<ClientConfigurationImpl> impl_;
-    friend class ClientImpl;
 };
 }
 
+#pragma GCC visibility pop
 #endif /* PULSAR_CLIENTCONFIGURATION_H_ */
 

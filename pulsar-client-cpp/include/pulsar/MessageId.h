@@ -26,6 +26,7 @@ namespace pulsar {
 
 class ConsumerImpl;
 class UnAckedMessageTrackerEnabled;
+class PulsarWrapper;
 
 class MessageId {
  public:
@@ -42,6 +43,7 @@ class MessageId {
     friend class PartitionedConsumerImpl;
     friend class UnAckedMessageTrackerEnabled;
     friend class BatchAcknowledgementTracker;
+    friend class PulsarWrapper;
     MessageId(int64_t, int64_t);
     friend std::ostream& operator<<(std::ostream& s, const MessageId& messageId);
     int64_t ledgerId_;
