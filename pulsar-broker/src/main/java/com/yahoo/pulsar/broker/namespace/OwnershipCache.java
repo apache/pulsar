@@ -15,8 +15,6 @@
  */
 package com.yahoo.pulsar.broker.namespace;
 
-import static com.google.common.base.Preconditions.checkState;
-
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -24,6 +22,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
+import org.apache.bookkeeper.mledger.impl.MetaStore;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
@@ -36,8 +36,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.benmanes.caffeine.cache.AsyncCacheLoader;
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
-import com.github.benmanes.caffeine.cache.RemovalCause;
-import com.github.benmanes.caffeine.cache.RemovalListener;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.yahoo.pulsar.broker.PulsarService;
@@ -105,6 +103,11 @@ public class OwnershipCache {
      * The <code>NamespaceBundleFactory</code> to construct <code>NamespaceBundles</code>
      */
     private final NamespaceBundleFactory bundleFactory;
+    
+    /**
+     * Use to record zk-write operations
+     */
+    private final MetaStore metaStore;
 
     private class OwnedServiceUnitCacheLoader implements AsyncCacheLoader<String, OwnedBundle> {
 
@@ -124,8 +127,10 @@ public class OwnershipCache {
             }
 
             CompletableFuture<OwnedBundle> future = new CompletableFuture<>();
+            final long now = System.nanoTime();
             ZkUtils.asyncCreateFullPathOptimistic(localZkCache.getZooKeeper(), namespaceBundleZNode, znodeContent,
                     Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL, (rc, path, ctx, name) -> {
+                        metaStore.recordWriteLatency(System.nanoTime() - now, 1L);
                         if (rc == KeeperException.Code.OK.intValue()) {
                             if (LOG.isDebugEnabled()) {
                                 LOG.debug("Successfully acquired zk lock on {}", namespaceBundleZNode);
@@ -162,6 +167,7 @@ public class OwnershipCache {
         // ownedBundlesCache contains all namespaces that are owned by the local broker
         this.ownedBundlesCache = Caffeine.newBuilder().executor(MoreExecutors.sameThreadExecutor())
                 .buildAsync(new OwnedServiceUnitCacheLoader());
+        this.metaStore = ((ManagedLedgerFactoryImpl) pulsar.getManagedLedgerFactory()).getMetaStore();
     }
 
     /**
@@ -252,7 +258,9 @@ public class OwnershipCache {
     public CompletableFuture<Void> removeOwnership(NamespaceBundle bundle) {
         CompletableFuture<Void> result = new CompletableFuture<>();
         String key = ServiceUnitZkUtils.path(bundle);
+        final long now = System.nanoTime();
         localZkCache.getZooKeeper().delete(key, -1, (rc, path, ctx) -> {
+            metaStore.recordWriteLatency(System.nanoTime() - now, 1L);
             if (rc == KeeperException.Code.OK.intValue() || rc == KeeperException.Code.NONODE.intValue()) {
                 LOG.info("[{}] Removed zk lock for service unit: {}", key, KeeperException.Code.get(rc));
                 ownedBundlesCache.synchronous().invalidate(key);

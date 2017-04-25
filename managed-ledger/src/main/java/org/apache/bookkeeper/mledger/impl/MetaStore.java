@@ -133,4 +133,30 @@ public interface MetaStore {
      * @throws MetaStoreException
      */
     Iterable<String> getManagedLedgers() throws MetaStoreException;
+
+    /**
+     * Record write zk write with latency (in nano-seconds) for zk-op stats
+     * 
+     * @param latency
+     */
+    void recordWriteLatency(long latencyInNs, long count);
+
+    /**
+     * Record write zk operation for zk-op stats
+     * 
+     */
+    void recordWriteCount(long count);
+
+    /**
+     * Record read zk read with latency (in nano-seconds) for zk-op stats
+     * 
+     * @param latency
+     */
+    void recordReadLatency(long latency, long count);
+
+    /**
+     * Record read zk operation for zk-op stats
+     * 
+     */
+    void recordReadCount(long count);
 }

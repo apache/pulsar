@@ -21,6 +21,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.bookkeeper.mledger.impl.MetaStoreImplZookeeper;
+import org.apache.bookkeeper.mledger.util.DimensionStats;
+
 /**
  */
 public class BrokerOperabilityMetrics {
@@ -62,6 +65,40 @@ public class BrokerOperabilityMetrics {
         dMetrics.put("brk_topic_load_time_99_99_percentile_ms", topicLoadStats.topicsLoad9999Ms);
         dMetrics.put("brk_topic_load_rate_s",
                 (1000 * topicLoadStats.topicLoadCounts) / topicLoadStats.elapsedIntervalMs);
+
+        return dMetrics;
+    }
+
+    public Metrics getZkLatencyMetrics(MetaStoreImplZookeeper metaStore) {
+        Map<String, String> dimensionMap = Maps.newHashMap();
+        dimensionMap.put("broker", brokerName);
+        dimensionMap.put("cluster", localCluster);
+        dimensionMap.put("metric", "zk_op_stats");
+        Metrics dMetrics = Metrics.create(dimensionMap);
+
+        DimensionStats zkWriteLatencyStats = metaStore.getZkWriteLatencyStats();
+        DimensionStats zkReadLatencyStats = metaStore.getZkReadLatencyStats();
+        zkWriteLatencyStats.updateStats();
+        zkReadLatencyStats.updateStats();
+
+        dMetrics.put("zk_latency_write_mean_ms", zkWriteLatencyStats.meanDimensionMs);
+        dMetrics.put("zk_latency_write_time_median_ms", zkWriteLatencyStats.medianDimensionMs);
+        dMetrics.put("zk_latency_write_95percentile_ms", zkWriteLatencyStats.dimension95Ms);
+        dMetrics.put("zk_latency_write_99_percentile_ms", zkWriteLatencyStats.dimension99Ms);
+        dMetrics.put("zk_latency_write_99_9_percentile_ms", zkWriteLatencyStats.dimension999Ms);
+        dMetrics.put("zk_latency_write_99_99_percentile_ms", zkWriteLatencyStats.dimension999Ms);
+        dMetrics.put("zk_latency_write_count", zkWriteLatencyStats.dimensionCounts);
+        
+        dMetrics.put("zk_latency_read_mean_ms", zkReadLatencyStats.meanDimensionMs);
+        dMetrics.put("zk_latency_read_time_median_ms", zkReadLatencyStats.medianDimensionMs);
+        dMetrics.put("zk_latency_read_95percentile_ms", zkReadLatencyStats.dimension95Ms);
+        dMetrics.put("zk_latency_read_99_percentile_ms", zkReadLatencyStats.dimension99Ms);
+        dMetrics.put("zk_latency_read_99_9_percentile_ms", zkReadLatencyStats.dimension999Ms);
+        dMetrics.put("zk_latency_read_99_99_percentile_ms", zkReadLatencyStats.dimension999Ms);
+        dMetrics.put("zk_latency_read_count", zkReadLatencyStats.dimensionCounts);
+        
+        dMetrics.put("zk_write_rate", metaStore.getAndResetNumOfWrite());
+        dMetrics.put("zk_read_rate", metaStore.getAndResetNumOfRead());
 
         return dMetrics;
     }
