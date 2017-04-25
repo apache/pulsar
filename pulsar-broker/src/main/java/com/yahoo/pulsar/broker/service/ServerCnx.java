@@ -155,11 +155,11 @@ public class ServerCnx extends PulsarHandler {
     
     @Override
     protected void handleLookup(CommandLookupTopic lookup) {
-        if (log.isDebugEnabled()) {
-            log.debug("Received Lookup from {}", remoteAddress);
-        }
         final long requestId = lookup.getRequestId();
         final String topic = lookup.getTopic();
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] Received Lookup from {} for {}", topic, remoteAddress, requestId);
+        }
         final Semaphore lookupSemaphore = service.getLookupRequestSemaphore();
         if (lookupSemaphore.tryAcquire()) {
             lookupDestinationAsync(getBrokerService().pulsar(), DestinationName.get(topic), lookup.getAuthoritative(),
@@ -187,11 +187,11 @@ public class ServerCnx extends PulsarHandler {
 
     @Override
     protected void handlePartitionMetadataRequest(CommandPartitionedTopicMetadata partitionMetadata) {
-        if (log.isDebugEnabled()) {
-            log.debug("Received PartitionMetadataLookup from {}", remoteAddress);
-        }
         final long requestId = partitionMetadata.getRequestId();
         final String topic = partitionMetadata.getTopic();
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] Received PartitionMetadataLookup from {} for {}", topic, remoteAddress, requestId);
+        }
         final Semaphore lookupSemaphore = service.getLookupRequestSemaphore();
         if (lookupSemaphore.tryAcquire()) {
             getPartitionedTopicMetadata(getBrokerService().pulsar(), getRole(), DestinationName.get(topic))

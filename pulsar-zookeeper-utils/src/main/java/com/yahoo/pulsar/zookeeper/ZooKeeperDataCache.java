@@ -24,6 +24,7 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
+import org.apache.zookeeper.KeeperException.NoNodeException;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,6 +62,7 @@ public abstract class ZooKeeperDataCache<T> implements Deserializer<T>, CacheUpd
         cache.getDataAsync(path, this, this).thenAccept(entry -> {
             future.complete(entry.map(Entry::getKey));
         }).exceptionally(ex -> {
+            cache.asyncInvalidate(path);
             future.completeExceptionally(ex);
             return null;
         });
