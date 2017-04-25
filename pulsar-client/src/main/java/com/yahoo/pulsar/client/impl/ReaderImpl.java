@@ -54,13 +54,18 @@ public class ReaderImpl implements Reader {
         if (readerConfiguration.getReaderListener() != null) {
             ReaderListener readerListener = readerConfiguration.getReaderListener();
             consumerConfiguration.setMessageListener((consumer, msg) -> {
-                readerListener.received(msg);
+                readerListener.received(this, msg);
                 consumer.acknowledgeCumulativeAsync(msg);
             });
         }
 
         consumer = new ConsumerImpl(client, topic, subscription, consumerConfiguration, listenerExecutor, -1,
                 consumerFuture, SubscriptionMode.NonDurable, startMessageId);
+    }
+
+    @Override
+    public String getTopic() {
+        return consumer.getTopic();
     }
 
     ConsumerImpl getConsumer() {

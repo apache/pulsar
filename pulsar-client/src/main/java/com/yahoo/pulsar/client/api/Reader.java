@@ -24,6 +24,12 @@ import java.util.concurrent.TimeUnit;
  *
  */
 public interface Reader extends Closeable {
+
+    /**
+     * @return the topic from which this reader is reading from
+     */
+    String getTopic();
+
     /**
      * Read the next message in the topic
      *
@@ -32,6 +38,12 @@ public interface Reader extends Closeable {
      */
     Message readNext() throws PulsarClientException;
 
+    /**
+     * Read the next message in the topic.
+     *
+     * @return the next messasge
+     * @throws PulsarClientException
+     */
     Message readNext(int timeout, TimeUnit unit) throws PulsarClientException;
 
     CompletableFuture<Message> readNextAsync();

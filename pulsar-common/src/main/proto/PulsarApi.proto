@@ -134,7 +134,7 @@ message CommandSubscribe {
 
 	// Signal wether the subscription should be backed by a
 	// durable cursor or not
-	optional bool  durable            = 8 [default = true];
+	optional bool durable = 8 [default = true];
 
 	// If specified, the subscription will position the cursor
 	// markd-delete position  on the particular message id and

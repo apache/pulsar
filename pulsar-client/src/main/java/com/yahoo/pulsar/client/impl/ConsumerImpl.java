@@ -578,12 +578,14 @@ public class ConsumerImpl extends ConsumerBase {
         List<Message> currentMessageQueue = new ArrayList<>(incomingMessages.size());
         incomingMessages.drainTo(currentMessageQueue);
         if (!currentMessageQueue.isEmpty()) {
-            return (MessageIdImpl) currentMessageQueue.get(0).getMessageId();
+            MessageIdImpl nextMessageInQueue = (MessageIdImpl) currentMessageQueue.get(0).getMessageId();
+            MessageIdImpl previousMessage = new MessageIdImpl(nextMessageInQueue.getLedgerId(),
+                    nextMessageInQueue.getEntryId() - 1, nextMessageInQueue.getPartitionIndex());
+            return previousMessage;
         } else if (lastDequeuedMessage != null) {
             // If the queue was empty we need to restart from the message just after the last one that has been dequeued
             // in the past
-            return new MessageIdImpl(lastDequeuedMessage.getLedgerId(), lastDequeuedMessage.getEntryId() + 1,
-                    lastDequeuedMessage.getPartitionIndex());
+            return lastDequeuedMessage;
         } else {
             // No message was received or dequeued by this consumer. Next message would still be the startMessageId
             return (MessageIdImpl) startMessageId;

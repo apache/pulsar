@@ -32,8 +32,10 @@ public interface ReaderListener extends Serializable {
      *
      * Application is responsible of handling any exception that could be thrown while processing the message.
      *
+     * @param reader
+     *            the Reader object from where the message was received
      * @param msg
      *            the message object
      */
-    void received(Message msg);
+    void received(Reader reader, Message msg);
 }

@@ -362,7 +362,6 @@ public class ServerCnx extends PulsarHandler {
                                 subscriptionName);
                         ServerError error = !existingConsumerFuture.isDone() ? ServerError.ServiceNotReady
                                 : getErrorCode(existingConsumerFuture);
-                        ;
                         ctx.writeAndFlush(
                                 Commands.newError(requestId, error, "Consumer is already present on the connection"));
                         return null;

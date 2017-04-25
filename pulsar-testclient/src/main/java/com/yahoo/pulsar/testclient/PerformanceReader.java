@@ -160,7 +160,7 @@ public class PerformanceReader {
 
         final RateLimiter limiter = arguments.rate > 0 ? RateLimiter.create(arguments.rate) : null;
 
-        ReaderListener listener = (msg) -> {
+        ReaderListener listener = (reader, msg) -> {
             messagesReceived.increment();
             bytesReceived.add(msg.getData().length);
 
