@@ -54,6 +54,7 @@ public class EntryCacheImpl implements EntryCache {
     private static final double MB = 1024 * 1024;
 
     private static final Weighter<EntryImpl> entryWeighter = new Weighter<EntryImpl>() {
+        @Override
         public long getSize(EntryImpl entry) {
             return entry.getLength();
         }
@@ -176,7 +177,7 @@ public class EntryCacheImpl implements EntryCache {
             manager.mlFactoryMBean.recordCacheHit(cachedEntry.getLength());
             callback.readEntryComplete(cachedEntry, ctx);
         } else {
-            ReadCallback readCallback = (rc, ledgerHandle, sequence, obj) -> {
+            lh.asyncReadEntries(position.getEntryId(), position.getEntryId(), (rc, ledgerHandle, sequence, obj) -> {
                 if (rc != BKException.Code.OK) {
                     ml.invalidateLedgerHandle(ledgerHandle, rc);
                     callback.readEntryFailed(new ManagedLedgerException(BKException.create(rc)), obj);
@@ -193,13 +194,14 @@ public class EntryCacheImpl implements EntryCache {
                     manager.mlFactoryMBean.recordCacheMiss(1, returnEntry.getLength());
                     ml.mbean.addReadEntriesSample(1, returnEntry.getLength());
 
-                    callback.readEntryComplete(returnEntry, obj);
+                    ml.getExecutor().submitOrdered(ml.getName(), safeRun(() -> {
+                        callback.readEntryComplete(returnEntry, obj);
+                    }));
                 } else {
                     // got an empty sequence
                     callback.readEntryFailed(new ManagedLedgerException("Could not read given position"), obj);
                 }
-            };
-            lh.asyncReadEntries(position.getEntryId(), position.getEntryId(), readCallback, ctx);
+            }, ctx);
         }
     }
 
