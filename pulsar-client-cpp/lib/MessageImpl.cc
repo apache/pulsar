@@ -51,4 +51,24 @@ namespace pulsar {
             return 0ull;
         }
     }
+
+    void MessageImpl::setReplicationClusters(const std::vector<std::string>& clusters) {
+        google::protobuf::RepeatedPtrField<std::string> r(clusters.begin(), clusters.end());
+        r.Swap(metadata.mutable_replicate_to());
+    }
+
+    void MessageImpl::disableReplication(bool flag) {
+        google::protobuf::RepeatedPtrField<std::string> r;
+        if (flag) {
+            r.AddAllocated(new std::string("__local__"));
+        }
+        r.Swap(metadata.mutable_replicate_to());
+    }
+
+    void MessageImpl::setProperty(const std::string& name, const std::string& value) {
+        proto::KeyValue *keyValue = proto::KeyValue().New();
+        keyValue->set_key(name);
+        keyValue->set_value(value);
+        metadata.mutable_properties()->AddAllocated(keyValue);
+    }
 }

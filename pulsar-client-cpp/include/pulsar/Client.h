@@ -27,15 +27,14 @@
 
 #pragma GCC visibility push(default)
 
-class PulsarFriend;
-
 namespace pulsar {
-
 typedef boost::function<void(Result, Producer)> CreateProducerCallback;
 typedef boost::function<void(Result, Consumer)> SubscribeCallback;
 typedef boost::function<void(Result)> CloseCallback;
 
 class ClientImpl;
+class PulsarFriend;
+class PulsarWrapper;
 
 class Client {
  public:
@@ -106,8 +105,10 @@ class Client {
 
  private:
     Client(const std::string& serviceUrl, const ClientConfiguration& clientConfiguration, bool poolConnections);
+    Client(const boost::shared_ptr<ClientImpl>);
 
     friend class PulsarFriend;
+    friend class PulsarWrapper;
     boost::shared_ptr<ClientImpl> impl_;
 };
 

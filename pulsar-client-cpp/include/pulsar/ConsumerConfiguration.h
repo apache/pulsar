@@ -23,9 +23,11 @@
 #include <pulsar/ConsumerType.h>
 #include <pulsar/Message.h>
 
+#pragma GCC visibility push(default)
 namespace pulsar {
 
 class Consumer;
+class PulsarWrapper;
 
 /// Callback definition for non-data operation
 typedef boost::function<void(Result result)> ResultCallback;
@@ -117,12 +119,13 @@ class ConsumerConfiguration {
      * @return the configured timeout in milliseconds caching BrokerConsumerStats.
      */
     long getBrokerConsumerStatsCacheTimeInMs() const;
+    friend class PulsarWrapper;
 
  private:
     boost::shared_ptr<ConsumerConfigurationImpl> impl_;
 };
 
 }
-
+#pragma GCC visibility pop
 #endif /* PULSAR_CONSUMERCONFIGURATION_H_ */
 

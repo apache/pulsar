@@ -30,6 +30,9 @@ DECLARE_LOG_OBJECT()
 
 namespace pulsar {
 
+Client::Client(const boost::shared_ptr<ClientImpl> impl) : impl_(impl) {
+}
+
 Client::Client(const std::string& serviceUrl)
         : impl_(boost::make_shared<ClientImpl>(serviceUrl, ClientConfiguration(), true)) {
 }

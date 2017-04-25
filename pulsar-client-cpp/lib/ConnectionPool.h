@@ -24,7 +24,7 @@
 #include <string>
 #include <map>
 #include <boost/thread/mutex.hpp>
-
+#pragma GCC visibility push(default)
 namespace pulsar {
 
 class ExecutorService;
@@ -49,5 +49,5 @@ class ConnectionPool {
 };
 
 }
-
+#pragma GCC visibility pop
 #endif //_PULSAR_CONNECTION_POOL_HEADER_

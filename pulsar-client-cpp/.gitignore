@@ -39,8 +39,8 @@ lib*.so*
 /examples/SampleAsyncProducer
 /examples/SampleConsumerListener
 /tests/main
-/perf/PerfProducer
-/perf/PerfConsumer
+/perf/perfProducer
+/perf/perfConsumer
 /system-test/SystemTest
 
 # IDE generated files

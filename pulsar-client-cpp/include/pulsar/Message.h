@@ -35,6 +35,7 @@ namespace pulsar {
 class SharedBuffer;
 class MessageBuilder;
 class MessageImpl;
+class PulsarWrapper;
 
 class Message {
  public:
@@ -127,6 +128,7 @@ class Message {
     friend class Commands;
     friend class BatchMessageContainer;
     friend class BatchAcknowledgementTracker;
+    friend class PulsarWrapper;
 
     friend std::ostream& operator<<(std::ostream& s, const StringMap& map);
     friend std::ostream& operator<<(std::ostream& s, const Message& msg);
