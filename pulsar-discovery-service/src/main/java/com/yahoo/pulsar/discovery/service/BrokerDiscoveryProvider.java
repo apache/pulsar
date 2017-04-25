@@ -41,6 +41,8 @@ import com.yahoo.pulsar.discovery.service.web.ZookeeperCacheLoader;
 import com.yahoo.pulsar.zookeeper.GlobalZooKeeperCache;
 import com.yahoo.pulsar.zookeeper.ZooKeeperClientFactory;
 
+import io.netty.util.concurrent.DefaultThreadFactory;
+
 /**
  * Maintains available active broker list and returns next active broker in round-robin for discovery service.
  *
@@ -52,7 +54,8 @@ public class BrokerDiscoveryProvider implements Closeable {
     private final AtomicInteger counter = new AtomicInteger();
 
     private final OrderedSafeExecutor orderedExecutor = new OrderedSafeExecutor(4, "pulsar-discovery-ordered");
-    private final ScheduledExecutorService scheduledExecutorScheduler = Executors.newScheduledThreadPool(1);
+    private final ScheduledExecutorService scheduledExecutorScheduler = Executors.newScheduledThreadPool(4,
+            new DefaultThreadFactory("pulsar-discovery"));
 
     private static final String PARTITIONED_TOPIC_PATH_ZNODE = "partitioned-topics";
 
