@@ -19,8 +19,12 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+
 import org.apache.bookkeeper.util.OrderedSafeExecutor;
 import org.apache.zookeeper.MockZooKeeper;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -41,17 +45,26 @@ public class ResourceQuotaCacheTest {
     private ZooKeeperCache zkCache;
     private LocalZooKeeperCacheService localCache;
     private NamespaceBundleFactory bundleFactory;
+    private OrderedSafeExecutor executor;
+    private ScheduledExecutorService scheduledExecutor;
 
     @BeforeMethod
     public void setup() throws Exception {
         pulsar = mock(PulsarService.class);
-        OrderedSafeExecutor executor = new OrderedSafeExecutor(1, "test");
-        zkCache = new LocalZooKeeperCache(MockZooKeeper.newInstance(), executor, null);
+        executor = new OrderedSafeExecutor(1, "test");
+        scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
+        zkCache = new LocalZooKeeperCache(MockZooKeeper.newInstance(), executor, scheduledExecutor);
         localCache = new LocalZooKeeperCacheService(zkCache, null);
         bundleFactory = new NamespaceBundleFactory(pulsar, Hashing.crc32());
 
         doReturn(zkCache).when(pulsar).getLocalZkCache();
         doReturn(localCache).when(pulsar).getLocalZkCacheService();
+    }
+
+    @AfterMethod
+    public void teardown() {
+        executor.shutdown();
+        scheduledExecutor.shutdown();
     }
 
     @Test

@@ -95,6 +95,8 @@ public class PulsarService implements AutoCloseable {
     private LocalZooKeeperConnectionService localZooKeeperConnectionProvider;
     private final ScheduledExecutorService executor = Executors.newScheduledThreadPool(20,
             new DefaultThreadFactory("pulsar"));
+    private final ScheduledExecutorService cacheExecutor = Executors.newScheduledThreadPool(10,
+            new DefaultThreadFactory("zk-cache-callback"));
     private final OrderedSafeExecutor orderedExecutor = new OrderedSafeExecutor(8, "pulsar-ordered");
     private ScheduledExecutorService loadManagerExecutor = null;
     private ScheduledFuture<?> loadReportTask = null;
@@ -381,10 +383,10 @@ public class PulsarService implements AutoCloseable {
 
         LOG.info("starting configuration cache service");
 
-        this.localZkCache = new LocalZooKeeperCache(getZkClient(), getOrderedExecutor(), this.executor);
+        this.localZkCache = new LocalZooKeeperCache(getZkClient(), getOrderedExecutor(), this.cacheExecutor);
         this.globalZkCache = new GlobalZooKeeperCache(getZooKeeperClientFactory(),
                 (int) config.getZooKeeperSessionTimeoutMillis(), config.getGlobalZookeeperServers(),
-                getOrderedExecutor(), this.executor);
+                getOrderedExecutor(), this.cacheExecutor);
         try {
             this.globalZkCache.start();
         } catch (IOException e) {
@@ -530,6 +532,10 @@ public class PulsarService implements AutoCloseable {
 
     public ScheduledExecutorService getExecutor() {
         return executor;
+    }
+
+    public ScheduledExecutorService getCacheExecutor() {
+        return cacheExecutor;
     }
 
     public ScheduledExecutorService getLoadManagerExecutor() {
