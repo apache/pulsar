@@ -19,7 +19,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.yahoo.pulsar.broker.BrokerData;
-import com.yahoo.pulsar.broker.BundleData;
+import com.yahoo.pulsar.broker.TimeAverageBundleData;
 
 /**
  * This class represents all data that could be relevant when making a load management decision.
@@ -33,7 +33,7 @@ public class LoadData {
     /**
      * Map from bundle names to their time-sensitive aggregated data.
      */
-    private final Map<String, BundleData> bundleData;
+    private final Map<String, TimeAverageBundleData> bundleData;
 
     /**
      * Initialize a LoadData.
@@ -47,7 +47,7 @@ public class LoadData {
         return brokerData;
     }
 
-    public Map<String, BundleData> getBundleData() {
+    public Map<String, TimeAverageBundleData> getBundleData() {
         return bundleData;
     }
 }

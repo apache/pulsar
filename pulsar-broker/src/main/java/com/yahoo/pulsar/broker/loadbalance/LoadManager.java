@@ -41,8 +41,6 @@ import com.yahoo.pulsar.zookeeper.ZooKeeperCache.Deserializer;
 public interface LoadManager {
     Logger log = LoggerFactory.getLogger(LoadManager.class);
 
-    String LOADBALANCE_BROKERS_ROOT = "/loadbalance/brokers";
-
     public void start() throws PulsarServerException;
 
     /**
@@ -59,9 +57,9 @@ public interface LoadManager {
      * Generate the load report
      */
     LoadReport generateLoadReport() throws Exception;
-    
+
     /**
-     * Returns {@link Deserializer} to deserialize load report 
+     * Returns {@link Deserializer} to deserialize load report
      * 
      * @return
      */

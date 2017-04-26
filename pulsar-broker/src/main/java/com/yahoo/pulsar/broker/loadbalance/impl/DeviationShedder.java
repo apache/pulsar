@@ -23,6 +23,7 @@ import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 
 import com.yahoo.pulsar.broker.BrokerData;
+import com.yahoo.pulsar.broker.PulsarService;
 import com.yahoo.pulsar.broker.ServiceConfiguration;
 import com.yahoo.pulsar.broker.loadbalance.LoadData;
 import com.yahoo.pulsar.broker.loadbalance.LoadSheddingStrategy;
@@ -47,14 +48,14 @@ public abstract class DeviationShedder implements LoadSheddingStrategy {
     }
 
     // Measure the load incurred by a bundle.
-    protected abstract double bundleValue(String bundle, BrokerData brokerData, ServiceConfiguration conf);
+    protected abstract double bundleValue(String bundle, BrokerData brokerData, PulsarService pulsar);
 
     // Measure the load suffered by a broker.
-    protected abstract double brokerValue(BrokerData brokerData, ServiceConfiguration conf);
+    protected abstract double brokerValue(BrokerData brokerData, PulsarService pulsar);
 
     // Get the threshold above which the standard deviation of a broker is large
     // enough to warrant unloading bundles.
-    protected abstract double getDeviationThreshold(ServiceConfiguration conf);
+    protected abstract double getDeviationThreshold(PulsarService pulsar);
 
     /**
      * Recommend that all of the returned bundles be unloaded based on observing excessive standard deviations according
@@ -62,12 +63,13 @@ public abstract class DeviationShedder implements LoadSheddingStrategy {
      * 
      * @param loadData
      *            The load data to used to make the unloading decision.
-     * @param conf
-     *            The service configuration.
+     * @param pulsar
+     *            Pulsar service to use.
      * @return A map from all selected bundles to the brokers on which they reside.
      */
     @Override
-    public Map<String, String> findBundlesForUnloading(final LoadData loadData, final ServiceConfiguration conf) {
+    public Map<String, String> findBundlesForUnloading(final LoadData loadData, final PulsarService pulsar) {
+        final ServiceConfiguration conf = pulsar.getConfiguration();
         final Map<String, String> result = new HashMap<>();
         bundleTreeSetCache.clear();
         metricTreeSetCache.clear();
@@ -79,7 +81,7 @@ public abstract class DeviationShedder implements LoadSheddingStrategy {
         // sum of the evaluated broker metrics.
         // These may be used to calculate the standard deviation.
         for (Map.Entry<String, BrokerData> entry : brokerDataMap.entrySet()) {
-            final double value = brokerValue(entry.getValue(), conf);
+            final double value = brokerValue(entry.getValue(), pulsar);
             sum += value;
             squareSum += value * value;
             metricTreeSetCache.add(new ImmutablePair<>(value, entry.getKey()));
@@ -87,7 +89,7 @@ public abstract class DeviationShedder implements LoadSheddingStrategy {
         // Mean cannot change by just moving around bundles.
         final double mean = sum / brokerDataMap.size();
         double standardDeviation = Math.sqrt(squareSum / brokerDataMap.size() - mean * mean);
-        final double deviationThreshold = getDeviationThreshold(conf);
+        final double deviationThreshold = getDeviationThreshold(pulsar);
         String lastMostOverloaded = null;
         // While the most loaded broker is above the standard deviation
         // threshold, continue to move bundles.
@@ -108,8 +110,8 @@ public abstract class DeviationShedder implements LoadSheddingStrategy {
                     if (!result.containsKey(bundle)) {
                         // Don't consider bundles that are already going to be
                         // moved.
-                        bundleTreeSetCache.add(
-                                new ImmutablePair<>(bundleValue(bundle, brokerDataMap.get(mostLoaded), conf), bundle));
+                        bundleTreeSetCache.add(new ImmutablePair<>(
+                                bundleValue(bundle, brokerDataMap.get(mostLoaded), pulsar), bundle));
                     }
                 }
                 lastMostOverloaded = mostLoaded;

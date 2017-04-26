@@ -20,6 +20,8 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static com.yahoo.pulsar.broker.cache.ConfigurationCacheService.POLICIES_ROOT;
 import static com.yahoo.pulsar.broker.web.PulsarWebResource.joinPath;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
@@ -33,6 +35,7 @@ import org.slf4j.LoggerFactory;
 
 import com.yahoo.pulsar.broker.PulsarServerException;
 import com.yahoo.pulsar.broker.namespace.NamespaceEphemeralData;
+import com.yahoo.pulsar.common.policies.data.BundlesData;
 import com.yahoo.pulsar.common.policies.data.LocalPolicies;
 import com.yahoo.pulsar.common.policies.data.Policies;
 import com.yahoo.pulsar.common.util.ObjectMapperFactory;
@@ -73,7 +76,10 @@ public class LocalZooKeeperCacheService {
         this.policiesCache = new ZooKeeperDataCache<LocalPolicies>(cache) {
             @Override
             public LocalPolicies deserialize(String path, byte[] content) throws Exception {
-                return ObjectMapperFactory.getThreadLocal().readValue(content, LocalPolicies.class);
+                final List<String> children = new ArrayList<>(cache.getChildren(path));
+                final LocalPolicies result = new LocalPolicies();
+                result.bundles = new BundlesData(children);
+                return result;
             }
 
             @Override
@@ -140,7 +146,7 @@ public class LocalZooKeeperCacheService {
      *            if true copy policies from global zk to local zk else create a new znode with empty {@link Policies}
      * @throws Exception
      */
-    @SuppressWarnings("deprecation")
+    @SuppressWarnings({ "deprecation", "unchecked" })
     public CompletableFuture<Optional<LocalPolicies>> createPolicies(String path, boolean readFromGlobal) {
         checkNotNull(path, "path can't be null");
         checkArgument(path.startsWith(LOCAL_POLICIES_ROOT), "Invalid path of local policies");
@@ -182,37 +188,42 @@ public class LocalZooKeeperCacheService {
         }
 
         readFromGlobalFuture.thenAccept(localPolicies -> {
-            if (!localPolicies.isPresent()) {
+            if (localPolicies.isPresent()) {
+                final List<String> boundaries = localPolicies.get().bundles.boundaries;
+                // Wait for all boundaries to get added.
+                CompletableFuture.allOf((boundaries.stream().map(boundary -> addBoundary(path, boundary))
+                        .toArray(CompletableFuture[]::new))).thenRun(() -> future.complete(localPolicies));
+            } else {
                 future.complete(Optional.empty());
             }
-
-            // When we have the updated localPolicies, we can write them back in local ZK
-            byte[] content;
-            try {
-                content = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(localPolicies.get());
-            } catch (Throwable t) {
-                // Failed to serialize to json
-                future.completeExceptionally(t);
-                return;
-            }
-
-            ZkUtils.asyncCreateFullPathOptimistic(cache.getZooKeeper(), path, content, Ids.OPEN_ACL_UNSAFE,
-                    CreateMode.PERSISTENT, (rc, path1, ctx, name) -> {
-                        if (rc == KeeperException.Code.OK.intValue()
-                                || rc == KeeperException.Code.NODEEXISTS.intValue()) {
-                            LOG.info("Successfully copyied bundles data to local zk at {}", path);
-                            future.complete(localPolicies);
-                        } else {
-                            LOG.error("Failed to create policies for {} in local zookeeper: {}", path,
-                                    KeeperException.Code.get(rc));
-                            future.completeExceptionally(new PulsarServerException(KeeperException.create(rc)));
-                        }
-                    }, null);
         }).exceptionally(ex -> {
             future.completeExceptionally(ex);
             return null;
         });
 
+        return future;
+    }
+
+    public CompletableFuture<Void> addBoundary(final String path, final String boundary) {
+        final CompletableFuture<Void> future = new CompletableFuture<>();
+        ZkUtils.asyncCreateFullPathOptimistic(cache.getZooKeeper(), path + '/' + boundary, new byte[0],
+                Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT, (rc, path1, ctx, name) -> {
+                    if ((rc == KeeperException.Code.OK.intValue()
+                            || rc == KeeperException.Code.NODEEXISTS.intValue())) {
+                        try {
+                            // Trigger watch
+                            cache.getZooKeeper().setData(path, new byte[0], -1);
+                        } catch (Exception e) {
+                            LOG.error("Error triggering policy watch", e);
+                        }
+                        LOG.info("Successfully copyied bundles data to local zk at {}", path);
+                        future.complete(null);
+                    } else {
+                        LOG.error("Failed to create policies for {} in local zookeeper: {}", path,
+                                KeeperException.Code.get(rc));
+                        future.completeExceptionally(new PulsarServerException(KeeperException.create(rc)));
+                    }
+                }, null);
         return future;
     }
 

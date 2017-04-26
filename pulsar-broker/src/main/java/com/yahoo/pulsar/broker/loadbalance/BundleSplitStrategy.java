@@ -1,6 +1,5 @@
-/**
+/*
  * Copyright 2016 Yahoo Inc.
- *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -12,26 +11,30 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
  */
 package com.yahoo.pulsar.broker.loadbalance;
 
-import java.util.Map;
+import java.util.Set;
 
+import com.yahoo.pulsar.broker.LocalBrokerData;
 import com.yahoo.pulsar.broker.PulsarService;
 
 /**
- * Load management component which determines the criteria for unloading bundles.
+ * Load Manager component which determines what bundles should be split into two bundles.
  */
-public interface LoadSheddingStrategy {
-
+public interface BundleSplitStrategy {
     /**
-     * Recommend that all of the returned bundles be unloaded.
+     * Determines which bundles, if any, should be split.
      * 
      * @param loadData
-     *            The load data to used to make the unloading decision.
+     *            Load data to base decisions on (does not have benefit of preallocated data since this may not be the
+     *            leader broker).
+     * @param broker
+     *            Local data for the broker we are splitting on.
      * @param pulsar
-     *            Pulsar service to use.
-     * @return A map from all selected bundles to the brokers on which they reside.
+     *            Service to use.
+     * @return A set of the bundles that should be split.
      */
-    Map<String, String> findBundlesForUnloading(LoadData loadData, PulsarService pulsar);
+    Set<String> findBundlesToSplit(LoadData loadData, LocalBrokerData broker, PulsarService pulsar);
 }

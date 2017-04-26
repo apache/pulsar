@@ -30,6 +30,7 @@ public class BundlesData {
 
     public BundlesData(List<String> boundaries) {
         this.boundaries = boundaries;
+        boundaries.sort(null);
         this.numBundles = boundaries.size() - 1;
     }
 
@@ -44,6 +45,7 @@ public class BundlesData {
 
     public void setBoundaries(List<String> boundaries) {
         this.boundaries = boundaries;
+        boundaries.sort(null);
     }
 
     public int getNumBundles() {

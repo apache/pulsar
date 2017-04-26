@@ -38,7 +38,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -63,6 +62,7 @@ import com.google.common.collect.Sets;
 import com.yahoo.pulsar.broker.PulsarService;
 import com.yahoo.pulsar.broker.ServiceConfiguration;
 import com.yahoo.pulsar.broker.admin.AdminResource;
+import com.yahoo.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import com.yahoo.pulsar.broker.loadbalance.impl.PulsarResourceDescription;
 import com.yahoo.pulsar.broker.loadbalance.impl.ResourceAvailabilityRanker;
 import com.yahoo.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
@@ -194,7 +194,7 @@ public class LoadBalancerTest {
         ZooKeeper zkc = bkEnsemble.getZkClient();
         try {
             for (int i = 0; i < BROKER_COUNT; i++) {
-                String znodePath = String.format("%s/%s", SimpleLoadManagerImpl.LOADBALANCE_BROKERS_ROOT,
+                String znodePath = String.format("%s/%s", LoadManagerShared.LOADBALANCE_BROKERS_ROOT,
                         lookupAddresses[i]);
                 byte[] loadReportData = zkc.getData(znodePath, false, null);
                 assert (loadReportData.length > 0);
@@ -245,8 +245,7 @@ public class LoadBalancerTest {
             sru.setCpu(new ResourceUsage(5, 400));
             lr.setSystemResourceUsage(sru);
 
-            String znodePath = String.format("%s/%s", SimpleLoadManagerImpl.LOADBALANCE_BROKERS_ROOT,
-                    lookupAddresses[i]);
+            String znodePath = String.format("%s/%s", LoadManagerShared.LOADBALANCE_BROKERS_ROOT, lookupAddresses[i]);
             String loadReportJson = objectMapper.writeValueAsString(lr);
             bkEnsemble.getZkClient().setData(znodePath, loadReportJson.getBytes(Charsets.UTF_8), -1);
         }
@@ -316,8 +315,7 @@ public class LoadBalancerTest {
             sru.setCpu(new ResourceUsage(60, 400));
             lr.setSystemResourceUsage(sru);
 
-            String znodePath = String.format("%s/%s", SimpleLoadManagerImpl.LOADBALANCE_BROKERS_ROOT,
-                    lookupAddresses[i]);
+            String znodePath = String.format("%s/%s", LoadManagerShared.LOADBALANCE_BROKERS_ROOT, lookupAddresses[i]);
             String loadReportJson = objectMapper.writeValueAsString(lr);
             bkEnsemble.getZkClient().setData(znodePath, loadReportJson.getBytes(Charsets.UTF_8), -1);
         }
@@ -377,8 +375,7 @@ public class LoadBalancerTest {
             }
             lr.setBundleStats(bundleStats);
 
-            String znodePath = String.format("%s/%s", SimpleLoadManagerImpl.LOADBALANCE_BROKERS_ROOT,
-                    lookupAddresses[i]);
+            String znodePath = String.format("%s/%s", LoadManagerShared.LOADBALANCE_BROKERS_ROOT, lookupAddresses[i]);
             String loadReportJson = objectMapper.writeValueAsString(lr);
             bkEnsemble.getZkClient().setData(znodePath, loadReportJson.getBytes(Charsets.UTF_8), -1);
         }
@@ -438,7 +435,8 @@ public class LoadBalancerTest {
         Field IS_SHUTDOWN_UPDATER = ZooKeeperDataCache.class.getDeclaredField("IS_SHUTDOWN_UPDATER");
         IS_SHUTDOWN_UPDATER.setAccessible(true);
         final int TRUE = 1;
-        assert (((AtomicIntegerFieldUpdater<ZooKeeperDataCache>) (IS_SHUTDOWN_UPDATER.get(loadReportCache))).get(loadReportCache) == TRUE);
+        assert (((AtomicIntegerFieldUpdater<ZooKeeperDataCache>) (IS_SHUTDOWN_UPDATER.get(loadReportCache)))
+                .get(loadReportCache) == TRUE);
     }
 
     private AtomicReference<Map<String, ResourceQuota>> getRealtimeResourceQuota(PulsarService pulsar)
@@ -486,8 +484,7 @@ public class LoadBalancerTest {
             }
             lr.setBundleStats(bundleStats);
 
-            String znodePath = String.format("%s/%s", SimpleLoadManagerImpl.LOADBALANCE_BROKERS_ROOT,
-                    lookupAddresses[i]);
+            String znodePath = String.format("%s/%s", LoadManagerShared.LOADBALANCE_BROKERS_ROOT, lookupAddresses[i]);
             String loadReportJson = objectMapper.writeValueAsString(lr);
             bkEnsemble.getZkClient().setData(znodePath, loadReportJson.getBytes(Charsets.UTF_8), -1);
         }
@@ -659,7 +656,7 @@ public class LoadBalancerTest {
         lr.setBundleStats(bundleStats);
 
         setObjectField(SimpleLoadManagerImpl.class, pulsarServices[0].getLoadManager().get(), "lastLoadReport", lr);
-        String znodePath = String.format("%s/%s", SimpleLoadManagerImpl.LOADBALANCE_BROKERS_ROOT, lookupAddresses[0]);
+        String znodePath = String.format("%s/%s", LoadManagerShared.LOADBALANCE_BROKERS_ROOT, lookupAddresses[0]);
         String loadReportJson = objectMapper.writeValueAsString(lr);
         bkEnsemble.getZkClient().setData(znodePath, loadReportJson.getBytes(Charsets.UTF_8), -1);
 
@@ -787,7 +784,7 @@ public class LoadBalancerTest {
         LocalZooKeeperCache mockCache = mock(LocalZooKeeperCache.class);
         Set<String> activeBrokers = Sets.newHashSet("prod1-broker1.messaging.use.example.com:8080",
                 "prod1-broker2.messaging.use.example.com:8080", "prod1-broker3.messaging.use.example.com:8080");
-        when(mockCache.getChildren(SimpleLoadManagerImpl.LOADBALANCE_BROKERS_ROOT)).thenReturn(activeBrokers);
+        when(mockCache.getChildren(LoadManagerShared.LOADBALANCE_BROKERS_ROOT)).thenReturn(activeBrokers);
         Field zkCacheField = PulsarService.class.getDeclaredField("localZkCache");
         zkCacheField.setAccessible(true);
 
@@ -853,8 +850,8 @@ public class LoadBalancerTest {
         ZooKeeperCache mockCache = mock(ZooKeeperCache.class);
         Set<String> activeBrokers = Sets.newHashSet("prod1-broker1.messaging.use.example.com:8080",
                 "prod1-broker2.messaging.use.example.com:8080", "prod1-broker3.messaging.use.example.com:8080");
-        when(mockCache.getChildren(SimpleLoadManagerImpl.LOADBALANCE_BROKERS_ROOT)).thenReturn(activeBrokers);
-        when(mockCache.getChildren(SimpleLoadManagerImpl.LOADBALANCE_BROKERS_ROOT)).thenReturn(activeBrokers);
+        when(mockCache.getChildren(LoadManagerShared.LOADBALANCE_BROKERS_ROOT)).thenReturn(activeBrokers);
+        when(mockCache.getChildren(LoadManagerShared.LOADBALANCE_BROKERS_ROOT)).thenReturn(activeBrokers);
         Field zkCacheField = PulsarService.class.getDeclaredField("localZkCache");
         zkCacheField.setAccessible(true);
         zkCacheField.set(pulsarServices[0], mockCache);
@@ -903,7 +900,7 @@ public class LoadBalancerTest {
         ZooKeeperCache mockCache = mock(ZooKeeperCache.class);
         Set<String> activeBrokers = Sets.newHashSet("prod1-broker1.messaging.use.example.com:8080",
                 "prod1-broker2.messaging.use.example.com:8080");
-        when(mockCache.getChildren(SimpleLoadManagerImpl.LOADBALANCE_BROKERS_ROOT)).thenReturn(activeBrokers);
+        when(mockCache.getChildren(LoadManagerShared.LOADBALANCE_BROKERS_ROOT)).thenReturn(activeBrokers);
         Field zkCacheField = PulsarService.class.getDeclaredField("localZkCache");
         zkCacheField.setAccessible(true);
         zkCacheField.set(pulsarServices[0], mockCache);
@@ -961,8 +958,8 @@ public class LoadBalancerTest {
         ZooKeeperCache mockCache = mock(ZooKeeperCache.class);
         Set<String> activeBrokers = Sets.newHashSet("prod1-broker1.messaging.use.example.com:8080",
                 "prod1-broker2.messaging.use.example.com:8080", "prod1-broker3.messaging.use.example.com:8080");
-        when(mockCache.getChildren(SimpleLoadManagerImpl.LOADBALANCE_BROKERS_ROOT)).thenReturn(activeBrokers);
-        when(mockCache.getChildren(SimpleLoadManagerImpl.LOADBALANCE_BROKERS_ROOT)).thenReturn(activeBrokers);
+        when(mockCache.getChildren(LoadManagerShared.LOADBALANCE_BROKERS_ROOT)).thenReturn(activeBrokers);
+        when(mockCache.getChildren(LoadManagerShared.LOADBALANCE_BROKERS_ROOT)).thenReturn(activeBrokers);
         Field zkCacheField = PulsarService.class.getDeclaredField("localZkCache");
         zkCacheField.setAccessible(true);
         zkCacheField.set(pulsarServices[0], mockCache);

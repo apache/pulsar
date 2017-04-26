@@ -22,7 +22,6 @@ import java.util.Map;
 import java.util.Set;
 
 import com.yahoo.pulsar.common.policies.data.loadbalancer.NamespaceBundleStats;
-import com.yahoo.pulsar.common.policies.data.loadbalancer.ResourceUsage;
 import com.yahoo.pulsar.common.policies.data.loadbalancer.ServiceLookupData;
 import com.yahoo.pulsar.common.policies.data.loadbalancer.SystemResourceUsage;
 
@@ -38,18 +37,7 @@ public class LocalBrokerData extends JSONWritable implements ServiceLookupData {
     private final String pulsarServiceUrlTls;
 
     // Most recently available system resource usage.
-    private ResourceUsage cpu;
-    private ResourceUsage memory;
-    private ResourceUsage directMemory;
-
-    private ResourceUsage bandwidthIn;
-    private ResourceUsage bandwidthOut;
-
-    // Message data from the most recent namespace bundle stats.
-    private double msgThroughputIn;
-    private double msgThroughputOut;
-    private double msgRateIn;
-    private double msgRateOut;
+    private SystemResourceUsage systemResourceUsage;
 
     // Timestamp of last update.
     private long lastUpdate;
@@ -57,10 +45,11 @@ public class LocalBrokerData extends JSONWritable implements ServiceLookupData {
     // The stats given in the most recent invocation of update.
     private Map<String, NamespaceBundleStats> lastStats;
 
-    private int numTopics;
+    // Number of bundles on this broker.
     private int numBundles;
-    private int numConsumers;
-    private int numProducers;
+
+    // Overall bundle data for this.
+    private BundleData bundleData;
 
     // All bundles belonging to this broker.
     private Set<String> bundles;
@@ -85,13 +74,10 @@ public class LocalBrokerData extends JSONWritable implements ServiceLookupData {
         this.webServiceUrlTls = webServiceUrlTls;
         this.pulsarServiceUrl = pulsarServiceUrl;
         this.pulsarServiceUrlTls = pulsarServiceUrlTls;
+        bundleData = new BundleData();
         lastStats = new HashMap<>();
         lastUpdate = System.currentTimeMillis();
-        cpu = new ResourceUsage();
-        memory = new ResourceUsage();
-        directMemory = new ResourceUsage();
-        bandwidthIn = new ResourceUsage();
-        bandwidthOut = new ResourceUsage();
+        systemResourceUsage = new SystemResourceUsage();
         bundles = new HashSet<>();
         lastBundleGains = new HashSet<>();
         lastBundleLosses = new HashSet<>();
@@ -116,25 +102,21 @@ public class LocalBrokerData extends JSONWritable implements ServiceLookupData {
     // Set the cpu, memory, and direct memory to that of the new system resource
     // usage data.
     private void updateSystemResourceUsage(final SystemResourceUsage systemResourceUsage) {
-        this.cpu = systemResourceUsage.cpu;
-        this.memory = systemResourceUsage.memory;
-        this.directMemory = systemResourceUsage.directMemory;
-        this.bandwidthIn = systemResourceUsage.bandwidthIn;
-        this.bandwidthOut = systemResourceUsage.bandwidthOut;
+        this.systemResourceUsage = systemResourceUsage;
     }
 
     // Aggregate all message, throughput, topic count, bundle count, consumer
     // count, and producer count across the
     // given data. Also keep track of bundle gains and losses.
     private void updateBundleData(final Map<String, NamespaceBundleStats> bundleStats) {
-        msgRateIn = 0;
-        msgRateOut = 0;
-        msgThroughputIn = 0;
-        msgThroughputOut = 0;
-        int totalNumTopics = 0;
+        double msgRateIn = 0;
+        double msgRateOut = 0;
+        double msgThroughputIn = 0;
+        double msgThroughputOut = 0;
+        int numTopics = 0;
         int totalNumBundles = 0;
-        int totalNumConsumers = 0;
-        int totalNumProducers = 0;
+        int numConsumers = 0;
+        int numProducers = 0;
         lastBundleGains.clear();
         lastBundleLosses.clear();
         final Iterator<String> oldBundleIterator = bundles.iterator();
@@ -160,62 +142,45 @@ public class LocalBrokerData extends JSONWritable implements ServiceLookupData {
             msgThroughputOut += stats.msgThroughputOut;
             msgRateIn += stats.msgRateIn;
             msgRateOut += stats.msgRateOut;
-            totalNumTopics += stats.topics;
+            numTopics += stats.topics;
             ++totalNumBundles;
-            totalNumConsumers += stats.consumerCount;
-            totalNumProducers += stats.producerCount;
+            numConsumers += stats.consumerCount;
+            numProducers += stats.producerCount;
         }
-        numTopics = totalNumTopics;
+        bundleData.setNumConsumers(numConsumers);
+        bundleData.setNumProducers(numProducers);
+        bundleData.setNumTopics(numTopics);
+        final MessageData messageData = bundleData.getMessageData();
+        messageData.setMsgRateIn(msgRateIn);
+        messageData.setMsgRateOut(msgRateOut);
+        messageData.setMsgThroughputIn(msgThroughputIn);
+        messageData.setMsgThroughputOut(msgThroughputOut);
         numBundles = totalNumBundles;
-        numConsumers = totalNumConsumers;
-        numProducers = totalNumProducers;
+
     }
 
     public double getMaxResourceUsage() {
-        return Math
-                .max(Math.max(Math.max(cpu.percentUsage(), memory.percentUsage()),
-                        Math.max(directMemory.percentUsage(), bandwidthIn.percentUsage())), bandwidthOut.percentUsage())
-                / 100;
+        return Math.max(
+                Math.max(Math.max(systemResourceUsage.cpu.percentUsage(), systemResourceUsage.memory.percentUsage()),
+                        Math.max(systemResourceUsage.directMemory.percentUsage(),
+                                systemResourceUsage.bandwidthIn.percentUsage())),
+                systemResourceUsage.bandwidthOut.percentUsage()) / 100;
     }
 
-    public ResourceUsage getCpu() {
-        return cpu;
+    public SystemResourceUsage getSystemResourceUsage() {
+        return systemResourceUsage;
     }
 
-    public void setCpu(ResourceUsage cpu) {
-        this.cpu = cpu;
+    public void setSystemResourceUsage(SystemResourceUsage systemResourceUsage) {
+        this.systemResourceUsage = systemResourceUsage;
     }
 
-    public ResourceUsage getMemory() {
-        return memory;
+    public BundleData getBundleData() {
+        return bundleData;
     }
 
-    public void setMemory(ResourceUsage memory) {
-        this.memory = memory;
-    }
-
-    public ResourceUsage getDirectMemory() {
-        return directMemory;
-    }
-
-    public void setDirectMemory(ResourceUsage directMemory) {
-        this.directMemory = directMemory;
-    }
-
-    public ResourceUsage getBandwidthIn() {
-        return bandwidthIn;
-    }
-
-    public void setBandwidthIn(ResourceUsage bandwidthIn) {
-        this.bandwidthIn = bandwidthIn;
-    }
-
-    public ResourceUsage getBandwidthOut() {
-        return bandwidthOut;
-    }
-
-    public void setBandwidthOut(ResourceUsage bandwidthOut) {
-        this.bandwidthOut = bandwidthOut;
+    public void setBundleData(BundleData bundleData) {
+        this.bundleData = bundleData;
     }
 
     public Set<String> getLastBundleGains() {
@@ -258,68 +223,12 @@ public class LocalBrokerData extends JSONWritable implements ServiceLookupData {
         this.lastStats = lastStats;
     }
 
-    public int getNumTopics() {
-        return numTopics;
-    }
-
-    public void setNumTopics(int numTopics) {
-        this.numTopics = numTopics;
-    }
-
     public int getNumBundles() {
         return numBundles;
     }
 
     public void setNumBundles(int numBundles) {
         this.numBundles = numBundles;
-    }
-
-    public int getNumConsumers() {
-        return numConsumers;
-    }
-
-    public void setNumConsumers(int numConsumers) {
-        this.numConsumers = numConsumers;
-    }
-
-    public int getNumProducers() {
-        return numProducers;
-    }
-
-    public void setNumProducers(int numProducers) {
-        this.numProducers = numProducers;
-    }
-
-    public double getMsgThroughputIn() {
-        return msgThroughputIn;
-    }
-
-    public void setMsgThroughputIn(double msgThroughputIn) {
-        this.msgThroughputIn = msgThroughputIn;
-    }
-
-    public double getMsgThroughputOut() {
-        return msgThroughputOut;
-    }
-
-    public void setMsgThroughputOut(double msgThroughputOut) {
-        this.msgThroughputOut = msgThroughputOut;
-    }
-
-    public double getMsgRateIn() {
-        return msgRateIn;
-    }
-
-    public void setMsgRateIn(double msgRateIn) {
-        this.msgRateIn = msgRateIn;
-    }
-
-    public double getMsgRateOut() {
-        return msgRateOut;
-    }
-
-    public void setMsgRateOut(double msgRateOut) {
-        this.msgRateOut = msgRateOut;
     }
 
     @Override

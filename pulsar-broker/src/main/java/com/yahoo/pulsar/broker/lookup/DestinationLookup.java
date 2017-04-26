@@ -67,7 +67,7 @@ public class DestinationLookup extends PulsarWebResource {
             @Suspended AsyncResponse asyncResponse) {
         dest = Codec.decode(dest);
         DestinationName topic = DestinationName.get("persistent", property, cluster, namespace, dest);
-        
+
         if (!pulsar().getBrokerService().getLookupRequestSemaphore().tryAcquire()) {
             log.warn("No broker was found available for topic {}", topic);
             asyncResponse.resume(new WebApplicationException(Response.Status.SERVICE_UNAVAILABLE));
@@ -136,17 +136,17 @@ public class DestinationLookup extends PulsarWebResource {
 
 
     /**
-     * 
+     *
      * Lookup broker-service address for a given namespace-bundle which contains given topic.
-     * 
+     *
      * a. Returns broker-address if namespace-bundle is already owned by any broker
      * b. If current-broker receives lookup-request and if it's not a leader
-     * then current broker redirects request to leader by returning leader-service address. 
-     * c. If current-broker is leader then it finds out least-loaded broker to own namespace bundle and 
+     * then current broker redirects request to leader by returning leader-service address.
+     * c. If current-broker is leader then it finds out least-loaded broker to own namespace bundle and
      * redirects request by returning least-loaded broker.
-     * d. If current-broker receives request to own the namespace-bundle then it owns a bundle and returns 
+     * d. If current-broker receives request to own the namespace-bundle then it owns a bundle and returns
      * success(connect) response to client.
-     * 
+     *
      * @param pulsarService
      * @param fqdn
      * @param authoritative
@@ -252,6 +252,6 @@ public class DestinationLookup extends PulsarWebResource {
         pulsar().getBrokerService().getLookupRequestSemaphore().release();
         asyncResponse.resume(lookupData);
     }
-    
+
     private static final Logger log = LoggerFactory.getLogger(DestinationLookup.class);
 }

@@ -69,7 +69,7 @@ public class MockZooKeeper extends ZooKeeper {
     public static MockZooKeeper newInstance(ExecutorService executor) {
         return newInstance(executor, -1);
     }
-    
+
     public static MockZooKeeper newInstance(ExecutorService executor, int readOpDelayMs) {
         try {
             ReflectionFactory rf = ReflectionFactory.getReflectionFactory();
@@ -147,6 +147,13 @@ public class MockZooKeeper extends ZooKeeper {
         }
 
         tree.put(path, Pair.create(new String(data), 0));
+
+        final Set<Watcher> toNotify = Sets.newHashSet();
+        toNotify.addAll(watchers.get(path));
+        watchers.removeAll(path);
+        final String finalPath = path;
+        executor.execute(() -> toNotify.forEach(watcher -> watcher
+                .process(new WatchedEvent(EventType.NodeCreated, KeeperState.SyncConnected, finalPath))));
 
         if (!parent.isEmpty()) {
             final Set<Watcher> toNotifyParent = Sets.newHashSet();
@@ -438,6 +445,11 @@ public class MockZooKeeper extends ZooKeeper {
     }
 
     public void exists(String path, boolean watch, StatCallback cb, Object ctx) {
+        exists(path, null, cb, ctx);
+    }
+
+    @Override
+    public void exists(String path, Watcher watcher, StatCallback cb, Object ctx) {
         executor.execute(() -> {
             synchronized (this) {
                 if (getProgrammedFailStatus()) {
@@ -446,6 +458,10 @@ public class MockZooKeeper extends ZooKeeper {
                 } else if (stopped) {
                     cb.processResult(KeeperException.Code.ConnectionLoss, path, ctx, null);
                     return;
+                }
+
+                if (watcher != null) {
+                    watchers.put(path, watcher);
                 }
 
                 if (tree.containsKey(path)) {
@@ -557,7 +573,6 @@ public class MockZooKeeper extends ZooKeeper {
                 Stat stat = new Stat();
                 stat.setVersion(newVersion);
                 cb.processResult(0, path, ctx, stat);
-
 
                 toNotify.addAll(watchers.get(path));
                 watchers.removeAll(path);
