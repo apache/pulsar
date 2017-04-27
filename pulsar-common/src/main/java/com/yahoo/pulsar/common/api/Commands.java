@@ -77,15 +77,15 @@ public class Commands {
     public static final short magicCrc32c = 0x0e01;
     private static final int checksumSize = 4;
     
-    public static ByteBuf newConnect(String authMethodName, String authData) {
-        return newConnect(authMethodName, authData, getCurrentProtocolVersion());
+    public static ByteBuf newConnect(String authMethodName, String authData, String libVersion) {
+        return newConnect(authMethodName, authData, getCurrentProtocolVersion(), libVersion);
     }
 
-    public static ByteBuf newConnect(String authMethodName, String authData, int protocolVersion) {
+    public static ByteBuf newConnect(String authMethodName, String authData, int protocolVersion, String libVersion) {
         CommandConnect.Builder connectBuilder = CommandConnect.newBuilder();
-        connectBuilder.setClientVersion("Pulsar Client");
+        connectBuilder.setClientVersion(libVersion != null ? libVersion : "Pulsar Client");
         connectBuilder.setAuthMethodName(authMethodName);
-
+        
         if ("ycav1".equals(authMethodName)) {
             // Handle the case of a client that gets updated before the broker and starts sending the string auth method
             // name. An example would be in broker-to-broker replication. We need to make sure the clients are still

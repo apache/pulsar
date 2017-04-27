@@ -30,6 +30,7 @@ import com.yahoo.pulsar.client.api.Authentication;
 import com.yahoo.pulsar.client.api.PulsarClientException;
 import com.yahoo.pulsar.client.impl.BinaryProtoLookupService.LookupDataResult;
 import com.yahoo.pulsar.common.api.Commands;
+import static com.yahoo.pulsar.client.impl.HttpClient.getPulsarClientVersion;
 import com.yahoo.pulsar.common.api.PulsarHandler;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandCloseConsumer;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandCloseProducer;
@@ -93,7 +94,7 @@ public class ClientCnx extends PulsarHandler {
             authData = authentication.getAuthData().getCommandData();
         }
         // Send CONNECT command
-        ctx.writeAndFlush(Commands.newConnect(authentication.getAuthMethodName(), authData)).addListener(future -> {
+        ctx.writeAndFlush(Commands.newConnect(authentication.getAuthMethodName(), authData, getPulsarClientVersion())).addListener(future -> {
             if (future.isSuccess()) {
                 if (log.isDebugEnabled()) {
                     log.debug("Complete: {}", future.isSuccess());
