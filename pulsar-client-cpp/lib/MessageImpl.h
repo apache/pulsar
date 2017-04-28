@@ -28,6 +28,7 @@
 using namespace pulsar;
 namespace pulsar {
 
+class PulsarWrapper;
 class ClientConnection;
 class BatchMessageContainer;
 
@@ -46,7 +47,13 @@ class MessageImpl {
     bool hasPartitionKey() const;
 
     uint64_t getPublishTimestamp() const;
- private:
+
+    friend class PulsarWrapper;
+    friend class MessageBuilder;
+private:
+    void setReplicationClusters(const std::vector<std::string>& clusters);
+    void setProperty(const std::string& name, const std::string& value);
+    void disableReplication(bool flag);
     Message::StringMap properties_;
 };
 

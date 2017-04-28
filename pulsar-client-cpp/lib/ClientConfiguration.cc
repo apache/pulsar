@@ -43,7 +43,7 @@ const Authentication& ClientConfiguration::getAuth() const {
     return *impl_->authenticationPtr;
 }
 
-const AuthenticationPtr& ClientConfiguration::getAuthenticationPtr() const {
+const AuthenticationPtr& ClientConfiguration::getAuthPtr() const {
     return impl_->authenticationPtr;
 }
 

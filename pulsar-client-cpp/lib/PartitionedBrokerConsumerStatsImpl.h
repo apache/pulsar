@@ -26,7 +26,7 @@
 #include <lib/BrokerConsumerStatsImpl.h>
 #include <boost/shared_ptr.hpp>
 #include <boost/make_shared.hpp>
-
+#pragma GCC visibility push(default)
 namespace pulsar {
 class PartitionedBrokerConsumerStatsImpl : public BrokerConsumerStatsImplBase {
  private:
@@ -87,4 +87,5 @@ class PartitionedBrokerConsumerStatsImpl : public BrokerConsumerStatsImplBase {
 typedef boost::shared_ptr<PartitionedBrokerConsumerStatsImpl> PartitionedBrokerConsumerStatsPtr;
 
 }
+#pragma GCC visibility pop
 #endif //PULSAR_CPP_BROKERCONSUMERSTATSIMPL_H
