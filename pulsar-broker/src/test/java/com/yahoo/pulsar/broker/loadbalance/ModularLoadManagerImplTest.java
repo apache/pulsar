@@ -219,6 +219,7 @@ public class ModularLoadManagerImplTest {
         final BundleData bundleData = new BundleData(10, 1000);
         final TimeAverageMessageData longTermMessageData = new TimeAverageMessageData(1000);
         longTermMessageData.setMsgRateIn(1000);
+        bundleData.setLongTermData(longTermMessageData);
         final String firstBundleDataPath = String.format("%s/%s", ModularLoadManagerImpl.BUNDLE_DATA_ZPATH,
                 bundles[0]);
         // Write long message rate for first bundle to ensure that even bundle distribution is not a coincidence of
