@@ -139,6 +139,10 @@
               </filters>
               <relocations>
                 <relocation>
+                    <pattern>org.asynchttpclient</pattern>
+                    <shadedPattern>com.yahoo.pulsar.shade.org.asynchttpclient</shadedPattern>
+                </relocation>
+                <relocation>
                   <pattern>org.apache.commons</pattern>
                   <shadedPattern>com.yahoo.pulsar.shade.org.apache.commons</shadedPattern>
                 </relocation>
