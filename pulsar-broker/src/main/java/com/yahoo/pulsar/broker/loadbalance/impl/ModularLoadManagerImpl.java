@@ -20,6 +20,7 @@ import static com.yahoo.pulsar.broker.admin.AdminResource.jsonMapper;
 import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -113,6 +114,10 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
     // Broker host usage object used to calculate system resource usage.
     private BrokerHostUsage brokerHostUsage;
 
+    // Map from brokers to namespaces to the bundle ranges in that namespace assigned to that broker.
+    // Used to distribute bundles within a namespace evely across brokers.
+    private final Map<String, Map<String, Set<String>>> brokerToNamespaceToBundleRange;
+
     // Path to the ZNode containing the LocalBrokerData json for this broker.
     private String brokerZnodePath;
 
@@ -170,6 +175,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
      */
     public ModularLoadManagerImpl() {
         brokerCandidateCache = new HashSet<>();
+        brokerToNamespaceToBundleRange = new HashMap<>();
         defaultStats = new NamespaceBundleStats();
         filterPipeline = new ArrayList<>();
         loadData = new LoadData();
@@ -422,6 +428,14 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
             // Using the newest data, update the aggregated time-average data
             // for the current broker.
             brokerData.getTimeAverageData().reset(statsMap.keySet(), bundleData, defaultStats);
+            final Map<String, Set<String>> namespaceToBundleRange = brokerToNamespaceToBundleRange
+                    .computeIfAbsent(broker, k -> new HashMap<>());
+            synchronized (namespaceToBundleRange) {
+                namespaceToBundleRange.clear();
+                LoadManagerShared.fillNamespaceToBundlesMap(statsMap.keySet(), namespaceToBundleRange);
+                LoadManagerShared.fillNamespaceToBundlesMap(preallocatedBundleData.keySet(), namespaceToBundleRange);
+            }
+
         }
     }
 
@@ -493,13 +507,14 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
     @Override
     public String selectBrokerForAssignment(final ServiceUnitId serviceUnit) {
         // Use brokerCandidateCache as a lock to reduce synchronization.
-        synchronized(brokerCandidateCache) {
+        synchronized (brokerCandidateCache) {
             final String bundle = serviceUnit.toString();
             if (preallocatedBundleToBroker.containsKey(bundle)) {
                 // If the given bundle is already in preallocated, return the selected broker.
                 return preallocatedBundleToBroker.get(bundle);
             }
-            final BundleData data = loadData.getBundleData().computeIfAbsent(bundle, key -> getBundleDataOrDefault(bundle));
+            final BundleData data = loadData.getBundleData().computeIfAbsent(bundle,
+                    key -> getBundleDataOrDefault(bundle));
             brokerCandidateCache.clear();
             Set<String> activeBrokers;
             try {
@@ -513,6 +528,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
                 activeBrokers = loadData.getBrokerData().keySet();
             }
             LoadManagerShared.applyPolicies(serviceUnit, policies, brokerCandidateCache, activeBrokers);
+            LoadManagerShared.removeMostServicingBrokersForNamespace(serviceUnit.toString(), brokerCandidateCache,
+                    brokerToNamespaceToBundleRange);
             log.info("{} brokers being considered for assignment of {}", brokerCandidateCache.size(), bundle);
 
             // Use the filter pipeline to finalize broker candidates.
@@ -524,7 +541,10 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
             // Add new bundle to preallocated.
             loadData.getBrokerData().get(broker).getPreallocatedBundleData().put(bundle, data);
             preallocatedBundleToBroker.put(bundle, broker);
-            
+            final String namespaceName = LoadManagerShared.getNamespaceNameFromBundleName(bundle);
+            final String bundleRange = LoadManagerShared.getBundleRangeFromBundleName(bundle);
+            brokerToNamespaceToBundleRange.get(broker).computeIfAbsent(namespaceName, k -> new HashSet<>())
+                    .add(bundleRange);
             return broker;
         }
     }

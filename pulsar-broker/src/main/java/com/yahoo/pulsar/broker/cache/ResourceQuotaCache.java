@@ -39,7 +39,7 @@ public class ResourceQuotaCache {
     private static final Logger LOG = LoggerFactory.getLogger(ResourceQuotaCache.class);
 
     // Root path for resource-quota
-    private static final String RESOURCE_QUOTA_ROOT = "/loadbalance/resource-quota";
+    public static final String RESOURCE_QUOTA_ROOT = "/loadbalance/resource-quota";
     // Serialize/de-serialize JSON objects
     private final ObjectMapper jsonMapper = ObjectMapperFactory.create();
     // Read only cache

@@ -200,6 +200,13 @@ public class ResourceUnitRanking implements Comparable<ResourceUnitRanking> {
     }
 
     /**
+     * Get the loaded bundles.
+     */
+    public Set<String> getLoadedBundles() {
+        return loadedBundles;
+    }
+
+    /**
      * Get the estimated load percentage
      */
     public double getEstimatedLoadPercentage() {
