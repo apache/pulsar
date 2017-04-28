@@ -18,7 +18,6 @@ package com.yahoo.pulsar.broker.loadbalance.impl;
 import static com.yahoo.pulsar.broker.admin.AdminResource.jsonMapper;
 
 import java.io.IOException;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -41,11 +40,6 @@ import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
-import com.google.common.cache.RemovalListener;
-import com.google.common.cache.RemovalNotification;
 import com.yahoo.pulsar.broker.BrokerData;
 import com.yahoo.pulsar.broker.BundleData;
 import com.yahoo.pulsar.broker.LocalBrokerData;
@@ -61,7 +55,6 @@ import com.yahoo.pulsar.broker.loadbalance.LoadManager;
 import com.yahoo.pulsar.broker.loadbalance.LoadSheddingStrategy;
 import com.yahoo.pulsar.broker.loadbalance.ModularLoadManager;
 import com.yahoo.pulsar.broker.loadbalance.ModularLoadManagerStrategy;
-import com.yahoo.pulsar.client.admin.PulsarAdmin;
 import com.yahoo.pulsar.common.naming.ServiceUnitId;
 import com.yahoo.pulsar.common.policies.data.ResourceQuota;
 import com.yahoo.pulsar.common.policies.data.loadbalancer.NamespaceBundleStats;
@@ -96,9 +89,6 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
 
     // Path to ZNode containing TimeAverageBrokerData jsons for each broker.
     public static final String TIME_AVERAGE_BROKER_ZPATH = "/loadbalance/broker-time-average";
-
-    // Cache of PulsarAdmins for each broker.
-    private LoadingCache<String, PulsarAdmin> adminCache;
 
     // ZooKeeper Cache of the currently available active brokers.
     // availableActiveBrokers.get() will return a set of the broker names without an http prefix.
@@ -181,19 +171,6 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
      *            The service to initialize with.
      */
     public void initialize(final PulsarService pulsar) {
-        adminCache = CacheBuilder.newBuilder().removalListener(new RemovalListener<String, PulsarAdmin>() {
-            public void onRemoval(RemovalNotification<String, PulsarAdmin> removal) {
-                removal.getValue().close();
-            }
-        }).expireAfterAccess(1, TimeUnit.DAYS).build(new CacheLoader<String, PulsarAdmin>() {
-            @Override
-            public PulsarAdmin load(String key) throws Exception {
-                // key - broker name already is valid URL, has prefix "http://"
-                return new PulsarAdmin(new URL(key), pulsar.getConfiguration().getBrokerClientAuthenticationPlugin(),
-                        pulsar.getConfiguration().getBrokerClientAuthenticationParameters());
-            }
-        });
-
         availableActiveBrokers = new ZooKeeperChildrenCache(pulsar.getLocalZkCache(),
                 LoadManager.LOADBALANCE_BROKERS_ROOT);
         availableActiveBrokers.registerListener(new ZooKeeperCacheListener<Set<String>>() {
@@ -449,7 +426,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
             return;
         }
         if (getAvailableBrokers().size() <= 1) {
-            log.warn("Only 1 broker available: no load shedding will be performed");
+            log.info("Only 1 broker available: no load shedding will be performed");
             return;
         }
         // Remove bundles who have been unloaded for longer than the grace period from the recently unloaded
@@ -466,7 +443,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
                         final String broker = entry.getKey();
                         final String bundle = entry.getValue();
                         log.info("Unloading bundle: {}", bundle);
-                        adminCache.get("http://" + broker).namespaces().unloadNamespaceBundle(
+                        pulsar.getAdminClient().namespaces().unloadNamespaceBundle(
                                 LoadManagerShared.getNamespaceNameFromBundleName(bundle),
                                 LoadManagerShared.getBundleRangeFromBundleName(bundle));
                         loadData.getRecentlyUnloadedBundles().put(bundle, System.currentTimeMillis());

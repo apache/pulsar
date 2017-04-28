@@ -15,16 +15,25 @@
  */
 package com.yahoo.pulsar.broker.loadbalance;
 
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.InetAddress;
 import java.net.URL;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.bookkeeper.test.PortManager;
+import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
@@ -34,9 +43,12 @@ import org.testng.annotations.Test;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
 import com.google.common.hash.Hashing;
+import com.yahoo.pulsar.broker.BrokerData;
+import com.yahoo.pulsar.broker.LocalBrokerData;
 import com.yahoo.pulsar.broker.PulsarService;
 import com.yahoo.pulsar.broker.ServiceConfiguration;
 import com.yahoo.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
+import com.yahoo.pulsar.client.admin.Namespaces;
 import com.yahoo.pulsar.client.admin.PulsarAdmin;
 import com.yahoo.pulsar.client.api.Authentication;
 import com.yahoo.pulsar.common.naming.NamespaceBundle;
@@ -44,6 +56,9 @@ import com.yahoo.pulsar.common.naming.NamespaceBundleFactory;
 import com.yahoo.pulsar.common.naming.NamespaceBundles;
 import com.yahoo.pulsar.common.naming.NamespaceName;
 import com.yahoo.pulsar.common.naming.ServiceUnitId;
+import com.yahoo.pulsar.common.policies.data.loadbalancer.NamespaceBundleStats;
+import com.yahoo.pulsar.common.policies.data.loadbalancer.ResourceUsage;
+import com.yahoo.pulsar.common.policies.data.loadbalancer.SystemResourceUsage;
 import com.yahoo.pulsar.zookeeper.LocalBookkeeperEnsemble;
 
 public class ModularLoadManagerImplTest {
@@ -171,6 +186,10 @@ public class ModularLoadManagerImplTest {
         return makeBundle(all, all, all);
     }
 
+    private String mockBundleName(final int i) {
+        return String.format("%d/%d/%d/0x00000000_0xffffffff", i, i, i);
+    }
+
     @Test
     public void testCandidateConsistency() throws Exception {
         boolean foundFirst = false;
@@ -203,5 +222,56 @@ public class ModularLoadManagerImplTest {
             final ServiceUnitId serviceUnit = makeBundle(Integer.toString(i));
             assert (primaryLoadManager.selectBrokerForAssignment(serviceUnit).equals(primaryHost));
         }
+    }
+
+    // Test that load shedding works
+    @Test
+    public void testLoadShedding() throws Exception {
+        final NamespaceBundleStats stats1 = new NamespaceBundleStats();
+        final NamespaceBundleStats stats2 = new NamespaceBundleStats();
+        stats1.msgRateIn = 100;
+        stats2.msgRateIn = 200;
+        final Map<String, NamespaceBundleStats> statsMap = new ConcurrentHashMap<>();
+        statsMap.put(mockBundleName(1), stats1);
+        statsMap.put(mockBundleName(2), stats2);
+        final LocalBrokerData localBrokerData = new LocalBrokerData();
+        localBrokerData.update(new SystemResourceUsage(), statsMap);
+        final Namespaces namespacesSpy1 = spy(pulsar1.getAdminClient().namespaces());
+        AtomicReference<String> bundleReference = new AtomicReference<>();
+        doAnswer(invocation -> {
+            bundleReference.set(invocation.getArguments()[0].toString() + '/' + invocation.getArguments()[1]);
+            return null;
+        }).when(namespacesSpy1).unloadNamespaceBundle(Mockito.anyString(), Mockito.anyString());
+        setField(pulsar1.getAdminClient(), "namespaces", namespacesSpy1);
+        pulsar1.getConfiguration().setLoadBalancerEnabled(true);
+        final LoadData loadData = (LoadData) getField(primaryLoadManager, "loadData");
+        final Map<String, BrokerData> brokerDataMap = loadData.getBrokerData();
+        final BrokerData brokerDataSpy1 = spy(brokerDataMap.get(primaryHost));
+        when(brokerDataSpy1.getLocalData()).thenReturn(localBrokerData);
+        brokerDataMap.put(primaryHost, brokerDataSpy1);
+        // Need to update all the bundle data for the shedder to see the spy.
+        primaryLoadManager.onUpdate(null, null, null);
+        Thread.sleep(100);
+        localBrokerData.setCpu(new ResourceUsage(80, 100));
+        primaryLoadManager.doLoadShedding();
+
+        // 80% is below overload threshold: verify nothing is unloaded.
+        verify(namespacesSpy1, Mockito.times(0)).unloadNamespaceBundle(Mockito.anyString(), Mockito.anyString());
+
+        localBrokerData.getCpu().usage = 90;
+        primaryLoadManager.doLoadShedding();
+        // Most expensive bundle will be unloaded.
+        verify(namespacesSpy1, Mockito.times(1)).unloadNamespaceBundle(Mockito.anyString(), Mockito.anyString());
+        assert (bundleReference.get().equals(mockBundleName(2)));
+
+        primaryLoadManager.doLoadShedding();
+        // Now less expensive bundle will be unloaded (normally other bundle would move off and nothing would be
+        // unloaded, but this is not the case due to the spy's behavior).
+        verify(namespacesSpy1, Mockito.times(2)).unloadNamespaceBundle(Mockito.anyString(), Mockito.anyString());
+        assert (bundleReference.get().equals(mockBundleName(1)));
+
+        primaryLoadManager.doLoadShedding();
+        // Now both are in grace period: neither should be unloaded.
+        verify(namespacesSpy1, Mockito.times(2)).unloadNamespaceBundle(Mockito.anyString(), Mockito.anyString());
     }
 }

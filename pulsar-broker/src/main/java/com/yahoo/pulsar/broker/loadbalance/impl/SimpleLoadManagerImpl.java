@@ -140,7 +140,6 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
     private ZooKeeperDataCache<LoadReport> loadReportCacheZk;
     private ZooKeeperDataCache<Map<String, String>> dynamicConfigurationCache;
     private BrokerHostUsage brokerHostUsage;
-    private LoadingCache<String, PulsarAdmin> adminCache;
     private LoadingCache<String, Long> unloadedHotNamespaceCache;
 
     public static final String LOADBALANCER_DYNAMIC_SETTING_STRATEGY_ZPATH = "/loadbalance/settings/strategy";
@@ -217,18 +216,6 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
                 return ObjectMapperFactory.getThreadLocal().readValue(content, HashMap.class);
             }
         };
-        adminCache = CacheBuilder.newBuilder().removalListener(new RemovalListener<String, PulsarAdmin>() {
-            public void onRemoval(RemovalNotification<String, PulsarAdmin> removal) {
-                removal.getValue().close();
-            }
-        }).expireAfterAccess(1, TimeUnit.DAYS).build(new CacheLoader<String, PulsarAdmin>() {
-            @Override
-            public PulsarAdmin load(String key) throws Exception {
-                // key - broker name already is valid URL, has prefix "http://"
-                return new PulsarAdmin(new URL(key), pulsar.getConfiguration().getBrokerClientAuthenticationPlugin(),
-                        pulsar.getConfiguration().getBrokerClientAuthenticationParameters());
-            }
-        });
         int entryExpiryTime = (int) pulsar.getConfiguration().getLoadBalancerSheddingGracePeriodMinutes();
         unloadedHotNamespaceCache = CacheBuilder.newBuilder().expireAfterWrite(entryExpiryTime, TimeUnit.MINUTES)
                 .build(new CacheLoader<String, Long>() {
@@ -1261,7 +1248,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
                 if (unloadedHotNamespaceCache.getIfPresent(bundleName) == null) {
                     if (!LoadManagerShared.isUnloadDisabledInLoadShedding(pulsar)) {
                         log.info("Unloading namespace {} from overloaded broker {}", bundleName, brokerName);
-                        adminCache.get(brokerName).namespaces().unloadNamespaceBundle(
+                        pulsar.getAdminClient().namespaces().unloadNamespaceBundle(
                                 LoadManagerShared.getNamespaceNameFromBundleName(bundleName),
                                 LoadManagerShared.getBundleRangeFromBundleName(bundleName));
                         log.info("Successfully unloaded namespace {} from broker {}", bundleName, brokerName);
