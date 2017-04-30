@@ -54,6 +54,7 @@ private:
     void setReplicationClusters(const std::vector<std::string>& clusters);
     void setProperty(const std::string& name, const std::string& value);
     void disableReplication(bool flag);
+    void setPartitionKey(const std::string& partitionKey);
     Message::StringMap properties_;
 };
 
