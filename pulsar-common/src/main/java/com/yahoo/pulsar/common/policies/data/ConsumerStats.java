@@ -46,6 +46,9 @@ public class ConsumerStats {
 
     /** Timestamp of connection */
     public String connectedSince;
+    
+    /** Client library version */
+    public String clientVersion;
 
     public ConsumerStats add(ConsumerStats stats) {
         checkNotNull(stats);

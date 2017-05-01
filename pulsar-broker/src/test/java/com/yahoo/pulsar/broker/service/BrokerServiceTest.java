@@ -163,6 +163,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         assertTrue(stats.publishers.get(0).msgRateIn > 0.0);
         assertTrue(stats.publishers.get(0).msgThroughputIn > 0.0);
         assertTrue(stats.publishers.get(0).averageMsgSize > 0.0);
+        assertNotNull(stats.publishers.get(0).clientVersion);
 
         // aggregated publish stats
         assertEquals(stats.msgRateIn, stats.publishers.get(0).msgRateIn);
@@ -179,6 +180,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         assertEquals(subStats.msgThroughputOut, subStats.consumers.get(0).msgThroughputOut);
         assertEquals(stats.msgRateOut, subStats.consumers.get(0).msgRateOut);
         assertEquals(stats.msgThroughputOut, subStats.consumers.get(0).msgThroughputOut);
+        assertNotNull(subStats.consumers.get(0).clientVersion);
 
         Message msg;
         for (int i = 0; i < 10; i++) {
