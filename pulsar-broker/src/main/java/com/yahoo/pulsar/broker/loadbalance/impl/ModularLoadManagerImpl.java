@@ -56,7 +56,6 @@ import com.yahoo.pulsar.broker.TimeAverageBrokerData;
 import com.yahoo.pulsar.broker.TimeAverageMessageData;
 import com.yahoo.pulsar.broker.loadbalance.BrokerFilter;
 import com.yahoo.pulsar.broker.loadbalance.BrokerHostUsage;
-import com.yahoo.pulsar.broker.loadbalance.DataUpdateCondition;
 import com.yahoo.pulsar.broker.loadbalance.LoadData;
 import com.yahoo.pulsar.broker.loadbalance.LoadManager;
 import com.yahoo.pulsar.broker.loadbalance.LoadSheddingStrategy;
@@ -139,9 +138,6 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
     // Local data for the broker this is running on.
     private LocalBrokerData localData;
 
-    // Condition to use for writing the local data to ZooKeeper.
-    private final DataUpdateCondition localDataUpdateCondition;
-
     // Load data comprising data available for each broker.
     private final LoadData loadData;
 
@@ -181,7 +177,6 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
         filterPipeline = new ArrayList<>();
         loadData = new LoadData();
         loadSheddingPipeline = new ArrayList<>();
-        localDataUpdateCondition = new HighDeltaCondition();
         preallocatedBundleToBroker = new ConcurrentHashMap<>();
         primariesCache = new HashSet<>();
         scheduler = Executors.newScheduledThreadPool(1);
@@ -331,9 +326,41 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
         return ObjectMapperFactory.getThreadLocal().readValue(data, clazz);
     }
 
+    private double percentChange(final double oldValue, final double newValue) {
+        if (oldValue == 0) {
+            if (newValue == 0) {
+                // Avoid NaN
+                return 0;
+            }
+            return Double.POSITIVE_INFINITY;
+        }
+        return 100 * Math.abs((oldValue - newValue) / oldValue);
+    }
+
     // Determine if the broker data requires an update by delegating to the update condition.
     private boolean needBrokerDataUpdate() {
-        return localDataUpdateCondition.shouldUpdate(lastData, localData, conf);
+        final long updateMaxIntervalMillis = TimeUnit.MINUTES
+                .toMillis(conf.getLoadBalancerReportUpdateMaxIntervalMinutes());
+        if (System.currentTimeMillis() - localData.getLastUpdate() > updateMaxIntervalMillis) {
+            log.info("Writing local data to ZooKeeper because time since last update exceeded threshold of {} minutes",
+                    conf.getLoadBalancerReportUpdateMaxIntervalMinutes());
+            // Always update after surpassing the maximum interval.
+            return true;
+        }
+        final double maxChange = Math
+                .max(percentChange(lastData.getMaxResourceUsage(), localData.getMaxResourceUsage()),
+                        Math.max(percentChange(lastData.getMsgRateIn() + lastData.getMsgRateOut(),
+                                localData.getMsgRateIn() + localData.getMsgRateOut()),
+                                Math.max(
+                                        percentChange(lastData.getMsgThroughputIn() + lastData.getMsgThroughputOut(),
+                                                localData.getMsgThroughputIn() + localData.getMsgThroughputOut()),
+                                        percentChange(lastData.getNumBundles(), localData.getNumBundles()))));
+        if (maxChange > conf.getLoadBalancerReportUpdateThresholdPercentage()) {
+            log.info("Writing local data to ZooKeeper because maximum change {}% exceeded threshold {}%", maxChange,
+                    conf.getLoadBalancerReportUpdateThresholdPercentage());
+            return true;
+        }
+        return false;
     }
 
     // Update both the broker data and the bundle data.
@@ -494,13 +521,14 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
     @Override
     public String selectBrokerForAssignment(final ServiceUnitId serviceUnit) {
         // Use brokerCandidateCache as a lock to reduce synchronization.
-        synchronized(brokerCandidateCache) {
+        synchronized (brokerCandidateCache) {
             final String bundle = serviceUnit.toString();
             if (preallocatedBundleToBroker.containsKey(bundle)) {
                 // If the given bundle is already in preallocated, return the selected broker.
                 return preallocatedBundleToBroker.get(bundle);
             }
-            final BundleData data = loadData.getBundleData().computeIfAbsent(bundle, key -> getBundleDataOrDefault(bundle));
+            final BundleData data = loadData.getBundleData().computeIfAbsent(bundle,
+                    key -> getBundleDataOrDefault(bundle));
             brokerCandidateCache.clear();
             Set<String> activeBrokers;
             try {
@@ -525,7 +553,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
             // Add new bundle to preallocated.
             loadData.getBrokerData().get(broker).getPreallocatedBundleData().put(bundle, data);
             preallocatedBundleToBroker.put(bundle, broker);
-            
+
             return broker;
         }
     }
