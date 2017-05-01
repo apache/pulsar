@@ -71,4 +71,8 @@ namespace pulsar {
         keyValue->set_value(value);
         metadata.mutable_properties()->AddAllocated(keyValue);
     }
+
+    void MessageImpl::setPartitionKey(const std::string& partitionKey) {
+        metadata.set_partition_key(partitionKey);
+    }
 }
