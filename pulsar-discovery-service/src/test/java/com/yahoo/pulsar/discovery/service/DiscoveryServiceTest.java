@@ -218,7 +218,7 @@ public class DiscoveryServiceTest extends BaseDiscoveryTestSetup {
         @Override
         public void channelActive(ChannelHandlerContext ctx) throws Exception {
             super.channelActive(ctx);
-            ctx.writeAndFlush(Commands.newConnect("", ""));
+            ctx.writeAndFlush(Commands.newConnect("", "", null));
             latch.countDown();
         }
 
