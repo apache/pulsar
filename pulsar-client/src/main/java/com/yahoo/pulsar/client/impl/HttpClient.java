@@ -177,7 +177,7 @@ public class HttpClient implements Closeable {
      *
      * @return client version or unknown version depending on whether the file is found or not.
      */
-    private static String getPulsarClientVersion() {
+    public static String getPulsarClientVersion() {
         String path = "/pulsar-client-version.properties";
         String unknownClientIdentifier = "UnknownClient";
 

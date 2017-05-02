@@ -110,6 +110,7 @@ public class Consumer {
         stats.address = cnx.clientAddress().toString();
         stats.consumerName = consumerName;
         stats.connectedSince = DATE_FORMAT.format(Instant.now());
+        stats.clientVersion = cnx.getClientVersion();
 
         if (subType == SubType.Shared) {
             this.pendingAcks = new ConcurrentOpenHashMap<PositionImpl, Integer>(256, 2);
