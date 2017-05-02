@@ -15,6 +15,7 @@
  */
 package com.yahoo.pulsar.broker.loadbalance.impl;
 
+import static com.yahoo.pulsar.broker.admin.AdminResource.jsonMapper;
 import static org.apache.commons.lang3.StringUtils.isNotEmpty;
 
 import java.io.IOException;
@@ -57,7 +58,6 @@ import com.google.common.collect.TreeMultimap;
 import com.yahoo.pulsar.broker.PulsarServerException;
 import com.yahoo.pulsar.broker.PulsarService;
 import com.yahoo.pulsar.broker.ServiceConfiguration;
-import com.yahoo.pulsar.broker.admin.AdminResource;
 import com.yahoo.pulsar.broker.loadbalance.BrokerHostUsage;
 import com.yahoo.pulsar.broker.loadbalance.LoadManager;
 import com.yahoo.pulsar.broker.loadbalance.PlacementStrategy;
@@ -77,7 +77,6 @@ import com.yahoo.pulsar.zookeeper.ZooKeeperCache.Deserializer;
 import com.yahoo.pulsar.zookeeper.ZooKeeperCacheListener;
 import com.yahoo.pulsar.zookeeper.ZooKeeperChildrenCache;
 import com.yahoo.pulsar.zookeeper.ZooKeeperDataCache;
-import static com.yahoo.pulsar.broker.admin.AdminResource.jsonMapper;
 
 public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListener<LoadReport> {
 
@@ -141,7 +140,6 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
     private ZooKeeperDataCache<LoadReport> loadReportCacheZk;
     private ZooKeeperDataCache<Map<String, String>> dynamicConfigurationCache;
     private BrokerHostUsage brokerHostUsage;
-    private LoadingCache<String, PulsarAdmin> adminCache;
     private LoadingCache<String, Long> unloadedHotNamespaceCache;
 
     public static final String LOADBALANCER_DYNAMIC_SETTING_STRATEGY_ZPATH = "/loadbalance/settings/strategy";
@@ -177,7 +175,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
     // flag to force update load report
     private boolean forceLoadReportUpdate = false;
     private static final Deserializer<LoadReport> loadReportDeserializer = (key, content) -> jsonMapper()
-            .readValue(content, LoadReport.class); 
+            .readValue(content, LoadReport.class);
 
     // Perform initializations which may be done without a PulsarService.
     public SimpleLoadManagerImpl() {
@@ -218,18 +216,6 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
                 return ObjectMapperFactory.getThreadLocal().readValue(content, HashMap.class);
             }
         };
-        adminCache = CacheBuilder.newBuilder().removalListener(new RemovalListener<String, PulsarAdmin>() {
-            public void onRemoval(RemovalNotification<String, PulsarAdmin> removal) {
-                removal.getValue().close();
-            }
-        }).expireAfterAccess(1, TimeUnit.DAYS).build(new CacheLoader<String, PulsarAdmin>() {
-            @Override
-            public PulsarAdmin load(String key) throws Exception {
-                // key - broker name already is valid URL, has prefix "http://"
-                return new PulsarAdmin(new URL(key), pulsar.getConfiguration().getBrokerClientAuthenticationPlugin(),
-                        pulsar.getConfiguration().getBrokerClientAuthenticationParameters());
-            }
-        });
         int entryExpiryTime = (int) pulsar.getConfiguration().getLoadBalancerSheddingGracePeriodMinutes();
         unloadedHotNamespaceCache = CacheBuilder.newBuilder().expireAfterWrite(entryExpiryTime, TimeUnit.MINUTES)
                 .build(new CacheLoader<String, Long>() {
@@ -1254,37 +1240,15 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
         return false;
     }
 
-    /**
-     * If load balancing is enabled, load shedding is enabled by default unless forced off by setting a flag in global
-     * zk /admin/flags/load-shedding-unload-disabled
-     *
-     * @return false by default, unload is allowed in load shedding true if zk flag is set, unload is disabled
-     */
-    public boolean isUnloadDisabledInLoadShedding() {
-        if (!pulsar.getConfiguration().isLoadBalancerEnabled()) {
-            return true;
-        }
-
-        boolean unloadDisabledInLoadShedding = false;
-        try {
-            unloadDisabledInLoadShedding = pulsar.getGlobalZkCache()
-                    .exists(AdminResource.LOAD_SHEDDING_UNLOAD_DISABLED_FLAG_PATH);
-        } catch (Exception e) {
-            log.warn("Unable to fetch contents of [{}] from global zookeeper",
-                    AdminResource.LOAD_SHEDDING_UNLOAD_DISABLED_FLAG_PATH, e);
-        }
-        return unloadDisabledInLoadShedding;
-    }
-
     private void unloadNamespacesFromOverLoadedBrokers(Map<ResourceUnit, String> namespaceBundlesToUnload) {
         for (Map.Entry<ResourceUnit, String> bundle : namespaceBundlesToUnload.entrySet()) {
             String brokerName = bundle.getKey().getResourceId();
             String bundleName = bundle.getValue();
             try {
                 if (unloadedHotNamespaceCache.getIfPresent(bundleName) == null) {
-                    if (!isUnloadDisabledInLoadShedding()) {
+                    if (!LoadManagerShared.isUnloadDisabledInLoadShedding(pulsar)) {
                         log.info("Unloading namespace {} from overloaded broker {}", bundleName, brokerName);
-                        adminCache.get(brokerName).namespaces().unloadNamespaceBundle(
+                        pulsar.getAdminClient().namespaces().unloadNamespaceBundle(
                                 LoadManagerShared.getNamespaceNameFromBundleName(bundleName),
                                 LoadManagerShared.getBundleRangeFromBundleName(bundleName));
                         log.info("Successfully unloaded namespace {} from broker {}", bundleName, brokerName);
