@@ -75,6 +75,7 @@ public class Producer {
         this.stats = new PublisherStats();
         stats.address = cnx.clientAddress().toString();
         stats.connectedSince = DATE_FORMAT.format(Instant.now());
+        stats.clientVersion = cnx.getClientVersion();
         stats.producerName = producerName;
         stats.producerId = producerId;
 

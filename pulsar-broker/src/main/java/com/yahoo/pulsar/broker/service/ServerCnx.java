@@ -29,6 +29,7 @@ import java.util.concurrent.TimeUnit;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
 
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -82,6 +83,7 @@ public class ServerCnx extends PulsarHandler {
     private static final int ResumeReadsThreshold = MaxPendingSendRequests / 2;
     private int pendingSendRequest = 0;
     private final String replicatorPrefix;
+    private String clientVersion = null;
 
     enum State {
         Start, Connected
@@ -314,6 +316,10 @@ public class ServerCnx extends PulsarHandler {
         ctx.writeAndFlush(Commands.newConnected(connect));
         state = State.Connected;
         remoteEndpointProtocolVersion = connect.getProtocolVersion();
+        String version = connect.hasClientVersion() ? connect.getClientVersion() : null;
+        if (isNotBlank(version) && !version.contains(" ") /* ignore default version: pulsar client */) {
+            this.clientVersion = version;
+        }
     }
 
     @Override
@@ -857,5 +863,9 @@ public class ServerCnx extends PulsarHandler {
     
     public boolean isBatchMessageCompatibleVersion() {
         return remoteEndpointProtocolVersion >= ProtocolVersion.v4.getNumber();
+    }
+    
+    public String getClientVersion() {
+        return clientVersion;
     }
 }

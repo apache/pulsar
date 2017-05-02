@@ -903,6 +903,9 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                         destStatsStream.writePair("blockedConsumerOnUnackedMsgs",
                                 consumerStats.blockedConsumerOnUnackedMsgs);
                     }
+                    if (consumerStats.clientVersion != null) {
+                        destStatsStream.writePair("clientVersion", consumerStats.clientVersion);
+                    }
                     destStatsStream.endObject();
                 }
 

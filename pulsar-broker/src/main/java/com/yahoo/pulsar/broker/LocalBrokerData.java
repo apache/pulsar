@@ -93,16 +93,21 @@ public class LocalBrokerData extends JSONWritable implements ServiceLookupData {
      */
     public void update(final SystemResourceUsage systemResourceUsage,
             final Map<String, NamespaceBundleStats> bundleStats) {
-        updateSystemResourceUsage(systemResourceUsage);
+        this.systemResourceUsage = systemResourceUsage;
         updateBundleData(bundleStats);
         lastStats = bundleStats;
-        lastUpdate = System.currentTimeMillis();
     }
 
-    // Set the cpu, memory, and direct memory to that of the new system resource
-    // usage data.
-    private void updateSystemResourceUsage(final SystemResourceUsage systemResourceUsage) {
-        this.systemResourceUsage = systemResourceUsage;
+    /**
+     * Using another LocalBrokerData, update this.
+     * 
+     * @param other
+     *            LocalBrokerData to update from.
+     */
+    public void update(final LocalBrokerData other) {
+        this.systemResourceUsage = other.systemResourceUsage;
+        updateBundleData(other.lastStats);
+        lastStats = other.lastStats;
     }
 
     // Aggregate all message, throughput, topic count, bundle count, consumer
