@@ -40,6 +40,9 @@ public class PublisherStats {
 
     /** Timestamp of connection */
     public String connectedSince;
+    
+    /** Client library version */
+    public String clientVersion;
 
     public PublisherStats add(PublisherStats stats) {
         checkNotNull(stats);

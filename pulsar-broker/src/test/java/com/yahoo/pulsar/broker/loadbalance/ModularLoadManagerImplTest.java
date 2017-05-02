@@ -23,6 +23,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 import org.apache.bookkeeper.test.PortManager;
 import org.apache.bookkeeper.util.ZkUtils;
@@ -37,7 +38,10 @@ import org.testng.annotations.Test;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
 import com.google.common.hash.Hashing;
+
 import com.yahoo.pulsar.broker.BundleData;
+
+import com.yahoo.pulsar.broker.LocalBrokerData;
 import com.yahoo.pulsar.broker.PulsarService;
 import com.yahoo.pulsar.broker.ServiceConfiguration;
 import com.yahoo.pulsar.broker.TimeAverageMessageData;
@@ -49,6 +53,7 @@ import com.yahoo.pulsar.common.naming.NamespaceBundleFactory;
 import com.yahoo.pulsar.common.naming.NamespaceBundles;
 import com.yahoo.pulsar.common.naming.NamespaceName;
 import com.yahoo.pulsar.common.naming.ServiceUnitId;
+import com.yahoo.pulsar.common.policies.data.loadbalancer.ResourceUsage;
 import com.yahoo.pulsar.zookeeper.LocalBookkeeperEnsemble;
 
 public class ModularLoadManagerImplTest {
@@ -210,6 +215,7 @@ public class ModularLoadManagerImplTest {
         }
     }
 
+
     // Test that bundles belonging to the same namespace are distributed evenly among brokers.
     @Test
     public void testEvenBundleDistribution() throws Exception {
@@ -220,8 +226,7 @@ public class ModularLoadManagerImplTest {
         final TimeAverageMessageData longTermMessageData = new TimeAverageMessageData(1000);
         longTermMessageData.setMsgRateIn(1000);
         bundleData.setLongTermData(longTermMessageData);
-        final String firstBundleDataPath = String.format("%s/%s", ModularLoadManagerImpl.BUNDLE_DATA_ZPATH,
-                bundles[0]);
+        final String firstBundleDataPath = String.format("%s/%s", ModularLoadManagerImpl.BUNDLE_DATA_ZPATH, bundles[0]);
         // Write long message rate for first bundle to ensure that even bundle distribution is not a coincidence of
         // balancing by message rate. If we were balancing by message rate, one of the brokers should only have this
         // one bundle.
@@ -239,5 +244,79 @@ public class ModularLoadManagerImplTest {
                 assert (numAssignedToPrimary == numAssignedToSecondary);
             }
         }
+    }
+
+    // Test that ModularLoadManagerImpl will determine that writing local data to ZooKeeper is necessary if certain
+    // metrics change by a percentage threshold.
+    @Test
+    public void testNeedBrokerDataUpdate() throws Exception {
+        final LocalBrokerData lastData = new LocalBrokerData();
+        final LocalBrokerData currentData = new LocalBrokerData();
+        final ServiceConfiguration conf = pulsar1.getConfiguration();
+        // Set this manually in case the default changes.
+        conf.setLoadBalancerReportUpdateThresholdPercentage(5);
+        // Easier to test using an uninitialized ModularLoadManagerImpl.
+        final ModularLoadManagerImpl loadManager = new ModularLoadManagerImpl();
+        setField(loadManager, "lastData", lastData);
+        setField(loadManager, "localData", currentData);
+        setField(loadManager, "conf", conf);
+        Supplier<Boolean> needUpdate = () -> {
+            try {
+                return (Boolean) invokeSimpleMethod(loadManager, "needBrokerDataUpdate");
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        };
+
+        lastData.setMsgRateIn(100);
+        currentData.setMsgRateIn(104);
+        // 4% difference: shouldn't trigger an update.
+        assert (!needUpdate.get());
+        currentData.setMsgRateIn(105.1);
+        // 5% difference: should trigger an update (exactly 5% is flaky due to precision).
+        assert (needUpdate.get());
+
+        // Do similar tests for lower values.
+        currentData.setMsgRateIn(94);
+        assert (needUpdate.get());
+        currentData.setMsgRateIn(95.1);
+        assert (!needUpdate.get());
+
+        // 0 to non-zero should always trigger an update.
+        lastData.setMsgRateIn(0);
+        currentData.setMsgRateIn(1e-8);
+        assert (needUpdate.get());
+
+        // non-zero to zero should trigger an update as long as the threshold is less than 100.
+        lastData.setMsgRateIn(1e-8);
+        currentData.setMsgRateIn(0);
+        assert (needUpdate.get());
+
+        // zero to zero should never trigger an update.
+        currentData.setMsgRateIn(0);
+        lastData.setMsgRateIn(0);
+        assert (!needUpdate.get());
+
+        // Minimally test other values to ensure they are included.
+        lastData.getCpu().usage = 100;
+        lastData.getCpu().limit = 1000;
+        currentData.getCpu().usage = 106;
+        currentData.getCpu().limit = 1000;
+        assert (needUpdate.get());
+
+        lastData.setCpu(new ResourceUsage());
+        currentData.setCpu(new ResourceUsage());
+
+        lastData.setMsgThroughputIn(100);
+        currentData.setMsgThroughputIn(106);
+        assert (needUpdate.get());
+        currentData.setMsgThroughputIn(100);
+
+        lastData.setNumBundles(100);
+        currentData.setNumBundles(106);
+        assert (needUpdate.get());
+
+        currentData.setNumBundles(100);
+        assert (!needUpdate.get());
     }
 }
