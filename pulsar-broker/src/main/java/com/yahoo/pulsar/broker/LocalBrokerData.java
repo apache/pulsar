@@ -110,11 +110,21 @@ public class LocalBrokerData extends JSONWritable implements ServiceLookupData {
         updateSystemResourceUsage(systemResourceUsage);
         updateBundleData(bundleStats);
         lastStats = bundleStats;
-        lastUpdate = System.currentTimeMillis();
     }
 
-    // Set the cpu, memory, and direct memory to that of the new system resource
-    // usage data.
+    /**
+     * Using another LocalBrokerData, update this.
+     * 
+     * @param other
+     *            LocalBrokerData to update from.
+     */
+    public void update(final LocalBrokerData other) {
+        updateSystemResourceUsage(other.cpu, other.memory, other.directMemory, other.bandwidthIn, other.bandwidthOut);
+        updateBundleData(other.lastStats);
+        lastStats = other.lastStats;
+    }
+
+    // Set the cpu, memory, and direct memory to that of the new system resource usage data.
     private void updateSystemResourceUsage(final SystemResourceUsage systemResourceUsage) {
         updateSystemResourceUsage(systemResourceUsage.cpu, systemResourceUsage.memory, systemResourceUsage.directMemory,
                 systemResourceUsage.bandwidthIn, systemResourceUsage.bandwidthOut);
@@ -142,8 +152,6 @@ public class LocalBrokerData extends JSONWritable implements ServiceLookupData {
         int totalNumBundles = 0;
         int totalNumConsumers = 0;
         int totalNumProducers = 0;
-        lastBundleGains.clear();
-        lastBundleLosses.clear();
         final Iterator<String> oldBundleIterator = bundles.iterator();
         while (oldBundleIterator.hasNext()) {
             final String bundle = oldBundleIterator.next();
