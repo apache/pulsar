@@ -111,7 +111,7 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>org.asynchttpclient</groupId>
         <artifactId>async-http-client</artifactId>
-        <version>2.0.19</version>
+        <version>2.0.31</version>
         <exclusions>
          <exclusion>
             <groupId>io.netty</groupId>
