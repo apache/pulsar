@@ -26,6 +26,8 @@ import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.yahoo.pulsar.broker.PulsarService;
+import com.yahoo.pulsar.broker.admin.AdminResource;
 import com.yahoo.pulsar.broker.loadbalance.BrokerHostUsage;
 import com.yahoo.pulsar.common.naming.NamespaceName;
 import com.yahoo.pulsar.common.naming.ServiceUnitId;
@@ -152,7 +154,7 @@ public class LoadManagerShared {
     // From a full bundle name, extract the namespace name.
     public static String getNamespaceNameFromBundleName(String bundleName) {
         // the bundle format is property/cluster/namespace/0x00000000_0xFFFFFFFF
-        int pos = bundleName.lastIndexOf("/");
+        int pos = bundleName.lastIndexOf('/');
         checkArgument(pos != -1);
         return bundleName.substring(0, pos);
     }
@@ -181,5 +183,26 @@ public class LoadManagerShared {
 
     public static String quotaPathFor(final String bundleName) {
         return RESOURCE_QUOTA_ZPATH + '/' + bundleName;
+    }
+    /**
+     * If load balancing is enabled, load shedding is enabled by default unless forced off by setting a flag in global
+     * zk /admin/flags/load-shedding-unload-disabled
+     *
+     * @return false by default, unload is allowed in load shedding true if zk flag is set, unload is disabled
+     */
+    public static boolean isUnloadDisabledInLoadShedding(final PulsarService pulsar) {
+        if (!pulsar.getConfiguration().isLoadBalancerEnabled()) {
+            return true;
+        }
+
+        boolean unloadDisabledInLoadShedding = false;
+        try {
+            unloadDisabledInLoadShedding = pulsar.getGlobalZkCache()
+                    .exists(AdminResource.LOAD_SHEDDING_UNLOAD_DISABLED_FLAG_PATH);
+        } catch (Exception e) {
+            log.warn("Unable to fetch contents of [{}] from global zookeeper",
+                    AdminResource.LOAD_SHEDDING_UNLOAD_DISABLED_FLAG_PATH, e);
+        }
+        return unloadDisabledInLoadShedding;
     }
 }

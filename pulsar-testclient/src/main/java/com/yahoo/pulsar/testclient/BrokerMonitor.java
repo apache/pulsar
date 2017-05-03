@@ -226,6 +226,10 @@ public class BrokerMonitor {
             for (String oldBroker : brokers) {
                 if (!newBrokers.contains(oldBroker)) {
                     log.info("Lost broker: " + oldBroker);
+                    synchronized (loadData) {
+                        // Stop including lost broker in global stats.
+                        loadData.remove(oldBroker);
+                    }
                 }
             }
             for (String newBroker : newBrokers) {

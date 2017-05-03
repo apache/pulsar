@@ -298,7 +298,6 @@ public abstract class ZooKeeperCache implements Watcher {
                     exec.execute(() -> {
                         try {
                             if (rc == KeeperException.Code.OK.intValue()) {
-
                                 try {
                                     final byte[] content = zkSession.get().getData(path, false, null);
                                     T obj = deserializer.deserialize(path, content);

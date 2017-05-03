@@ -92,7 +92,6 @@ public class LoadSimulationClient {
     // consumption as well as size may be changed at
     // any time, and the TradeUnit may also be stopped.
     private static class TradeUnit {
-        Future<Producer> producerFuture;
         Future<Consumer> consumerFuture;
         final AtomicBoolean stop;
         final RateLimiter rateLimiter;
@@ -111,7 +110,6 @@ public class LoadSimulationClient {
                 final ProducerConfiguration producerConf, final ConsumerConfiguration consumerConf,
                 final Map<Integer, byte[]> payloadCache) throws Exception {
             consumerFuture = client.subscribeAsync(tradeConf.topic, "Subscriber-" + tradeConf.topic, consumerConf);
-            producerFuture = client.createProducerAsync(tradeConf.topic, producerConf);
             this.payload = new AtomicReference<>();
             this.producerConf = producerConf;
             this.payloadCache = payloadCache;
@@ -149,7 +147,7 @@ public class LoadSimulationClient {
         }
 
         public void start() throws Exception {
-            Producer producer = producerFuture.get();
+            Producer producer = getNewProducer();
             final Consumer consumer = consumerFuture.get();
             while (!stop.get()) {
                 final MutableBoolean wellnessFlag = new MutableBoolean();
