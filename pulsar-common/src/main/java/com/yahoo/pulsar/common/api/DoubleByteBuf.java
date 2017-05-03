@@ -32,16 +32,6 @@
 */
 package com.yahoo.pulsar.common.api;
 
-import io.netty.buffer.AbstractReferenceCountedByteBuf;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufAllocator;
-import io.netty.buffer.PooledByteBufAllocator;
-import io.netty.buffer.Unpooled;
-import io.netty.util.Recycler;
-import io.netty.util.Recycler.Handle;
-import io.netty.util.ResourceLeak;
-import io.netty.util.ResourceLeakDetector;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -54,6 +44,17 @@ import java.nio.channels.ScatteringByteChannel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.netty.buffer.AbstractReferenceCountedByteBuf;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
+import io.netty.buffer.PooledByteBufAllocator;
+import io.netty.buffer.Unpooled;
+import io.netty.util.Recycler;
+import io.netty.util.Recycler.Handle;
+import io.netty.util.ResourceLeakDetector;
+import io.netty.util.ResourceLeakDetectorFactory;
+import io.netty.util.ResourceLeakTracker;
+
 /**
  * ByteBuf that holds 2 buffers. Similar to {@see CompositeByteBuf} but doesn't allocate list to hold them.
  */
@@ -65,6 +66,7 @@ public final class DoubleByteBuf extends AbstractReferenceCountedByteBuf {
     private final Handle recyclerHandle;
 
     private static final Recycler<DoubleByteBuf> RECYCLER = new Recycler<DoubleByteBuf>() {
+        @Override
         protected DoubleByteBuf newObject(Recycler.Handle handle) {
             return new DoubleByteBuf(handle);
         }
@@ -90,11 +92,11 @@ public final class DoubleByteBuf extends AbstractReferenceCountedByteBuf {
     public ByteBuf getFirst() {
         return b1;
     }
-    
+
     public ByteBuf getSecond() {
         return b2;
     }
-    
+
     @Override
     public boolean isDirect() {
         return b1.isDirect() && b2.isDirect();
@@ -373,8 +375,8 @@ public final class DoubleByteBuf extends AbstractReferenceCountedByteBuf {
 
     private static final Logger log = LoggerFactory.getLogger(DoubleByteBuf.class);
 
-    private static final ResourceLeakDetector<DoubleByteBuf> leakDetector = new ResourceLeakDetector<DoubleByteBuf>(
-            DoubleByteBuf.class);
+    private static final ResourceLeakDetector<DoubleByteBuf> leakDetector = ResourceLeakDetectorFactory.instance()
+            .newResourceLeakDetector(DoubleByteBuf.class);
     private static final Constructor<ByteBuf> simpleLeakAwareByteBufConstructor;
     private static final Constructor<ByteBuf> advancedLeakAwareByteBufConstructor;
 
@@ -384,12 +386,12 @@ public final class DoubleByteBuf extends AbstractReferenceCountedByteBuf {
         try {
             Class<?> simpleLeakAwareByteBufClass = Class.forName("io.netty.buffer.SimpleLeakAwareByteBuf");
             _simpleLeakAwareByteBufConstructor = (Constructor<ByteBuf>) simpleLeakAwareByteBufClass
-                    .getDeclaredConstructor(ByteBuf.class, ResourceLeak.class);
+                    .getDeclaredConstructor(ByteBuf.class, ResourceLeakTracker.class);
             _simpleLeakAwareByteBufConstructor.setAccessible(true);
 
             Class<?> advancedLeakAwareByteBufClass = Class.forName("io.netty.buffer.AdvancedLeakAwareByteBuf");
             _advancedLeakAwareByteBufConstructor = (Constructor<ByteBuf>) advancedLeakAwareByteBufClass
-                    .getDeclaredConstructor(ByteBuf.class, ResourceLeak.class);
+                    .getDeclaredConstructor(ByteBuf.class, ResourceLeakTracker.class);
             _advancedLeakAwareByteBufConstructor.setAccessible(true);
         } catch (Exception e) {
             log.error("Failed to use reflection to enable leak detection");
@@ -401,22 +403,22 @@ public final class DoubleByteBuf extends AbstractReferenceCountedByteBuf {
 
     private static ByteBuf toLeakAwareBuffer(DoubleByteBuf buf) {
         try {
-            ResourceLeak leak;
+            ResourceLeakTracker<DoubleByteBuf> leak;
             switch (ResourceLeakDetector.getLevel()) {
             case DISABLED:
                 break;
 
             case SIMPLE:
-                leak = leakDetector.open(buf);
+                leak = leakDetector.track(buf);
                 if (leak != null) {
-                    return (ByteBuf) simpleLeakAwareByteBufConstructor.newInstance(buf, leak);
+                    return simpleLeakAwareByteBufConstructor.newInstance(buf, leak);
                 }
                 break;
             case ADVANCED:
             case PARANOID:
-                leak = leakDetector.open(buf);
+                leak = leakDetector.track(buf);
                 if (leak != null) {
-                    return (ByteBuf) advancedLeakAwareByteBufConstructor.newInstance(buf, leak);
+                    return advancedLeakAwareByteBufConstructor.newInstance(buf, leak);
                 }
                 break;
             }
