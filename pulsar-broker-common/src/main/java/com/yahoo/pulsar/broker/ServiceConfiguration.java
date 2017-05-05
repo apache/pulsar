@@ -265,7 +265,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(dynamic = true)
     private String activeVersion = "";
     // Name of the Maven resource which contains the version string and build timestamp
-    private final String RESOURCE_NAME = "version.txt";
+    private final String RESOURCE_NAME = "pulsar-broker-version.properties";
     // Version string for this broker (inferred from Maven artifact, overridden in the broker configuration file)
     private String brokerVersionString;
     // Build timestamp
