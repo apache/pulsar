@@ -31,7 +31,7 @@ import com.yahoo.pulsar.broker.loadbalance.LoadData;
 
 public class BrokerVersionFilter implements BrokerFilter {
 
-    private static final Logger LOG = LoggerFactory.getLogger(GenericBrokerHostUsageImpl.class);
+    private static final Logger LOG = LoggerFactory.getLogger(BrokerVersionFilter.class);
 
     /**
      * From the given set of available broker candidates, filter those using the load data.
