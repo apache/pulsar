@@ -213,10 +213,13 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
                 pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
         localData = new LocalBrokerData(pulsar.getWebServiceAddress(), pulsar.getWebServiceAddressTls(),
                 pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
+        localData.setBrokerVersionString(pulsar.getConfiguration().getBrokerVersionString());
+        localData.setBrokerStartTime(pulsar.getConfiguration().getBrokerStartTime());
         placementStrategy = ModularLoadManagerStrategy.create(conf);
         policies = new SimpleResourceAllocationPolicies(pulsar);
         this.pulsar = pulsar;
         zkClient = pulsar.getZkClient();
+        filterPipeline.add(new BrokerVersionFilter());
     }
 
     /**
@@ -522,11 +525,23 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
             LoadManagerShared.applyPolicies(serviceUnit, policies, brokerCandidateCache, getAvailableBrokers());
             log.info("{} brokers being considered for assignment of {}", brokerCandidateCache.size(), bundle);
 
+            // Make a copy in case the remaining brokers after filtering below are all overloaded
+            HashSet<String> brokerCandidateCacheCopy = new HashSet<>(brokerCandidateCache);
+
             // Use the filter pipeline to finalize broker candidates.
             for (BrokerFilter filter : filterPipeline) {
                 filter.filter(brokerCandidateCache, data, loadData, conf);
             }
-            final String broker = placementStrategy.selectBroker(brokerCandidateCache, data, loadData, conf);
+
+            // Choose a broker among the potentially smaller filtered list, when possible
+            String broker = placementStrategy.selectBroker(brokerCandidateCache, data, loadData, conf);
+
+            final double overloadThreshold = conf.getLoadBalancerBrokerOverloadedThresholdPercentage() / 100.0;
+            final double maxUsage = loadData.getBrokerData().get(broker).getLocalData().getMaxResourceUsage();
+            if (maxUsage > overloadThreshold) {
+                // All brokers that were in the filtered list were overloaded, so check if there is a better broker
+                broker = placementStrategy.selectBroker(brokerCandidateCacheCopy, data, loadData, conf);
+            }
 
             // Add new bundle to preallocated.
             loadData.getBrokerData().get(broker).getPreallocatedBundleData().put(bundle, data);

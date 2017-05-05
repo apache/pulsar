@@ -1063,6 +1063,8 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
                         pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
                 loadReport.setName(String.format("%s:%s", pulsar.getAdvertisedAddress(),
                         pulsar.getConfiguration().getWebServicePort()));
+                loadReport.setBrokerStartTime(pulsar.getConfiguration().getBrokerStartTime());
+                loadReport.setBrokerVersionString(pulsar.getConfiguration().getBrokerVersionString());
                 SystemResourceUsage systemResourceUsage = this.getSystemResourceUsage();
                 loadReport.setOverLoaded(isAboveLoadLevel(systemResourceUsage,
                         this.getLoadBalancerBrokerOverloadedThresholdPercentage()));

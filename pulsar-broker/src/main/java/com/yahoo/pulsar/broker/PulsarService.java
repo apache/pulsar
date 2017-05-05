@@ -256,7 +256,8 @@ public class PulsarService implements AutoCloseable {
             // needs load management service
             this.startNamespaceService();
 
-            LOG.info("Starting Pulsar Broker service");
+            LOG.info("Starting Pulsar Broker service; version: \"" + config.getBrokerVersionString() + 
+                "\"; buildTime: " + config.getBrokerBuildTimeString());
             brokerService.start();
 
             this.webService = new WebService(this);
