@@ -37,6 +37,7 @@ import com.google.common.collect.Iterables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.yahoo.pulsar.client.api.BrokerConsumerStats;
 import com.yahoo.pulsar.client.api.Consumer;
 import com.yahoo.pulsar.client.api.ConsumerConfiguration;
 import com.yahoo.pulsar.client.api.Message;
@@ -92,6 +93,7 @@ public class ConsumerImpl extends ConsumerBase {
 
     private final ConsumerStats stats;
     private final int priorityLevel;
+    private volatile BrokerConsumerStatsImpl brokerConsumerStats = new BrokerConsumerStatsImpl();
 
     ConsumerImpl(PulsarClientImpl client, String topic, String subscription, ConsumerConfiguration conf,
                  ExecutorService listenerExecutor, CompletableFuture<Consumer> subscribeFuture) {
@@ -1014,5 +1016,24 @@ public class ConsumerImpl extends ConsumerBase {
     }
 
     private static final Logger log = LoggerFactory.getLogger(ConsumerImpl.class);
+
+    @Override
+    public CompletableFuture<BrokerConsumerStats> getBrokerConsumerStatsAsync() {
+        if (getState() != State.Ready || !isConnected()) {
+            return FutureUtil.failedFuture(new PulsarClientException.NotConnectedException());
+        }
+
+        if (brokerConsumerStats.isValid()) {
+            return CompletableFuture.completedFuture(brokerConsumerStats);
+        }
+        
+        long requestId = client.newRequestId();
+        return cnx().newConsumerStats(topic, subscription, consumerId, requestId)
+                .thenApply(brokerConsumerStats -> {
+                    brokerConsumerStats.setCacheTime(conf.getBrokerConsumerStatsCacheTimeInMs());
+                    this.brokerConsumerStats = brokerConsumerStats;
+                    return brokerConsumerStats;
+                });
+    }
 
 }

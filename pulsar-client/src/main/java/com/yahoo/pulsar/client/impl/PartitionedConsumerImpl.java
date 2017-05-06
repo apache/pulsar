@@ -33,6 +33,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
+import com.yahoo.pulsar.client.api.BrokerConsumerStats;
 import com.yahoo.pulsar.client.api.Consumer;
 import com.yahoo.pulsar.client.api.ConsumerConfiguration;
 import com.yahoo.pulsar.client.api.Message;
@@ -128,7 +129,7 @@ public class PartitionedConsumerImpl extends ConsumerBase {
 
             if (incomingMessages.size() >= maxReceiverQueueSize
                     || (incomingMessages.size() > sharedQueueResumeThreshold && !pausedConsumers.isEmpty())) {
-                // mark this consumer to be resumed later: if No more space left in shared queue, 
+                // mark this consumer to be resumed later: if No more space left in shared queue,
                 // or if any consumer is already paused (to create fair chance for already paused consumers)
                 pausedConsumers.add(consumer);
             } else {
@@ -264,7 +265,6 @@ public class PartitionedConsumerImpl extends ConsumerBase {
 
     @Override
     public CompletableFuture<Void> closeAsync() {
-
         if (getState() == State.Closing || getState() == State.Closed) {
             return CompletableFuture.completedFuture(null);
         }
@@ -328,7 +328,8 @@ public class PartitionedConsumerImpl extends ConsumerBase {
         lock.readLock().lock();
         try {
             if (log.isDebugEnabled()) {
-                log.debug("[{}][{}] Received message from partitioned-consumer {}", topic, subscription, message.getMessageId());
+                log.debug("[{}][{}] Received message from partitioned-consumer {}", topic, subscription,
+                        message.getMessageId());
             }
             // if asyncReceive is waiting : return message to callback without adding to incomingMessages queue
             if (!pendingReceives.isEmpty()) {
@@ -359,7 +360,8 @@ public class PartitionedConsumerImpl extends ConsumerBase {
 
                 try {
                     if (log.isDebugEnabled()) {
-                        log.debug("[{}][{}] Calling message listener for message {}", topic, subscription, message.getMessageId());
+                        log.debug("[{}][{}] Calling message listener for message {}", topic, subscription,
+                                message.getMessageId());
                     }
                     listener.received(PartitionedConsumerImpl.this, msg);
                 } catch (Throwable t) {
@@ -449,4 +451,30 @@ public class PartitionedConsumerImpl extends ConsumerBase {
     }
 
     private static final Logger log = LoggerFactory.getLogger(PartitionedConsumerImpl.class);
+
+    @Override
+    public synchronized CompletableFuture<BrokerConsumerStats> getBrokerConsumerStatsAsync() {
+        if (getState() != State.Ready) {
+            return FutureUtil.failedFuture(new PulsarClientException.NotConnectedException());
+        }
+        PartitionedBrokerConsumerStatsImpl brokerConsumerStats = new PartitionedBrokerConsumerStatsImpl(consumers.size());
+        List<CompletableFuture<Void>> futures = Lists.newArrayList();
+        for (int i = 0; i < consumers.size(); i++) {
+            final int index = i; // need effectively final variable to use in thenAccept(...)
+            futures.add(consumers.get(index).getBrokerConsumerStatsAsync()
+                    .thenAccept(stats -> {
+                brokerConsumerStats.add(index, stats);
+            }));
+        }
+        final CompletableFuture<BrokerConsumerStats> future = new CompletableFuture<BrokerConsumerStats>();
+        FutureUtil.waitForAll(futures).thenApply(r -> {
+            future.complete(brokerConsumerStats);
+            return (BrokerConsumerStats) brokerConsumerStats;
+        }).exceptionally(ex -> {
+            brokerConsumerStats.clear();
+            future.completeExceptionally(ex);
+            return null;
+        });
+        return future;
+    }
 }

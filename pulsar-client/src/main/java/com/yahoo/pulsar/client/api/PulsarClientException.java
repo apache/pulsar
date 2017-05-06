@@ -24,6 +24,7 @@ import java.io.IOException;
  */
 @SuppressWarnings("serial")
 public class PulsarClientException extends IOException {
+
     public PulsarClientException(String msg) {
         super(msg);
     }
@@ -172,6 +173,36 @@ public class PulsarClientException extends IOException {
     
     public static class ChecksumException extends PulsarClientException {
         public ChecksumException(String msg) {
+            super(msg);
+        }
+    }
+    
+    public static class TopicNotFoundException extends PulsarClientException {
+        public TopicNotFoundException(String msg) {
+            super(msg);
+        }
+    }
+    
+    public static class ConsumerIdNotFoundException extends PulsarClientException {
+        public ConsumerIdNotFoundException(String msg) {
+            super(msg);
+        }
+    }
+    
+    public static class SubscriptionNotFoundException extends PulsarClientException {
+        public SubscriptionNotFoundException(String msg) {
+            super(msg);
+        }
+    }
+    
+    public static class UnknownError extends PulsarClientException {
+        public UnknownError(String msg) {
+            super(msg);
+        }
+    }
+    
+    public static class UnsupportedVersionError extends PulsarClientException {
+        public UnsupportedVersionError(String msg) {
             super(msg);
         }
     }

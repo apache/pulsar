@@ -48,6 +48,29 @@ public class ConsumerConfiguration implements Serializable {
     private long ackTimeoutMillis = 0;
     
     private int priorityLevel = 0;
+    
+    private long brokerConsumerStatsCacheTimeInMs = 30 * 1000; // 30 seconds
+
+    /**
+     * @return the cache time in milliseconds for broker consumer stats.
+     */
+    public long getBrokerConsumerStatsCacheTimeInMs() {
+        return brokerConsumerStatsCacheTimeInMs;
+    }
+
+    /**
+     * Set cache time for broker consumer stats.
+     *
+     * @param brokerConsumerStatsCacheTime
+     *            cache time for broker consumer stats.
+     * @param timeUnit
+     *            unit in which the brokerConsumerStatsCacheTime is provided.
+     * @return {@link ConsumerConfiguration}
+     */
+    public ConsumerConfiguration setBrokerConsumerStatsCacheTime(long brokerConsumerStatsCacheTime, TimeUnit timeUnit) {
+        this.brokerConsumerStatsCacheTimeInMs = timeUnit.toMillis(brokerConsumerStatsCacheTime);
+        return this;
+    }
 
     /**
      * @return the configured timeout in milliseconds for unacked messages.
