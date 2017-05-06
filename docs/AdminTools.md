@@ -1411,7 +1411,10 @@ admin.persistentTopics().createPartitionedTopic(persistentTopic, numPartitions)
 
 It updates number of partitions of an existing non-global partitioned topic. It requires partitioned-topic to be already 
 exist and number of new partitions must be greater than existing number of partitions. Decrementing number of partitions
-requires deletion of topic which is not supported.  
+requires deletion of topic which is not supported.
+Already created partitioned producers and consumers can't see newly created partitions and it requires to recreate them at
+application so, newly created producers and consumers can connect to newly added partitions as well. Therefore, it can 
+violate partition ordering at producers until all producers are restarted at application.
 
 ###### CLI
 
