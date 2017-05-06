@@ -46,6 +46,7 @@ import com.yahoo.pulsar.client.impl.ProducerImpl;
 import com.yahoo.pulsar.client.impl.PulsarClientImpl;
 import com.yahoo.pulsar.client.impl.SendCallback;
 import com.yahoo.pulsar.common.policies.data.ReplicatorStats;
+import com.yahoo.pulsar.common.util.Codec;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.util.Recycler;
@@ -107,7 +108,7 @@ public class PersistentReplicator implements ReadEntriesCallback, DeleteCallback
         this.remoteCluster = remoteCluster;
         this.client = (PulsarClientImpl) brokerService.getReplicationClient(remoteCluster);
         this.producer = null;
-        this.expiryMonitor = new PersistentMessageExpiryMonitor(topicName, cursor);
+        this.expiryMonitor = new PersistentMessageExpiryMonitor(topicName, Codec.decode(cursor.getName()), cursor);
         HAVE_PENDING_READ_UPDATER.set(this, FALSE);
         PENDING_MESSAGES_UPDATER.set(this, 0);
         STATE_UPDATER.set(this, State.Stopped);

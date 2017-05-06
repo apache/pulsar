@@ -35,10 +35,8 @@ import org.slf4j.LoggerFactory;
 
 import com.yahoo.pulsar.broker.authentication.AuthenticationDataCommand;
 import com.yahoo.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
-import com.yahoo.pulsar.broker.service.persistent.PersistentSubscription;
-import com.yahoo.pulsar.broker.service.persistent.PersistentTopic;
 import com.yahoo.pulsar.client.api.PulsarClientException;
-import com.yahoo.pulsar.common.policies.data.ConsumerStats;
+import com.yahoo.pulsar.client.impl.MessageIdImpl;
 import com.yahoo.pulsar.common.api.Commands;
 import com.yahoo.pulsar.common.api.PulsarHandler;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandAck;
@@ -61,6 +59,7 @@ import com.yahoo.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.ServerError;
 import com.yahoo.pulsar.common.naming.DestinationName;
 import com.yahoo.pulsar.common.policies.data.BacklogQuota;
+import com.yahoo.pulsar.common.policies.data.ConsumerStats;
 import com.yahoo.pulsar.common.util.collections.ConcurrentLongHashMap;
 
 import io.netty.buffer.ByteBuf;
@@ -153,8 +152,7 @@ public class ServerCnx extends PulsarHandler {
     // ////
     // // Incoming commands handling
     // ////
-    
-    
+
     @Override
     protected void handleLookup(CommandLookupTopic lookup) {
         final long requestId = lookup.getRequestId();
@@ -226,7 +224,7 @@ public class ServerCnx extends PulsarHandler {
                     "Failed due to too many pending lookup requests", requestId));
         }
     }
-    
+
     @Override
     protected void handleConsumerStats(CommandConsumerStats commandConsumerStats) {
         if (log.isDebugEnabled()) {
@@ -247,8 +245,7 @@ public class ServerCnx extends PulsarHandler {
                     "Consumer " + consumerId + " not found", requestId);
         } else {
             if (log.isDebugEnabled()) {
-                log.debug("CommandConsumerStats[requestId = {}, consumer = {}]",
-                        requestId, consumer);
+                log.debug("CommandConsumerStats[requestId = {}, consumer = {}]", requestId, consumer);
             }
             msg = Commands.newConsumerStatsResponse(createConsumerStatsResponse(consumer, requestId));
         }
@@ -270,7 +267,7 @@ public class ServerCnx extends PulsarHandler {
         commandConsumerStatsResponseBuilder.setBlockedConsumerOnUnackedMsgs(consumerStats.blockedConsumerOnUnackedMsgs);
         commandConsumerStatsResponseBuilder.setAddress(consumerStats.address);
         commandConsumerStatsResponseBuilder.setConnectedSince(consumerStats.connectedSince);
-        
+
         Subscription subscription = consumer.getSubscription();
         commandConsumerStatsResponseBuilder.setMsgBacklog(subscription.getNumberOfEntriesInBacklog());
         commandConsumerStatsResponseBuilder.setMsgRateExpired(subscription.getExpiredMessageRate());
@@ -338,6 +335,12 @@ public class ServerCnx extends PulsarHandler {
         final long consumerId = subscribe.getConsumerId();
         final SubType subType = subscribe.getSubType();
         final String consumerName = subscribe.getConsumerName();
+        final boolean isDurable = subscribe.getDurable();
+        final MessageIdImpl startMessageId = subscribe.hasStartMessageId()
+                ? new MessageIdImpl(subscribe.getStartMessageId().getLedgerId(),
+                        subscribe.getStartMessageId().getEntryId(), subscribe.getStartMessageId().getPartition())
+                : null;
+
         final int priorityLevel = subscribe.hasPriorityLevel() ? subscribe.getPriorityLevel() : 0;
 
         authorizationFuture.thenApply(isAuthorized -> {
@@ -363,15 +366,16 @@ public class ServerCnx extends PulsarHandler {
                         // creation request either complete or fails.
                         log.warn("[{}][{}][{}] Consumer is already present on the connection", remoteAddress, topicName,
                                 subscriptionName);
-                        ServerError error = !existingConsumerFuture.isDone() ? ServerError.ServiceNotReady : getErrorCode(existingConsumerFuture);;
-                        ctx.writeAndFlush(Commands.newError(requestId, error,
-                                "Consumer is already present on the connection"));
+                        ServerError error = !existingConsumerFuture.isDone() ? ServerError.ServiceNotReady
+                                : getErrorCode(existingConsumerFuture);
+                        ctx.writeAndFlush(
+                                Commands.newError(requestId, error, "Consumer is already present on the connection"));
                         return null;
                     }
                 }
 
-                service.getTopic(topicName).thenCompose(
-                        topic -> topic.subscribe(ServerCnx.this, subscriptionName, consumerId, subType, priorityLevel, consumerName))
+                service.getTopic(topicName).thenCompose(topic -> topic.subscribe(ServerCnx.this, subscriptionName,
+                        consumerId, subType, priorityLevel, consumerName, isDurable, startMessageId))
                         .thenAccept(consumer -> {
                             if (consumerFuture.complete(consumer)) {
                                 log.info("[{}] Created subscription on topic {} / {}", remoteAddress, topicName,
@@ -393,7 +397,7 @@ public class ServerCnx extends PulsarHandler {
                         }) //
                         .exceptionally(exception -> {
                             log.warn("[{}][{}][{}] Failed to create consumer: {}", remoteAddress, topicName,
-                                    subscriptionName, exception.getCause().getMessage());
+                                    subscriptionName, exception.getCause().getMessage(), exception);
 
                             // If client timed out, the future would have been completed by subsequent close. Send error
                             // back to client, only if not completed already.
@@ -455,10 +459,11 @@ public class ServerCnx extends PulsarHandler {
                         // until the previous producer creation
                         // request
                         // either complete or fails.
-                        ServerError error = !existingProducerFuture.isDone() ? ServerError.ServiceNotReady : getErrorCode(existingProducerFuture);
+                        ServerError error = !existingProducerFuture.isDone() ? ServerError.ServiceNotReady
+                                : getErrorCode(existingProducerFuture);
                         log.warn("[{}][{}] Producer is already present on the connection", remoteAddress, topicName);
-                        ctx.writeAndFlush(Commands.newError(requestId, error,
-                                "Producer is already present on the connection"));
+                        ctx.writeAndFlush(
+                                Commands.newError(requestId, error, "Producer is already present on the connection"));
                         return null;
                     }
                 }
@@ -740,7 +745,7 @@ public class ServerCnx extends PulsarHandler {
         }
         long producerId = producer.getProducerId();
         producers.remove(producerId);
-        if(remoteEndpointProtocolVersion >= v5.getNumber()) {
+        if (remoteEndpointProtocolVersion >= v5.getNumber()) {
             ctx.writeAndFlush(Commands.newCloseProducer(producerId, -1L));
         } else {
             close();
@@ -755,7 +760,7 @@ public class ServerCnx extends PulsarHandler {
         }
         long consumerId = consumer.consumerId();
         consumers.remove(consumerId);
-        if(remoteEndpointProtocolVersion >= v5.getNumber()) {
+        if (remoteEndpointProtocolVersion >= v5.getNumber()) {
             ctx.writeAndFlush(Commands.newCloseConsumer(consumerId, -1L));
         } else {
             close();
@@ -860,7 +865,7 @@ public class ServerCnx extends PulsarHandler {
     boolean hasConsumer(long consumerId) {
         return consumers.containsKey(consumerId);
     }
-    
+
     public boolean isBatchMessageCompatibleVersion() {
         return remoteEndpointProtocolVersion >= ProtocolVersion.v4.getNumber();
     }

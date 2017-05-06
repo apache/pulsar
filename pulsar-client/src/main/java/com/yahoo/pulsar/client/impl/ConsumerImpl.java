@@ -17,14 +17,19 @@ package com.yahoo.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.yahoo.pulsar.checksum.utils.Crc32cChecksum.computeChecksum;
+import static com.yahoo.pulsar.common.api.Commands.hasChecksum;
+import static com.yahoo.pulsar.common.api.Commands.readChecksum;
 import static java.lang.String.format;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.List;
 import java.util.NavigableMap;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentNavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -33,10 +38,10 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
 
-import com.google.common.collect.Iterables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.collect.Iterables;
 import com.yahoo.pulsar.client.api.Consumer;
 import com.yahoo.pulsar.client.api.ConsumerConfiguration;
 import com.yahoo.pulsar.client.api.Message;
@@ -60,9 +65,6 @@ import io.netty.buffer.ByteBuf;
 import io.netty.util.Timeout;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
-import static com.yahoo.pulsar.common.api.Commands.readChecksum;
-import static com.yahoo.pulsar.checksum.utils.Crc32cChecksum.computeChecksum;
-import static com.yahoo.pulsar.common.api.Commands.hasChecksum;
 
 public class ConsumerImpl extends ConsumerBase {
     private static final int MAX_REDELIVER_UNACKNOWLEDGED = 1000;
@@ -74,6 +76,8 @@ public class ConsumerImpl extends ConsumerBase {
     private static final AtomicIntegerFieldUpdater<ConsumerImpl> AVAILABLE_PERMITS_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(ConsumerImpl.class, "availablePermits");
     private volatile int availablePermits = 0;
+
+    private MessageIdImpl lastDequeuedMessage;
 
     private long subscribeTimeout;
     private final int partitionIndex;
@@ -88,27 +92,42 @@ public class ConsumerImpl extends ConsumerBase {
     private final ReadWriteLock zeroQueueLock;
 
     private final UnAckedMessageTracker unAckedMessageTracker;
-    private final ConcurrentSkipListMap<MessageIdImpl, BitSet> batchMessageAckTracker;
+    private final ConcurrentNavigableMap<MessageIdImpl, BitSet> batchMessageAckTracker;
 
-    private final ConsumerStats stats;
+    protected final ConsumerStats stats;
     private final int priorityLevel;
+    private final SubscriptionMode subscriptionMode;
+    private final MessageId startMessageId;
 
-    ConsumerImpl(PulsarClientImpl client, String topic, String subscription, ConsumerConfiguration conf,
-                 ExecutorService listenerExecutor, CompletableFuture<Consumer> subscribeFuture) {
-        this(client, topic, subscription, conf, listenerExecutor, -1, subscribeFuture);
+    static enum SubscriptionMode {
+        // Make the subscription to be backed by a durable cursor that will retain messages and persist the current
+        // position
+        Durable,
+
+        // Lightweight subscription mode that doesn't have a durable cursor associated
+        NonDurable
     }
 
     ConsumerImpl(PulsarClientImpl client, String topic, String subscription, ConsumerConfiguration conf,
-                 ExecutorService listenerExecutor, int partitionIndex, CompletableFuture<Consumer> subscribeFuture) {
+            ExecutorService listenerExecutor, int partitionIndex, CompletableFuture<Consumer> subscribeFuture) {
+        this(client, topic, subscription, conf, listenerExecutor, partitionIndex, subscribeFuture,
+                SubscriptionMode.Durable, null);
+    }
+
+    ConsumerImpl(PulsarClientImpl client, String topic, String subscription, ConsumerConfiguration conf,
+            ExecutorService listenerExecutor, int partitionIndex, CompletableFuture<Consumer> subscribeFuture,
+            SubscriptionMode subscriptionMode, MessageId startMessageId) {
         super(client, topic, subscription, conf, conf.getReceiverQueueSize(), listenerExecutor, subscribeFuture);
         this.consumerId = client.newConsumerId();
+        this.subscriptionMode = subscriptionMode;
+        this.startMessageId = startMessageId;
         AVAILABLE_PERMITS_UPDATER.set(this, 0);
         this.subscribeTimeout = System.currentTimeMillis() + client.getConfiguration().getOperationTimeoutMs();
         this.partitionIndex = partitionIndex;
         this.receiverQueueRefillThreshold = conf.getReceiverQueueSize() / 2;
         this.codecProvider = new CompressionCodecProvider();
         this.priorityLevel = conf.getPriorityLevel();
-        batchMessageAckTracker = new ConcurrentSkipListMap<>();
+        this.batchMessageAckTracker = new ConcurrentSkipListMap<>();
         if (client.getConfiguration().getStatsIntervalSeconds() > 0) {
             stats = new ConsumerStats(client, conf, this);
         } else {
@@ -236,6 +255,7 @@ public class ConsumerImpl extends ConsumerBase {
             }
             do {
                 message = incomingMessages.take();
+                lastDequeuedMessage = (MessageIdImpl) message.getMessageId();
                 ClientCnx msgCnx = ((MessageImpl) message).getCnx();
                 // synchronized need to prevent race between connectionOpened and the check "msgCnx == cnx()"
                 synchronized (ConsumerImpl.this) {
@@ -459,13 +479,38 @@ public class ConsumerImpl extends ConsumerBase {
         log.info("[{}][{}] Subscribing to topic on cnx {}", topic, subscription, cnx.ctx().channel());
 
         long requestId = client.newRequestId();
-        cnx.sendRequestWithId(Commands.newSubscribe(topic, subscription, consumerId, requestId, getSubType(),
-                priorityLevel, consumerName), requestId).thenRun(() -> {
+
+        int currentSize;
+        MessageIdImpl startMessageId;
+        synchronized (this) {
+            currentSize = incomingMessages.size();
+            startMessageId = clearReceiverQueue();
+            unAckedMessageTracker.clear();
+            batchMessageAckTracker.clear();
+        }
+
+        boolean isDurable = subscriptionMode == SubscriptionMode.Durable;
+        MessageIdData startMessageIdData;
+        if (isDurable) {
+            // For regular durable subscriptions, the message id from where to restart will be determined by the broker.
+            startMessageIdData = null;
+        } else {
+            // For non-durable we are going to restart from the next entry
+            MessageIdData.Builder builder = MessageIdData.newBuilder();
+            builder.setLedgerId(startMessageId.getLedgerId());
+            builder.setEntryId(startMessageId.getEntryId());
+            startMessageIdData = builder.build();
+            builder.recycle();
+        }
+
+        ByteBuf request = Commands.newSubscribe(topic, subscription, consumerId, requestId, getSubType(), priorityLevel,
+                consumerName, isDurable, startMessageIdData);
+        if (startMessageIdData != null) {
+            startMessageIdData.recycle();
+        }
+
+        cnx.sendRequestWithId(request, requestId).thenRun(() -> {
             synchronized (ConsumerImpl.this) {
-                int currentSize = incomingMessages.size();
-                incomingMessages.clear();
-                unAckedMessageTracker.clear();
-                batchMessageAckTracker.clear();
                 if (changeToReadyState()) {
                     log.info("[{}][{}] Subscribed to topic on {} -- consumer: {}", topic, subscription,
                         cnx.channel().remoteAddress(), consumerId);
@@ -523,6 +568,28 @@ public class ConsumerImpl extends ConsumerBase {
             }
             return null;
         });
+    }
+
+    /**
+     * Clear the internal receiver queue and returns the message id of what was the 1st message in the queue that was
+     * not seen by the application
+     */
+    private MessageIdImpl clearReceiverQueue() {
+        List<Message> currentMessageQueue = new ArrayList<>(incomingMessages.size());
+        incomingMessages.drainTo(currentMessageQueue);
+        if (!currentMessageQueue.isEmpty()) {
+            MessageIdImpl nextMessageInQueue = (MessageIdImpl) currentMessageQueue.get(0).getMessageId();
+            MessageIdImpl previousMessage = new MessageIdImpl(nextMessageInQueue.getLedgerId(),
+                    nextMessageInQueue.getEntryId() - 1, nextMessageInQueue.getPartitionIndex());
+            return previousMessage;
+        } else if (lastDequeuedMessage != null) {
+            // If the queue was empty we need to restart from the message just after the last one that has been dequeued
+            // in the past
+            return lastDequeuedMessage;
+        } else {
+            // No message was received or dequeued by this consumer. Next message would still be the startMessageId
+            return (MessageIdImpl) startMessageId;
+        }
     }
 
     /**
@@ -783,23 +850,27 @@ public class ConsumerImpl extends ConsumerBase {
      *
      * Periodically, it sends a Flow command to notify the broker that it can push more messages
      */
-    private synchronized void messageProcessed(Message msg) {
+    protected synchronized void messageProcessed(Message msg) {
         ClientCnx currentCnx = cnx();
         ClientCnx msgCnx = ((MessageImpl) msg).getCnx();
+        lastDequeuedMessage = (MessageIdImpl) msg.getMessageId();
 
         if (msgCnx != currentCnx) {
             // The processed message did belong to the old queue that was cleared after reconnection.
             return;
         }
 
-        // reset timer for messages that are received by the client
-        MessageIdImpl id = (MessageIdImpl) msg.getMessageId();
-        if (id instanceof BatchMessageIdImpl) {
-            id = new MessageIdImpl(id.getLedgerId(), id.getEntryId(), getPartitionIndex());
-        }
-        unAckedMessageTracker.add(id);
         increaseAvailablePermits(currentCnx);
         stats.updateNumMsgsReceived(msg);
+
+        if (conf.getAckTimeoutMillis() != 0) {
+            // reset timer for messages that are received by the client
+            MessageIdImpl id = (MessageIdImpl) msg.getMessageId();
+            if (id instanceof BatchMessageIdImpl) {
+                id = new MessageIdImpl(id.getLedgerId(), id.getEntryId(), getPartitionIndex());
+            }
+            unAckedMessageTracker.add(id);
+        }
     }
 
     private void increaseAvailablePermits(ClientCnx currentCnx) {

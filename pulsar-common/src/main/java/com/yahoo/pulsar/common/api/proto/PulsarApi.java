@@ -4016,6 +4016,14 @@ public final class PulsarApi {
     // optional int32 priority_level = 7;
     boolean hasPriorityLevel();
     int getPriorityLevel();
+    
+    // optional bool durable = 8 [default = true];
+    boolean hasDurable();
+    boolean getDurable();
+    
+    // optional .pulsar.proto.MessageIdData start_message_id = 9;
+    boolean hasStartMessageId();
+    com.yahoo.pulsar.common.api.proto.PulsarApi.MessageIdData getStartMessageId();
   }
   public static final class CommandSubscribe extends
       com.google.protobuf.GeneratedMessageLite
@@ -4232,6 +4240,26 @@ public final class PulsarApi {
       return priorityLevel_;
     }
     
+    // optional bool durable = 8 [default = true];
+    public static final int DURABLE_FIELD_NUMBER = 8;
+    private boolean durable_;
+    public boolean hasDurable() {
+      return ((bitField0_ & 0x00000080) == 0x00000080);
+    }
+    public boolean getDurable() {
+      return durable_;
+    }
+    
+    // optional .pulsar.proto.MessageIdData start_message_id = 9;
+    public static final int START_MESSAGE_ID_FIELD_NUMBER = 9;
+    private com.yahoo.pulsar.common.api.proto.PulsarApi.MessageIdData startMessageId_;
+    public boolean hasStartMessageId() {
+      return ((bitField0_ & 0x00000100) == 0x00000100);
+    }
+    public com.yahoo.pulsar.common.api.proto.PulsarApi.MessageIdData getStartMessageId() {
+      return startMessageId_;
+    }
+    
     private void initFields() {
       topic_ = "";
       subscription_ = "";
@@ -4240,6 +4268,8 @@ public final class PulsarApi {
       requestId_ = 0L;
       consumerName_ = "";
       priorityLevel_ = 0;
+      durable_ = true;
+      startMessageId_ = com.yahoo.pulsar.common.api.proto.PulsarApi.MessageIdData.getDefaultInstance();
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -4265,6 +4295,12 @@ public final class PulsarApi {
       if (!hasRequestId()) {
         memoizedIsInitialized = 0;
         return false;
+      }
+      if (hasStartMessageId()) {
+        if (!getStartMessageId().isInitialized()) {
+          memoizedIsInitialized = 0;
+          return false;
+        }
       }
       memoizedIsInitialized = 1;
       return true;
@@ -4298,6 +4334,12 @@ public final class PulsarApi {
       }
       if (((bitField0_ & 0x00000040) == 0x00000040)) {
         output.writeInt32(7, priorityLevel_);
+      }
+      if (((bitField0_ & 0x00000080) == 0x00000080)) {
+        output.writeBool(8, durable_);
+      }
+      if (((bitField0_ & 0x00000100) == 0x00000100)) {
+        output.writeMessage(9, startMessageId_);
       }
     }
     
@@ -4334,6 +4376,14 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000040) == 0x00000040)) {
         size += com.google.protobuf.CodedOutputStream
           .computeInt32Size(7, priorityLevel_);
+      }
+      if (((bitField0_ & 0x00000080) == 0x00000080)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeBoolSize(8, durable_);
+      }
+      if (((bitField0_ & 0x00000100) == 0x00000100)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeMessageSize(9, startMessageId_);
       }
       memoizedSerializedSize = size;
       return size;
@@ -4462,6 +4512,10 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000020);
         priorityLevel_ = 0;
         bitField0_ = (bitField0_ & ~0x00000040);
+        durable_ = true;
+        bitField0_ = (bitField0_ & ~0x00000080);
+        startMessageId_ = com.yahoo.pulsar.common.api.proto.PulsarApi.MessageIdData.getDefaultInstance();
+        bitField0_ = (bitField0_ & ~0x00000100);
         return this;
       }
       
@@ -4523,6 +4577,14 @@ public final class PulsarApi {
           to_bitField0_ |= 0x00000040;
         }
         result.priorityLevel_ = priorityLevel_;
+        if (((from_bitField0_ & 0x00000080) == 0x00000080)) {
+          to_bitField0_ |= 0x00000080;
+        }
+        result.durable_ = durable_;
+        if (((from_bitField0_ & 0x00000100) == 0x00000100)) {
+          to_bitField0_ |= 0x00000100;
+        }
+        result.startMessageId_ = startMessageId_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -4550,6 +4612,12 @@ public final class PulsarApi {
         if (other.hasPriorityLevel()) {
           setPriorityLevel(other.getPriorityLevel());
         }
+        if (other.hasDurable()) {
+          setDurable(other.getDurable());
+        }
+        if (other.hasStartMessageId()) {
+          mergeStartMessageId(other.getStartMessageId());
+        }
         return this;
       }
       
@@ -4573,6 +4641,12 @@ public final class PulsarApi {
         if (!hasRequestId()) {
           
           return false;
+        }
+        if (hasStartMessageId()) {
+          if (!getStartMessageId().isInitialized()) {
+            
+            return false;
+          }
         }
         return true;
       }
@@ -4636,6 +4710,21 @@ public final class PulsarApi {
             case 56: {
               bitField0_ |= 0x00000040;
               priorityLevel_ = input.readInt32();
+              break;
+            }
+            case 64: {
+              bitField0_ |= 0x00000080;
+              durable_ = input.readBool();
+              break;
+            }
+            case 74: {
+              com.yahoo.pulsar.common.api.proto.PulsarApi.MessageIdData.Builder subBuilder = com.yahoo.pulsar.common.api.proto.PulsarApi.MessageIdData.newBuilder();
+              if (hasStartMessageId()) {
+                subBuilder.mergeFrom(getStartMessageId());
+              }
+              input.readMessage(subBuilder, extensionRegistry);
+              setStartMessageId(subBuilder.buildPartial());
+              subBuilder.recycle();
               break;
             }
           }
@@ -4836,6 +4925,70 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000040);
         priorityLevel_ = 0;
         
+        return this;
+      }
+      
+      // optional bool durable = 8 [default = true];
+      private boolean durable_ = true;
+      public boolean hasDurable() {
+        return ((bitField0_ & 0x00000080) == 0x00000080);
+      }
+      public boolean getDurable() {
+        return durable_;
+      }
+      public Builder setDurable(boolean value) {
+        bitField0_ |= 0x00000080;
+        durable_ = value;
+        
+        return this;
+      }
+      public Builder clearDurable() {
+        bitField0_ = (bitField0_ & ~0x00000080);
+        durable_ = true;
+        
+        return this;
+      }
+      
+      // optional .pulsar.proto.MessageIdData start_message_id = 9;
+      private com.yahoo.pulsar.common.api.proto.PulsarApi.MessageIdData startMessageId_ = com.yahoo.pulsar.common.api.proto.PulsarApi.MessageIdData.getDefaultInstance();
+      public boolean hasStartMessageId() {
+        return ((bitField0_ & 0x00000100) == 0x00000100);
+      }
+      public com.yahoo.pulsar.common.api.proto.PulsarApi.MessageIdData getStartMessageId() {
+        return startMessageId_;
+      }
+      public Builder setStartMessageId(com.yahoo.pulsar.common.api.proto.PulsarApi.MessageIdData value) {
+        if (value == null) {
+          throw new NullPointerException();
+        }
+        startMessageId_ = value;
+        
+        bitField0_ |= 0x00000100;
+        return this;
+      }
+      public Builder setStartMessageId(
+          com.yahoo.pulsar.common.api.proto.PulsarApi.MessageIdData.Builder builderForValue) {
+        startMessageId_ = builderForValue.build();
+        
+        bitField0_ |= 0x00000100;
+        return this;
+      }
+      public Builder mergeStartMessageId(com.yahoo.pulsar.common.api.proto.PulsarApi.MessageIdData value) {
+        if (((bitField0_ & 0x00000100) == 0x00000100) &&
+            startMessageId_ != com.yahoo.pulsar.common.api.proto.PulsarApi.MessageIdData.getDefaultInstance()) {
+          startMessageId_ =
+            com.yahoo.pulsar.common.api.proto.PulsarApi.MessageIdData.newBuilder(startMessageId_).mergeFrom(value).buildPartial();
+        } else {
+          startMessageId_ = value;
+        }
+        
+        bitField0_ |= 0x00000100;
+        return this;
+      }
+      public Builder clearStartMessageId() {
+        startMessageId_ = com.yahoo.pulsar.common.api.proto.PulsarApi.MessageIdData.getDefaultInstance();
+        
+        bitField0_ = (bitField0_ & ~0x00000100);
         return this;
       }
       
