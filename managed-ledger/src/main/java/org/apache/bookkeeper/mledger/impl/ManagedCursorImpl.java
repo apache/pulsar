@@ -82,8 +82,8 @@ public class ManagedCursorImpl implements ManagedCursor {
     protected final ManagedLedgerImpl ledger;
     private final String name;
 
-    private volatile PositionImpl markDeletePosition;
-    private volatile PositionImpl readPosition;
+    protected volatile PositionImpl markDeletePosition;
+    protected volatile PositionImpl readPosition;
 
     protected static final AtomicReferenceFieldUpdater<ManagedCursorImpl, OpReadEntry> WAITING_READ_OP_UPDATER =
             AtomicReferenceFieldUpdater.newUpdater(ManagedCursorImpl.class, OpReadEntry.class, "waitingReadOp");
@@ -101,7 +101,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     // This counters are used to compute the numberOfEntries and numberOfEntriesInBacklog values, without having to look
     // at the list of ledgers in the ml. They are initialized to (-backlog) at opening, and will be incremented each
     // time a message is read or deleted.
-    private volatile long messagesConsumedCounter;
+    protected volatile long messagesConsumedCounter;
 
     // Current ledger used to append the mark-delete position
     private volatile LedgerHandle cursorLedger;
@@ -303,7 +303,6 @@ public class ManagedCursorImpl implements ManagedCursor {
         log.info("[{}] Cursor {} recovered to position {}", ledger.getName(), name, position);
 
         messagesConsumedCounter = -getNumberOfEntries(Range.openClosed(position, ledger.getLastPosition()));
-
         markDeletePosition = position;
         readPosition = ledger.getNextValidPosition(position);
         STATE_UPDATER.set(this, State.NoLedger);
@@ -1151,7 +1150,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     void initializeCursorPosition(Pair<PositionImpl, Long> lastPositionCounter) {
         readPosition = ledger.getNextValidPosition(lastPositionCounter.first);
-        markDeletePosition = PositionImpl.get(lastPositionCounter.first);
+        markDeletePosition = lastPositionCounter.first;
 
         // Initialize the counter such that the difference between the messages written on the ML and the
         // messagesConsumed is 0, to ensure the initial backlog count is 0.
@@ -1257,7 +1256,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         internalAsyncMarkDelete(newPosition, callback, ctx);
     }
 
-    private void internalAsyncMarkDelete(final PositionImpl newPosition, final MarkDeleteCallback callback,
+    protected void internalAsyncMarkDelete(final PositionImpl newPosition, final MarkDeleteCallback callback,
             final Object ctx) {
         ledger.mbean.addMarkDeleteOp();
 
@@ -1572,6 +1571,11 @@ public class ManagedCursorImpl implements ManagedCursor {
     @Override
     public String getName() {
         return name;
+    }
+
+    @Override
+    public boolean isDurable() {
+        return true;
     }
 
     @Override
