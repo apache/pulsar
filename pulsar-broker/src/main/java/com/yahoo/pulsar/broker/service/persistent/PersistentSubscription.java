@@ -51,7 +51,6 @@ import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import com.yahoo.pulsar.common.naming.DestinationName;
 import com.yahoo.pulsar.common.policies.data.ConsumerStats;
 import com.yahoo.pulsar.common.policies.data.PersistentSubscriptionStats;
-import com.yahoo.pulsar.common.util.Codec;
 import com.yahoo.pulsar.utils.CopyOnWriteArrayList;
 
 public class PersistentSubscription implements Subscription {
@@ -71,12 +70,12 @@ public class PersistentSubscription implements Subscription {
     // for connected subscriptions, message expiry will be checked if the backlog is greater than this threshold
     private static final int MINIMUM_BACKLOG_FOR_EXPIRY_CHECK = 1000;
 
-    public PersistentSubscription(PersistentTopic topic, ManagedCursor cursor) {
+    public PersistentSubscription(PersistentTopic topic, String subscriptionName, ManagedCursor cursor) {
         this.topic = topic;
         this.cursor = cursor;
         this.topicName = topic.getName();
-        this.subName = Codec.decode(cursor.getName());
-        this.expiryMonitor = new PersistentMessageExpiryMonitor(topicName, cursor);
+        this.subName = subscriptionName;
+        this.expiryMonitor = new PersistentMessageExpiryMonitor(topicName, subscriptionName, cursor);
         IS_FENCED_UPDATER.set(this, FALSE);
     }
 
@@ -131,6 +130,12 @@ public class PersistentSubscription implements Subscription {
         }
         if (dispatcher.getConsumers().isEmpty()) {
             deactivateCursor();
+
+            if (!cursor.isDurable()) {
+                // If cursor is not durable, we need to clean up the subscription as well
+                close();
+                topic.removeSubscription(subName);
+            }
         }
 
         // invalid consumer remove will throw an exception
@@ -607,6 +612,6 @@ public class PersistentSubscription implements Subscription {
     public void markTopicWithBatchMessagePublished() {
         topic.markBatchMessagePublished();
     }
-    
+
     private static final Logger log = LoggerFactory.getLogger(PersistentSubscription.class);
 }
