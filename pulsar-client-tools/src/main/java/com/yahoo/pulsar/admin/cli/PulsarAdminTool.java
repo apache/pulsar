@@ -29,11 +29,21 @@ import com.yahoo.pulsar.client.admin.PulsarAdmin;
 import com.yahoo.pulsar.client.api.ClientConfiguration;
 
 public class PulsarAdminTool {
-    private final PulsarAdmin admin;
     private final JCommander jcommander;
+    private final ClientConfiguration config;
+    private URL url;
 
-    @Parameter(names = { "-h", "--help" }, help = true)
-    private boolean help;
+    @Parameter(names = { "--admin-url" }, description = "Admin Service URL to which to connect.")
+    String serviceUrl = null;
+
+    @Parameter(names = { "--auth-plugin" }, description = "Authentication plugin class name.")
+    String authPluginClassName = null;
+
+    @Parameter(names = { "--auth-params" }, description = "Authentication parameters, e.g., \"key1:val1,key2:val2\".")
+    String authParams = null;
+
+    @Parameter(names = { "-h", "--help", }, help = true, description = "Show this help.")
+    boolean help;
 
     PulsarAdminTool(Properties properties) throws Exception {
         // fallback to previous-version serviceUrl property to maintain backward-compatibility
@@ -45,7 +55,7 @@ public class PulsarAdminTool {
         boolean tlsAllowInsecureConnection = Boolean.parseBoolean(properties.getProperty("tlsAllowInsecureConnection"));
         String tlsTrustCertsFilePath = properties.getProperty("tlsTrustCertsFilePath");
 
-        URL url = null;
+        url = null;
         try {
             url = new URL(serviceUrl);
         } catch (MalformedURLException e) {
@@ -53,13 +63,13 @@ public class PulsarAdminTool {
             System.exit(1);
         }
 
-        ClientConfiguration config = new ClientConfiguration();
+        config = new ClientConfiguration();
         config.setAuthentication(authPluginClassName, authParams);
         config.setUseTls(useTls);
         config.setTlsAllowInsecureConnection(tlsAllowInsecureConnection);
         config.setTlsTrustCertsFilePath(tlsTrustCertsFilePath);
 
-        admin = new PulsarAdmin(url, config);
+        PulsarAdmin admin = new PulsarAdmin(url, config);
         jcommander = new JCommander();
         jcommander.setProgramName("pulsar-admin");
         jcommander.addObject(this);
@@ -73,10 +83,6 @@ public class PulsarAdminTool {
         jcommander.addCommand("resource-quotas", new CmdResourceQuotas(admin));
     }
 
-    PulsarAdmin getAdmin() {
-        return admin;
-    }
-
     JCommander getJCommander() {
         return jcommander;
     }
@@ -87,8 +93,15 @@ public class PulsarAdminTool {
             return false;
         }
 
+        int cmdPos;
+        for (cmdPos=0; cmdPos < args.length; cmdPos++) {
+            if (jcommander.getCommands().containsKey(args[cmdPos])){
+                break;
+            }
+        }
+
         try {
-            jcommander.parse(new String[] { args[0] });
+            jcommander.parse(Arrays.copyOfRange(args, 0, Math.min(cmdPos+1, args.length)));
         } catch (Exception e) {
             System.err.println(e.getMessage());
             System.err.println();
@@ -108,8 +121,28 @@ public class PulsarAdminTool {
             String cmd = jcommander.getParsedCommand();
             JCommander obj = jcommander.getCommands().get(cmd);
             CmdBase cmdObj = (CmdBase) obj.getObjects().get(0);
+            if (StringUtils.isNotBlank(serviceUrl) || (StringUtils.isNotBlank(authPluginClassName) && StringUtils
+                    .isNotBlank(authParams))) {
+                if (StringUtils.isNotBlank(serviceUrl)) {
+                    try {
+                        url = new URL(serviceUrl);
+                    } catch (MalformedURLException e) {
+                        System.err.println("Invalid serviceUrl: '" + serviceUrl + "'");
+                        System.exit(1);
+                    }
+                }
+                try {
+                    if (StringUtils.isNotBlank(authPluginClassName) && StringUtils.isNotBlank(authParams)) {
+                        config.setAuthentication(authPluginClassName, authParams);
+                    }
+                    cmdObj = cmdObj.getClass().getConstructor(PulsarAdmin.class).newInstance(new PulsarAdmin(url, config));
+                } catch (Exception e) {
+                    System.err.println(e.getClass() + ": " + e.getMessage());
+                    System.exit(1);
+                }
+            }
 
-            return cmdObj.run(Arrays.copyOfRange(args, 1, args.length));
+            return cmdObj.run(Arrays.copyOfRange(args, cmdPos+1, args.length));
         }
     }
 
