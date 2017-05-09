@@ -609,6 +609,11 @@ public class PersistentSubscription implements Subscription {
     }
 
     @Override
+    public void addUnAckedMessages(int unAckMessages) {
+        dispatcher.addUnAckedMessages(unAckMessages);
+    }
+    
+    @Override
     public void markTopicWithBatchMessagePublished() {
         topic.markBatchMessagePublished();
     }

@@ -381,4 +381,9 @@ public final class PersistentDispatcherSingleActiveConsumer implements Dispatche
         return ACTIVE_CONSUMER_UPDATER.get(this);
     }
 
+    @Override
+    public void addUnAckedMessages(int unAckMessages) {
+        // No-op
+    }
+
 }

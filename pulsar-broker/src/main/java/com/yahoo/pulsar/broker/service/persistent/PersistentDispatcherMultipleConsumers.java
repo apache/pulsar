@@ -21,7 +21,6 @@ import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
-import java.util.stream.Collectors;
 
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
@@ -37,7 +36,6 @@ import com.carrotsearch.hppc.ObjectHashSet;
 import com.carrotsearch.hppc.ObjectSet;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.yahoo.pulsar.broker.service.BrokerServiceException;
 import com.yahoo.pulsar.broker.service.Consumer;
@@ -76,6 +74,13 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
     private static final AtomicIntegerFieldUpdater<PersistentDispatcherMultipleConsumers> IS_CLOSED_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(PersistentDispatcherMultipleConsumers.class, "isClosed");
     private volatile int isClosed = FALSE;
+    private static final AtomicIntegerFieldUpdater<PersistentDispatcherMultipleConsumers> TOTAL_UNACKED_MESSAGES_UPDATER =
+            AtomicIntegerFieldUpdater.newUpdater(PersistentDispatcherMultipleConsumers.class, "totalUnackedMessages");
+    private volatile int totalUnackedMessages = 0;
+    private final int maxUnackedMessages;
+    private volatile int blockedDispatcherOnUnackedMsgs = FALSE;
+    private static final AtomicIntegerFieldUpdater<PersistentDispatcherMultipleConsumers> BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER =
+            AtomicIntegerFieldUpdater.newUpdater(PersistentDispatcherMultipleConsumers.class, "blockedDispatcherOnUnackedMsgs");
 
     enum ReadType {
         Normal, Replay
@@ -87,6 +92,8 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
         this.topic = topic;
         this.messagesToReplay = Sets.newTreeSet();
         this.readBatchSize = MaxReadBatchSize;
+        this.maxUnackedMessages = topic.getBrokerService().pulsar().getConfiguration()
+                .getMaxUnackedMessagesPerDispatcher();
     }
 
     @Override
@@ -114,6 +121,8 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
 
     @Override
     public synchronized void removeConsumer(Consumer consumer) throws BrokerServiceException {
+        // decrement unack-message count for removed consumer
+        addUnAckedMessages(-consumer.getUnackedMessages());
         if (consumerSet.removeAll(consumer) == 1) {
             consumerList.remove(consumer);
             log.info("Removed consumer {} with pending {} acks", consumer, consumer.getPendingAcks().size());
@@ -190,6 +199,9 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
                     havePendingReplayRead = false;
                     readMoreEntries();
                 }
+            } else if (BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.get(this) == TRUE) {
+                log.warn("[{}] Dispatcher read is blocked due to unackMessages {} reached to max {}", name,
+                        TOTAL_UNACKED_MESSAGES_UPDATER.get(this), maxUnackedMessages);
             } else if (!havePendingRead) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Schedule read of {} messages for {} consumers", name, messagesToRead,
@@ -560,5 +572,32 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
         readMoreEntries();
     }
 
+    @Override
+    public void addUnAckedMessages(int numberOfMessages) {
+        // don't block dispatching if maxUnackedMessages = 0
+        if(maxUnackedMessages <= 0) {
+            return;
+        }
+        int unAckedMessages = TOTAL_UNACKED_MESSAGES_UPDATER.addAndGet(this, numberOfMessages);
+        if (unAckedMessages >= maxUnackedMessages
+                && BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.compareAndSet(this, FALSE, TRUE)) {
+            log.info("[{}] Dispatcher is blocked due to unackMessages {} reached to max {}", name,
+                    TOTAL_UNACKED_MESSAGES_UPDATER.get(this), maxUnackedMessages);
+        } else if (BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.get(this) == TRUE
+                && unAckedMessages < maxUnackedMessages / 2) {
+            if (BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.compareAndSet(this, TRUE, FALSE)) {
+                topic.getBrokerService().executor().submit(() -> readMoreEntries());
+            }
+        }
+    }
+    
+    public boolean isBlockedDispatcherOnUnackedMsgs() {
+        return BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.get(this) == TRUE;
+    }
+
+    public int getTotalUnackedMessages() {
+        return TOTAL_UNACKED_MESSAGES_UPDATER.get(this);
+    }
+    
     private static final Logger log = LoggerFactory.getLogger(PersistentDispatcherMultipleConsumers.class);
 }
