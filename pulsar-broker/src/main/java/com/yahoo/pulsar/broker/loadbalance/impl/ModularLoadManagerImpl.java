@@ -518,9 +518,6 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
             LoadManagerShared.applyPolicies(serviceUnit, policies, brokerCandidateCache, getAvailableBrokers());
             log.info("{} brokers being considered for assignment of {}", brokerCandidateCache.size(), bundle);
 
-            // Make a copy in case the remaining brokers after filtering below are all overloaded
-            HashSet<String> brokerCandidateCacheCopy = new HashSet<>(brokerCandidateCache);
-
             // Use the filter pipeline to finalize broker candidates.
             try {
                 for (BrokerFilter filter : filterPipeline) {
@@ -543,7 +540,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
             final double maxUsage = loadData.getBrokerData().get(broker).getLocalData().getMaxResourceUsage();
             if (maxUsage > overloadThreshold) {
                 // All brokers that were in the filtered list were overloaded, so check if there is a better broker
-                broker = placementStrategy.selectBroker(brokerCandidateCacheCopy, data, loadData, conf);
+                LoadManagerShared.applyPolicies(serviceUnit, policies, brokerCandidateCache, getAvailableBrokers());
+                broker = placementStrategy.selectBroker(brokerCandidateCache, data, loadData, conf);
             }
 
             // Add new bundle to preallocated.
