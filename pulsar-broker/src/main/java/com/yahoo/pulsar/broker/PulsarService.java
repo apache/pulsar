@@ -16,8 +16,10 @@
 package com.yahoo.pulsar.broker;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URL;
 import java.util.List;
+import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -27,6 +29,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.util.OrderedSafeExecutor;
@@ -111,6 +115,8 @@ public class PulsarService implements AutoCloseable {
     private final String webServiceAddressTls;
     private final String brokerServiceUrl;
     private final String brokerServiceUrlTls;
+    private final String RESOURCE_NAME = "pulsar-broker-version.properties";
+    private final String brokerVersion;
 
     private final MessagingServiceShutdownHook shutdownService;
 
@@ -133,9 +139,47 @@ public class PulsarService implements AutoCloseable {
         this.webServiceAddressTls = webAddressTls(config);
         this.brokerServiceUrl = brokerUrl(config);
         this.brokerServiceUrlTls = brokerUrlTls(config);
+        this.brokerVersion = fixVersionString(getPropertyFromResource(RESOURCE_NAME, "version"));
         this.config = config;
         this.shutdownService = new MessagingServiceShutdownHook(this);
         loadManagerExecutor = Executors.newSingleThreadScheduledExecutor();
+    }
+
+    // If the version string does not contain a patch version, add one so the
+    // version becomes valid according to the SemVer library (see https://github.com/zafarkhaja/jsemver).
+    // This method (and it's only call above in the ctor) may be removed when SemVer accepts null patch versions
+    public static String fixVersionString(String version) {
+        if ( null == version ) {
+            return null;
+        }
+
+        Pattern majorMinorPatchPattern = Pattern.compile("([1-9]+[0-9]*)\\.([1-9]+[0-9]*)\\.([1-9]+[0-9]*)(.*)");
+        Matcher majorMinorPatchMatcher = majorMinorPatchPattern.matcher(version);
+
+        if ( majorMinorPatchMatcher.matches() ) {
+            // this is a valid version, containing a major, a minor, and a patch version (and optionally
+            // a release candidate version and/or build metadata)
+            return version;
+        } else {
+            // the patch version is missing, so add one ("0")
+            Pattern pattern2 = Pattern.compile("([1-9]+[0-9]*)\\.([1-9]+[0-9]*)(.*)");
+            Matcher matcher2 = pattern2.matcher(version);
+
+            if (matcher2.matches()) {
+                int startMajorVersion = matcher2.start(1);
+                int stopMinorVersion = matcher2.end(2);
+                int startReleaseCandidate = matcher2.start(3);
+
+                String prefix = new String(version.getBytes(), startMajorVersion, (stopMinorVersion-startMajorVersion));
+                String patchVersion = ".0";
+                String suffix = new String(version.getBytes(), startReleaseCandidate, version.length() - startReleaseCandidate);
+
+                return (prefix + patchVersion + suffix);
+            } else {
+                // This is an invalid version, let the JSemVer library fail when it parses it
+                return version;
+            }
+        }
     }
 
     /**
@@ -256,8 +300,7 @@ public class PulsarService implements AutoCloseable {
             // needs load management service
             this.startNamespaceService();
 
-            LOG.info("Starting Pulsar Broker service; version: \"" + config.getBrokerVersionString() + 
-                "\"; buildTime: " + config.getBrokerBuildTimeString());
+            LOG.info("Starting Pulsar Broker service; version: \"" + ( brokerVersion != null ? brokerVersion : "unknown" ));
             brokerService.start();
 
             this.webService = new WebService(this);
@@ -649,4 +692,36 @@ public class PulsarService implements AutoCloseable {
         return loadManager;
     }
 
+    /**
+     * Looks for a resource in the jar which is expected to be a java.util.Properties, then
+     * extract a specific property value.
+     *
+     * @return the property value, or null if the resource does not exist or the resource
+     *         is not a valid java.util.Properties or the resource does not contain the
+     *         named property
+     */
+    public static String getPropertyFromResource(String resource, String propertyName) {
+        try {
+            InputStream stream = PulsarService.class.getClassLoader().getResourceAsStream(resource);
+            if (stream == null) {
+                return null;
+            }
+            Properties properties = new Properties();
+            try {
+                properties.load(stream);
+                String propertyValue = (String) properties.get(propertyName);
+                return propertyValue;
+            } catch (IOException e) {
+                return null;
+            } finally {
+                stream.close();
+            }
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
+    public String getBrokerVersion() {
+        return brokerVersion;
+    }
 }

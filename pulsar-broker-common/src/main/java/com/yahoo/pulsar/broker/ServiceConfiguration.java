@@ -19,10 +19,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
 
 import com.google.common.collect.Sets;
 import com.yahoo.pulsar.client.impl.auth.AuthenticationDisabled;
@@ -263,15 +259,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(dynamic = true)
     private String loadManagerClassName = "com.yahoo.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl";
     @FieldContext(dynamic = true)
-    private String activeVersion = "";
-    // Name of the Maven resource which contains the version string and build timestamp
-    private final String RESOURCE_NAME = "pulsar-broker-version.properties";
-    // Version string for this broker (inferred from Maven artifact, overridden in the broker configuration file)
-    private String brokerVersionString;
-    // Build timestamp
-    private String brokerBuildTimeString;
-    // Start time (seconds since 1/1/1970 UTC) of this broker
-    private long brokerStartTime = System.currentTimeMillis()/1000;
+    private boolean preferLaterVersions = true;
 
     public String getZookeeperServers() {
         return zookeeperServers;
@@ -980,59 +968,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
         this.loadManagerClassName = loadManagerClassName;
     }
 
-    public String getActiveVersion() {
-        return activeVersion;
+    public boolean isPreferLaterVersions() {
+        return preferLaterVersions;
     }
 
-    public void setActiveVersion(String activeVersion) {
-        this.activeVersion = activeVersion;
-    }
-
-    private String getStringFromResource(String resource, String attribute, String defaultValue) {
-        try {
-            InputStream inputStream = getClass().getClassLoader().getResourceAsStream(resource);
-            BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
-            String line = null;
-            int indexOfEqualsSign = -1;
-            while ((line = reader.readLine()) != null) {
-                if (line.startsWith(attribute) && (indexOfEqualsSign = line.indexOf("=")) >= 0) {
-                    return (line.substring(indexOfEqualsSign + 1));
-                }
-            }
-            // found the resource, but no matching line for the attribute
-        } catch (IOException ignore) {
-            // no resource was found in the jar
-        }
-
-        return defaultValue;
-    }
-
-    public String getBrokerVersionString() {
-        final String VERSION_STRING = "version";
-        if (brokerVersionString == null || brokerVersionString.length() == 0) {
-            // It's not set in the broker config, so try once to infer it from the Maven resource
-            brokerVersionString = getStringFromResource(RESOURCE_NAME, VERSION_STRING, "unknown");
-        }
-        return brokerVersionString;
-    }
-
-    public void setBrokerVersionString(String brokerVersionString) {
-        this.brokerVersionString = brokerVersionString;
-    }
-
-    public String getBrokerBuildTimeString() {
-        final String VERSION_STRING = "build.date";
-        if (brokerBuildTimeString == null || brokerBuildTimeString.length() == 0) {
-            brokerBuildTimeString = getStringFromResource(RESOURCE_NAME, VERSION_STRING, "unknown");
-        }
-        return brokerBuildTimeString;
-    }
-
-    public void setBrokerBuildTimeString(String brokerBuildTimeString) {
-        this.brokerBuildTimeString = brokerBuildTimeString;
-    }
-
-    public long getBrokerStartTime() {
-        return brokerStartTime;
+    public void setPreferLaterVersions(boolean preferLaterVersions) {
+        this.preferLaterVersions = preferLaterVersions;
     }
 }

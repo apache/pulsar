@@ -74,9 +74,6 @@ public class LocalBrokerData extends JSONWritable implements ServiceLookupData {
     // The version string that this broker is running, obtained from the Maven build artifact in the POM
     private String brokerVersionString;
 
-    // The start time (seconds since 1/1/1970 UTC) of this broker
-    private long brokerStartTime;
-
     // For JSON only.
     public LocalBrokerData() {
         this(null, null, null, null);
@@ -350,15 +347,6 @@ public class LocalBrokerData extends JSONWritable implements ServiceLookupData {
     public String getBrokerVersionString() {
         return brokerVersionString;
     }
-
-    public void setBrokerStartTime(long brokerStartTime) {
-        this.brokerStartTime = brokerStartTime;
-    }
-
-    public long getBrokerStartTime() {
-        return brokerStartTime;
-    }
-
 
     @Override
     public String getWebServiceUrl() {
