@@ -586,6 +586,7 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
         } else if (BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.get(this) == TRUE
                 && unAckedMessages < maxUnackedMessages / 2) {
             if (BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.compareAndSet(this, TRUE, FALSE)) {
+                log.info("[{}] Dispatcher is unblocked", name);
                 topic.getBrokerService().executor().submit(() -> readMoreEntries());
             }
         }

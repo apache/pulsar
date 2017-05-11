@@ -592,9 +592,17 @@ public class PersistentSubscription implements Subscription {
             });
         }
 
+        subStats.type = getType();
+        if (SubType.Shared.equals(subStats.type)) {
+            if (dispatcher instanceof PersistentDispatcherMultipleConsumers) {
+                subStats.unackedMessages = ((PersistentDispatcherMultipleConsumers) dispatcher)
+                        .getTotalUnackedMessages();
+                subStats.blockedDispatcherOnUnackedMsgs = ((PersistentDispatcherMultipleConsumers) dispatcher)
+                        .isBlockedDispatcherOnUnackedMsgs();
+            }
+        }
         subStats.msgBacklog = getNumberOfEntriesInBacklog();
         subStats.msgRateExpired = expiryMonitor.getMessageExpiryRate();
-        subStats.type = getType();
         return subStats;
     }
 

@@ -17,6 +17,8 @@ package com.yahoo.pulsar.client.api;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 import java.util.Arrays;
@@ -34,8 +36,11 @@ import org.testng.annotations.Test;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
+import com.yahoo.pulsar.broker.service.persistent.PersistentTopic;
 import com.yahoo.pulsar.client.impl.ConsumerImpl;
 import com.yahoo.pulsar.client.impl.MessageIdImpl;
+import com.yahoo.pulsar.common.policies.data.PersistentSubscriptionStats;
+import com.yahoo.pulsar.common.policies.data.PersistentTopicStats;
 
 import jersey.repackaged.com.google.common.collect.Sets;
 
@@ -500,6 +505,79 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             fail();
         } finally {
             pulsar.getConfiguration().setMaxUnackedMessagesPerConsumer(unAckedMessages);
+        }
+    }
+    
+    @Test
+    public void testBlockDispatcherStats() throws Exception {
+
+        int orginalDispatcherLimit = conf.getMaxUnackedMessagesPerDispatcher();
+        try {
+            final String topicName = "persistent://prop/use/ns-abc/blockDispatch";
+            final String subName = "blockDispatch";
+            final int timeWaitToSync = 100;
+
+            PersistentTopicStats stats;
+            PersistentSubscriptionStats subStats;
+
+            // configure maxUnackMessagePerDispatcher then restart broker to get this change
+            conf.setMaxUnackedMessagesPerDispatcher(10);
+            stopBroker();
+            startBroker();
+
+            ConsumerConfiguration conf = new ConsumerConfiguration();
+            conf.setSubscriptionType(SubscriptionType.Shared);
+            Consumer consumer = pulsarClient.subscribe(topicName, subName, conf);
+            Thread.sleep(timeWaitToSync);
+
+            PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);
+            assertNotNull(topicRef);
+
+            rolloverPerIntervalStats();
+            stats = topicRef.getStats();
+            subStats = stats.subscriptions.values().iterator().next();
+
+            // subscription stats
+            assertEquals(stats.subscriptions.keySet().size(), 1);
+            assertEquals(subStats.msgBacklog, 0);
+            assertEquals(subStats.consumers.size(), 1);
+
+            Producer producer = pulsarClient.createProducer(topicName);
+            Thread.sleep(timeWaitToSync);
+
+            for (int i = 0; i < 100; i++) {
+                String message = "my-message-" + i;
+                producer.send(message.getBytes());
+            }
+            Thread.sleep(timeWaitToSync);
+
+            rolloverPerIntervalStats();
+            stats = topicRef.getStats();
+            subStats = stats.subscriptions.values().iterator().next();
+
+            assertTrue(subStats.msgBacklog > 0);
+            assertTrue(subStats.unackedMessages > 0);
+            assertTrue(subStats.blockedDispatcherOnUnackedMsgs);
+            assertEquals(subStats.consumers.get(0).unackedMessages, subStats.unackedMessages);
+
+            // consumer stats
+            assertTrue(subStats.consumers.get(0).msgRateOut > 0.0);
+            assertTrue(subStats.consumers.get(0).msgThroughputOut > 0.0);
+            assertEquals(subStats.msgRateRedeliver, 0.0);
+            producer.close();
+            consumer.close();
+
+        } finally {
+            conf.setMaxUnackedMessagesPerDispatcher(orginalDispatcherLimit);
+        }
+
+    }
+
+    private void rolloverPerIntervalStats() {
+        try {
+            pulsar.getExecutor().submit(() -> pulsar.getBrokerService().updateRates()).get();
+        } catch (Exception e) {
+            log.error("Stats executor error", e);
         }
     }
 }
