@@ -126,6 +126,16 @@ final class EntryImpl extends AbstractReferenceCounted implements Entry, Compara
     }
 
     @Override
+    public long getLedgerId() {
+        return ledgerId;
+    }
+
+    @Override
+    public long getEntryId() {
+        return entryId;
+    }
+    
+    @Override
     public int compareTo(EntryImpl other) {
         return ComparisonChain.start().compare(ledgerId, other.ledgerId).compare(entryId, other.entryId).result();
     }

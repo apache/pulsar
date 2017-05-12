@@ -592,9 +592,17 @@ public class PersistentSubscription implements Subscription {
             });
         }
 
+        subStats.type = getType();
+        if (SubType.Shared.equals(subStats.type)) {
+            if (dispatcher instanceof PersistentDispatcherMultipleConsumers) {
+                subStats.unackedMessages = ((PersistentDispatcherMultipleConsumers) dispatcher)
+                        .getTotalUnackedMessages();
+                subStats.blockedSubscriptionOnUnackedMsgs = ((PersistentDispatcherMultipleConsumers) dispatcher)
+                        .isBlockedDispatcherOnUnackedMsgs();
+            }
+        }
         subStats.msgBacklog = getNumberOfEntriesInBacklog();
         subStats.msgRateExpired = expiryMonitor.getMessageExpiryRate();
-        subStats.type = getType();
         return subStats;
     }
 
@@ -608,6 +616,11 @@ public class PersistentSubscription implements Subscription {
         dispatcher.redeliverUnacknowledgedMessages(consumer, positions);
     }
 
+    @Override
+    public void addUnAckedMessages(int unAckMessages) {
+        dispatcher.addUnAckedMessages(unAckMessages);
+    }
+    
     @Override
     public void markTopicWithBatchMessagePublished() {
         topic.markBatchMessagePublished();
