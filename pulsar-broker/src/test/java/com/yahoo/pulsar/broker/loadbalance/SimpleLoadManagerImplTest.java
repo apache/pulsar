@@ -25,11 +25,9 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
 
-import org.apache.commons.lang3.SystemUtils;
-import java.io.IOException;
 import java.lang.reflect.Field;
+import java.net.InetAddress;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -42,9 +40,9 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
-import com.yahoo.pulsar.broker.loadbalance.impl.*;
 import org.apache.bookkeeper.test.PortManager;
 import org.apache.bookkeeper.util.ZkUtils;
+import org.apache.commons.lang3.SystemUtils;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
@@ -59,11 +57,19 @@ import com.google.common.collect.Sets;
 import com.yahoo.pulsar.broker.PulsarService;
 import com.yahoo.pulsar.broker.ServiceConfiguration;
 import com.yahoo.pulsar.broker.admin.AdminResource;
+import com.yahoo.pulsar.broker.cache.ResourceQuotaCache;
+import com.yahoo.pulsar.broker.loadbalance.impl.GenericBrokerHostUsageImpl;
+import com.yahoo.pulsar.broker.loadbalance.impl.LinuxBrokerHostUsageImpl;
+import com.yahoo.pulsar.broker.loadbalance.impl.PulsarLoadReportImpl;
+import com.yahoo.pulsar.broker.loadbalance.impl.PulsarResourceDescription;
+import com.yahoo.pulsar.broker.loadbalance.impl.ResourceAvailabilityRanker;
+import com.yahoo.pulsar.broker.loadbalance.impl.SimpleLoadCalculatorImpl;
+import com.yahoo.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
+import com.yahoo.pulsar.broker.loadbalance.impl.SimpleResourceUnit;
 import com.yahoo.pulsar.client.admin.BrokerStats;
 import com.yahoo.pulsar.client.admin.PulsarAdmin;
 import com.yahoo.pulsar.client.api.Authentication;
-import com.yahoo.pulsar.client.api.ClientConfiguration;
-import com.yahoo.pulsar.client.api.PulsarClient;
+import com.yahoo.pulsar.common.naming.NamespaceBundle;
 import com.yahoo.pulsar.common.naming.NamespaceName;
 import com.yahoo.pulsar.common.policies.data.AutoFailoverPolicyData;
 import com.yahoo.pulsar.common.policies.data.AutoFailoverPolicyType;
@@ -99,6 +105,9 @@ public class SimpleLoadManagerImplTest {
     BrokerStats brokerStatsClient1;
     BrokerStats brokerStatsClient2;
 
+    String primaryHost;
+    String secondaryHost;
+
     ExecutorService executor = new ThreadPoolExecutor(5, 20, 30, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
 
     private final int ZOOKEEPER_PORT = PortManager.nextFreePort();
@@ -132,6 +141,8 @@ public class SimpleLoadManagerImplTest {
         url1 = new URL("http://127.0.0.1" + ":" + PRIMARY_BROKER_WEBSERVICE_PORT);
         admin1 = new PulsarAdmin(url1, (Authentication) null);
         brokerStatsClient1 = admin1.brokerStats();
+        primaryHost = String.format("http://%s:%d", InetAddress.getLocalHost().getHostName(),
+                PRIMARY_BROKER_WEBSERVICE_PORT);
 
         // Start broker 2
         ServiceConfiguration config2 = new ServiceConfiguration();
@@ -146,8 +157,8 @@ public class SimpleLoadManagerImplTest {
         url2 = new URL("http://127.0.0.1" + ":" + SECONDARY_BROKER_WEBSERVICE_PORT);
         admin2 = new PulsarAdmin(url2, (Authentication) null);
         brokerStatsClient2 = admin2.brokerStats();
-
-        createNamespacePolicies(pulsar1);
+        secondaryHost = String.format("http://%s:%d", InetAddress.getLocalHost().getHostName(),
+                SECONDARY_BROKER_WEBSERVICE_PORT);
         Thread.sleep(100);
     }
 
@@ -227,6 +238,7 @@ public class SimpleLoadManagerImplTest {
 
     @Test(enabled = true)
     public void testPrimary() throws Exception {
+        createNamespacePolicies(pulsar1);
         LoadManager loadManager = new SimpleLoadManagerImpl(pulsar1);
         PulsarResourceDescription rd = new PulsarResourceDescription();
         rd.put("memory", new ResourceUsage(1024, 4096));
@@ -266,6 +278,7 @@ public class SimpleLoadManagerImplTest {
 
     @Test(enabled = false)
     public void testPrimarySecondary() throws Exception {
+        createNamespacePolicies(pulsar1);
         LocalZooKeeperCache mockCache = mock(LocalZooKeeperCache.class);
         ZooKeeperChildrenCache zooKeeperChildrenCache = mock(ZooKeeperChildrenCache.class);
 
@@ -280,8 +293,8 @@ public class SimpleLoadManagerImplTest {
 
         LocalZooKeeperCache originalLZK1 = (LocalZooKeeperCache) zkCacheField.get(pulsar1);
         LocalZooKeeperCache originalLZK2 = (LocalZooKeeperCache) zkCacheField.get(pulsar2);
-		log.info("lzk are {} 2: {}", originalLZK1.getChildren(SimpleLoadManagerImpl.LOADBALANCE_BROKERS_ROOT),
-				originalLZK2.getChildren(SimpleLoadManagerImpl.LOADBALANCE_BROKERS_ROOT));
+        log.info("lzk are {} 2: {}", originalLZK1.getChildren(SimpleLoadManagerImpl.LOADBALANCE_BROKERS_ROOT),
+                originalLZK2.getChildren(SimpleLoadManagerImpl.LOADBALANCE_BROKERS_ROOT));
         zkCacheField.set(pulsar1, mockCache);
 
         LocalZooKeeperCache newZk = (LocalZooKeeperCache) pulsar1.getLocalZkCache();
@@ -290,8 +303,8 @@ public class SimpleLoadManagerImplTest {
         ZooKeeperChildrenCache availableActiveBrokers = new ZooKeeperChildrenCache(pulsar1.getLocalZkCache(),
                 SimpleLoadManagerImpl.LOADBALANCE_BROKERS_ROOT);
 
-		log.info("lzk mocked active brokers are {}",
-				availableActiveBrokers.get(SimpleLoadManagerImpl.LOADBALANCE_BROKERS_ROOT));
+        log.info("lzk mocked active brokers are {}",
+                availableActiveBrokers.get(SimpleLoadManagerImpl.LOADBALANCE_BROKERS_ROOT));
 
         LoadManager loadManager = new SimpleLoadManagerImpl(pulsar1);
 
@@ -411,6 +424,37 @@ public class SimpleLoadManagerImplTest {
         verify(loadManager, atLeastOnce()).doLoadShedding();
     }
 
+    // Test that bundles belonging to the same namespace are evenly distributed.
+    @Test
+    public void testEvenBundleDistribution() throws Exception {
+        final NamespaceBundle[] bundles = LoadBalancerTestingUtils
+                .makeBundles(pulsar1.getNamespaceService().getNamespaceBundleFactory(), "pulsar", "use", "test", 16);
+        final ResourceQuota quota = new ResourceQuota();
+        final String quotaZPath = String.format("%s/%s/%s", ResourceQuotaCache.RESOURCE_QUOTA_ROOT, "namespace",
+                bundles[0]);
+        // Create high message rate quota for the first bundle to make it unlikely to be a coincidence of even
+        // distribution.
+        ZkUtils.createFullPathOptimistic(pulsar1.getZkClient(), quotaZPath,
+                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(quota), ZooDefs.Ids.OPEN_ACL_UNSAFE,
+                CreateMode.PERSISTENT);
+        int numAssignedToPrimary = 0;
+        int numAssignedToSecondary = 0;
+        pulsar1.getConfiguration().setLoadBalancerPlacementStrategy(SimpleLoadManagerImpl.LOADBALANCER_STRATEGY_LLS);
+        final SimpleLoadManagerImpl loadManager = (SimpleLoadManagerImpl) pulsar1.getLoadManager().get();
+
+        for (final NamespaceBundle bundle : bundles) {
+            if (loadManager.getLeastLoaded(bundle).getResourceId().equals(primaryHost)) {
+                ++numAssignedToPrimary;
+            } else {
+                ++numAssignedToSecondary;
+            }
+            // Check that number of assigned bundles are equivalent when an even number have been assigned.
+            if ((numAssignedToPrimary + numAssignedToSecondary) % 2 == 0) {
+                assert (numAssignedToPrimary == numAssignedToSecondary);
+            }
+        }
+    }
+
     @Test
     public void testNamespaceBundleStats() {
         NamespaceBundleStats nsb1 = new NamespaceBundleStats();
@@ -456,7 +500,6 @@ public class SimpleLoadManagerImplTest {
         LoadResourceQuotaUpdaterTask task1 = new LoadResourceQuotaUpdaterTask(atomicLoadManager);
         task1.run();
         verify(loadManager, times(1)).writeResourceQuotasToZooKeeper();
-
 
         LoadSheddingTask task2 = new LoadSheddingTask(atomicLoadManager);
         task2.run();

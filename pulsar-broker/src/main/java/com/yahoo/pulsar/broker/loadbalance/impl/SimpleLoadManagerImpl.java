@@ -107,6 +107,10 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
     private final Set<String> bundleGainsCache;
     private final Set<String> bundleLossesCache;
 
+    // Map from brokers to namespaces to the bundle ranges in that namespace assigned to that broker.
+    // Used to distribute bundles within a namespace evely across brokers.
+    private final Map<String, Map<String, Set<String>>> brokerToNamespaceToBundleRange;
+
     // CPU usage per msg/sec
     private double realtimeCpuLoadFactor = 0.025;
     // memory usage per 500 (topics + producers + consumers)
@@ -151,7 +155,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
     private static final String LOADBALANCER_DYNAMIC_SETTING_AUTO_BUNDLE_SPLIT_ENABLED = "/loadbalance/settings/auto_bundle_split_enabled";
     private static final String SETTING_NAME_LOAD_FACTOR_CPU = "loadFactorCPU";
     private static final String SETTING_NAME_LOAD_FACTOR_MEM = "loadFactorMemory";
-    private static final String SETTING_NAME_STRATEGY = "loadBalancerStrategy";
+    public static final String SETTING_NAME_STRATEGY = "loadBalancerStrategy";
     private static final String SETTING_NAME_OVERLOAD_THRESHOLD = "overloadThreshold";
     private static final String SETTING_NAME_UNDERLOAD_THRESHOLD = "underloadThreshold";
     private static final String SETTING_NAME_COMFORTLOAD_THRESHOLD = "comfortLoadThreshold";
@@ -191,6 +195,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
         bundleLossesCache = new HashSet<>();
         brokerCandidateCache = new HashSet<>();
         availableBrokersCache = new HashSet<>();
+        brokerToNamespaceToBundleRange = new HashMap<>();
     }
 
     @Override
@@ -716,9 +721,9 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
                     updateLoadBalancingMetrics(hostname, finalRank, ranking);
                 }
             }
+            updateBrokerToNamespaceToBundle();
             this.sortedRankings.set(newSortedRankings);
             this.resourceUnitRankings = newResourceUnitRankings;
-
         } else {
             log.info("Leader broker[{}] No ResourceUnits to rank this run, Using Old Ranking",
                     pulsar.getWebServiceAddress());
@@ -798,12 +803,8 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
                 continue;
             }
 
-            // check if this ServiceUnit is already pre-allocated
             String resourceUnitId = candidate.getResourceId();
             ResourceUnitRanking ranking = resourceUnitRankings.get(candidate);
-            if (ranking.isServiceUnitPreAllocated(serviceUnitId)) {
-                return candidate;
-            }
 
             // check if this ServiceUnit is already loaded
             if (ranking.isServiceUnitLoaded(serviceUnitId)) {
@@ -864,7 +865,14 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
             String loadPercentageDesc = ranking.getEstimatedLoadPercentageString();
             log.info("Assign {} to {} with ({}).", serviceUnitId, selectedRU.getResourceId(), loadPercentageDesc);
             if (!ranking.isServiceUnitPreAllocated(serviceUnitId)) {
+                final String namespaceName = LoadManagerShared.getNamespaceNameFromBundleName(serviceUnitId);
+                final String bundleRange = LoadManagerShared.getBundleRangeFromBundleName(serviceUnitId);
                 ResourceQuota quota = this.getResourceQuota(serviceUnitId);
+                // Add preallocated bundle range so incoming bundles from the same namespace are not assigned to the
+                // same broker.
+                brokerToNamespaceToBundleRange
+                        .computeIfAbsent(selectedRU.getResourceId().replace("http://", ""), k -> new HashMap<>())
+                        .computeIfAbsent(namespaceName, k -> new HashSet<>()).add(bundleRange);
                 ranking.addPreAllocatedServiceUnit(serviceUnitId, quota);
                 resourceUnitRankings.put(selectedRU, ranking);
             }
@@ -893,6 +901,9 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
                 return result;
             }
 
+            // As long as there is at least one broker left, this will always leave brokerCandidateCache non-empty.
+            LoadManagerShared.removeMostServicingBrokersForNamespace(serviceUnit.toString(), brokerCandidateCache,
+                    brokerToNamespaceToBundleRange);
             // After LoadManagerShared is finished applying the filter, put the results back into a multimap.
             for (final Map.Entry<Long, Set<ResourceUnit>> entry : availableBrokers.entrySet()) {
                 final Long rank = entry.getKey();
@@ -938,9 +949,17 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
         return availableBrokers;
     }
 
-    private ResourceUnit getLeastLoadedBroker(ServiceUnitId serviceUnit,
+    private synchronized ResourceUnit getLeastLoadedBroker(ServiceUnitId serviceUnit,
             Map<Long, Set<ResourceUnit>> availableBrokers) {
         ResourceUnit selectedBroker = null;
+        // If the broker is already assigned, return that candidate.
+        for (final Map.Entry<ResourceUnit, ResourceUnitRanking> entry : resourceUnitRankings.entrySet()) {
+            final ResourceUnit resourceUnit = entry.getKey();
+            final ResourceUnitRanking ranking = entry.getValue();
+            if (ranking.isServiceUnitPreAllocated(serviceUnit.toString())) {
+                return resourceUnit;
+            }
+        }
         Multimap<Long, ResourceUnit> finalCandidates = getFinalCandidates(serviceUnit, availableBrokers);
         // Remove candidates that point to inactive brokers
         Set<String> activeBrokers = Collections.emptySet();
@@ -966,8 +985,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
             } else {
                 selectedBroker = placementStrategy.findBrokerForPlacement(finalCandidates);
             }
-            log.info("Selected : [{}] for ServiceUnit : [{}]", selectedBroker.getResourceId(),
-                    serviceUnit.getNamespaceObject().toString());
+            log.info("Selected : [{}] for ServiceUnit : [{}]", selectedBroker.getResourceId(), serviceUnit.toString());
             return selectedBroker;
         } else {
             // No available broker found
@@ -1238,6 +1256,20 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
             }
         }
         return false;
+    }
+
+    // Update the brokerToNamespaceToBundleRange map with the current preallocated and assigned bundle data.
+    private synchronized void updateBrokerToNamespaceToBundle() {
+        resourceUnitRankings.forEach((resourceUnit, ranking) -> {
+            final String broker = resourceUnit.getResourceId();
+            final Set<String> loadedBundles = ranking.getLoadedBundles();
+            final Set<String> preallocatedBundles = resourceUnitRankings.get(resourceUnit).getPreAllocatedBundles();
+            final Map<String, Set<String>> namespaceToBundleRange = brokerToNamespaceToBundleRange
+                    .computeIfAbsent(broker.replace("http://", ""), k -> new HashMap<>());
+            namespaceToBundleRange.clear();
+            LoadManagerShared.fillNamespaceToBundlesMap(loadedBundles, namespaceToBundleRange);
+            LoadManagerShared.fillNamespaceToBundlesMap(preallocatedBundles, namespaceToBundleRange);
+        });
     }
 
     private void unloadNamespacesFromOverLoadedBrokers(Map<ResourceUnit, String> namespaceBundlesToUnload) {
