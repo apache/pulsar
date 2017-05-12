@@ -120,7 +120,7 @@ public class CmdResourceQuotas extends CmdBase {
         }
     }
 
-    CmdResourceQuotas(PulsarAdmin admin) {
+    public CmdResourceQuotas(PulsarAdmin admin) {
         super("resource-quotas", admin);
         jcommander.addCommand("get", new GetResourceQuota());
         jcommander.addCommand("set", new SetResourceQuota());

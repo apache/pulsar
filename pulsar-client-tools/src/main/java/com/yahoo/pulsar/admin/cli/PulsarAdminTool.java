@@ -19,6 +19,8 @@ import java.io.FileInputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Properties;
 
 import org.apache.commons.lang3.StringUtils;
@@ -29,87 +31,110 @@ import com.yahoo.pulsar.client.admin.PulsarAdmin;
 import com.yahoo.pulsar.client.api.ClientConfiguration;
 
 public class PulsarAdminTool {
-    private final PulsarAdmin admin;
+    private final Map<String, Class> commandMap;
     private final JCommander jcommander;
+    private final ClientConfiguration config;
 
-    @Parameter(names = { "-h", "--help" }, help = true)
-    private boolean help;
+    @Parameter(names = { "--admin-url" }, description = "Admin Service URL to which to connect.")
+    String serviceUrl = null;
+
+    @Parameter(names = { "--auth-plugin" }, description = "Authentication plugin class name.")
+    String authPluginClassName = null;
+
+    @Parameter(names = { "--auth-params" }, description = "Authentication parameters, e.g., \"key1:val1,key2:val2\".")
+    String authParams = null;
+
+    @Parameter(names = { "-h", "--help", }, help = true, description = "Show this help.")
+    boolean help;
 
     PulsarAdminTool(Properties properties) throws Exception {
         // fallback to previous-version serviceUrl property to maintain backward-compatibility
-        String serviceUrl = StringUtils.isNotBlank(properties.getProperty("webServiceUrl"))
+        serviceUrl = StringUtils.isNotBlank(properties.getProperty("webServiceUrl"))
                 ? properties.getProperty("webServiceUrl") : properties.getProperty("serviceUrl");
-        String authPluginClassName = properties.getProperty("authPlugin");
-        String authParams = properties.getProperty("authParams");
+        authPluginClassName = properties.getProperty("authPlugin");
+        authParams = properties.getProperty("authParams");
         boolean useTls = Boolean.parseBoolean(properties.getProperty("useTls"));
         boolean tlsAllowInsecureConnection = Boolean.parseBoolean(properties.getProperty("tlsAllowInsecureConnection"));
         String tlsTrustCertsFilePath = properties.getProperty("tlsTrustCertsFilePath");
 
-        URL url = null;
-        try {
-            url = new URL(serviceUrl);
-        } catch (MalformedURLException e) {
-            System.err.println("Invalid serviceUrl: '" + serviceUrl + "'");
-            System.exit(1);
-        }
-
-        ClientConfiguration config = new ClientConfiguration();
-        config.setAuthentication(authPluginClassName, authParams);
+        config = new ClientConfiguration();
         config.setUseTls(useTls);
         config.setTlsAllowInsecureConnection(tlsAllowInsecureConnection);
         config.setTlsTrustCertsFilePath(tlsTrustCertsFilePath);
 
-        admin = new PulsarAdmin(url, config);
         jcommander = new JCommander();
         jcommander.setProgramName("pulsar-admin");
         jcommander.addObject(this);
-        jcommander.addCommand("clusters", new CmdClusters(admin));
-        jcommander.addCommand("ns-isolation-policy", new CmdNamespaceIsolationPolicy(admin));
-        jcommander.addCommand("brokers", new CmdBrokers(admin));
-        jcommander.addCommand("broker-stats", new CmdBrokerStats(admin));
-        jcommander.addCommand("properties", new CmdProperties(admin));
-        jcommander.addCommand("namespaces", new CmdNamespaces(admin));
-        jcommander.addCommand("persistent", new CmdPersistentTopics(admin));
-        jcommander.addCommand("resource-quotas", new CmdResourceQuotas(admin));
+
+        commandMap = new HashMap<>();
+        commandMap.put("clusters", CmdClusters.class);
+        commandMap.put("ns-isolation-policy", CmdNamespaceIsolationPolicy.class);
+        commandMap.put("brokers", CmdBrokers.class);
+        commandMap.put("broker-stats", CmdBrokerStats.class);
+        commandMap.put("properties", CmdProperties.class);
+        commandMap.put("namespaces", CmdNamespaces.class);
+        commandMap.put("persistent", CmdPersistentTopics.class);
+        commandMap.put("resource-quotas", CmdResourceQuotas.class);
     }
 
-    PulsarAdmin getAdmin() {
-        return admin;
-    }
-
-    JCommander getJCommander() {
-        return jcommander;
+    private void setupCommands() {
+        try {
+            URL url = new URL(serviceUrl);
+            config.setAuthentication(authPluginClassName, authParams);
+            PulsarAdmin admin = new PulsarAdmin(url, config);
+            for (Map.Entry<String, Class> c : commandMap.entrySet()) {
+                jcommander.addCommand(c.getKey(), c.getValue().getConstructor(PulsarAdmin.class).newInstance(admin));
+            }
+        } catch (MalformedURLException e) {
+            System.err.println("Invalid serviceUrl: '" + serviceUrl + "'");
+            System.exit(1);
+        } catch (Exception e) {
+            System.err.println(e.getClass() + ": " + e.getMessage());
+            System.exit(1);
+        }
     }
 
     boolean run(String[] args) {
         if (args.length == 0) {
+            setupCommands();
             jcommander.usage();
             return false;
         }
 
+        int cmdPos;
+        for (cmdPos=0; cmdPos < args.length; cmdPos++) {
+            if (commandMap.containsKey(args[cmdPos])){
+                break;
+            }
+        }
+
         try {
-            jcommander.parse(new String[] { args[0] });
+            jcommander.parse(Arrays.copyOfRange(args, 0, Math.min(cmdPos, args.length)));
         } catch (Exception e) {
             System.err.println(e.getMessage());
             System.err.println();
+            setupCommands();
             jcommander.usage();
             return false;
         }
 
         if (help) {
+            setupCommands();
             jcommander.usage();
             return false;
         }
 
-        if (jcommander.getParsedCommand() == null) {
+        if (cmdPos == args.length) {
+            setupCommands();
             jcommander.usage();
             return false;
         } else {
-            String cmd = jcommander.getParsedCommand();
+            setupCommands();
+            String cmd = args[cmdPos];
             JCommander obj = jcommander.getCommands().get(cmd);
             CmdBase cmdObj = (CmdBase) obj.getObjects().get(0);
 
-            return cmdObj.run(Arrays.copyOfRange(args, 1, args.length));
+            return cmdObj.run(Arrays.copyOfRange(args, cmdPos+1, args.length));
         }
     }
 
