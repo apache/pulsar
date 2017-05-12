@@ -93,7 +93,7 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
         this.messagesToReplay = Sets.newTreeSet();
         this.readBatchSize = MaxReadBatchSize;
         this.maxUnackedMessages = topic.getBrokerService().pulsar().getConfiguration()
-                .getMaxUnackedMessagesPerDispatcher();
+                .getMaxUnackedMessagesPerSubscription();
     }
 
     @Override

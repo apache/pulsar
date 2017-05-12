@@ -90,10 +90,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // check and consumer can receive messages without any restriction
     private int maxUnackedMessagesPerConsumer = 50000;
     // Max number of unacknowledged messages allowed per shared subscription. Broker will stop dispatching messages to
-    // all consumers once, this limit reaches until consumer starts acknowledging messages back and unack count reaches
-    // to maxUnackedMessagesPerDispatcher/2 Using a value of 0, is disabling unackedMessage-limit check and dispatcher
-    // can dispatch messages without any restriction
-    private int maxUnackedMessagesPerDispatcher = 4 * 50000;
+    // all consumers of the subscription once this limit reaches until consumer starts acknowledging messages back and
+    // unack count reaches to limit/2. Using a value of 0, is disabling unackedMessage-limit
+    // check and dispatcher can dispatch messages without any restriction
+    private int maxUnackedMessagesPerSubscription = 4 * 50000;
     // Max number of concurrent lookup request broker allows to throttle heavy incoming lookup traffic
     @FieldContext(dynamic = true)
     private int maxConcurrentLookupRequest = 10000;
@@ -438,12 +438,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
         this.maxUnackedMessagesPerConsumer = maxUnackedMessagesPerConsumer;
     }
 
-    public int getMaxUnackedMessagesPerDispatcher() {
-        return maxUnackedMessagesPerDispatcher;
+    public int getMaxUnackedMessagesPerSubscription() {
+        return maxUnackedMessagesPerSubscription;
     }
 
-    public void setMaxUnackedMessagesPerDispatcher(int maxUnackedMessagesPerDispatcher) {
-        this.maxUnackedMessagesPerDispatcher = maxUnackedMessagesPerDispatcher;
+    public void setMaxUnackedMessagesPerSubscription(int maxUnackedMessagesPerSubscription) {
+        this.maxUnackedMessagesPerSubscription = maxUnackedMessagesPerSubscription;
     }
 
     public int getMaxConcurrentLookupRequest() {

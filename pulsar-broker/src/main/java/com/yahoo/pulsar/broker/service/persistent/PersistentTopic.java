@@ -969,7 +969,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                 if (SubType.Shared.equals(subscription.getType())) {
                     if(subscription.getDispatcher() instanceof PersistentDispatcherMultipleConsumers) {
                         PersistentDispatcherMultipleConsumers dispatcher = (PersistentDispatcherMultipleConsumers)subscription.getDispatcher();
-                        destStatsStream.writePair("blockedDispatcherOnUnackedMsgs",  dispatcher.isBlockedDispatcherOnUnackedMsgs());
+                        destStatsStream.writePair("blockedSubscriptionOnUnackedMsgs",  dispatcher.isBlockedDispatcherOnUnackedMsgs());
                         destStatsStream.writePair("unackedMessages", dispatcher.getTotalUnackedMessages());
                     }
                     

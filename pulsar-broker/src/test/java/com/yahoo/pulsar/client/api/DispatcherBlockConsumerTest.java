@@ -70,7 +70,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
     public void testConsumerBlockingWithUnAckedMessagesAtDispatcher() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        int unAckedMessages = pulsar.getConfiguration().getMaxUnackedMessagesPerDispatcher();
+        int unAckedMessages = pulsar.getConfiguration().getMaxUnackedMessagesPerSubscription();
         try {
             stopBroker();
             startBroker();
@@ -80,7 +80,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             final String topicName = "persistent://my-property/use/my-ns/unacked-topic";
             final String subscriberName = "subscriber-1";
 
-            pulsar.getConfiguration().setMaxUnackedMessagesPerDispatcher(unackMsgAllowed);
+            pulsar.getConfiguration().setMaxUnackedMessagesPerSubscription(unackMsgAllowed);
             ConsumerConfiguration conf = new ConsumerConfiguration();
             conf.setReceiverQueueSize(receiverQueueSize);
             conf.setSubscriptionType(SubscriptionType.Shared);
@@ -170,7 +170,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
     public void testConsumerBlockingWithUnAckedMessagesAndRedelivery() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        int unAckedMessages = pulsar.getConfiguration().getMaxUnackedMessagesPerDispatcher();
+        int unAckedMessages = pulsar.getConfiguration().getMaxUnackedMessagesPerSubscription();
         try {
             stopBroker();
             startBroker();
@@ -180,7 +180,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             final String topicName = "persistent://my-property/use/my-ns/unacked-topic";
             final String subscriberName = "subscriber-1";
 
-            pulsar.getConfiguration().setMaxUnackedMessagesPerDispatcher(unackMsgAllowed);
+            pulsar.getConfiguration().setMaxUnackedMessagesPerSubscription(unackMsgAllowed);
             ConsumerConfiguration conf = new ConsumerConfiguration();
             conf.setReceiverQueueSize(receiverQueueSize);
             conf.setSubscriptionType(SubscriptionType.Shared);
@@ -301,7 +301,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
     public void testCloseConsumerBlockedDispatcher() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        int unAckedMessages = pulsar.getConfiguration().getMaxUnackedMessagesPerDispatcher();
+        int unAckedMessages = pulsar.getConfiguration().getMaxUnackedMessagesPerSubscription();
         try {
             stopBroker();
             startBroker();
@@ -311,7 +311,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             final String topicName = "persistent://my-property/use/my-ns/unacked-topic";
             final String subscriberName = "subscriber-1";
 
-            pulsar.getConfiguration().setMaxUnackedMessagesPerDispatcher(unackMsgAllowed);
+            pulsar.getConfiguration().setMaxUnackedMessagesPerSubscription(unackMsgAllowed);
             ConsumerConfiguration conf = new ConsumerConfiguration();
             conf.setReceiverQueueSize(receiverQueueSize);
             conf.setSubscriptionType(SubscriptionType.Shared);
@@ -381,7 +381,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
     public void testRedeliveryOnBlockedDistpatcher() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        int unAckedMessages = pulsar.getConfiguration().getMaxUnackedMessagesPerDispatcher();
+        int unAckedMessages = pulsar.getConfiguration().getMaxUnackedMessagesPerSubscription();
         try {
             stopBroker();
             startBroker();
@@ -391,7 +391,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             final String topicName = "persistent://my-property/use/my-ns/unacked-topic";
             final String subscriberName = "subscriber-1";
 
-            pulsar.getConfiguration().setMaxUnackedMessagesPerDispatcher(unackMsgAllowed);
+            pulsar.getConfiguration().setMaxUnackedMessagesPerSubscription(unackMsgAllowed);
             ConsumerConfiguration conf = new ConsumerConfiguration();
             conf.setSubscriptionType(SubscriptionType.Shared);
             conf.setReceiverQueueSize(receiverQueueSize);
@@ -511,7 +511,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
     @Test
     public void testBlockDispatcherStats() throws Exception {
 
-        int orginalDispatcherLimit = conf.getMaxUnackedMessagesPerDispatcher();
+        int orginalDispatcherLimit = conf.getMaxUnackedMessagesPerSubscription();
         try {
             final String topicName = "persistent://prop/use/ns-abc/blockDispatch";
             final String subName = "blockDispatch";
@@ -521,7 +521,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             PersistentSubscriptionStats subStats;
 
             // configure maxUnackMessagePerDispatcher then restart broker to get this change
-            conf.setMaxUnackedMessagesPerDispatcher(10);
+            conf.setMaxUnackedMessagesPerSubscription(10);
             stopBroker();
             startBroker();
 
@@ -557,7 +557,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
 
             assertTrue(subStats.msgBacklog > 0);
             assertTrue(subStats.unackedMessages > 0);
-            assertTrue(subStats.blockedDispatcherOnUnackedMsgs);
+            assertTrue(subStats.blockedSubscriptionOnUnackedMsgs);
             assertEquals(subStats.consumers.get(0).unackedMessages, subStats.unackedMessages);
 
             // consumer stats
@@ -568,7 +568,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             consumer.close();
 
         } finally {
-            conf.setMaxUnackedMessagesPerDispatcher(orginalDispatcherLimit);
+            conf.setMaxUnackedMessagesPerSubscription(orginalDispatcherLimit);
         }
 
     }

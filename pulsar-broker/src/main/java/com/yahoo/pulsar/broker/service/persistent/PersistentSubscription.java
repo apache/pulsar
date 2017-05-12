@@ -597,7 +597,7 @@ public class PersistentSubscription implements Subscription {
             if (dispatcher instanceof PersistentDispatcherMultipleConsumers) {
                 subStats.unackedMessages = ((PersistentDispatcherMultipleConsumers) dispatcher)
                         .getTotalUnackedMessages();
-                subStats.blockedDispatcherOnUnackedMsgs = ((PersistentDispatcherMultipleConsumers) dispatcher)
+                subStats.blockedSubscriptionOnUnackedMsgs = ((PersistentDispatcherMultipleConsumers) dispatcher)
                         .isBlockedDispatcherOnUnackedMsgs();
             }
         }

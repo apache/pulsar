@@ -37,8 +37,8 @@ public class PersistentSubscriptionStats {
     /** Number of messages in the subscription backlog */
     public long msgBacklog;
 
-    /** Flag to verify if dispatcher is blocked due to reaching threshold of unacked messages */
-    public boolean blockedDispatcherOnUnackedMsgs;
+    /** Flag to verify if subscription is blocked due to reaching threshold of unacked messages */
+    public boolean blockedSubscriptionOnUnackedMsgs;
     
     /** Number of unacknowledged messages for the subscription */
     public long unackedMessages;
