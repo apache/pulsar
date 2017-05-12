@@ -68,6 +68,7 @@ public class SimpleConsumerSocket {
 
     @OnWebSocketMessage
     public synchronized void onMessage(String msg) throws JsonParseException, IOException {
+        receivedMessages.incrementAndGet();
         JsonObject message = new Gson().fromJson(msg, JsonObject.class);
         JsonObject ack = new JsonObject();
         String messageId = message.get(X_PULSAR_MESSAGE_ID).getAsString();
@@ -75,7 +76,6 @@ public class SimpleConsumerSocket {
         ack.add("messageId", new JsonPrimitive(messageId));
         // Acking the proxy
         this.getRemote().sendString(ack.toString());
-        receivedMessages.incrementAndGet();
     }
 
     public RemoteEndpoint getRemote() {

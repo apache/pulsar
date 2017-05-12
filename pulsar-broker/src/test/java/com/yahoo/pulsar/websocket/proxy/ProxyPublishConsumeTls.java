@@ -40,7 +40,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import com.yahoo.pulsar.client.api.ProducerConsumerBase;
@@ -53,24 +55,24 @@ import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 
 public class ProxyPublishConsumeTls extends ProducerConsumerBase {
     protected String methodName;
-    private static final int TEST_PORT = PortManager.nextFreePort();
-    private static final int TLS_TEST_PORT = PortManager.nextFreePort();
-    private static final String CONSUME_URI = "wss://localhost:" + TLS_TEST_PORT + "/ws/consumer/persistent/my-property/use/my-ns/my-topic/my-sub";
-    private static final String PRODUCE_URI = "wss://localhost:" + TLS_TEST_PORT + "/ws/producer/persistent/my-property/use/my-ns/my-topic/";
+    private int port;
+    private int tlsPort;
     private static final String TLS_SERVER_CERT_FILE_PATH = "./src/test/resources/certificate/server.crt";
     private static final String TLS_SERVER_KEY_FILE_PATH = "./src/test/resources/certificate/server.key";    
     
     private ProxyServer proxyServer;
     private WebSocketService service;
 
-    @BeforeClass
+    @BeforeMethod
     public void setup() throws Exception {
         super.internalSetup();
         super.producerBaseSetup();
 
+        port = PortManager.nextFreePort();
+        tlsPort = PortManager.nextFreePort();
         WebSocketProxyConfiguration config = new WebSocketProxyConfiguration();
-        config.setWebServicePort(TEST_PORT);
-        config.setWebServicePortTls(TLS_TEST_PORT);
+        config.setWebServicePort(port);
+        config.setWebServicePortTls(tlsPort);
         config.setTlsEnabled(true);
         config.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
         config.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
@@ -83,7 +85,7 @@ public class ProxyPublishConsumeTls extends ProducerConsumerBase {
         log.info("Proxy Server Started");
     }
 
-    @AfterClass
+    @AfterMethod
     protected void cleanup() throws Exception {
         super.internalCleanup();
         service.close();
@@ -92,10 +94,12 @@ public class ProxyPublishConsumeTls extends ProducerConsumerBase {
 
     }
 
-    @Test
+    @Test(timeOut=10000)
     public void socketTest() throws InterruptedException, NoSuchAlgorithmException, KeyManagementException {
-        URI consumeUri = URI.create(CONSUME_URI);
-        URI produceUri = URI.create(PRODUCE_URI);
+        String consumerUri = "wss://localhost:" + tlsPort + "/ws/consumer/persistent/my-property/use/my-ns/my-topic/my-sub";
+        String producerUri = "wss://localhost:" + tlsPort + "/ws/producer/persistent/my-property/use/my-ns/my-topic/";
+        URI consumeUri = URI.create(consumerUri);
+        URI produceUri = URI.create(producerUri);
 
         KeyManager[] keyManagers = null;
         TrustManager[] trustManagers = InsecureTrustManagerFactory.INSTANCE.getTrustManagers();

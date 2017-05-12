@@ -30,6 +30,7 @@ import javax.management.ObjectName;
 
 import com.google.common.collect.Maps;
 import com.yahoo.pulsar.broker.PulsarService;
+import com.yahoo.pulsar.common.stats.Metrics;
 
 public class MBeanStatsGenerator {
     private MBeanServer mbs;

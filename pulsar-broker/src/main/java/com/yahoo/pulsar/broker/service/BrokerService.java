@@ -72,7 +72,6 @@ import com.yahoo.pulsar.broker.service.BrokerServiceException.ServiceUnitNotRead
 import com.yahoo.pulsar.broker.service.persistent.PersistentReplicator;
 import com.yahoo.pulsar.broker.service.persistent.PersistentTopic;
 import com.yahoo.pulsar.broker.stats.ClusterReplicationMetrics;
-import com.yahoo.pulsar.broker.stats.Metrics;
 import com.yahoo.pulsar.broker.web.PulsarWebResource;
 import com.yahoo.pulsar.client.api.ClientConfiguration;
 import com.yahoo.pulsar.client.api.PulsarClient;
@@ -91,6 +90,7 @@ import com.yahoo.pulsar.common.policies.data.PersistentTopicStats;
 import com.yahoo.pulsar.common.policies.data.Policies;
 import com.yahoo.pulsar.common.policies.data.RetentionPolicies;
 import com.yahoo.pulsar.common.policies.data.loadbalancer.NamespaceBundleStats;
+import com.yahoo.pulsar.common.stats.Metrics;
 import com.yahoo.pulsar.common.util.FieldParser;
 import com.yahoo.pulsar.common.util.ObjectMapperFactory;
 import com.yahoo.pulsar.common.util.collections.ConcurrentOpenHashMap;

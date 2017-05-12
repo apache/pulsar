@@ -16,6 +16,7 @@
 package com.yahoo.pulsar.broker.stats;
 
 import com.google.common.collect.Maps;
+import com.yahoo.pulsar.common.stats.Metrics;
 
 import java.util.ArrayList;
 import java.util.List;

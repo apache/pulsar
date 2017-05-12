@@ -18,6 +18,7 @@ package com.yahoo.pulsar.broker.stats;
 import java.util.Map;
 
 import com.google.common.collect.Maps;
+import com.yahoo.pulsar.common.stats.Metrics;
 
 public class NamespaceStats {
 
