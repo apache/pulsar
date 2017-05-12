@@ -15,9 +15,12 @@
  */
 package com.yahoo.pulsar.websocket;
 
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
+
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.MalformedURLException;
+import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -26,11 +29,11 @@ import javax.servlet.ServletException;
 import javax.websocket.DeploymentException;
 
 import org.apache.bookkeeper.util.OrderedSafeExecutor;
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.beust.jcommander.internal.Lists;
 import com.yahoo.pulsar.broker.PulsarServerException;
 import com.yahoo.pulsar.broker.ServiceConfiguration;
 import com.yahoo.pulsar.broker.authentication.AuthenticationService;
@@ -40,7 +43,9 @@ import com.yahoo.pulsar.client.api.ClientConfiguration;
 import com.yahoo.pulsar.client.api.PulsarClient;
 import com.yahoo.pulsar.client.api.PulsarClientException;
 import com.yahoo.pulsar.common.policies.data.ClusterData;
+import com.yahoo.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import com.yahoo.pulsar.websocket.service.WebSocketProxyConfiguration;
+import com.yahoo.pulsar.websocket.stats.ProxyStats;
 import com.yahoo.pulsar.zookeeper.GlobalZooKeeperCache;
 import com.yahoo.pulsar.zookeeper.ZooKeeperCache;
 import com.yahoo.pulsar.zookeeper.ZooKeeperClientFactory;
@@ -70,6 +75,9 @@ public class WebSocketService implements Closeable {
     private ConfigurationCacheService configurationCacheService;
 
     private ClusterData localCluster;
+    private final ConcurrentOpenHashMap<String, List<ProducerHandler>> topicProducerMap;
+    private final ConcurrentOpenHashMap<String, List<ConsumerHandler>> topicConsumerMap;
+    private final ProxyStats proxyStats;
 
     public WebSocketService(WebSocketProxyConfiguration config) {
         this(createClusterData(config), createServiceConfiguration(config));
@@ -78,6 +86,9 @@ public class WebSocketService implements Closeable {
     public WebSocketService(ClusterData localCluster, ServiceConfiguration config) {
         this.config = config;
         this.localCluster = localCluster;
+        this.topicProducerMap = new ConcurrentOpenHashMap<>();
+        this.topicConsumerMap = new ConcurrentOpenHashMap<>();
+        this.proxyStats = new ProxyStats(this);
     }
 
     public void start() throws PulsarServerException, PulsarClientException, MalformedURLException, ServletException,
@@ -226,6 +237,10 @@ public class WebSocketService implements Closeable {
         }
     }
 
+    public ProxyStats getProxyStats() {
+        return proxyStats;
+    }
+
     public ConfigurationCacheService getConfigurationCache() {
         return configurationCacheService;
     }
@@ -246,6 +261,43 @@ public class WebSocketService implements Closeable {
         return this.config.isAuthorizationEnabled();
     }
 
-    private static final Logger log = LoggerFactory.getLogger(WebSocketService.class);
+    public boolean addProducer(ProducerHandler producer) {
+        return topicProducerMap.computeIfAbsent(producer.getProducer().getTopic(), topic -> Lists.newArrayList())
+                .add(producer);
+    }
 
+    public ConcurrentOpenHashMap<String, List<ProducerHandler>> getProducers() {
+        return topicProducerMap;
+    }
+
+    public boolean removeProducer(ProducerHandler producer) {
+        final String topicName = producer.getProducer().getTopic();
+        if (topicProducerMap.containsKey(topicName)) {
+            return topicProducerMap.get(topicName).remove(producer);
+        }
+        return false;
+    }
+
+    public boolean addConsumer(ConsumerHandler consumer) {
+        return topicConsumerMap.computeIfAbsent(consumer.getConsumer().getTopic(), topic -> Lists.newArrayList())
+                .add(consumer);
+    }
+
+    public ConcurrentOpenHashMap<String, List<ConsumerHandler>> getConsumers() {
+        return topicConsumerMap;
+    }
+
+    public boolean removeConsumer(ConsumerHandler consumer) {
+        final String topicName = consumer.getConsumer().getTopic();
+        if (topicConsumerMap.containsKey(topicName)) {
+            return topicConsumerMap.get(topicName).remove(consumer);
+        }
+        return false;
+    }
+
+    public ServiceConfiguration getConfig() {
+        return config;
+    }
+
+    private static final Logger log = LoggerFactory.getLogger(WebSocketService.class);
 }

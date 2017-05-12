@@ -31,8 +31,8 @@ import org.eclipse.jetty.websocket.client.WebSocketClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import com.yahoo.pulsar.client.api.ProducerConsumerBase;
@@ -43,19 +43,18 @@ import com.yahoo.pulsar.websocket.service.WebSocketServiceStarter;
 
 public class ProxyPublishConsumeWithoutZKTest extends ProducerConsumerBase {
     protected String methodName;
-    private static final int TEST_PORT = PortManager.nextFreePort();
-    private static final String CONSUME_URI = "ws://localhost:" + TEST_PORT + "/ws/consumer/persistent/my-property/use/my-ns/my-topic/my-sub";
-    private static final String PRODUCE_URI = "ws://localhost:" + TEST_PORT + "/ws/producer/persistent/my-property/use/my-ns/my-topic/";
+    private int port;
     private ProxyServer proxyServer;
     private WebSocketService service;
 
-    @BeforeClass
+    @BeforeMethod
     public void setup() throws Exception {
         super.internalSetup();
         super.producerBaseSetup();
 
+        port = PortManager.nextFreePort();
         WebSocketProxyConfiguration config = new WebSocketProxyConfiguration();
-        config.setWebServicePort(TEST_PORT);
+        config.setWebServicePort(port);
         config.setClusterName("use");
         config.setServiceUrl(pulsar.getWebServiceAddress());
         config.setServiceUrlTls(pulsar.getWebServiceAddressTls());
@@ -66,7 +65,7 @@ public class ProxyPublishConsumeWithoutZKTest extends ProducerConsumerBase {
         log.info("Proxy Server Started");
     }
 
-    @AfterClass
+    @AfterMethod
     protected void cleanup() throws Exception {
         super.internalCleanup();
         service.close();
@@ -76,8 +75,12 @@ public class ProxyPublishConsumeWithoutZKTest extends ProducerConsumerBase {
 
     @Test(timeOut=30000)
     public void socketTest() throws Exception {
-        URI consumeUri = URI.create(CONSUME_URI);
-        URI produceUri = URI.create(PRODUCE_URI);
+        
+        String consumerUri = "ws://localhost:" + port + "/ws/consumer/persistent/my-property/use/my-ns/my-topic/my-sub";
+        String producerUri = "ws://localhost:" + port + "/ws/producer/persistent/my-property/use/my-ns/my-topic/";
+        
+        URI consumeUri = URI.create(consumerUri);
+        URI produceUri = URI.create(producerUri);
 
         WebSocketClient consumeClient = new WebSocketClient();
         SimpleConsumerSocket consumeSocket = new SimpleConsumerSocket();

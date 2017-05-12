@@ -25,6 +25,7 @@ import com.yahoo.pulsar.broker.PulsarService;
 import com.yahoo.pulsar.broker.stats.metrics.JvmMetrics;
 import com.yahoo.pulsar.broker.stats.metrics.ManagedLedgerCacheMetrics;
 import com.yahoo.pulsar.broker.stats.metrics.ManagedLedgerMetrics;
+import com.yahoo.pulsar.common.stats.Metrics;
 
 public class MetricsGenerator {
     private final PulsarService pulsar;

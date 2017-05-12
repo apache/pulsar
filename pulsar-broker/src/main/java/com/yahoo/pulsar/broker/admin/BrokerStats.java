@@ -17,7 +17,6 @@ package com.yahoo.pulsar.broker.admin;
 
 import java.io.OutputStream;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Map;
 
 import javax.ws.rs.GET;
@@ -39,7 +38,7 @@ import com.yahoo.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import com.yahoo.pulsar.broker.stats.AllocatorStatsGenerator;
 import com.yahoo.pulsar.broker.stats.BookieClientStatsGenerator;
 import com.yahoo.pulsar.broker.stats.MBeanStatsGenerator;
-import com.yahoo.pulsar.broker.stats.Metrics;
+import com.yahoo.pulsar.common.stats.Metrics;
 import com.yahoo.pulsar.broker.web.RestException;
 import com.yahoo.pulsar.common.naming.NamespaceName;
 import com.yahoo.pulsar.common.policies.data.loadbalancer.LoadReport;

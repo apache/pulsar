@@ -27,10 +27,13 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLongFieldUpdater;
+import java.util.concurrent.atomic.LongAdder;
 
 import javax.servlet.http.HttpServletRequest;
 
 import org.eclipse.jetty.websocket.api.Session;
+import org.eclipse.jetty.websocket.api.WriteCallback;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -64,12 +67,23 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
 
     private final int maxPendingMessages;
     private final AtomicInteger pendingMessages = new AtomicInteger();
+    
+    private final LongAdder numMsgsDelivered;
+    private final LongAdder numBytesDelivered;
+    private final LongAdder numMsgsAcked;
+    private volatile long msgDeliveredCounter = 0;
+    private static final AtomicLongFieldUpdater<ConsumerHandler> MSG_DELIVERED_COUNTER_UPDATER =
+            AtomicLongFieldUpdater.newUpdater(ConsumerHandler.class, "msgDeliveredCounter");
 
     public ConsumerHandler(WebSocketService service, HttpServletRequest request) {
         super(service, request);
         this.subscription = extractSubscription(request);
         this.conf = getConsumerConfiguration();
         this.maxPendingMessages = (conf.getReceiverQueueSize() == 0) ? 1 : conf.getReceiverQueueSize();
+        this.numMsgsDelivered = new LongAdder();
+        this.numBytesDelivered = new LongAdder();
+        this.numMsgsAcked = new LongAdder();
+        
     }
 
     @Override
@@ -77,7 +91,8 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
         super.onWebSocketConnect(session);
 
         try {
-            consumer = service.getPulsarClient().subscribe(topic, subscription, conf);
+            this.consumer = service.getPulsarClient().subscribe(topic, subscription, conf);
+            this.service.addConsumer(this);
             receiveMessage();
         } catch (Exception e) {
             log.warn("[{}] Failed in creating subscription {} on topic {}", session.getRemoteAddress(), subscription,
@@ -105,10 +120,29 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
             if (msg.hasKey()) {
                 dm.key = msg.getKey();
             }
+            final long msgSize = msg.getData().length;
 
             try {
                 getSession().getRemote()
-                        .sendStringByFuture(ObjectMapperFactory.getThreadLocal().writeValueAsString(dm));
+                        .sendString(ObjectMapperFactory.getThreadLocal().writeValueAsString(dm), new WriteCallback() {
+                            @Override
+                            public void writeFailed(Throwable th) {
+                                log.warn("[{}/{}] Failed to deliver msg to {} {}", consumer.getTopic(), subscription,
+                                        getRemote().getInetSocketAddress().toString(), th.getMessage());
+                                pendingMessages.decrementAndGet();
+                                // schedule receive as one of the delivery failed
+                                service.getExecutor().execute(() -> receiveMessage());
+                            }
+
+                            @Override
+                            public void writeSuccess() {
+                                if (log.isDebugEnabled()) {
+                                    log.info("[{}/{}] message is delivered successfully to {} ", consumer.getTopic(),
+                                            subscription, getRemote().getInetSocketAddress().toString());
+                                }
+                                updateDeliverMsgStat(msgSize);
+                            }
+                        });
             } catch (JsonProcessingException e) {
                 close(WebSocketError.FailedToSerializeToJSON);
             }
@@ -139,7 +173,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
             return;
         }
 
-        consumer.acknowledgeAsync(msgId);
+        consumer.acknowledgeAsync(msgId).thenAccept(consumer -> numMsgsAcked.increment());
 
         int pending = pendingMessages.getAndDecrement();
         if (pending >= maxPendingMessages) {
@@ -151,8 +185,43 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
     @Override
     public void close() throws IOException {
         if (consumer != null) {
+            this.service.removeConsumer(this);
             consumer.close();
         }
+    }
+
+    public Consumer getConsumer() {
+        return this.consumer;
+    }
+
+    public String getSubscription() {
+        return subscription;
+    }
+
+    public SubscriptionType getSubscriptionType() {
+        return conf.getSubscriptionType();
+    }
+
+    public long getAndResetNumMsgsDelivered() {
+        return numMsgsDelivered.sumThenReset();
+    }
+
+    public long getAndResetNumBytesDelivered() {
+        return numBytesDelivered.sumThenReset();
+    }
+
+    public long getAndResetNumMsgsAcked() {
+        return numMsgsAcked.sumThenReset();
+    }
+
+    public long getMsgDeliveredCounter() {
+        return MSG_DELIVERED_COUNTER_UPDATER.get(this);
+    }
+    
+    protected void updateDeliverMsgStat(long msgSize) {
+        numMsgsDelivered.increment();
+        MSG_DELIVERED_COUNTER_UPDATER.incrementAndGet(this);
+        numBytesDelivered.add(msgSize);
     }
 
     private ConsumerConfiguration getConsumerConfiguration() {

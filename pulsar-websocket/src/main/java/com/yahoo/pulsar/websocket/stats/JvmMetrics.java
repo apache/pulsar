@@ -13,11 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.yahoo.pulsar.broker.stats.metrics;
+package com.yahoo.pulsar.websocket.stats;
+
+import static com.yahoo.pulsar.common.stats.Metrics.create;
 
 import java.lang.management.ManagementFactory;
-import java.lang.reflect.Field;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import javax.management.MBeanServer;
@@ -28,17 +31,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
-import com.yahoo.pulsar.broker.PulsarService;
+import com.google.common.collect.Maps;
 import com.yahoo.pulsar.common.stats.Metrics;
+import com.yahoo.pulsar.websocket.WebSocketService;
 
 import io.netty.buffer.PoolArenaMetric;
 import io.netty.buffer.PoolChunkListMetric;
 import io.netty.buffer.PoolChunkMetric;
 import io.netty.buffer.PooledByteBufAllocator;
-import io.netty.util.internal.PlatformDependent;
-import java.util.concurrent.atomic.AtomicLong;
 
-public class JvmMetrics extends AbstractMetrics {
+public class JvmMetrics {
 
     private volatile long accumulatedYoungGcCount = 0;
     private volatile long currentYoungGcCount = 0;
@@ -49,28 +51,19 @@ public class JvmMetrics extends AbstractMetrics {
     private volatile long currentOldGcCount = 0;
     private volatile long accumulatedOldGcTime = 0;
     private volatile long currentOldGcTime = 0;
-    
-    private static final Logger log = LoggerFactory.getLogger(JvmMetrics.class);
-    private static Field directMemoryUsage = null;
-    static {
-        try {
-            directMemoryUsage = PlatformDependent.class.getDeclaredField("DIRECT_MEMORY_COUNTER");
-            directMemoryUsage.setAccessible(true);
-        } catch (Exception e) {
-            log.warn("Failed to access netty DIRECT_MEMORY_COUNTER field {}", e.getMessage());
-        }
-    }
 
-    public JvmMetrics(PulsarService pulsar) {
-        super(pulsar);
-        pulsar.getExecutor().scheduleAtFixedRate(this::updateGcStats, 0, 1, TimeUnit.MINUTES);
+    private static final Logger log = LoggerFactory.getLogger(JvmMetrics.class);
+
+    public JvmMetrics(WebSocketService service) {
+        service.getExecutor().scheduleAtFixedRate(this::updateGcStats, 0, 1, TimeUnit.MINUTES);
     }
 
     @SuppressWarnings("restriction")
-    @Override
-    public List<Metrics> generate() {
+    public Metrics generate() {
 
-        Metrics m = createMetrics();
+        Map<String, String> dimensionMap = Maps.newHashMap();
+        dimensionMap.put("system", "jvm");
+        Metrics m = create(dimensionMap);
 
         Runtime r = Runtime.getRuntime();
 
@@ -78,7 +71,6 @@ public class JvmMetrics extends AbstractMetrics {
         m.put("jvm_max_memory", r.maxMemory());
         m.put("jvm_total_memory", r.totalMemory());
 
-        m.put("jvm_direct_memory_used", getJvmDirectMemoryUsed());
         m.put("jvm_max_direct_memory", sun.misc.VM.maxDirectMemory());
         m.put("jvm_thread_cnt", getThreadCount());
 
@@ -102,24 +94,10 @@ public class JvmMetrics extends AbstractMetrics {
             }
         }
 
-        m.put("brk_default_pool_allocated", totalAllocated);
-        m.put("brk_default_pool_used", totalUsed);
+        m.put("proxy_default_pool_allocated", totalAllocated);
+        m.put("proxy_default_pool_used", totalUsed);
 
-        return Lists.newArrayList(m);
-    }
-
-    @SuppressWarnings("restriction")
-    public static long getJvmDirectMemoryUsed() {
-        if (directMemoryUsage != null) {
-            try {
-                return ((AtomicLong) directMemoryUsage.get(null)).get();
-            } catch (Exception e) {
-                if (log.isDebugEnabled()) {
-                    log.debug("Failed to get netty-direct-memory used count {}", e.getMessage());
-                }
-            }
-        }
-        return sun.misc.SharedSecrets.getJavaNioAccess().getDirectBufferPool().getMemoryUsed();
+        return m;
     }
 
     private static ObjectName youngGenName = null;

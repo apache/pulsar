@@ -22,7 +22,7 @@ import org.apache.bookkeeper.mledger.impl.EntryCacheImpl;
 
 import com.google.common.collect.Lists;
 import com.yahoo.pulsar.broker.PulsarService;
-import com.yahoo.pulsar.broker.stats.Metrics;
+import com.yahoo.pulsar.common.stats.Metrics;
 
 import io.netty.buffer.PoolArenaMetric;
 import io.netty.buffer.PoolChunkListMetric;
