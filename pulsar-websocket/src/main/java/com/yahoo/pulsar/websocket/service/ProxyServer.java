@@ -50,15 +50,15 @@ import com.yahoo.pulsar.common.util.SecurityUtility;
 import io.netty.util.concurrent.DefaultThreadFactory;
 
 public class ProxyServer {
-    private final ExecutorService executorService;
     private final Server server;
     private final List<Handler> handlers = Lists.newArrayList();
     private final WebSocketProxyConfiguration conf;
-
+    private final ExecutorService executorService;
+    
     public ProxyServer(WebSocketProxyConfiguration config)
             throws PulsarClientException, MalformedURLException, PulsarServerException {
         this.conf = config;
-        this.executorService = Executors.newFixedThreadPool(2 * Runtime.getRuntime().availableProcessors(),
+        executorService = Executors.newFixedThreadPool(WebSocketProxyConfiguration.PROXY_SERVER_EXECUTOR_THREADS,
                 new DefaultThreadFactory("pulsar-websocket-web"));
         this.server = new Server(new ExecutorThreadPool(executorService));
         List<ServerConnector> connectors = new ArrayList<>();
@@ -129,6 +129,7 @@ public class ProxyServer {
 
     public void stop() throws Exception {
         server.stop();
+        executorService.shutdown();
     }
 
     private static final Logger log = LoggerFactory.getLogger(ProxyServer.class);
