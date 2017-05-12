@@ -185,7 +185,7 @@ public class CmdNamespaceIsolationPolicy extends CmdBase {
         return nsIsolationData;
     }
 
-    CmdNamespaceIsolationPolicy(PulsarAdmin admin) {
+    public CmdNamespaceIsolationPolicy(PulsarAdmin admin) {
         super("clusters", admin);
         jcommander.addCommand("set", new SetPolicy());
         jcommander.addCommand("get", new GetPolicy());
