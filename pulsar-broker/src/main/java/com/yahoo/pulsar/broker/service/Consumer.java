@@ -27,6 +27,8 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.util.Rate;
+import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap;
+import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap.LongPair;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
@@ -79,7 +81,7 @@ public class Consumer {
             AtomicIntegerFieldUpdater.newUpdater(Consumer.class, "permitsReceivedWhileConsumerBlocked");
     private volatile int permitsReceivedWhileConsumerBlocked = 0;
 
-    private final ConcurrentOpenHashMap<PositionImpl, Integer> pendingAcks;
+    private final ConcurrentLongLongPairHashMap pendingAcks;
 
     private final ConsumerStats stats;
     
@@ -113,7 +115,7 @@ public class Consumer {
         stats.clientVersion = cnx.getClientVersion();
 
         if (subType == SubType.Shared) {
-            this.pendingAcks = new ConcurrentOpenHashMap<PositionImpl, Integer>(256, 2);
+            this.pendingAcks = new ConcurrentLongLongPairHashMap(256, 2);
         } else {
             // We don't need to keep track of pending acks if the subscription is not shared
             this.pendingAcks = null;
@@ -251,7 +253,7 @@ public class Consumer {
             }
             if (pendingAcks != null) {
                 PositionImpl pos = (PositionImpl) entry.getPosition();
-                pendingAcks.put(pos, batchSize);
+                pendingAcks.put(pos.getLedgerId(), pos.getEntryId(), batchSize, 0);
             }
             // check if consumer supports batch message
             if (batchSize > 1 && !clientSupportBatchMessages) {
@@ -465,9 +467,9 @@ public class Consumer {
      */
     private void removePendingAcks(PositionImpl position) {
         Consumer ackOwnedConsumer = null;
-        if (pendingAcks.get(position) == null) {
+        if (pendingAcks.get(position.getLedgerId(), position.getEntryId()) == null) {
             for (Consumer consumer : subscription.getConsumers()) {
-                if (!consumer.equals(this) && consumer.getPendingAcks().get(position) != null) {
+                if (!consumer.equals(this) && consumer.getPendingAcks().get(position.getLedgerId(), position.getEntryId()) != null) {
                     ackOwnedConsumer = consumer;
                     break;
                 }
@@ -478,7 +480,8 @@ public class Consumer {
         
         // remove pending message from appropriate consumer and unblock unAckMsg-flow if requires
         if (ackOwnedConsumer != null) {
-            int totalAckedMsgs = ackOwnedConsumer.getPendingAcks().remove(position);
+            int totalAckedMsgs = (int) ackOwnedConsumer.getPendingAcks().get(position.getLedgerId(), position.getEntryId()).first;
+            ackOwnedConsumer.getPendingAcks().remove(position.getLedgerId(), position.getEntryId());
             // unblock consumer-throttling when receives half of maxUnackedMessages => consumer can start again
             // consuming messages
             if (((addAndGetUnAckedMsgs(ackOwnedConsumer, -totalAckedMsgs) <= (maxUnackedMessages / 2))
@@ -490,7 +493,7 @@ public class Consumer {
         }
     }
     
-    public ConcurrentOpenHashMap<PositionImpl, Integer> getPendingAcks() {
+    public ConcurrentLongLongPairHashMap getPendingAcks() {
         return pendingAcks;
     }
     
@@ -507,8 +510,8 @@ public class Consumer {
         flowConsumerBlockedPermits(this);
         if (pendingAcks != null) {
             int totalRedeliveryMessages = 0;
-            for (Integer batchSize : pendingAcks.values()) {
-                totalRedeliveryMessages += batchSize;
+            for (LongPair batchSize : pendingAcks.values()) {
+                totalRedeliveryMessages += batchSize.first;
             }
             msgRedeliver.recordMultipleEvents(totalRedeliveryMessages, totalRedeliveryMessages);
             pendingAcks.clear();
@@ -522,9 +525,10 @@ public class Consumer {
         List<PositionImpl> pendingPositions = Lists.newArrayList();
         for (MessageIdData msg : messageIds) {
             PositionImpl position = PositionImpl.get(msg.getLedgerId(), msg.getEntryId());
-            Integer batchSize = pendingAcks.remove(position);
+            LongPair batchSize = pendingAcks.get(position.getLedgerId(), position.getEntryId());
             if (batchSize != null) {
-                totalRedeliveryMessages += batchSize;
+                pendingAcks.remove(position.getLedgerId(), position.getEntryId());
+                totalRedeliveryMessages += batchSize.first;
                 pendingPositions.add(position);
             }
         }
