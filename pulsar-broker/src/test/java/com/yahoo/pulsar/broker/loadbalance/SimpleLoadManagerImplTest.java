@@ -25,10 +25,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
 
-import org.apache.commons.lang3.SystemUtils;
-import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.URL;
 import java.util.ArrayList;
@@ -42,9 +39,9 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
-import com.yahoo.pulsar.broker.loadbalance.impl.*;
 import org.apache.bookkeeper.test.PortManager;
 import org.apache.bookkeeper.util.ZkUtils;
+import org.apache.commons.lang3.SystemUtils;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
@@ -59,11 +56,18 @@ import com.google.common.collect.Sets;
 import com.yahoo.pulsar.broker.PulsarService;
 import com.yahoo.pulsar.broker.ServiceConfiguration;
 import com.yahoo.pulsar.broker.admin.AdminResource;
+import com.yahoo.pulsar.broker.loadbalance.impl.GenericBrokerHostUsageImpl;
+import com.yahoo.pulsar.broker.loadbalance.impl.LinuxBrokerHostUsageImpl;
+import com.yahoo.pulsar.broker.loadbalance.impl.LoadManagerShared;
+import com.yahoo.pulsar.broker.loadbalance.impl.PulsarLoadReportImpl;
+import com.yahoo.pulsar.broker.loadbalance.impl.PulsarResourceDescription;
+import com.yahoo.pulsar.broker.loadbalance.impl.ResourceAvailabilityRanker;
+import com.yahoo.pulsar.broker.loadbalance.impl.SimpleLoadCalculatorImpl;
+import com.yahoo.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
+import com.yahoo.pulsar.broker.loadbalance.impl.SimpleResourceUnit;
 import com.yahoo.pulsar.client.admin.BrokerStats;
 import com.yahoo.pulsar.client.admin.PulsarAdmin;
 import com.yahoo.pulsar.client.api.Authentication;
-import com.yahoo.pulsar.client.api.ClientConfiguration;
-import com.yahoo.pulsar.client.api.PulsarClient;
 import com.yahoo.pulsar.common.naming.NamespaceName;
 import com.yahoo.pulsar.common.policies.data.AutoFailoverPolicyData;
 import com.yahoo.pulsar.common.policies.data.AutoFailoverPolicyType;
@@ -271,27 +275,27 @@ public class SimpleLoadManagerImplTest {
 
         Set<String> activeBrokers = Sets.newHashSet("prod2-broker7.messaging.use.example.com:8080",
                 "prod2-broker8.messaging.use.example.com:8080", "prod2-broker9.messaging.use.example.com:8080");
-        when(mockCache.getChildren(SimpleLoadManagerImpl.LOADBALANCE_BROKERS_ROOT)).thenReturn(activeBrokers);
+        when(mockCache.getChildren(LoadManagerShared.LOADBALANCE_BROKERS_ROOT)).thenReturn(activeBrokers);
         when(zooKeeperChildrenCache.get()).thenReturn(activeBrokers);
-        when(zooKeeperChildrenCache.get(SimpleLoadManagerImpl.LOADBALANCE_BROKERS_ROOT)).thenReturn(activeBrokers);
+        when(zooKeeperChildrenCache.get(LoadManagerShared.LOADBALANCE_BROKERS_ROOT)).thenReturn(activeBrokers);
 
         Field zkCacheField = PulsarService.class.getDeclaredField("localZkCache");
         zkCacheField.setAccessible(true);
 
         LocalZooKeeperCache originalLZK1 = (LocalZooKeeperCache) zkCacheField.get(pulsar1);
         LocalZooKeeperCache originalLZK2 = (LocalZooKeeperCache) zkCacheField.get(pulsar2);
-		log.info("lzk are {} 2: {}", originalLZK1.getChildren(SimpleLoadManagerImpl.LOADBALANCE_BROKERS_ROOT),
-				originalLZK2.getChildren(SimpleLoadManagerImpl.LOADBALANCE_BROKERS_ROOT));
+        log.info("lzk are {} 2: {}", originalLZK1.getChildren(LoadManagerShared.LOADBALANCE_BROKERS_ROOT),
+                originalLZK2.getChildren(LoadManagerShared.LOADBALANCE_BROKERS_ROOT));
         zkCacheField.set(pulsar1, mockCache);
 
         LocalZooKeeperCache newZk = (LocalZooKeeperCache) pulsar1.getLocalZkCache();
-        log.info("lzk mocked are {}", newZk.getChildren(SimpleLoadManagerImpl.LOADBALANCE_BROKERS_ROOT));
+        log.info("lzk mocked are {}", newZk.getChildren(LoadManagerShared.LOADBALANCE_BROKERS_ROOT));
 
         ZooKeeperChildrenCache availableActiveBrokers = new ZooKeeperChildrenCache(pulsar1.getLocalZkCache(),
-                SimpleLoadManagerImpl.LOADBALANCE_BROKERS_ROOT);
+                LoadManagerShared.LOADBALANCE_BROKERS_ROOT);
 
-		log.info("lzk mocked active brokers are {}",
-				availableActiveBrokers.get(SimpleLoadManagerImpl.LOADBALANCE_BROKERS_ROOT));
+        log.info("lzk mocked active brokers are {}",
+                availableActiveBrokers.get(LoadManagerShared.LOADBALANCE_BROKERS_ROOT));
 
         LoadManager loadManager = new SimpleLoadManagerImpl(pulsar1);
 
@@ -456,7 +460,6 @@ public class SimpleLoadManagerImplTest {
         LoadResourceQuotaUpdaterTask task1 = new LoadResourceQuotaUpdaterTask(atomicLoadManager);
         task1.run();
         verify(loadManager, times(1)).writeResourceQuotasToZooKeeper();
-
 
         LoadSheddingTask task2 = new LoadSheddingTask(atomicLoadManager);
         task2.run();

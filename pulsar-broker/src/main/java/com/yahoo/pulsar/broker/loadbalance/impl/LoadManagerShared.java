@@ -37,10 +37,23 @@ import com.yahoo.pulsar.common.policies.data.loadbalancer.SystemResourceUsage;
  * This class contains code which in shared between the two load manager implementations.
  */
 public class LoadManagerShared {
-    public static final Logger log = LoggerFactory.getLogger(LoadManagerShared.class);
+    private static final Logger log = LoggerFactory.getLogger(LoadManagerShared.class);
+
+    // Path to ZNode whose children contain TimeAverageBundleData jsons for each bundle (new API version of
+    // ResourceQuota).
+    public static final String BUNDLE_DATA_ZPATH = "/loadbalance/bundle-data";
+
+    // Location of broker ZNodes.
+    public static final String LOADBALANCE_BROKERS_ROOT = "/loadbalance/brokers";
 
     // Value of prefix "mibi" (e.g., number of bytes in a mibibyte).
     public static final int MIBI = 1024 * 1024;
+
+    // Path to ZNode whose children contain ResourceQuota jsons.
+    public static final String RESOURCE_QUOTA_ZPATH = "/loadbalance/resource-quota/namespace";
+
+    // Path to ZNode containing TimeAverageBrokerData jsons for each broker.
+    public static final String TIME_AVERAGE_BROKER_ZPATH = "/loadbalance/broker-time-average";
 
     // Cache for primary brokers according to policies.
     private static final Set<String> primariesCache = new HashSet<>();
@@ -125,6 +138,11 @@ public class LoadManagerShared {
         }
     }
 
+    // Get the ZooKeeper path for the given bundle full name.
+    public static String bundleDataPathFor(final String bundleName) {
+        return BUNDLE_DATA_ZPATH + '/' + bundleName;
+    }
+
     // From a full bundle name, extract the bundle range.
     public static String getBundleRangeFromBundleName(String bundleName) {
         // the bundle format is property/cluster/namespace/0x00000000_0xFFFFFFFF
@@ -159,6 +177,13 @@ public class LoadManagerShared {
         return systemResourceUsage;
     }
 
+    public static String timeAverageBrokerPathFor(final String brokerName) {
+        return TIME_AVERAGE_BROKER_ZPATH + "/" + brokerName;
+    }
+
+    public static String quotaPathFor(final String bundleName) {
+        return RESOURCE_QUOTA_ZPATH + '/' + bundleName;
+    }
     /**
      * If load balancing is enabled, load shedding is enabled by default unless forced off by setting a flag in global
      * zk /admin/flags/load-shedding-unload-disabled

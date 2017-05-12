@@ -46,8 +46,8 @@ import org.slf4j.LoggerFactory;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
-import com.yahoo.pulsar.broker.BundleData;
-import com.yahoo.pulsar.broker.loadbalance.LoadManager;
+import com.yahoo.pulsar.broker.TimeAverageBundleData;
+import com.yahoo.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import com.yahoo.pulsar.common.policies.data.ResourceQuota;
 import com.yahoo.pulsar.common.policies.data.loadbalancer.LoadReport;
 import com.yahoo.pulsar.common.policies.data.loadbalancer.NamespaceBundleStats;
@@ -145,11 +145,13 @@ public class LoadSimulationController {
         // Add load report watchers for newly observed brokers.
         public synchronized void process(final WatchedEvent event) {
             try {
-                final List<String> currentBrokers = zkClient.getChildren(LoadManager.LOADBALANCE_BROKERS_ROOT, this);
+                final List<String> currentBrokers = zkClient.getChildren(LoadManagerShared.LOADBALANCE_BROKERS_ROOT,
+                        this);
                 for (final String broker : currentBrokers) {
                     if (!brokers.contains(broker)) {
-                        new LoadReportWatcher(String.format("%s/%s", LoadManager.LOADBALANCE_BROKERS_ROOT, broker),
-                                zkClient, arguments);
+                        new LoadReportWatcher(
+                                String.format("%s/%s", LoadManagerShared.LOADBALANCE_BROKERS_ROOT, broker), zkClient,
+                                arguments);
                         brokers.add(broker);
                     }
                 }
@@ -252,8 +254,8 @@ public class LoadSimulationController {
         }
     }
 
-    // Initialize a BundleData from a resource quota and configurations and modify the quota accordingly.
-    private BundleData initializeBundleData(final ResourceQuota quota, final ShellArguments arguments) {
+    // Initialize a TimeAverageBundleData from a resource quota and configurations and modify the quota accordingly.
+    private TimeAverageBundleData initializeBundleData(final ResourceQuota quota, final ShellArguments arguments) {
         final double messageRate = (quota.getMsgRateIn() + quota.getMsgRateOut()) / 2;
         final int messageSize = (int) Math.ceil((quota.getBandwidthIn() + quota.getBandwidthOut()) / (2 * messageRate));
         arguments.rate = messageRate * arguments.rateMultiplier;
@@ -275,7 +277,7 @@ public class LoadSimulationController {
         startingStats.msgRateOut = quota.getMsgRateOut();
         startingStats.msgThroughputIn = quota.getBandwidthIn();
         startingStats.msgThroughputOut = quota.getBandwidthOut();
-        final BundleData bundleData = new BundleData(10, 1000, startingStats);
+        final TimeAverageBundleData bundleData = new TimeAverageBundleData(10, 1000, startingStats);
         // Assume there is ample history for the bundle.
         bundleData.getLongTermData().setNumSamples(1000);
         bundleData.getShortTermData().setNumSamples(10);
@@ -415,7 +417,7 @@ public class LoadSimulationController {
                         final String manglePrefix = String.format("%s-%s-%s", sourceCluster, sourceTenant,
                                 keyRangeString);
                         final String mangledNamespace = String.format("%s-%s", manglePrefix, namespace);
-                        final BundleData bundleData = initializeBundleData(quota, arguments);
+                        final TimeAverageBundleData bundleData = initializeBundleData(quota, arguments);
                         final String oldAPITargetPath = String.format(
                                 "/loadbalance/resource-quota/namespace/%s/%s/%s/0x00000000_0xffffffff", tenantName,
                                 cluster, mangledNamespace);
@@ -480,7 +482,7 @@ public class LoadSimulationController {
                     final ResourceQuota quota = entry.getValue();
                     final int tenantStart = QUOTA_ROOT.length() + 1;
                     final String destination = String.format("persistent://%s/t", bundle.substring(tenantStart));
-                    final BundleData bundleData = initializeBundleData(quota, arguments);
+                    final TimeAverageBundleData bundleData = initializeBundleData(quota, arguments);
                     // Put the bundle data in the new ZooKeeper.
                     try {
                         ZkUtils.createFullPathOptimistic(zkClient, newAPIPath, bundleData.getJsonBytes(),

@@ -22,12 +22,12 @@ import java.util.concurrent.ConcurrentHashMap;
  * Data class containing three components comprising all the data available for the leader broker about other brokers: -
  * The local broker data which is written to ZooKeeper by each individual broker (LocalBrokerData). - The time average
  * bundle data which is written to ZooKeeper by the leader broker (TimeAverageBrokerData). - The preallocated bundles
- * which are not written to ZooKeeper but are maintained by the leader broker (Map<String, BundleData>).
+ * which are not written to ZooKeeper but are maintained by the leader broker (Map<String, TimeAverageBundleData>).
  */
 public class BrokerData {
     private LocalBrokerData localData;
     private TimeAverageBrokerData timeAverageData;
-    private Map<String, BundleData> preallocatedBundleData;
+    private Map<String, TimeAverageBundleData> preallocatedBundleData;
 
     /**
      * Initialize this BrokerData using the most recent local data.
@@ -57,11 +57,11 @@ public class BrokerData {
         this.timeAverageData = timeAverageData;
     }
 
-    public Map<String, BundleData> getPreallocatedBundleData() {
+    public Map<String, TimeAverageBundleData> getPreallocatedBundleData() {
         return preallocatedBundleData;
     }
 
-    public void setPreallocatedBundleData(Map<String, BundleData> preallocatedBundleData) {
+    public void setPreallocatedBundleData(Map<String, TimeAverageBundleData> preallocatedBundleData) {
         this.preallocatedBundleData = preallocatedBundleData;
     }
 }

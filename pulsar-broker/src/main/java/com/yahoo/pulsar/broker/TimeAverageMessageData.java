@@ -28,20 +28,12 @@ public class TimeAverageMessageData {
     // at most maxSamples.
     private int numSamples;
 
-    // The average throughput-in in bytes per second.
-    private double msgThroughputIn;
-
-    // The average throughput-out in bytes per second.
-    private double msgThroughputOut;
-
-    // The average message rate in per second.
-    private double msgRateIn;
-
-    // The average message rate out per second.
-    private double msgRateOut;
+    // Message data that is being time-averaged.
+    private MessageData messageData;
 
     // For JSON only.
     public TimeAverageMessageData() {
+        this.messageData = new MessageData();
     }
 
     /**
@@ -51,6 +43,7 @@ public class TimeAverageMessageData {
      *            The maximum number of samples with which to maintain the average.
      */
     public TimeAverageMessageData(final int maxSamples) {
+        this();
         this.maxSamples = maxSamples;
     }
 
@@ -63,33 +56,9 @@ public class TimeAverageMessageData {
      *            The stats to default to. These are overwritten after the first update.
      */
     public TimeAverageMessageData(final int maxSamples, final NamespaceBundleStats defaultStats) {
+        this();
         this.maxSamples = maxSamples;
-        msgThroughputIn = defaultStats.msgThroughputIn;
-        msgThroughputOut = defaultStats.msgThroughputOut;
-        msgRateIn = defaultStats.msgRateIn;
-        msgRateOut = defaultStats.msgRateOut;
-    }
-
-    /**
-     * Update using new samples for the message data.
-     * 
-     * @param newMsgThroughputIn
-     *            Most recently observed throughput in.
-     * @param newMsgThroughputOut
-     *            Most recently observed throughput out.
-     * @param newMsgRateIn
-     *            Most recently observed message rate in.
-     * @param newMsgRateOut
-     *            Most recently observed message rate out.
-     */
-    public void update(final double newMsgThroughputIn, final double newMsgThroughputOut, final double newMsgRateIn,
-            final double newMsgRateOut) {
-        // If max samples has been reached, don't increase numSamples.
-        numSamples = Math.min(numSamples + 1, maxSamples);
-        msgThroughputIn = getUpdatedValue(msgThroughputIn, newMsgThroughputIn);
-        msgThroughputOut = getUpdatedValue(msgThroughputOut, newMsgThroughputOut);
-        msgRateIn = getUpdatedValue(msgRateIn, newMsgRateIn);
-        msgRateOut = getUpdatedValue(msgRateOut, newMsgRateOut);
+        messageData.add(defaultStats);
     }
 
     /**
@@ -99,7 +68,12 @@ public class TimeAverageMessageData {
      *            Most recently observed bundle stats.
      */
     public void update(final NamespaceBundleStats newSample) {
-        update(newSample.msgThroughputIn, newSample.msgThroughputOut, newSample.msgRateIn, newSample.msgRateOut);
+        // Limit number of samples to maxSamples
+        numSamples = Math.min(maxSamples, numSamples + 1);
+        messageData.setMsgRateIn(getUpdatedValue(messageData.getMsgRateIn(), newSample.msgRateIn));
+        messageData.setMsgRateOut(getUpdatedValue(messageData.getMsgRateOut(), newSample.msgRateOut));
+        messageData.setMsgThroughputIn(getUpdatedValue(messageData.getMsgThroughputIn(), newSample.msgThroughputIn));
+        messageData.setMsgThroughputOut(getUpdatedValue(messageData.getMsgThroughputOut(), newSample.msgThroughputOut));
     }
 
     // Update the average of a sample using the number of samples, the previous
@@ -127,35 +101,11 @@ public class TimeAverageMessageData {
         this.numSamples = numSamples;
     }
 
-    public double getMsgThroughputIn() {
-        return msgThroughputIn;
+    public MessageData getMessageData() {
+        return messageData;
     }
 
-    public void setMsgThroughputIn(double msgThroughputIn) {
-        this.msgThroughputIn = msgThroughputIn;
-    }
-
-    public double getMsgThroughputOut() {
-        return msgThroughputOut;
-    }
-
-    public void setMsgThroughputOut(double msgThroughputOut) {
-        this.msgThroughputOut = msgThroughputOut;
-    }
-
-    public double getMsgRateIn() {
-        return msgRateIn;
-    }
-
-    public void setMsgRateIn(double msgRateIn) {
-        this.msgRateIn = msgRateIn;
-    }
-
-    public double getMsgRateOut() {
-        return msgRateOut;
-    }
-
-    public void setMsgRateOut(double msgRateOut) {
-        this.msgRateOut = msgRateOut;
+    public void setMessageData(MessageData messageData) {
+        this.messageData = messageData;
     }
 }

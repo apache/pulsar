@@ -225,7 +225,8 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
                     }
                 });
 
-        availableActiveBrokers = new ZooKeeperChildrenCache(pulsar.getLocalZkCache(), LOADBALANCE_BROKERS_ROOT);
+        availableActiveBrokers = new ZooKeeperChildrenCache(pulsar.getLocalZkCache(),
+                LoadManagerShared.LOADBALANCE_BROKERS_ROOT);
         availableActiveBrokers.registerListener(new ZooKeeperCacheListener<Set<String>>() {
             @Override
             public void onUpdate(String path, Set<String> data, Stat stat) {
@@ -248,16 +249,16 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
         try {
             // Register the brokers in zk list
             ServiceConfiguration conf = pulsar.getConfiguration();
-            if (pulsar.getZkClient().exists(LOADBALANCE_BROKERS_ROOT, false) == null) {
+            if (pulsar.getZkClient().exists(LoadManagerShared.LOADBALANCE_BROKERS_ROOT, false) == null) {
                 try {
-                    ZkUtils.createFullPathOptimistic(pulsar.getZkClient(), LOADBALANCE_BROKERS_ROOT, new byte[0],
-                            Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+                    ZkUtils.createFullPathOptimistic(pulsar.getZkClient(), LoadManagerShared.LOADBALANCE_BROKERS_ROOT,
+                            new byte[0], Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
                 } catch (KeeperException.NodeExistsException e) {
                     // ignore the exception, node might be present already
                 }
             }
             String lookupServiceAddress = pulsar.getAdvertisedAddress() + ":" + conf.getWebServicePort();
-            brokerZnodePath = LOADBALANCE_BROKERS_ROOT + "/" + lookupServiceAddress;
+            brokerZnodePath = LoadManagerShared.LOADBALANCE_BROKERS_ROOT + "/" + lookupServiceAddress;
             LoadReport loadReport = null;
             try {
                 loadReport = generateLoadReport();
@@ -922,7 +923,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
 
         if (availableBrokers.isEmpty()) {
             // Create a map with all available brokers with no load information
-            Set<String> activeBrokers = availableActiveBrokers.get(LOADBALANCE_BROKERS_ROOT);
+            Set<String> activeBrokers = availableActiveBrokers.get(LoadManagerShared.LOADBALANCE_BROKERS_ROOT);
             List<String> brokersToShuffle = new ArrayList<>(activeBrokers);
             Collections.shuffle(brokersToShuffle);
             activeBrokers = new HashSet<>(brokersToShuffle);
@@ -995,7 +996,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
                 Set<String> activeBrokers = availableActiveBrokers.get();
                 for (String broker : activeBrokers) {
                     try {
-                        String key = String.format("%s/%s", LOADBALANCE_BROKERS_ROOT, broker);
+                        String key = String.format("%s/%s", LoadManagerShared.LOADBALANCE_BROKERS_ROOT, broker);
                         LoadReport lr = loadReportCacheZk.get(key)
                                 .orElseThrow(() -> new KeeperException.NoNodeException());
                         ResourceUnit ru = new SimpleResourceUnit(String.format("http://%s", lr.getName()),
@@ -1325,7 +1326,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
      * Detect and split hot namespace bundles
      */
     @Override
-    public void doNamespaceBundleSplit() throws Exception {
+    public synchronized void doNamespaceBundleSplit() throws Exception {
         int maxBundleCount = pulsar.getConfiguration().getLoadBalancerNamespaceMaximumBundles();
         long maxBundleTopics = pulsar.getConfiguration().getLoadBalancerNamespaceBundleMaxTopics();
         long maxBundleSessions = pulsar.getConfiguration().getLoadBalancerNamespaceBundleMaxSessions();

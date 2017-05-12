@@ -37,12 +37,12 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
+import com.yahoo.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.zookeeper.CreateMode;
-import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.data.Stat;
 import org.mockito.invocation.InvocationOnMock;
@@ -54,15 +54,10 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.google.common.collect.Lists;
 import com.google.common.hash.Hashing;
 import com.yahoo.pulsar.broker.LocalBrokerData;
-import com.yahoo.pulsar.broker.PulsarServerException;
-import com.yahoo.pulsar.broker.PulsarService;
-import com.yahoo.pulsar.broker.loadbalance.LoadManager;
-import com.yahoo.pulsar.broker.loadbalance.ModularLoadManager;
 import com.yahoo.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import com.yahoo.pulsar.broker.loadbalance.impl.ModularLoadManagerWrapper;
 import com.yahoo.pulsar.broker.lookup.LookupResult;
@@ -76,13 +71,10 @@ import com.yahoo.pulsar.common.naming.NamespaceBundle;
 import com.yahoo.pulsar.common.naming.NamespaceBundleFactory;
 import com.yahoo.pulsar.common.naming.NamespaceBundles;
 import com.yahoo.pulsar.common.naming.NamespaceName;
-import com.yahoo.pulsar.common.naming.ServiceUnitId;
 import com.yahoo.pulsar.common.policies.data.Policies;
 import com.yahoo.pulsar.common.policies.data.loadbalancer.LoadReport;
-import com.yahoo.pulsar.common.policies.data.loadbalancer.ServiceLookupData;
 import com.yahoo.pulsar.common.util.ObjectMapperFactory;
 import com.yahoo.pulsar.common.util.collections.ConcurrentOpenHashMap;
-import com.yahoo.pulsar.zookeeper.ZooKeeperCache.Deserializer;
 
 public class NamespaceServiceTest extends BrokerTestBase {
 
@@ -113,7 +105,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         NamespaceBundle originalBundle = bundles.findBundle(dn);
 
         // Split bundle and take ownership of split bundles
-        CompletableFuture<Void> result = namespaceService.splitAndOwnBundle(originalBundle);
+        CompletableFuture<Void> result = namespaceService.splitAndUnloadBundle(originalBundle);
 
         try {
             result.get();
@@ -193,7 +185,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         assertNotNull(list);
 
         // Split bundle and take ownership of split bundles
-        CompletableFuture<Void> result = namespaceService.splitAndOwnBundle(originalBundle);
+        CompletableFuture<Void> result = namespaceService.splitAndUnloadBundle(originalBundle);
         try {
             result.get();
         } catch (Exception e) {
@@ -305,6 +297,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
      *  2. Write candidate2- load report using {@link LocalBrokerData} which is used by ModularLoadManagerImpl
      *  3. try to get Lookup Result based on active load-manager
      * </pre>
+     * 
      * @throws Exception
      */
     @Test
@@ -316,8 +309,10 @@ public class NamespaceServiceTest extends BrokerTestBase {
         LocalBrokerData ld = new LocalBrokerData(null, null, candidateBroker2, null);
         URI uri1 = new URI(candidateBroker1);
         URI uri2 = new URI(candidateBroker2);
-        String path1 = String.format("%s/%s:%s", LoadManager.LOADBALANCE_BROKERS_ROOT, uri1.getHost(), uri1.getPort());
-        String path2 = String.format("%s/%s:%s", LoadManager.LOADBALANCE_BROKERS_ROOT, uri2.getHost(), uri2.getPort());
+        String path1 = String.format("%s/%s:%s", LoadManagerShared.LOADBALANCE_BROKERS_ROOT, uri1.getHost(),
+                uri1.getPort());
+        String path2 = String.format("%s/%s:%s", LoadManagerShared.LOADBALANCE_BROKERS_ROOT, uri2.getHost(),
+                uri2.getPort());
         ZkUtils.createFullPathOptimistic(pulsar.getZkClient(), path1,
                 ObjectMapperFactory.getThreadLocal().writeValueAsBytes(lr), ZooDefs.Ids.OPEN_ACL_UNSAFE,
                 CreateMode.EPHEMERAL);

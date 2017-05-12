@@ -22,10 +22,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.yahoo.pulsar.broker.BrokerData;
-import com.yahoo.pulsar.broker.BundleData;
 import com.yahoo.pulsar.broker.LocalBrokerData;
+import com.yahoo.pulsar.broker.MessageData;
+import com.yahoo.pulsar.broker.PulsarService;
 import com.yahoo.pulsar.broker.ServiceConfiguration;
-import com.yahoo.pulsar.broker.TimeAverageMessageData;
 import com.yahoo.pulsar.broker.loadbalance.LoadData;
 import com.yahoo.pulsar.broker.loadbalance.LoadSheddingStrategy;
 
@@ -44,10 +44,10 @@ public class OverloadShedder implements LoadSheddingStrategy {
     /**
      * Create an OverloadShedder with the service configuration.
      * 
-     * @param conf
-     *            Service configuration to create from.
+     * @param pulsar
+     *            Pulsar service to create from.
      */
-    public OverloadShedder(final ServiceConfiguration conf) {
+    public OverloadShedder(final PulsarService pulsar) {
         selectedBundlesCache = new HashMap<>();
     }
 
@@ -56,11 +56,12 @@ public class OverloadShedder implements LoadSheddingStrategy {
      * 
      * @param loadData
      *            The load data to used to make the unloading decision.
-     * @param conf
-     *            The service configuration.
+     * @param pulsar
+     *            The Pulsar service.
      * @return A map from bundles to unload to the brokers on which they are loaded.
      */
-    public Map<String, String> findBundlesForUnloading(final LoadData loadData, final ServiceConfiguration conf) {
+    public Map<String, String> findBundlesForUnloading(final LoadData loadData, final PulsarService pulsar) {
+        final ServiceConfiguration conf = pulsar.getConfiguration();
         selectedBundlesCache.clear();
         final double overloadThreshold = conf.getLoadBalancerBrokerOverloadedThresholdPercentage() / 100.0;
         final Map<String, Long> recentlyUnloadedBundles = loadData.getRecentlyUnloadedBundles();
@@ -75,9 +76,9 @@ public class OverloadShedder implements LoadSheddingStrategy {
                 String mostTaxingBundle = null;
                 if (localData.getBundles().size() > 1) {
                     for (final String bundle : localData.getBundles()) {
-                        final BundleData bundleData = loadData.getBundleData().get(bundle);
+                        final MessageData shortTermData = loadData.getBundleData().get(bundle).getShortTermData()
+                                .getMessageData();
                         // Consider short-term message rate to address system resource burden
-                        final TimeAverageMessageData shortTermData = bundleData.getShortTermData();
                         final double messageRate = shortTermData.getMsgRateIn() + shortTermData.getMsgRateOut();
                         // The burden of checking the timestamp is for the load manager, not the strategy.
                         if (messageRate > maxMessageRate && !recentlyUnloadedBundles.containsKey(bundle)) {

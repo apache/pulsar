@@ -18,13 +18,9 @@ package com.yahoo.pulsar.broker.namespace;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.yahoo.pulsar.broker.admin.AdminResource.jsonMapper;
-import static com.yahoo.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
-import static com.yahoo.pulsar.broker.web.PulsarWebResource.joinPath;
-import static com.yahoo.pulsar.common.naming.NamespaceBundleFactory.getBundlesData;
 import static com.yahoo.pulsar.zookeeper.ZooKeeperCache.cacheTimeOutInSec;
 import static java.lang.String.format;
 import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 
 import java.net.URI;
 import java.net.URL;
@@ -39,20 +35,27 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.zookeeper.AsyncCallback.StatCallback;
+import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.ZooDefs;
+import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
 import com.google.common.hash.Hashing;
+import com.yahoo.pulsar.broker.MessageData;
 import com.yahoo.pulsar.broker.PulsarServerException;
 import com.yahoo.pulsar.broker.PulsarService;
 import com.yahoo.pulsar.broker.ServiceConfiguration;
+import com.yahoo.pulsar.broker.TimeAverageBundleData;
+import com.yahoo.pulsar.broker.TimeAverageMessageData;
 import com.yahoo.pulsar.broker.admin.AdminResource;
 import com.yahoo.pulsar.broker.loadbalance.LoadManager;
+import com.yahoo.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import com.yahoo.pulsar.broker.lookup.LookupResult;
 import com.yahoo.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import com.yahoo.pulsar.client.admin.PulsarAdmin;
@@ -66,12 +69,11 @@ import com.yahoo.pulsar.common.naming.ServiceUnitId;
 import com.yahoo.pulsar.common.policies.NamespaceIsolationPolicy;
 import com.yahoo.pulsar.common.policies.data.BrokerAssignment;
 import com.yahoo.pulsar.common.policies.data.BundlesData;
-import com.yahoo.pulsar.common.policies.data.LocalPolicies;
 import com.yahoo.pulsar.common.policies.data.NamespaceOwnershipStatus;
+import com.yahoo.pulsar.common.policies.data.ResourceQuota;
 import com.yahoo.pulsar.common.policies.data.loadbalancer.ServiceLookupData;
 import com.yahoo.pulsar.common.policies.impl.NamespaceIsolationPolicies;
 import com.yahoo.pulsar.common.util.Codec;
-import com.yahoo.pulsar.common.util.ObjectMapperFactory;
 
 /**
  * The <code>NamespaceService</code> provides resource ownership lookup as well as resource ownership claiming services
@@ -149,8 +151,8 @@ public class NamespaceService {
         return bundleFactory.getFullBundle(fqnn);
     }
 
-	public URL getWebServiceUrl(ServiceUnitId suName, boolean authoritative, boolean isRequestHttps, boolean readOnly)
-			throws Exception {
+    public URL getWebServiceUrl(ServiceUnitId suName, boolean authoritative, boolean isRequestHttps, boolean readOnly)
+            throws Exception {
         if (suName instanceof DestinationName) {
             DestinationName name = (DestinationName) suName;
             if (LOG.isDebugEnabled()) {
@@ -160,11 +162,13 @@ public class NamespaceService {
         }
 
         if (suName instanceof NamespaceName) {
-            return this.internalGetWebServiceUrl(getFullBundle((NamespaceName) suName), authoritative, isRequestHttps, readOnly).get();
+            return this.internalGetWebServiceUrl(getFullBundle((NamespaceName) suName), authoritative, isRequestHttps,
+                    readOnly).get();
         }
 
         if (suName instanceof NamespaceBundle) {
-            return this.internalGetWebServiceUrl((NamespaceBundle) suName, authoritative, isRequestHttps, readOnly).get();
+            return this.internalGetWebServiceUrl((NamespaceBundle) suName, authoritative, isRequestHttps, readOnly)
+                    .get();
         }
 
         throw new IllegalArgumentException("Unrecognized class of NamespaceBundle: " + suName.getClass().getName());
@@ -283,16 +287,22 @@ public class NamespaceService {
         ownershipCache.getOwnerAsync(bundle).thenAccept(nsData -> {
             if (!nsData.isPresent()) {
                 // No one owns this bundle
-
-                if (readOnly) {
-                    // Do not attempt to acquire ownership
-                    future.completeExceptionally(
-                            new IllegalStateException(String.format("Can't find owner of ServiceUnit: %s", bundle)));
-                } else {
-                    // Now, no one owns the namespace yet. Hence, we will try to dynamically assign it
-                    pulsar.getExecutor().execute(() -> {
-                        searchForCandidateBroker(bundle, future, authoritative);
-                    });
+                try {
+                    if (readOnly) {
+                        // Do not attempt to acquire ownership
+                        future.completeExceptionally(new IllegalStateException(
+                                String.format("Can't find owner of ServiceUnit: %s", bundle)));
+                    } else if (!bundleFactory.getBundles(bundle.getNamespaceObject()).containsBundle(bundle)) {
+                        future.completeExceptionally(new IllegalStateException(String.format(
+                                "Bundle %s is inconsistent with namespace policies and will not be assigned", bundle)));
+                    } else {
+                        // Now, no one owns the namespace yet. Hence, we will try to dynamically assign it
+                        pulsar.getExecutor().execute(() -> {
+                            searchForCandidateBroker(bundle, future, authoritative);
+                        });
+                    }
+                } catch (Exception e) {
+                    future.completeExceptionally(e);
                 }
             } else if (nsData.get().isDisabled()) {
                 future.completeExceptionally(
@@ -400,21 +410,22 @@ public class NamespaceService {
         try {
             checkArgument(StringUtils.isNotBlank(candidateBroker), "Lookup broker can't be null " + candidateBroker);
             URI uri = new URI(candidateBroker);
-            String path = String.format("%s/%s:%s", LoadManager.LOADBALANCE_BROKERS_ROOT, uri.getHost(),
+            String path = String.format("%s/%s:%s", LoadManagerShared.LOADBALANCE_BROKERS_ROOT, uri.getHost(),
                     uri.getPort());
-            pulsar.getLocalZkCache().getDataAsync(path, pulsar.getLoadManager().get().getLoadReportDeserializer()).thenAccept(reportData -> {
-                if (reportData.isPresent()) {
-                    ServiceLookupData lookupData = reportData.get();
-                    lookupFuture.complete(new LookupResult(lookupData.getWebServiceUrl(),
-                            lookupData.getWebServiceUrlTls(), lookupData.getPulsarServiceUrl(),
-                            lookupData.getPulsarServiceUrlTls()));
-                } else {
-                    lookupFuture.completeExceptionally(new KeeperException.NoNodeException(path));
-                }
-            }).exceptionally(ex -> {
-                lookupFuture.completeExceptionally(ex);
-                return null;
-            });
+            pulsar.getLocalZkCache().getDataAsync(path, pulsar.getLoadManager().get().getLoadReportDeserializer())
+                    .thenAccept(reportData -> {
+                        if (reportData.isPresent()) {
+                            ServiceLookupData lookupData = reportData.get();
+                            lookupFuture.complete(
+                                    new LookupResult(lookupData.getWebServiceUrl(), lookupData.getWebServiceUrlTls(),
+                                            lookupData.getPulsarServiceUrl(), lookupData.getPulsarServiceUrlTls()));
+                        } else {
+                            lookupFuture.completeExceptionally(new KeeperException.NoNodeException(path));
+                        }
+                    }).exceptionally(ex -> {
+                        lookupFuture.completeExceptionally(ex);
+                        return null;
+                    });
         } catch (Exception e) {
             lookupFuture.completeExceptionally(e);
         }
@@ -422,7 +433,8 @@ public class NamespaceService {
     }
 
     private boolean isBrokerActive(String candidateBroker) throws KeeperException, InterruptedException {
-        Set<String> activeNativeBrokers = pulsar.getLocalZkCache().getChildren(LoadManager.LOADBALANCE_BROKERS_ROOT);
+        Set<String> activeNativeBrokers = pulsar.getLocalZkCache()
+                .getChildren(LoadManagerShared.LOADBALANCE_BROKERS_ROOT);
 
         for (String brokerHostPort : activeNativeBrokers) {
             if (candidateBroker.equals("http://" + brokerHostPort)) {
@@ -534,57 +546,29 @@ public class NamespaceService {
      * @return
      * @throws Exception
      */
-    public CompletableFuture<Void> splitAndOwnBundle(NamespaceBundle bundle) throws Exception {
-
+    public CompletableFuture<Void> splitAndUnloadBundle(NamespaceBundle bundle) throws Exception {
         final CompletableFuture<Void> future = new CompletableFuture<>();
 
         Pair<NamespaceBundles, List<NamespaceBundle>> splittedBundles = bundleFactory.splitBundles(bundle,
                 2 /* by default split into 2 */);
         if (splittedBundles != null) {
+            final long newBoundary = (bundle.getLowerEndpoint() + bundle.getUpperEndpoint()) / 2;
+            final String boundaryString = String.format("0x%08x", newBoundary);
             checkNotNull(splittedBundles.getLeft());
             checkNotNull(splittedBundles.getRight());
             checkArgument(splittedBundles.getRight().size() == 2, "bundle has to be split in two bundles");
             NamespaceName nsname = bundle.getNamespaceObject();
             try {
-                // take ownership of newly split bundles
-                for (NamespaceBundle sBundle : splittedBundles.getRight()) {
-                    checkNotNull(ownershipCache.tryAcquiringOwnership(sBundle));
-                }
-                updateNamespaceBundles(nsname, splittedBundles.getLeft(),
-                        (rc, path, zkCtx, stat) -> pulsar.getOrderedExecutor().submit(safeRun(() -> {
-                            if (rc == KeeperException.Code.OK.intValue()) {
-                                // disable old bundle
-                                try {
-                                    ownershipCache.disableOwnership(bundle);
-                                    // invalidate cache as zookeeper has new split
-                                    // namespace bundle
-                                    bundleFactory.invalidateBundleCache(nsname);
-                                    // update bundled_topic cache for load-report-generation
-                                    pulsar.getBrokerService().refreshTopicToStatsMaps(bundle);
-                                    loadManager.get().setLoadReportForceUpdateFlag();
-                                    future.complete(null);
-                                } catch (Exception e) {
-                                    String msg1 = format(
-                                            "failed to disable bundle %s under namespace [%s] with error %s",
-                                            nsname.toString(), bundle.toString(), e.getMessage());
-                                    LOG.warn(msg1, e);
-                                    future.completeExceptionally(new ServiceUnitNotReadyException(msg1));
-                                }
-                            } else {
-                                String msg2 = format("failed to update namespace [%s] policies due to %s",
-                                        nsname.toString(),
-                                        KeeperException.create(KeeperException.Code.get(rc)).getMessage());
-                                LOG.warn(msg2);
-                                future.completeExceptionally(new ServiceUnitNotReadyException(msg2));
-                            }
-                        })));
+                updateNamespaceBundles(splittedBundles.getLeft(), bundle);
+                checkNotNull(ownershipCache.getOwnedBundle(bundle)).handleSplitRequest(pulsar,
+                        splittedBundles.getLeft(), boundaryString);
+                future.complete(null);
             } catch (Exception e) {
-                String msg = format("failed to aquire ownership of split bundle for namespace [%s], %s",
-                        nsname.toString(), e.getMessage());
+                String msg = format("failed to unload split bundle for namespace [%s], %s", nsname.toString(),
+                        e.getMessage());
                 LOG.warn(msg, e);
                 future.completeExceptionally(new ServiceUnitNotReadyException(msg));
             }
-
         } else {
             String msg = format("bundle %s not found under namespace", bundle.toString());
             future.completeExceptionally(new ServiceUnitNotReadyException(msg));
@@ -592,30 +576,58 @@ public class NamespaceService {
         return future;
     }
 
+    private static void halfMessageData(final TimeAverageMessageData timeAverageMessageData) {
+        // Let new samples reset the historical data, since halving the fields is only a rough approximation.
+        timeAverageMessageData.setNumSamples(0);
+        final MessageData messageData = timeAverageMessageData.getMessageData();
+        messageData.setMsgRateIn(messageData.getMsgRateIn() / 2);
+        messageData.setMsgRateOut(messageData.getMsgRateOut() / 2);
+        messageData.setMsgThroughputIn(messageData.getMsgThroughputIn() / 2);
+        messageData.setMsgThroughputOut(messageData.getMsgThroughputOut() / 2);
+    }
+
     /**
      * update new bundle-range to LocalZk (create a new node if not present)
      *
-     * @param nsname
      * @param nsBundles
-     * @param callback
      * @throws Exception
      */
-    private void updateNamespaceBundles(NamespaceName nsname, NamespaceBundles nsBundles, StatCallback callback)
-            throws Exception {
-        checkNotNull(nsname);
-        checkNotNull(nsBundles);
-        String path = joinPath(LOCAL_POLICIES_ROOT, nsname.toString());
-        Optional<LocalPolicies> policies = pulsar.getLocalZkCacheService().policiesCache().get(path);
-
-        if (!policies.isPresent()) {
-            // if policies is not present into localZk then create new policies
-            this.pulsar.getLocalZkCacheService().createPolicies(path, false).get(cacheTimeOutInSec, SECONDS);
-            policies = this.pulsar.getLocalZkCacheService().policiesCache().get(path);
+    private void updateNamespaceBundles(NamespaceBundles nsBundles, NamespaceBundle splitBundle) throws Exception {
+        // Inject history for splitted bundles.
+        final ZooKeeper zkClient = pulsar.getZkClient();
+        final String splitBundleName = splitBundle.toString();
+        final String splitBundleQuotaZPath = LoadManagerShared.quotaPathFor(splitBundleName);
+        final String splitBundleDataZPath = LoadManagerShared.bundleDataPathFor(splitBundleName);
+        if (zkClient.exists(splitBundleQuotaZPath, false) != null) {
+            // Initialize split bundle data with half old data.
+            final ResourceQuota halfQuota = jsonMapper().readValue(zkClient.getData(splitBundleQuotaZPath, false, null),
+                    ResourceQuota.class);
+            halfQuota.setBandwidthIn(halfQuota.getBandwidthIn() / 2);
+            halfQuota.setBandwidthOut(halfQuota.getBandwidthOut() / 2);
+            halfQuota.setMsgRateIn(halfQuota.getMsgRateIn() / 2);
+            halfQuota.setMsgRateOut(halfQuota.getMsgRateOut() / 2);
+            halfQuota.setMemory(halfQuota.getMemory() / 2);
+            final byte[] halfQuotaJSON = jsonMapper().writeValueAsBytes(halfQuota);
+            for (final NamespaceBundle bundle : nsBundles.getBundles()) {
+                final String bundleName = bundle.toString();
+                // Set data asynchronously.
+                ZkUtils.asyncCreateFullPathOptimistic(zkClient, LoadManagerShared.quotaPathFor(bundleName),
+                        halfQuotaJSON, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT, null, null);
+            }
         }
-
-        policies.get().bundles = getBundlesData(nsBundles);
-        this.pulsar.getLocalZkCache().getZooKeeper().setData(path,
-                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(policies.get()), -1, callback, null);
+        if (zkClient.exists(splitBundleDataZPath, false) != null) {
+            final TimeAverageBundleData halfData = jsonMapper()
+                    .readValue(zkClient.getData(splitBundleDataZPath, false, null), TimeAverageBundleData.class);
+            halfMessageData(halfData.getLongTermData());
+            halfMessageData(halfData.getShortTermData());
+            final byte[] halfDataJSON = jsonMapper().writeValueAsBytes(halfData);
+            for (final NamespaceBundle bundle : nsBundles.getBundles()) {
+                final String bundleName = bundle.toString();
+                // Set data asynchronously.
+                ZkUtils.asyncCreateFullPathOptimistic(zkClient, LoadManagerShared.bundleDataPathFor(bundleName),
+                        halfDataJSON, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT, null, null);
+            }
+        }
     }
 
     public OwnershipCache getOwnershipCache() {

@@ -124,6 +124,10 @@ public class NamespaceBundles {
         return partitions;
     }
 
+    public boolean containsBundle(final NamespaceBundle bundle) {
+        return bundles.contains(bundle);
+    }
+
     @Override
     public boolean equals(Object obj) {
         if (obj != null && obj instanceof NamespaceBundles) {

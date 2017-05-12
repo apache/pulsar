@@ -29,7 +29,6 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response.Status;
 
-import com.yahoo.pulsar.broker.loadbalance.LoadManager;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.ZooDefs;
@@ -38,7 +37,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Maps;
 import com.yahoo.pulsar.broker.ServiceConfiguration;
-import com.yahoo.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
+import com.yahoo.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import com.yahoo.pulsar.broker.service.BrokerService;
 import com.yahoo.pulsar.broker.web.RestException;
 import com.yahoo.pulsar.common.policies.data.NamespaceOwnershipStatus;
@@ -50,14 +49,13 @@ import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 
-
 @Path("/brokers")
 @Api(value = "/brokers", description = "Brokers admin apis", tags = "brokers")
 @Produces(MediaType.APPLICATION_JSON)
 public class Brokers extends AdminResource {
     private static final Logger LOG = LoggerFactory.getLogger(Brokers.class);
     private int serviceConfigZkVersion = -1;
-    
+
     @GET
     @Path("/{cluster}")
     @ApiOperation(value = "Get the list of active brokers (web service addresses) in the cluster.", response = String.class, responseContainer = "Set")
@@ -69,7 +67,7 @@ public class Brokers extends AdminResource {
 
         try {
             // Add Native brokers
-            return pulsar().getLocalZkCache().getChildren(LoadManager.LOADBALANCE_BROKERS_ROOT);
+            return pulsar().getLocalZkCache().getChildren(LoadManagerShared.LOADBALANCE_BROKERS_ROOT);
         } catch (Exception e) {
             LOG.error(String.format("[%s] Failed to get active broker list: cluster=%s", clientAppId(), cluster), e);
             throw new RestException(e);
@@ -96,7 +94,7 @@ public class Brokers extends AdminResource {
             throw new RestException(e);
         }
     }
-    
+
     @POST
     @Path("/configuration/{configName}/{configValue}")
     @ApiOperation(value = "Update dynamic serviceconfiguration into zk only. This operation requires Pulsar super-user privileges.")
@@ -104,7 +102,8 @@ public class Brokers extends AdminResource {
             @ApiResponse(code = 403, message = "You don't have admin permission to update service-configuration"),
             @ApiResponse(code = 404, message = "Configuration not found"),
             @ApiResponse(code = 412, message = "Configuration can't be updated dynamically") })
-    public void updateDynamicConfiguration(@PathParam("configName") String configName, @PathParam("configValue") String configValue) throws Exception{
+    public void updateDynamicConfiguration(@PathParam("configName") String configName,
+            @PathParam("configValue") String configValue) throws Exception {
         validateSuperUserAccess();
         updateDynamicConfigurationOnZk(configName, configValue);
     }
@@ -136,7 +135,7 @@ public class Brokers extends AdminResource {
     public List<String> getDynamicConfigurationName() {
         return BrokerService.getDynamicConfigurationMap().keys();
     }
-    
+
     /**
      * if {@link ServiceConfiguration}-field is allowed to be modified dynamically, update configuration-map into zk, so
      * all other brokers get the watch and can see the change and take appropriate action on the change.

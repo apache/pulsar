@@ -46,6 +46,7 @@ import com.google.common.collect.Range;
 import com.google.common.hash.Hashing;
 import com.yahoo.pulsar.broker.BrokerData;
 import com.yahoo.pulsar.broker.LocalBrokerData;
+import com.yahoo.pulsar.broker.MessageData;
 import com.yahoo.pulsar.broker.PulsarService;
 import com.yahoo.pulsar.broker.ServiceConfiguration;
 import com.yahoo.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
@@ -253,13 +254,14 @@ public class ModularLoadManagerImplTest {
         // Need to update all the bundle data for the shedder to see the spy.
         primaryLoadManager.onUpdate(null, null, null);
         Thread.sleep(100);
-        localBrokerData.setCpu(new ResourceUsage(80, 100));
+        final SystemResourceUsage systemResourceUsage = localBrokerData.getSystemResourceUsage();
+        systemResourceUsage.setCpu(new ResourceUsage(80, 100));
         primaryLoadManager.doLoadShedding();
 
         // 80% is below overload threshold: verify nothing is unloaded.
         verify(namespacesSpy1, Mockito.times(0)).unloadNamespaceBundle(Mockito.anyString(), Mockito.anyString());
 
-        localBrokerData.getCpu().usage = 90;
+        systemResourceUsage.getCpu().usage = 90;
         primaryLoadManager.doLoadShedding();
         // Most expensive bundle will be unloaded.
         verify(namespacesSpy1, Mockito.times(1)).unloadNamespaceBundle(Mockito.anyString(), Mockito.anyString());
@@ -299,49 +301,52 @@ public class ModularLoadManagerImplTest {
             }
         };
 
-        lastData.setMsgRateIn(100);
-        currentData.setMsgRateIn(104);
+        final MessageData lastMessageData = lastData.getBundleData().getMessageData();
+        final MessageData currentMessageData = currentData.getBundleData().getMessageData();
+
+        lastMessageData.setMsgRateIn(100);
+        currentMessageData.setMsgRateIn(104);
         // 4% difference: shouldn't trigger an update.
         assert (!needUpdate.get());
-        currentData.setMsgRateIn(105.1);
+        currentMessageData.setMsgRateIn(105.1);
         // 5% difference: should trigger an update (exactly 5% is flaky due to precision).
         assert (needUpdate.get());
 
         // Do similar tests for lower values.
-        currentData.setMsgRateIn(94);
+        currentMessageData.setMsgRateIn(94);
         assert (needUpdate.get());
-        currentData.setMsgRateIn(95.1);
+        currentMessageData.setMsgRateIn(95.1);
         assert (!needUpdate.get());
 
         // 0 to non-zero should always trigger an update.
-        lastData.setMsgRateIn(0);
-        currentData.setMsgRateIn(1e-8);
+        lastMessageData.setMsgRateIn(0);
+        currentMessageData.setMsgRateIn(1e-8);
         assert (needUpdate.get());
 
         // non-zero to zero should trigger an update as long as the threshold is less than 100.
-        lastData.setMsgRateIn(1e-8);
-        currentData.setMsgRateIn(0);
+        lastMessageData.setMsgRateIn(1e-8);
+        currentMessageData.setMsgRateIn(0);
         assert (needUpdate.get());
 
         // zero to zero should never trigger an update.
-        currentData.setMsgRateIn(0);
-        lastData.setMsgRateIn(0);
+        currentMessageData.setMsgRateIn(0);
+        lastMessageData.setMsgRateIn(0);
         assert (!needUpdate.get());
 
         // Minimally test other values to ensure they are included.
-        lastData.getCpu().usage = 100;
-        lastData.getCpu().limit = 1000;
-        currentData.getCpu().usage = 106;
-        currentData.getCpu().limit = 1000;
+        lastData.getSystemResourceUsage().getCpu().usage = 100;
+        lastData.getSystemResourceUsage().getCpu().limit = 1000;
+        currentData.getSystemResourceUsage().getCpu().usage = 106;
+        currentData.getSystemResourceUsage().getCpu().limit = 1000;
         assert (needUpdate.get());
 
-        lastData.setCpu(new ResourceUsage());
-        currentData.setCpu(new ResourceUsage());
+        lastData.getSystemResourceUsage().setCpu(new ResourceUsage());
+        currentData.getSystemResourceUsage().setCpu(new ResourceUsage());
 
-        lastData.setMsgThroughputIn(100);
-        currentData.setMsgThroughputIn(106);
+        lastMessageData.setMsgThroughputIn(100);
+        currentMessageData.setMsgThroughputIn(106);
         assert (needUpdate.get());
-        currentData.setMsgThroughputIn(100);
+        currentMessageData.setMsgThroughputIn(100);
 
         lastData.setNumBundles(100);
         currentData.setNumBundles(106);

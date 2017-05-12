@@ -19,7 +19,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.net.URI;
 import java.net.URL;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -799,7 +798,7 @@ public class Namespaces extends AdminResource {
                 true);
 
         try {
-            pulsar().getNamespaceService().splitAndOwnBundle(nsBundle).get();
+            pulsar().getNamespaceService().splitAndUnloadBundle(nsBundle).get();
             log.info("[{}] Successfully split namespace bundle {}", clientAppId(), nsBundle.toString());
         } catch (Exception e) {
             log.error("[{}] Failed to split namespace bundle {}/{}", clientAppId(), fqnn.toString(), bundleRange, e);

@@ -23,13 +23,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.yahoo.pulsar.broker.BrokerData;
-import com.yahoo.pulsar.broker.BundleData;
-import com.yahoo.pulsar.broker.LocalBrokerData;
-import com.yahoo.pulsar.broker.ServiceConfiguration;
-import com.yahoo.pulsar.broker.TimeAverageBrokerData;
-import com.yahoo.pulsar.broker.TimeAverageMessageData;
+import com.yahoo.pulsar.broker.MessageData;
+import com.yahoo.pulsar.broker.PulsarService;
+import com.yahoo.pulsar.broker.TimeAverageBundleData;
 import com.yahoo.pulsar.broker.loadbalance.LoadData;
 import com.yahoo.pulsar.broker.loadbalance.ModularLoadManagerStrategy;
+import com.yahoo.pulsar.common.policies.data.loadbalancer.SystemResourceUsage;
 
 /**
  * Placement strategy which selects a broker based on which one has the least long term message rate.
@@ -40,7 +39,13 @@ public class LeastLongTermMessageRate implements ModularLoadManagerStrategy {
     // Maintain this list to reduce object creation.
     private ArrayList<String> bestBrokers;
 
-    public LeastLongTermMessageRate(final ServiceConfiguration conf) {
+    /**
+     * Construct a LeastLongTermMessageRate from a Pulsar service.
+     * 
+     * @param pulsarService
+     *            Service to construct from.
+     */
+    public LeastLongTermMessageRate(final PulsarService pulsarService) {
         bestBrokers = new ArrayList<>();
     }
 
@@ -50,14 +55,15 @@ public class LeastLongTermMessageRate implements ModularLoadManagerStrategy {
     // Once the total long-term message rate is calculated, the score is then weighted by
     // max_usage < overload_threshold ? 1 / (overload_threshold - max_usage): Inf
     // This weight attempts to discourage the placement of bundles on brokers whose system resource usage is high.
-    private static double getScore(final BrokerData brokerData, final ServiceConfiguration conf) {
-        final double overloadThreshold = conf.getLoadBalancerBrokerOverloadedThresholdPercentage() / 100.0;
+    private static double getScore(final BrokerData brokerData, final PulsarService pulsar) {
+        final double overloadThreshold = pulsar.getConfiguration().getLoadBalancerBrokerOverloadedThresholdPercentage()
+                / 100.0;
         double totalMessageRate = 0;
-        for (BundleData bundleData : brokerData.getPreallocatedBundleData().values()) {
-            final TimeAverageMessageData longTermData = bundleData.getLongTermData();
-            totalMessageRate += longTermData.getMsgRateIn() + longTermData.getMsgRateOut();
+        for (TimeAverageBundleData bundleData : brokerData.getPreallocatedBundleData().values()) {
+            final MessageData longTermData = bundleData.getLongTermData().getMessageData();
+            totalMessageRate += longTermData.totalMsgRate();
         }
-        final TimeAverageBrokerData timeAverageData = brokerData.getTimeAverageData();
+        final MessageData longTermData = brokerData.getTimeAverageData().getLongTermData();
         final double maxUsage = brokerData.getLocalData().getMaxResourceUsage();
         if (maxUsage > overloadThreshold) {
             return Double.POSITIVE_INFINITY;
@@ -66,8 +72,7 @@ public class LeastLongTermMessageRate implements ModularLoadManagerStrategy {
         // resource burden. This attempts to spread out the load in such a way that machines only become overloaded if
         // there is too much load for the system to handle (e.g., all machines are at least nearly overloaded).
         final double weight = 1 / (overloadThreshold - maxUsage);
-        final double totalMessageRateEstimate = totalMessageRate + timeAverageData.getLongTermMsgRateIn()
-                + timeAverageData.getLongTermMsgRateOut();
+        final double totalMessageRateEstimate = totalMessageRate + longTermData.totalMsgRate();
         return weight * totalMessageRateEstimate;
     }
 
@@ -80,28 +85,30 @@ public class LeastLongTermMessageRate implements ModularLoadManagerStrategy {
      *            The data for the bundle to assign.
      * @param loadData
      *            The load data from the leader broker.
-     * @param conf
-     *            The service configuration.
+     * @param pulsar
+     *            The Pulsar service.
      * @return The name of the selected broker as it appears on ZooKeeper.
      */
     @Override
-    public String selectBroker(final Set<String> candidates, final BundleData bundleToAssign, final LoadData loadData,
-            final ServiceConfiguration conf) {
+    public String selectBroker(final Set<String> candidates, final TimeAverageBundleData bundleToAssign,
+            final LoadData loadData, final PulsarService pulsar) {
         bestBrokers.clear();
         double minScore = Double.POSITIVE_INFINITY;
         // Maintain of list of all the best scoring brokers and then randomly
         // select one of them at the end.
         for (String broker : candidates) {
             final BrokerData brokerData = loadData.getBrokerData().get(broker);
-            final double score = getScore(brokerData, conf);
+            final double score = getScore(brokerData, pulsar);
             if (score == Double.POSITIVE_INFINITY) {
-                final LocalBrokerData localData = brokerData.getLocalData();
+                final SystemResourceUsage systemResourceUsage = brokerData.getLocalData().getSystemResourceUsage();
                 log.warn(
                         "Broker {} is overloaded: CPU: {}%, MEMORY: {}%, DIRECT MEMORY: {}%, BANDWIDTH IN: {}%, "
                                 + "BANDWIDTH OUT: {}%",
-                        broker, localData.getCpu().percentUsage(), localData.getMemory().percentUsage(),
-                        localData.getDirectMemory().percentUsage(), localData.getBandwidthIn().percentUsage(),
-                        localData.getBandwidthOut().percentUsage());
+                        broker, systemResourceUsage.getCpu().percentUsage(),
+                        systemResourceUsage.getMemory().percentUsage(),
+                        systemResourceUsage.getDirectMemory().percentUsage(),
+                        systemResourceUsage.getBandwidthIn().percentUsage(),
+                        systemResourceUsage.getBandwidthOut().percentUsage());
 
             }
             log.debug("{} got score {}", broker, score);

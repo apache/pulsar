@@ -33,9 +33,11 @@ import org.slf4j.LoggerFactory;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.google.gson.Gson;
+import com.yahoo.pulsar.broker.BundleData;
 import com.yahoo.pulsar.broker.LocalBrokerData;
+import com.yahoo.pulsar.broker.MessageData;
 import com.yahoo.pulsar.broker.TimeAverageBrokerData;
-import com.yahoo.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
+import com.yahoo.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import com.yahoo.pulsar.common.policies.data.loadbalancer.LoadReport;
 import com.yahoo.pulsar.common.policies.data.loadbalancer.ResourceUsage;
 import com.yahoo.pulsar.common.policies.data.loadbalancer.SystemResourceUsage;
@@ -48,7 +50,6 @@ import com.yahoo.pulsar.testclient.utils.FixedColumnLengthTableMaker;
 public class BrokerMonitor {
     private static final Logger log = LoggerFactory.getLogger(BrokerMonitor.class);
 
-    private static final String BROKER_ROOT = "/loadbalance/brokers";
     private static final int ZOOKEEPER_TIMEOUT_MILLIS = 5000;
     private static final int GLOBAL_STATS_PRINT_PERIOD_MILLIS = 60000;
     private final ZooKeeper zkClient;
@@ -157,8 +158,9 @@ public class BrokerMonitor {
                 } else if (data instanceof LocalBrokerData) {
                     final LocalBrokerData localData = (LocalBrokerData) data;
                     numBundles = localData.getNumBundles();
-                    messageRate = localData.getMsgRateIn() + localData.getMsgRateOut();
-                    messageThroughput = (localData.getMsgThroughputIn() + localData.getMsgThroughputOut()) / 1024;
+                    final MessageData messageData = localData.getBundleData().getMessageData();
+                    messageRate = messageData.totalMsgRate();
+                    messageThroughput = messageData.totalMsgThroughput() / 1024;
                     maxUsage = localData.getMaxResourceUsage();
                 } else {
                     throw new AssertionError("Unreachable code");
@@ -289,7 +291,7 @@ public class BrokerMonitor {
                 printLoadReport(broker, gson.fromJson(jsonString, LoadReport.class));
             } else {
                 final LocalBrokerData localBrokerData = gson.fromJson(jsonString, LocalBrokerData.class);
-                final String timeAveragePath = ModularLoadManagerImpl.TIME_AVERAGE_BROKER_ZPATH + "/" + broker;
+                final String timeAveragePath = LoadManagerShared.TIME_AVERAGE_BROKER_ZPATH + "/" + broker;
                 try {
                     final TimeAverageBrokerData timeAverageData = gson.fromJson(
                             new String(zkClient.getData(timeAveragePath, false, null)), TimeAverageBrokerData.class);
@@ -379,30 +381,37 @@ public class BrokerMonitor {
             // First column is a label, so start at the second column at index 1.
             // System row.
             rows[1] = new Object[SYSTEM_ROW.length];
-            initRow(rows[1], localBrokerData.getCpu().percentUsage(), localBrokerData.getMemory().percentUsage(),
-                    localBrokerData.getDirectMemory().percentUsage(), localBrokerData.getBandwidthIn().percentUsage(),
-                    localBrokerData.getBandwidthOut().percentUsage(), localBrokerData.getMaxResourceUsage() * 100);
+            final SystemResourceUsage systemResourceUsage = localBrokerData.getSystemResourceUsage();
+            initRow(rows[1], systemResourceUsage.getCpu().percentUsage(),
+                    systemResourceUsage.getMemory().percentUsage(),
+                    systemResourceUsage.getDirectMemory().percentUsage(),
+                    systemResourceUsage.getBandwidthIn().percentUsage(),
+                    systemResourceUsage.getBandwidthOut().percentUsage(), localBrokerData.getMaxResourceUsage() * 100);
 
             // Count row.
             rows[3] = new Object[COUNT_ROW.length];
-            initRow(rows[3], localBrokerData.getNumTopics(), localBrokerData.getNumBundles(),
-                    localBrokerData.getNumProducers(), localBrokerData.getNumConsumers(),
-                    localBrokerData.getLastBundleGains().size(), localBrokerData.getLastBundleLosses().size());
+            final BundleData bundleData = localBrokerData.getBundleData();
+            initRow(rows[3], bundleData.getNumTopics(), localBrokerData.getNumBundles(), bundleData.getNumProducers(),
+                    bundleData.getNumConsumers(), localBrokerData.getLastBundleGains().size(),
+                    localBrokerData.getLastBundleLosses().size());
 
             // Latest message data row.
             rows[5] = new Object[LATEST_ROW.length];
-            initMessageRow(rows[5], localBrokerData.getMsgRateIn(), localBrokerData.getMsgRateOut(),
-                    localBrokerData.getMsgThroughputIn(), localBrokerData.getMsgThroughputOut());
+            final MessageData messageData = bundleData.getMessageData();
+            initMessageRow(rows[5], messageData.getMsgRateIn(), messageData.getMsgRateOut(),
+                    messageData.getMsgThroughputIn(), messageData.getMsgThroughputOut());
 
             // Short-term message data row.
             rows[7] = new Object[SHORT_ROW.length];
-            initMessageRow(rows[7], timeAverageData.getShortTermMsgRateIn(), timeAverageData.getShortTermMsgRateOut(),
-                    timeAverageData.getShortTermMsgThroughputIn(), timeAverageData.getShortTermMsgThroughputOut());
+            final MessageData shortTermData = timeAverageData.getShortTermData();
+            initMessageRow(rows[7], shortTermData.getMsgRateIn(), shortTermData.getMsgRateOut(),
+                    shortTermData.getMsgThroughputIn(), shortTermData.getMsgThroughputOut());
 
             // Long-term message data row.
             rows[9] = new Object[LONG_ROW.length];
-            initMessageRow(rows[9], timeAverageData.getLongTermMsgRateIn(), timeAverageData.getLongTermMsgRateOut(),
-                    timeAverageData.getLongTermMsgThroughputIn(), timeAverageData.getLongTermMsgThroughputOut());
+            final MessageData longTermData = timeAverageData.getLongTermData();
+            initMessageRow(rows[9], longTermData.getMsgRateIn(), longTermData.getMsgRateOut(),
+                    longTermData.getMsgThroughputIn(), longTermData.getMsgThroughputOut());
 
             final String table = localTableMaker.make(rows);
             log.info("\nBroker Data for {}:\n{}\n", broker, table);
@@ -432,7 +441,7 @@ public class BrokerMonitor {
     public void start() {
         try {
             final BrokerWatcher brokerWatcher = new BrokerWatcher(zkClient);
-            brokerWatcher.updateBrokers(BROKER_ROOT);
+            brokerWatcher.updateBrokers(LoadManagerShared.LOADBALANCE_BROKERS_ROOT);
             while (true) {
                 Thread.sleep(GLOBAL_STATS_PRINT_PERIOD_MILLIS);
                 printGlobalData();

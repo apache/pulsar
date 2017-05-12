@@ -17,8 +17,8 @@ package com.yahoo.pulsar.broker.loadbalance;
 
 import java.util.Set;
 
-import com.yahoo.pulsar.broker.BundleData;
-import com.yahoo.pulsar.broker.ServiceConfiguration;
+import com.yahoo.pulsar.broker.PulsarService;
+import com.yahoo.pulsar.broker.TimeAverageBundleData;
 import com.yahoo.pulsar.broker.loadbalance.impl.LeastLongTermMessageRate;
 
 /**
@@ -36,27 +36,27 @@ public interface ModularLoadManagerStrategy {
      *            The data for the bundle to assign.
      * @param loadData
      *            The load data from the leader broker.
-     * @param conf
-     *            The service configuration.
+     * @param pulsar
+     *            The Pulsar service.
      * @return The name of the selected broker as it appears on ZooKeeper.
      */
-    String selectBroker(Set<String> candidates, BundleData bundleToAssign, LoadData loadData,
-            ServiceConfiguration conf);
+    String selectBroker(Set<String> candidates, TimeAverageBundleData bundleToAssign, LoadData loadData,
+            PulsarService pulsar);
 
     /**
      * Create a placement strategy using the configuration.
      * 
-     * @param conf
-     *            ServiceConfiguration to use.
+     * @param pulsar
+     *            The Pulsar service.
      * @return A placement strategy from the given configurations.
      */
-    static ModularLoadManagerStrategy create(final ServiceConfiguration conf) {
+    static ModularLoadManagerStrategy create(final PulsarService pulsar) {
         try {
             // Only one strategy at the moment.
-            return new LeastLongTermMessageRate(conf);
+            return new LeastLongTermMessageRate(pulsar);
         } catch (Exception e) {
             // Ignore
         }
-        return new LeastLongTermMessageRate(conf);
+        return new LeastLongTermMessageRate(pulsar);
     }
 }

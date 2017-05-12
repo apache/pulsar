@@ -15,8 +15,6 @@
  */
 package com.yahoo.pulsar.broker.namespace;
 
-import static com.google.common.base.Preconditions.checkState;
-
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -36,8 +34,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.benmanes.caffeine.cache.AsyncCacheLoader;
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
-import com.github.benmanes.caffeine.cache.RemovalCause;
-import com.github.benmanes.caffeine.cache.RemovalListener;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.yahoo.pulsar.broker.PulsarService;
@@ -284,7 +280,6 @@ public class OwnershipCache {
         }
         return FutureUtil.waitForAll(allFutures);
     }
-    
 
     /**
      * Method to access the map of all <code>ServiceUnit</code> objects owned by the local broker
@@ -333,7 +328,7 @@ public class OwnershipCache {
         localZkCache.getZooKeeper().setData(path, jsonMapper.writeValueAsBytes(selfOwnerInfoDisabled), -1);
         ownershipReadOnlyCache.invalidate(path);
     }
-    
+
     /**
      * Update bundle state in a local cache
      * 

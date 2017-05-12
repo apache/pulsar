@@ -22,9 +22,6 @@ import static com.google.common.base.Preconditions.checkState;
 import com.google.common.base.Objects;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
-import com.yahoo.pulsar.common.naming.DestinationName;
-import com.yahoo.pulsar.common.naming.NamespaceName;
-import com.yahoo.pulsar.common.naming.NamespaceBundle;
 
 public class NamespaceBundle implements ServiceUnitId, Comparable<NamespaceBundle> {
     private final NamespaceName nsname;
@@ -119,11 +116,11 @@ public class NamespaceBundle implements ServiceUnitId, Comparable<NamespaceBundl
         return this.keyRange;
     }
 
-    Long getLowerEndpoint() {
+    public Long getLowerEndpoint() {
         return this.keyRange.lowerEndpoint();
     }
 
-    Long getUpperEndpoint() {
+    public Long getUpperEndpoint() {
         return this.keyRange.upperEndpoint();
     }
 

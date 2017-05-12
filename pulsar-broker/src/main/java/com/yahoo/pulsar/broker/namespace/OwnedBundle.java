@@ -15,6 +15,9 @@
  */
 package com.yahoo.pulsar.broker.namespace;
 
+import static com.yahoo.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
+import static com.yahoo.pulsar.broker.web.PulsarWebResource.joinPath;
+
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -22,8 +25,10 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.yahoo.pulsar.common.naming.NamespaceBundle;
 import com.yahoo.pulsar.broker.PulsarService;
+import com.yahoo.pulsar.common.naming.NamespaceBundle;
+import com.yahoo.pulsar.common.naming.NamespaceBundles;
+import com.yahoo.pulsar.common.naming.NamespaceName;
 
 public class OwnedBundle {
     private static final Logger LOG = LoggerFactory.getLogger(OwnedBundle.class);
@@ -37,8 +42,8 @@ public class OwnedBundle {
     private final ReentrantReadWriteLock nsLock = new ReentrantReadWriteLock();
     private static final int FALSE = 0;
     private static final int TRUE = 1;
-    private static final AtomicIntegerFieldUpdater<OwnedBundle> IS_ACTIVE_UPDATER =
-            AtomicIntegerFieldUpdater.newUpdater(OwnedBundle.class, "isActive");
+    private static final AtomicIntegerFieldUpdater<OwnedBundle> IS_ACTIVE_UPDATER = AtomicIntegerFieldUpdater
+            .newUpdater(OwnedBundle.class, "isActive");
     private volatile int isActive = TRUE;
 
     /**
@@ -83,7 +88,16 @@ public class OwnedBundle {
      * @throws Exception
      */
     public void handleUnloadRequest(PulsarService pulsar) throws Exception {
+        handleUnloadOrSplit(pulsar, null, null);
+    }
 
+    public void handleSplitRequest(final PulsarService pulsar, final NamespaceBundles bundles, final String boundary)
+            throws Exception {
+        handleUnloadOrSplit(pulsar, bundles, boundary);
+    }
+
+    private void handleUnloadOrSplit(final PulsarService pulsar, final NamespaceBundles bundles, final String boundary)
+            throws Exception {
         long unloadBundleStartTime = System.nanoTime();
         // Need a per namespace RenetrantReadWriteLock
         // Here to do a writeLock to set the flag and proceed to check and close connections
@@ -118,6 +132,14 @@ public class OwnedBundle {
                 // ignore topic-close failure to unload bundle
                 LOG.error("Failed to close topics under namespace {}", bundle.toString(), e);
             }
+            // Update policies if splitting
+            if (bundles != null) {
+                final NamespaceName namespaceName = bundles.getBundles().get(0).getNamespaceObject();
+                final String path = joinPath(LOCAL_POLICIES_ROOT, namespaceName.toString());
+                pulsar.getLocalZkCacheService().addBoundary(path, boundary).get();
+                pulsar.getNamespaceService().getNamespaceBundleFactory().invalidateBundleCache(namespaceName);
+            }
+
             // delete ownership node on zk
             try {
                 pulsar.getNamespaceService().getOwnershipCache().removeOwnership(bundle).get();
@@ -127,13 +149,15 @@ public class OwnedBundle {
                 throw new RuntimeException(String.format("Failed to delete ownership node %s", bundle.toString()),
                         e.getCause());
             }
+
         } catch (Exception e) {
             LOG.error("Failed to unload a namespace {}", bundle.toString(), e);
             throw new RuntimeException(e);
         }
 
         double unloadBundleTime = TimeUnit.NANOSECONDS.toMillis((System.nanoTime() - unloadBundleStartTime));
-        LOG.info("Unloading {} namespace-bundle with {} topics completed in {} ms", this.bundle, unloadedTopics, unloadBundleTime);
+        LOG.info("Unloading {} namespace-bundle with {} topics completed in {} ms", this.bundle, unloadedTopics,
+                unloadBundleTime);
     }
 
     /**

@@ -24,16 +24,12 @@ import com.yahoo.pulsar.common.policies.data.loadbalancer.NamespaceBundleStats;
  * Data class aggregating the short term and long term data across all bundles belonging to a broker.
  */
 public class TimeAverageBrokerData extends JSONWritable {
-    private double shortTermMsgThroughputIn;
-    private double shortTermMsgThroughputOut;
-    private double shortTermMsgRateIn;
-    private double shortTermMsgRateOut;
-    private double longTermMsgThroughputIn;
-    private double longTermMsgThroughputOut;
-    private double longTermMsgRateIn;
-    private double longTermMsgRateOut;
+    private MessageData shortTermData;
+    private MessageData longTermData;
 
     public TimeAverageBrokerData() {
+        shortTermData = new MessageData();
+        longTermData = new MessageData();
     }
 
     /**
@@ -46,8 +42,9 @@ public class TimeAverageBrokerData extends JSONWritable {
      * @param defaultStats
      *            The stats to use when a bundle belonging to this broker is not found in the bundle data map.
      */
-    public TimeAverageBrokerData(final Set<String> bundles, final Map<String, BundleData> data,
+    public TimeAverageBrokerData(final Set<String> bundles, final Map<String, TimeAverageBundleData> data,
             final NamespaceBundleStats defaultStats) {
+        this();
         reset(bundles, data, defaultStats);
     }
 
@@ -61,108 +58,38 @@ public class TimeAverageBrokerData extends JSONWritable {
      * @param defaultStats
      *            The stats to use when a bundle belonging to this broker is not found in the bundle data map.
      */
-    public void reset(final Set<String> bundles, final Map<String, BundleData> data,
+    public void reset(final Set<String> bundles, final Map<String, TimeAverageBundleData> data,
             final NamespaceBundleStats defaultStats) {
-        shortTermMsgThroughputIn = 0;
-        shortTermMsgThroughputOut = 0;
-        shortTermMsgRateIn = 0;
-        shortTermMsgRateOut = 0;
-
-        longTermMsgThroughputIn = 0;
-        longTermMsgThroughputOut = 0;
-        longTermMsgRateIn = 0;
-        longTermMsgRateOut = 0;
+        shortTermData.reset();
+        longTermData.reset();
 
         for (String bundle : bundles) {
-            final BundleData bundleData = data.get(bundle);
+            final TimeAverageBundleData bundleData = data.get(bundle);
             if (bundleData == null) {
-                shortTermMsgThroughputIn += defaultStats.msgThroughputIn;
-                shortTermMsgThroughputOut += defaultStats.msgThroughputOut;
-                shortTermMsgRateIn += defaultStats.msgRateIn;
-                shortTermMsgRateOut += defaultStats.msgRateOut;
-
-                longTermMsgThroughputIn += defaultStats.msgThroughputIn;
-                longTermMsgThroughputOut += defaultStats.msgThroughputOut;
-                longTermMsgRateIn += defaultStats.msgRateIn;
-                longTermMsgRateOut += defaultStats.msgRateOut;
+                shortTermData.add(defaultStats);
+                longTermData.add(defaultStats);
             } else {
-                final TimeAverageMessageData shortTermData = bundleData.getShortTermData();
-                final TimeAverageMessageData longTermData = bundleData.getLongTermData();
-
-                shortTermMsgThroughputIn += shortTermData.getMsgThroughputIn();
-                shortTermMsgThroughputOut += shortTermData.getMsgThroughputOut();
-                shortTermMsgRateIn += shortTermData.getMsgRateIn();
-                shortTermMsgRateOut += shortTermData.getMsgRateOut();
-
-                longTermMsgThroughputIn += longTermData.getMsgThroughputIn();
-                longTermMsgThroughputOut += longTermData.getMsgThroughputOut();
-                longTermMsgRateIn += longTermData.getMsgRateIn();
-                longTermMsgRateOut += longTermData.getMsgRateOut();
+                final MessageData bundleShortTermData = bundleData.getShortTermData().getMessageData();
+                final MessageData bundleLongTermData = bundleData.getLongTermData().getMessageData();
+                shortTermData.add(bundleShortTermData);
+                longTermData.add(bundleLongTermData);
             }
         }
     }
 
-    public double getShortTermMsgThroughputIn() {
-        return shortTermMsgThroughputIn;
+    public MessageData getShortTermData() {
+        return shortTermData;
     }
 
-    public void setShortTermMsgThroughputIn(double shortTermMsgThroughputIn) {
-        this.shortTermMsgThroughputIn = shortTermMsgThroughputIn;
+    public void setShortTermData(MessageData shortTermData) {
+        this.shortTermData = shortTermData;
     }
 
-    public double getShortTermMsgThroughputOut() {
-        return shortTermMsgThroughputOut;
+    public MessageData getLongTermData() {
+        return longTermData;
     }
 
-    public void setShortTermMsgThroughputOut(double shortTermMsgThroughputOut) {
-        this.shortTermMsgThroughputOut = shortTermMsgThroughputOut;
-    }
-
-    public double getShortTermMsgRateIn() {
-        return shortTermMsgRateIn;
-    }
-
-    public void setShortTermMsgRateIn(double shortTermMsgRateIn) {
-        this.shortTermMsgRateIn = shortTermMsgRateIn;
-    }
-
-    public double getShortTermMsgRateOut() {
-        return shortTermMsgRateOut;
-    }
-
-    public void setShortTermMsgRateOut(double shortTermMsgRateOut) {
-        this.shortTermMsgRateOut = shortTermMsgRateOut;
-    }
-
-    public double getLongTermMsgThroughputIn() {
-        return longTermMsgThroughputIn;
-    }
-
-    public void setLongTermMsgThroughputIn(double longTermMsgThroughputIn) {
-        this.longTermMsgThroughputIn = longTermMsgThroughputIn;
-    }
-
-    public double getLongTermMsgThroughputOut() {
-        return longTermMsgThroughputOut;
-    }
-
-    public void setLongTermMsgThroughputOut(double longTermMsgThroughputOut) {
-        this.longTermMsgThroughputOut = longTermMsgThroughputOut;
-    }
-
-    public double getLongTermMsgRateIn() {
-        return longTermMsgRateIn;
-    }
-
-    public void setLongTermMsgRateIn(double longTermMsgRateIn) {
-        this.longTermMsgRateIn = longTermMsgRateIn;
-    }
-
-    public double getLongTermMsgRateOut() {
-        return longTermMsgRateOut;
-    }
-
-    public void setLongTermMsgRateOut(double longTermMsgRateOut) {
-        this.longTermMsgRateOut = longTermMsgRateOut;
+    public void setLongTermData(MessageData longTermData) {
+        this.longTermData = longTermData;
     }
 }

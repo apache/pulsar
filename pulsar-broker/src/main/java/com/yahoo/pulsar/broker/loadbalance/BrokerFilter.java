@@ -17,8 +17,8 @@ package com.yahoo.pulsar.broker.loadbalance;
 
 import java.util.Set;
 
-import com.yahoo.pulsar.broker.BundleData;
-import com.yahoo.pulsar.broker.ServiceConfiguration;
+import com.yahoo.pulsar.broker.PulsarService;
+import com.yahoo.pulsar.broker.TimeAverageBundleData;
 
 /**
  * Load management component which determines what brokers should not be considered for topic placement by the placement
@@ -38,8 +38,8 @@ public interface BrokerFilter {
      *            The data for the bundle to assign.
      * @param loadData
      *            The load data from the leader broker.
-     * @param conf
-     *            The service configuration.
+     * @param pulsar
+     *            The Pulsar service.
      */
-    void filter(Set<String> brokers, BundleData bundleToAssign, LoadData loadData, ServiceConfiguration conf);
+    void filter(Set<String> brokers, TimeAverageBundleData bundleToAssign, LoadData loadData, PulsarService pulsar);
 }

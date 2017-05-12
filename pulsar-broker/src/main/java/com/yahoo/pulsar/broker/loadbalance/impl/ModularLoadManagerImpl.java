@@ -41,17 +41,18 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.yahoo.pulsar.broker.BrokerData;
-import com.yahoo.pulsar.broker.BundleData;
 import com.yahoo.pulsar.broker.LocalBrokerData;
+import com.yahoo.pulsar.broker.MessageData;
 import com.yahoo.pulsar.broker.PulsarServerException;
 import com.yahoo.pulsar.broker.PulsarService;
 import com.yahoo.pulsar.broker.ServiceConfiguration;
 import com.yahoo.pulsar.broker.TimeAverageBrokerData;
+import com.yahoo.pulsar.broker.TimeAverageBundleData;
 import com.yahoo.pulsar.broker.TimeAverageMessageData;
 import com.yahoo.pulsar.broker.loadbalance.BrokerFilter;
 import com.yahoo.pulsar.broker.loadbalance.BrokerHostUsage;
+import com.yahoo.pulsar.broker.loadbalance.BundleSplitStrategy;
 import com.yahoo.pulsar.broker.loadbalance.LoadData;
-import com.yahoo.pulsar.broker.loadbalance.LoadManager;
 import com.yahoo.pulsar.broker.loadbalance.LoadSheddingStrategy;
 import com.yahoo.pulsar.broker.loadbalance.ModularLoadManager;
 import com.yahoo.pulsar.broker.loadbalance.ModularLoadManagerStrategy;
@@ -68,9 +69,6 @@ import com.yahoo.pulsar.zookeeper.ZooKeeperDataCache;
 public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCacheListener<LocalBrokerData> {
     private static final Logger log = LoggerFactory.getLogger(ModularLoadManagerImpl.class);
 
-    // Path to ZNode whose children contain BundleData jsons for each bundle (new API version of ResourceQuota).
-    public static final String BUNDLE_DATA_ZPATH = "/loadbalance/bundle-data";
-
     // Default message rate to assume for unseen bundles.
     public static final double DEFAULT_MESSAGE_RATE = 50;
 
@@ -83,12 +81,6 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
 
     // The number of effective samples to keep for observing short term data.
     public static final int NUM_SHORT_SAMPLES = 10;
-
-    // Path to ZNode whose children contain ResourceQuota jsons.
-    public static final String RESOURCE_QUOTA_ZPATH = "/loadbalance/resource-quota/namespace";
-
-    // Path to ZNode containing TimeAverageBrokerData jsons for each broker.
-    public static final String TIME_AVERAGE_BROKER_ZPATH = "/loadbalance/broker-time-average";
 
     // ZooKeeper Cache of the currently available active brokers.
     // availableActiveBrokers.get() will return a set of the broker names without an http prefix.
@@ -105,6 +97,12 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
 
     // Path to the ZNode containing the LocalBrokerData json for this broker.
     private String brokerZnodePath;
+
+    // Strategy to use for splitting bundles.
+    private BundleSplitStrategy bundleSplitStrategy;
+
+    // Map from bundles to the brokers on which they are loaded.
+    private final Map<String, String> bundleToBroker;
 
     // Service configuration belonging to the pulsar service.
     private ServiceConfiguration conf;
@@ -157,11 +155,12 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
      */
     public ModularLoadManagerImpl() {
         brokerCandidateCache = new HashSet<>();
+        bundleToBroker = new ConcurrentHashMap<>();
         defaultStats = new NamespaceBundleStats();
         filterPipeline = new ArrayList<>();
         loadData = new LoadData();
         loadSheddingPipeline = new ArrayList<>();
-        loadSheddingPipeline.add(new OverloadShedder(conf));
+        loadSheddingPipeline.add(new OverloadShedder(pulsar));
         preallocatedBundleToBroker = new ConcurrentHashMap<>();
         scheduler = Executors.newScheduledThreadPool(1);
     }
@@ -175,7 +174,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
      */
     public void initialize(final PulsarService pulsar) {
         availableActiveBrokers = new ZooKeeperChildrenCache(pulsar.getLocalZkCache(),
-                LoadManager.LOADBALANCE_BROKERS_ROOT);
+                LoadManagerShared.LOADBALANCE_BROKERS_ROOT);
         availableActiveBrokers.registerListener(new ZooKeeperCacheListener<Set<String>>() {
             @Override
             public void onUpdate(String path, Set<String> data, Stat stat) {
@@ -201,6 +200,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
             brokerHostUsage = new GenericBrokerHostUsageImpl(pulsar);
         }
 
+        bundleSplitStrategy = new ThresholdSplitter(pulsar);
+
         conf = pulsar.getConfiguration();
 
         // Initialize the default stats to assume for unseen bundles (hard-coded for now).
@@ -213,7 +214,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
                 pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
         localData = new LocalBrokerData(pulsar.getWebServiceAddress(), pulsar.getWebServiceAddressTls(),
                 pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
-        placementStrategy = ModularLoadManagerStrategy.create(conf);
+        placementStrategy = ModularLoadManagerStrategy.create(pulsar);
         policies = new SimpleResourceAllocationPolicies(pulsar);
         this.pulsar = pulsar;
         zkClient = pulsar.getZkClient();
@@ -253,19 +254,21 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
 
     // Attempt to local the data for the given bundle in ZooKeeper.
     // If it cannot be found, return the default bundle data.
-    private BundleData getBundleDataOrDefault(final String bundle) {
-        BundleData bundleData = null;
+    private TimeAverageBundleData getBundleDataOrDefault(final String bundle) {
+        TimeAverageBundleData bundleData = null;
         try {
-            final String bundleZPath = getBundleDataZooKeeperPath(bundle);
-            final String quotaZPath = String.format("%s/%s", RESOURCE_QUOTA_ZPATH, bundle);
+            final String bundleZPath = LoadManagerShared.bundleDataPathFor(bundle);
+            final String quotaZPath = LoadManagerShared.quotaPathFor(bundle);
             if (zkClient.exists(bundleZPath, null) != null) {
-                bundleData = readJson(zkClient.getData(bundleZPath, null, null), BundleData.class);
+                bundleData = readJson(zkClient.getData(bundleZPath, null, null), TimeAverageBundleData.class);
             } else if (zkClient.exists(quotaZPath, null) != null) {
                 final ResourceQuota quota = readJson(zkClient.getData(quotaZPath, null, null), ResourceQuota.class);
-                bundleData = new BundleData(NUM_SHORT_SAMPLES, NUM_LONG_SAMPLES);
+                bundleData = new TimeAverageBundleData(NUM_SHORT_SAMPLES, NUM_LONG_SAMPLES);
                 // Initialize from existing resource quotas if new API ZNodes do not exist.
-                final TimeAverageMessageData shortTermData = bundleData.getShortTermData();
-                final TimeAverageMessageData longTermData = bundleData.getLongTermData();
+                final TimeAverageMessageData shortTimeAverage = bundleData.getShortTermData();
+                final TimeAverageMessageData longTimeAverage = bundleData.getLongTermData();
+                final MessageData shortTermData = shortTimeAverage.getMessageData();
+                final MessageData longTermData = longTimeAverage.getMessageData();
 
                 shortTermData.setMsgRateIn(quota.getMsgRateIn());
                 shortTermData.setMsgRateOut(quota.getMsgRateOut());
@@ -278,21 +281,16 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
                 longTermData.setMsgThroughputOut(quota.getBandwidthOut());
 
                 // Assume ample history.
-                shortTermData.setNumSamples(NUM_SHORT_SAMPLES);
-                longTermData.setNumSamples(NUM_LONG_SAMPLES);
+                shortTimeAverage.setNumSamples(NUM_SHORT_SAMPLES);
+                longTimeAverage.setNumSamples(NUM_LONG_SAMPLES);
             }
         } catch (Exception e) {
             log.warn("Error when trying to find bundle {} on zookeeper: {}", bundle, e);
         }
         if (bundleData == null) {
-            bundleData = new BundleData(NUM_SHORT_SAMPLES, NUM_LONG_SAMPLES, defaultStats);
+            bundleData = new TimeAverageBundleData(NUM_SHORT_SAMPLES, NUM_LONG_SAMPLES, defaultStats);
         }
         return bundleData;
-    }
-
-    // Get the ZooKeeper path for the given bundle full name.
-    private static String getBundleDataZooKeeperPath(final String bundle) {
-        return BUNDLE_DATA_ZPATH + "/" + bundle;
     }
 
     // Use the Pulsar client to acquire the namespace bundle stats.
@@ -326,13 +324,19 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
             // Always update after surpassing the maximum interval.
             return true;
         }
+        final MessageData lastMessageData = lastData.getBundleData().getMessageData();
+        final MessageData currentMessageData = localData.getBundleData().getMessageData();
         final double maxChange = Math
                 .max(percentChange(lastData.getMaxResourceUsage(), localData.getMaxResourceUsage()),
-                        Math.max(percentChange(lastData.getMsgRateIn() + lastData.getMsgRateOut(),
-                                localData.getMsgRateIn() + localData.getMsgRateOut()),
+                        Math.max(
+                                percentChange(lastMessageData.getMsgRateIn() + lastMessageData.getMsgRateOut(),
+                                        currentMessageData.getMsgRateIn() + currentMessageData.getMsgRateOut()),
                                 Math.max(
-                                        percentChange(lastData.getMsgThroughputIn() + lastData.getMsgThroughputOut(),
-                                                localData.getMsgThroughputIn() + localData.getMsgThroughputOut()),
+                                        percentChange(
+                                                lastMessageData.getMsgThroughputIn()
+                                                        + lastMessageData.getMsgThroughputOut(),
+                                                currentMessageData.getMsgThroughputIn()
+                                                        + currentMessageData.getMsgThroughputOut()),
                                         percentChange(lastData.getNumBundles(), localData.getNumBundles()))));
         if (maxChange > conf.getLoadBalancerReportUpdateThresholdPercentage()) {
             log.info("Writing local data to ZooKeeper because maximum change {}% exceeded threshold {}%", maxChange,
@@ -353,9 +357,9 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
     private void updateAllBrokerData() {
         final Set<String> activeBrokers = getAvailableBrokers();
         final Map<String, BrokerData> brokerDataMap = loadData.getBrokerData();
-        for (String broker : activeBrokers) {
+        for (final String broker : activeBrokers) {
             try {
-                String key = String.format("%s/%s", LoadManager.LOADBALANCE_BROKERS_ROOT, broker);
+                String key = String.format("%s/%s", LoadManagerShared.LOADBALANCE_BROKERS_ROOT, broker);
                 final LocalBrokerData localData = brokerDataCache.get(key)
                         .orElseThrow(KeeperException.NoNodeException::new);
 
@@ -363,12 +367,12 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
                     // Replace previous local broker data.
                     brokerDataMap.get(broker).setLocalData(localData);
                 } else {
-                    // Initialize BrokerData object for previously unseen
-                    // brokers.
+                    // Initialize BrokerData object for previously unseen brokers.
                     brokerDataMap.put(broker, new BrokerData(localData));
                 }
             } catch (Exception e) {
                 log.warn("Error reading broker data from cache for broker - [{}], [{}]", broker, e.getMessage());
+
             }
         }
         // Remove obsolete brokers.
@@ -382,7 +386,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
     // As the leader broker, use the local broker data saved on ZooKeeper to update the bundle stats so that better load
     // management decisions may be made.
     private void updateBundleData() {
-        final Map<String, BundleData> bundleData = loadData.getBundleData();
+        final Map<String, TimeAverageBundleData> bundleData = loadData.getBundleData();
         // Iterate over the broker data.
         for (Map.Entry<String, BrokerData> brokerEntry : loadData.getBrokerData().entrySet()) {
             final BrokerData brokerData = brokerEntry.getValue();
@@ -401,23 +405,23 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
                     // Otherwise, attempt to find the bundle data on ZooKeeper.
                     // If it cannot be found, use the latest stats as the first
                     // sample.
-                    BundleData currentBundleData = getBundleDataOrDefault(bundle);
+                    TimeAverageBundleData currentBundleData = getBundleDataOrDefault(bundle);
                     currentBundleData.update(stats);
                     bundleData.put(bundle, currentBundleData);
                 }
             }
 
             // Remove all loaded bundles from the preallocated maps.
-            final Map<String, BundleData> preallocatedBundleData = brokerData.getPreallocatedBundleData();
-            // Should not iterate with more than one thread at a time.
+            final Map<String, TimeAverageBundleData> preallocatedBundleData = brokerData.getPreallocatedBundleData();
             synchronized (preallocatedBundleData) {
-                final Iterator<Map.Entry<String, BundleData>> preallocatedIterator = preallocatedBundleData.entrySet()
-                        .iterator();
+                final Iterator<Map.Entry<String, TimeAverageBundleData>> preallocatedIterator = preallocatedBundleData
+                        .entrySet().iterator();
                 while (preallocatedIterator.hasNext()) {
                     final String bundle = preallocatedIterator.next().getKey();
                     if (bundleData.containsKey(bundle)) {
                         preallocatedIterator.remove();
-                        preallocatedBundleToBroker.remove(bundle);
+                        final String broker = preallocatedBundleToBroker.remove(bundle);
+                        log.info("Removed preallocated bundle {} belonging to bundle {}", bundle, broker);
                     }
                 }
             }
@@ -464,7 +468,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
         final Map<String, Long> recentlyUnloadedBundles = loadData.getRecentlyUnloadedBundles();
         recentlyUnloadedBundles.keySet().removeIf(e -> recentlyUnloadedBundles.get(e) < timeout);
         for (LoadSheddingStrategy strategy : loadSheddingPipeline) {
-            final Map<String, String> bundlesToUnload = strategy.findBundlesForUnloading(loadData, conf);
+            final Map<String, String> bundlesToUnload = strategy.findBundlesForUnloading(loadData, pulsar);
             if (bundlesToUnload != null && !bundlesToUnload.isEmpty()) {
                 try {
                     for (Map.Entry<String, String> entry : bundlesToUnload.entrySet()) {
@@ -474,7 +478,9 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
                         pulsar.getAdminClient().namespaces().unloadNamespaceBundle(
                                 LoadManagerShared.getNamespaceNameFromBundleName(bundle),
                                 LoadManagerShared.getBundleRangeFromBundleName(bundle));
+                        bundleToBroker.remove(bundle);
                         loadData.getRecentlyUnloadedBundles().put(bundle, System.currentTimeMillis());
+
                     }
                 } catch (Exception e) {
                     log.warn("Error when trying to perform load shedding", e);
@@ -489,7 +495,25 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
      */
     @Override
     public void doNamespaceBundleSplit() {
-        // TODO?
+        // Value may be changed dynamically.
+        if (conf.getLoadBalancerAutoBundleSplitEnabled()) {
+            synchronized (bundleSplitStrategy) {
+                final Set<String> bundlesToBeSplit = bundleSplitStrategy.findBundlesToSplit(loadData, localData,
+                        pulsar);
+                for (String bundleName : bundlesToBeSplit) {
+                    try {
+                        pulsar.getAdminClient().namespaces().splitNamespaceBundle(
+                                LoadManagerShared.getNamespaceNameFromBundleName(bundleName),
+                                LoadManagerShared.getBundleRangeFromBundleName(bundleName));
+                        // Make sure the same bundle is not selected again.
+                        loadData.getBundleData().remove(bundleName);
+                        log.info("Successfully split namespace bundle {}", bundleName);
+                    } catch (Exception e) {
+                        log.error("Failed to split namespace bundle {}", bundleName, e);
+                    }
+                }
+            }
+        }
     }
 
     /**
@@ -502,7 +526,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
 
     /**
      * As the leader broker, find a suitable broker for the assignment of the given bundle.
-     * 
+     *
      * @param serviceUnit
      *            ServiceUnitId for the bundle.
      * @return The name of the selected broker, as it appears on ZooKeeper.
@@ -515,8 +539,11 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
             if (preallocatedBundleToBroker.containsKey(bundle)) {
                 // If the given bundle is already in preallocated, return the selected broker.
                 return preallocatedBundleToBroker.get(bundle);
+            } else if (bundleToBroker.containsKey(bundle)) {
+                return bundleToBroker.get(bundle);
             }
-            final BundleData data = loadData.getBundleData().computeIfAbsent(bundle,
+
+            final TimeAverageBundleData data = loadData.getBundleData().computeIfAbsent(bundle,
                     key -> getBundleDataOrDefault(bundle));
             brokerCandidateCache.clear();
             LoadManagerShared.applyPolicies(serviceUnit, policies, brokerCandidateCache, getAvailableBrokers());
@@ -524,21 +551,23 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
 
             // Use the filter pipeline to finalize broker candidates.
             for (BrokerFilter filter : filterPipeline) {
-                filter.filter(brokerCandidateCache, data, loadData, conf);
+                filter.filter(brokerCandidateCache, data, loadData, pulsar);
             }
-            final String broker = placementStrategy.selectBroker(brokerCandidateCache, data, loadData, conf);
+            final String broker = placementStrategy.selectBroker(brokerCandidateCache, data, loadData, pulsar);
 
             // Add new bundle to preallocated.
             loadData.getBrokerData().get(broker).getPreallocatedBundleData().put(bundle, data);
             preallocatedBundleToBroker.put(bundle, broker);
 
+            bundleToBroker.put(bundle, broker);
+            log.info("Assigned bundle {} to broker {}", bundle, broker);
             return broker;
         }
     }
 
     /**
      * As any broker, start the load manager.
-     * 
+     *
      * @throws PulsarServerException
      *             If an unexpected error prevented the load manager from being started.
      */
@@ -546,11 +575,11 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
     public void start() throws PulsarServerException {
         try {
             // Register the brokers in zk list
-            createZPathIfNotExists(zkClient, LoadManager.LOADBALANCE_BROKERS_ROOT);
+            createZPathIfNotExists(zkClient, LoadManagerShared.LOADBALANCE_BROKERS_ROOT);
 
             String lookupServiceAddress = pulsar.getAdvertisedAddress() + ":" + conf.getWebServicePort();
-            brokerZnodePath = LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + lookupServiceAddress;
-            final String timeAverageZPath = TIME_AVERAGE_BROKER_ZPATH + "/" + lookupServiceAddress;
+            brokerZnodePath = LoadManagerShared.LOADBALANCE_BROKERS_ROOT + "/" + lookupServiceAddress;
+            final String timeAverageZPath = LoadManagerShared.timeAverageBrokerPathFor(lookupServiceAddress);
             updateLocalBrokerData();
             try {
                 ZkUtils.createFullPathOptimistic(pulsar.getZkClient(), brokerZnodePath, localData.getJsonBytes(),
@@ -575,7 +604,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
 
     /**
      * As any broker, stop the load manager.
-     * 
+     *
      * @throws PulsarServerException
      *             If an unexpected error occurred when attempting to stop the load manager.
      */
@@ -595,8 +624,9 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
         try {
             final SystemResourceUsage systemResourceUsage = LoadManagerShared.getSystemResourceUsage(brokerHostUsage);
             localData.update(systemResourceUsage, getBundleStats());
+            doNamespaceBundleSplit();
         } catch (Exception e) {
-            log.warn("Error when attempting to update local broker data: {}", e);
+            log.warn("Error when attempting to update local broker data", e);
         }
     }
 
@@ -635,11 +665,11 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
     public void writeBundleDataOnZooKeeper() {
         updateBundleData();
         // Write the bundle data to ZooKeeper.
-        for (Map.Entry<String, BundleData> entry : loadData.getBundleData().entrySet()) {
+        for (Map.Entry<String, TimeAverageBundleData> entry : loadData.getBundleData().entrySet()) {
             final String bundle = entry.getKey();
-            final BundleData data = entry.getValue();
+            final TimeAverageBundleData data = entry.getValue();
             try {
-                final String zooKeeperPath = getBundleDataZooKeeperPath(bundle);
+                final String zooKeeperPath = LoadManagerShared.bundleDataPathFor(bundle);
                 createZPathIfNotExists(zkClient, zooKeeperPath);
                 zkClient.setData(zooKeeperPath, data.getJsonBytes(), -1);
             } catch (Exception e) {
@@ -651,7 +681,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
             final String broker = entry.getKey();
             final TimeAverageBrokerData data = entry.getValue().getTimeAverageData();
             try {
-                final String zooKeeperPath = TIME_AVERAGE_BROKER_ZPATH + "/" + broker;
+                final String zooKeeperPath = LoadManagerShared.timeAverageBrokerPathFor(broker);
                 createZPathIfNotExists(zkClient, zooKeeperPath);
                 zkClient.setData(zooKeeperPath, data.getJsonBytes(), -1);
             } catch (Exception e) {
