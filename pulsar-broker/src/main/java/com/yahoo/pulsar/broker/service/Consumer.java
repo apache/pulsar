@@ -22,11 +22,14 @@ import static com.yahoo.pulsar.common.api.Commands.readChecksum;
 import java.time.Instant;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.util.Rate;
+import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap;
+import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap.LongPair;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
@@ -79,7 +82,7 @@ public class Consumer {
             AtomicIntegerFieldUpdater.newUpdater(Consumer.class, "permitsReceivedWhileConsumerBlocked");
     private volatile int permitsReceivedWhileConsumerBlocked = 0;
 
-    private final ConcurrentOpenHashMap<PositionImpl, Integer> pendingAcks;
+    private final ConcurrentLongLongPairHashMap pendingAcks;
 
     private final ConsumerStats stats;
     
@@ -113,7 +116,7 @@ public class Consumer {
         stats.clientVersion = cnx.getClientVersion();
 
         if (subType == SubType.Shared) {
-            this.pendingAcks = new ConcurrentOpenHashMap<PositionImpl, Integer>(256, 2);
+            this.pendingAcks = new ConcurrentLongLongPairHashMap(256, 1);
         } else {
             // We don't need to keep track of pending acks if the subscription is not shared
             this.pendingAcks = null;
@@ -209,7 +212,7 @@ public class Consumer {
     }
 
     private void incrementUnackedMessages(int ackedMessages) {
-        if (shouldBlockConsumerOnUnackMsgs() && UNACKED_MESSAGES_UPDATER.addAndGet(this, ackedMessages) >= maxUnackedMessages) {
+        if (shouldBlockConsumerOnUnackMsgs() && addAndGetUnAckedMsgs(this, ackedMessages) >= maxUnackedMessages) {
             blockedConsumerOnUnackedMsgs = true;
         }
     }
@@ -250,8 +253,7 @@ public class Consumer {
                 continue;
             }
             if (pendingAcks != null) {
-                PositionImpl pos = (PositionImpl) entry.getPosition();
-                pendingAcks.put(pos, batchSize);
+                pendingAcks.put(entry.getLedgerId(), entry.getEntryId(), batchSize, 0);
             }
             // check if consumer supports batch message
             if (batchSize > 1 && !clientSupportBatchMessages) {
@@ -408,6 +410,10 @@ public class Consumer {
         stats.blockedConsumerOnUnackedMsgs = blockedConsumerOnUnackedMsgs;
         return stats;
     }
+    
+    public int getUnackedMessages() {
+        return UNACKED_MESSAGES_UPDATER.get(this);
+    }
 
     @Override
     public String toString() {
@@ -461,9 +467,9 @@ public class Consumer {
      */
     private void removePendingAcks(PositionImpl position) {
         Consumer ackOwnedConsumer = null;
-        if (pendingAcks.get(position) == null) {
+        if (pendingAcks.get(position.getLedgerId(), position.getEntryId()) == null) {
             for (Consumer consumer : subscription.getConsumers()) {
-                if (!consumer.equals(this) && consumer.getPendingAcks().get(position) != null) {
+                if (!consumer.equals(this) && consumer.getPendingAcks().containsKey(position.getLedgerId(), position.getEntryId())) {
                     ackOwnedConsumer = consumer;
                     break;
                 }
@@ -474,10 +480,11 @@ public class Consumer {
         
         // remove pending message from appropriate consumer and unblock unAckMsg-flow if requires
         if (ackOwnedConsumer != null) {
-            int totalAckedMsgs = ackOwnedConsumer.getPendingAcks().remove(position);
+            int totalAckedMsgs = (int) ackOwnedConsumer.getPendingAcks().get(position.getLedgerId(), position.getEntryId()).first;
+            ackOwnedConsumer.getPendingAcks().remove(position.getLedgerId(), position.getEntryId());
             // unblock consumer-throttling when receives half of maxUnackedMessages => consumer can start again
             // consuming messages
-            if (((UNACKED_MESSAGES_UPDATER.addAndGet(ackOwnedConsumer, -totalAckedMsgs) <= (maxUnackedMessages / 2))
+            if (((addAndGetUnAckedMsgs(ackOwnedConsumer, -totalAckedMsgs) <= (maxUnackedMessages / 2))
                     && ackOwnedConsumer.blockedConsumerOnUnackedMsgs)
                     && ackOwnedConsumer.shouldBlockConsumerOnUnackMsgs()) {
                 ackOwnedConsumer.blockedConsumerOnUnackedMsgs = false;
@@ -486,7 +493,7 @@ public class Consumer {
         }
     }
     
-    public ConcurrentOpenHashMap<PositionImpl, Integer> getPendingAcks() {
+    public ConcurrentLongLongPairHashMap getPendingAcks() {
         return pendingAcks;
     }
     
@@ -496,17 +503,16 @@ public class Consumer {
 
     public void redeliverUnacknowledgedMessages() {
         // cleanup unackedMessage bucket and redeliver those unack-msgs again
-        UNACKED_MESSAGES_UPDATER.set(this, 0);
+        clearUnAckedMsgs(this);
         blockedConsumerOnUnackedMsgs = false;
         // redeliver unacked-msgs
         subscription.redeliverUnacknowledgedMessages(this);
         flowConsumerBlockedPermits(this);
         if (pendingAcks != null) {
-            int totalRedeliveryMessages = 0;
-            for (Integer batchSize : pendingAcks.values()) {
-                totalRedeliveryMessages += batchSize;
-            }
-            msgRedeliver.recordMultipleEvents(totalRedeliveryMessages, totalRedeliveryMessages);
+            AtomicInteger totalRedeliveryMessages = new AtomicInteger(0);
+            pendingAcks.forEach(
+                    (ledgerId, entryId, batchSize, none) -> totalRedeliveryMessages.addAndGet((int) batchSize));
+            msgRedeliver.recordMultipleEvents(totalRedeliveryMessages.get(), totalRedeliveryMessages.get());
             pendingAcks.clear();
         }
 
@@ -518,14 +524,15 @@ public class Consumer {
         List<PositionImpl> pendingPositions = Lists.newArrayList();
         for (MessageIdData msg : messageIds) {
             PositionImpl position = PositionImpl.get(msg.getLedgerId(), msg.getEntryId());
-            Integer batchSize = pendingAcks.remove(position);
+            LongPair batchSize = pendingAcks.get(position.getLedgerId(), position.getEntryId());
             if (batchSize != null) {
-                totalRedeliveryMessages += batchSize;
+                pendingAcks.remove(position.getLedgerId(), position.getEntryId());
+                totalRedeliveryMessages += batchSize.first;
                 pendingPositions.add(position);
             }
         }
 
-        UNACKED_MESSAGES_UPDATER.addAndGet(this, -totalRedeliveryMessages);
+        addAndGetUnAckedMsgs(this, -totalRedeliveryMessages);
         blockedConsumerOnUnackedMsgs = false;
 
         subscription.redeliverUnacknowledgedMessages(this, pendingPositions);
@@ -544,6 +551,16 @@ public class Consumer {
     
     public Subscription getSubscription() {
         return subscription;
+    }
+    
+    private int addAndGetUnAckedMsgs(Consumer consumer, int ackedMessages) {
+        subscription.addUnAckedMessages(ackedMessages);
+        return UNACKED_MESSAGES_UPDATER.addAndGet(this, ackedMessages);
+    }
+    
+    private void clearUnAckedMsgs(Consumer consumer) {
+        int unaAckedMsgs = UNACKED_MESSAGES_UPDATER.getAndSet(this, 0);
+        subscription.addUnAckedMessages(-unaAckedMsgs);
     }
     
     private static final Logger log = LoggerFactory.getLogger(Consumer.class);

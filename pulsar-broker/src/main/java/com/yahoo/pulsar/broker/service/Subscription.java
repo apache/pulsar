@@ -71,4 +71,6 @@ public interface Subscription {
     SubType getType();
     
     String getTypeString();
+
+    void addUnAckedMessages(int unAckMessages);
 }
