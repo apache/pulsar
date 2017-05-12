@@ -142,7 +142,7 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
                     log.debug("[{}] Consumer are left, reading more entries", name);
                 }
                 consumer.getPendingAcks().forEach((ledgerId, entryId, batchSize, none) -> {
-                    messagesToReplay.add(PositionImpl.get(ledgerId, entryId));
+                    messagesToReplay.add(new PositionImpl(ledgerId, entryId));
                 });
                 totalAvailablePermits -= consumer.getAvailablePermits();
                 readMoreEntries();
@@ -555,7 +555,7 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
     @Override
     public synchronized void redeliverUnacknowledgedMessages(Consumer consumer) {
         consumer.getPendingAcks().forEach((ledgerId, entryId, batchSize, none) -> {
-            messagesToReplay.add(PositionImpl.get(ledgerId, entryId));
+            messagesToReplay.add(new PositionImpl(ledgerId, entryId));
         });
         if (log.isDebugEnabled()) {
             log.debug("[{}] Redelivering unacknowledged messages for consumer ", consumer);

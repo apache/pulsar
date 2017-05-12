@@ -22,6 +22,7 @@ import static com.yahoo.pulsar.common.api.Commands.readChecksum;
 import java.time.Instant;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
 import org.apache.bookkeeper.mledger.Entry;
@@ -115,7 +116,7 @@ public class Consumer {
         stats.clientVersion = cnx.getClientVersion();
 
         if (subType == SubType.Shared) {
-            this.pendingAcks = new ConcurrentLongLongPairHashMap(256, 2);
+            this.pendingAcks = new ConcurrentLongLongPairHashMap(256, 1);
         } else {
             // We don't need to keep track of pending acks if the subscription is not shared
             this.pendingAcks = null;
@@ -252,8 +253,7 @@ public class Consumer {
                 continue;
             }
             if (pendingAcks != null) {
-                PositionImpl pos = (PositionImpl) entry.getPosition();
-                pendingAcks.put(pos.getLedgerId(), pos.getEntryId(), batchSize, 0);
+                pendingAcks.put(entry.getLedgerId(), entry.getEntryId(), batchSize, 0);
             }
             // check if consumer supports batch message
             if (batchSize > 1 && !clientSupportBatchMessages) {
@@ -469,7 +469,7 @@ public class Consumer {
         Consumer ackOwnedConsumer = null;
         if (pendingAcks.get(position.getLedgerId(), position.getEntryId()) == null) {
             for (Consumer consumer : subscription.getConsumers()) {
-                if (!consumer.equals(this) && consumer.getPendingAcks().get(position.getLedgerId(), position.getEntryId()) != null) {
+                if (!consumer.equals(this) && consumer.getPendingAcks().containsKey(position.getLedgerId(), position.getEntryId())) {
                     ackOwnedConsumer = consumer;
                     break;
                 }
@@ -509,11 +509,10 @@ public class Consumer {
         subscription.redeliverUnacknowledgedMessages(this);
         flowConsumerBlockedPermits(this);
         if (pendingAcks != null) {
-            int totalRedeliveryMessages = 0;
-            for (LongPair batchSize : pendingAcks.values()) {
-                totalRedeliveryMessages += batchSize.first;
-            }
-            msgRedeliver.recordMultipleEvents(totalRedeliveryMessages, totalRedeliveryMessages);
+            AtomicInteger totalRedeliveryMessages = new AtomicInteger(0);
+            pendingAcks.forEach(
+                    (ledgerId, entryId, batchSize, none) -> totalRedeliveryMessages.addAndGet((int) batchSize));
+            msgRedeliver.recordMultipleEvents(totalRedeliveryMessages.get(), totalRedeliveryMessages.get());
             pendingAcks.clear();
         }
 
