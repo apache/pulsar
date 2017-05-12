@@ -24,6 +24,15 @@ import com.yahoo.pulsar.common.configuration.PulsarConfiguration;
 
 public class WebSocketProxyConfiguration implements PulsarConfiguration {
 
+    // Number of threads used by Proxy server
+    public static final int PROXY_SERVER_EXECUTOR_THREADS = 2 * Runtime.getRuntime().availableProcessors();
+    // Number of threads used by Websocket service
+    public static final int WEBSOCKET_SERVICE_THREADS = 20;
+    // Number of threads used by Global ZK
+    public static final int GLOBAL_ZK_THREADS = 8;
+    // Number of IO threads in Pulsar Client
+    public static final int PULSAR_CLIENT_IO_THREADS = Runtime.getRuntime().availableProcessors();
+
     // Name of the cluster to which this broker belongs to
     @FieldContext(required = true)
     private String clusterName;

@@ -138,10 +138,9 @@ public class ProducerHandler extends AbstractWebSocketHandler {
     private ProducerConfiguration getProducerConfiguration() {
         ProducerConfiguration conf = new ProducerConfiguration();
 
-        if (queryParams.containsKey("blockIfQueueFull")) {
-            conf.setBlockIfQueueFull(Boolean.parseBoolean(queryParams.get("blockIfQueueFull")));
-        }
-
+        // Set to false to prevent the server thread from being blocked if a lot of messages are pending.
+        conf.setBlockIfQueueFull(false);
+        
         if (queryParams.containsKey("sendTimeoutMillis")) {
             conf.setSendTimeout(Integer.parseInt(queryParams.get("sendTimeoutMillis")), TimeUnit.MILLISECONDS);
         }

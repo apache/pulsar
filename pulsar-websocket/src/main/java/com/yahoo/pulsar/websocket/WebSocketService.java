@@ -60,9 +60,10 @@ public class WebSocketService implements Closeable {
     AuthorizationManager authorizationManager;
     PulsarClient pulsarClient;
 
-    private final ScheduledExecutorService executor = Executors.newScheduledThreadPool(20,
-            new DefaultThreadFactory("pulsar-websocket"));
-    private final OrderedSafeExecutor orderedExecutor = new OrderedSafeExecutor(8, "pulsar-websocket-ordered");
+    private final ScheduledExecutorService executor = Executors.newScheduledThreadPool(
+            WebSocketProxyConfiguration.WEBSOCKET_SERVICE_THREADS, new DefaultThreadFactory("pulsar-websocket"));
+    private final OrderedSafeExecutor orderedExecutor = new OrderedSafeExecutor(
+            WebSocketProxyConfiguration.GLOBAL_ZK_THREADS, "pulsar-websocket-ordered");
     private GlobalZooKeeperCache globalZkCache;
     private ZooKeeperClientFactory zkClientFactory;
     private ServiceConfiguration config;
@@ -162,6 +163,7 @@ public class WebSocketService implements Closeable {
         clientConf.setUseTls(config.isTlsEnabled());
         clientConf.setTlsAllowInsecureConnection(config.isTlsAllowInsecureConnection());
         clientConf.setTlsTrustCertsFilePath(config.getTlsTrustCertsFilePath());
+        clientConf.setIoThreads(WebSocketProxyConfiguration.PULSAR_CLIENT_IO_THREADS);
         if (config.isAuthenticationEnabled()) {
             clientConf.setAuthentication(config.getBrokerClientAuthenticationPlugin(),
                     config.getBrokerClientAuthenticationParameters());
@@ -189,7 +191,7 @@ public class WebSocketService implements Closeable {
             return null;
         }
     }
-    
+
     private static ServiceConfiguration createServiceConfiguration(WebSocketProxyConfiguration config) {
         ServiceConfiguration serviceConfig = new ServiceConfiguration();
         serviceConfig.setClusterName(config.getClusterName());
