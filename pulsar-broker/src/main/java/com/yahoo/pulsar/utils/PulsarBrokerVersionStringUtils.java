@@ -18,7 +18,7 @@ public class PulsarBrokerVersionStringUtils {
     // If the version string does not contain a patch version, add one so the
     // version becomes valid according to the SemVer library (see https://github.com/zafarkhaja/jsemver).
     // This method (and it's only call above in the ctor) may be removed when SemVer accepts null patch versions
-    private static String fixVersionString(String version) {
+    public static String fixVersionString(String version) {
         if ( null == version ) {
             return null;
         }
