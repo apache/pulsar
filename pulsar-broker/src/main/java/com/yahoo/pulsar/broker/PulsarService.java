@@ -28,6 +28,7 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
 
+import com.yahoo.pulsar.utils.PulsarBrokerVersionStringUtils;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.util.OrderedSafeExecutor;
 import org.apache.bookkeeper.util.ZkUtils;
@@ -111,6 +112,7 @@ public class PulsarService implements AutoCloseable {
     private final String webServiceAddressTls;
     private final String brokerServiceUrl;
     private final String brokerServiceUrlTls;
+    private final String brokerVersion;
 
     private final MessagingServiceShutdownHook shutdownService;
 
@@ -133,6 +135,7 @@ public class PulsarService implements AutoCloseable {
         this.webServiceAddressTls = webAddressTls(config);
         this.brokerServiceUrl = brokerUrl(config);
         this.brokerServiceUrlTls = brokerUrlTls(config);
+        this.brokerVersion = PulsarBrokerVersionStringUtils.getNormalizedVersionString();
         this.config = config;
         this.shutdownService = new MessagingServiceShutdownHook(this);
         loadManagerExecutor = Executors.newSingleThreadScheduledExecutor();
@@ -256,7 +259,7 @@ public class PulsarService implements AutoCloseable {
             // needs load management service
             this.startNamespaceService();
 
-            LOG.info("Starting Pulsar Broker service");
+            LOG.info("Starting Pulsar Broker service; version: '{}'", ( brokerVersion != null ? brokerVersion : "unknown" )  );
             brokerService.start();
 
             this.webService = new WebService(this);
@@ -648,4 +651,7 @@ public class PulsarService implements AutoCloseable {
         return loadManager;
     }
 
+    public String getBrokerVersion() {
+        return brokerVersion;
+    }
 }

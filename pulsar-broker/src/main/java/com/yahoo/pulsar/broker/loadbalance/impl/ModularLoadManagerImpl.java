@@ -30,6 +30,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import com.yahoo.pulsar.broker.loadbalance.*;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.SystemUtils;
@@ -49,13 +50,6 @@ import com.yahoo.pulsar.broker.PulsarService;
 import com.yahoo.pulsar.broker.ServiceConfiguration;
 import com.yahoo.pulsar.broker.TimeAverageBrokerData;
 import com.yahoo.pulsar.broker.TimeAverageMessageData;
-import com.yahoo.pulsar.broker.loadbalance.BrokerFilter;
-import com.yahoo.pulsar.broker.loadbalance.BrokerHostUsage;
-import com.yahoo.pulsar.broker.loadbalance.LoadData;
-import com.yahoo.pulsar.broker.loadbalance.LoadManager;
-import com.yahoo.pulsar.broker.loadbalance.LoadSheddingStrategy;
-import com.yahoo.pulsar.broker.loadbalance.ModularLoadManager;
-import com.yahoo.pulsar.broker.loadbalance.ModularLoadManagerStrategy;
 import com.yahoo.pulsar.common.naming.ServiceUnitId;
 import com.yahoo.pulsar.common.policies.data.ResourceQuota;
 import com.yahoo.pulsar.common.policies.data.loadbalancer.NamespaceBundleStats;
@@ -219,10 +213,12 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
                 pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
         localData = new LocalBrokerData(pulsar.getWebServiceAddress(), pulsar.getWebServiceAddressTls(),
                 pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
+        localData.setBrokerVersionString(pulsar.getBrokerVersion());
         placementStrategy = ModularLoadManagerStrategy.create(conf);
         policies = new SimpleResourceAllocationPolicies(pulsar);
         this.pulsar = pulsar;
         zkClient = pulsar.getZkClient();
+        filterPipeline.add(new BrokerVersionFilter());
     }
 
     /**
@@ -539,10 +535,30 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
             log.info("{} brokers being considered for assignment of {}", brokerCandidateCache.size(), bundle);
 
             // Use the filter pipeline to finalize broker candidates.
-            for (BrokerFilter filter : filterPipeline) {
-                filter.filter(brokerCandidateCache, data, loadData, conf);
+            try {
+                for (BrokerFilter filter : filterPipeline) {
+                    filter.filter(brokerCandidateCache, data, loadData, conf);
+                }
+            } catch ( BrokerFilterException x ) {
+                // restore the list of brokers to the full set
+                LoadManagerShared.applyPolicies(serviceUnit, policies, brokerCandidateCache, getAvailableBrokers());
             }
-            final String broker = placementStrategy.selectBroker(brokerCandidateCache, data, loadData, conf);
+
+            if ( brokerCandidateCache.isEmpty() ) {
+                // restore the list of brokers to the full set
+                LoadManagerShared.applyPolicies(serviceUnit, policies, brokerCandidateCache, getAvailableBrokers());
+            }
+
+            // Choose a broker among the potentially smaller filtered list, when possible
+            String broker = placementStrategy.selectBroker(brokerCandidateCache, data, loadData, conf);
+
+            final double overloadThreshold = conf.getLoadBalancerBrokerOverloadedThresholdPercentage() / 100.0;
+            final double maxUsage = loadData.getBrokerData().get(broker).getLocalData().getMaxResourceUsage();
+            if (maxUsage > overloadThreshold) {
+                // All brokers that were in the filtered list were overloaded, so check if there is a better broker
+                LoadManagerShared.applyPolicies(serviceUnit, policies, brokerCandidateCache, getAvailableBrokers());
+                broker = placementStrategy.selectBroker(brokerCandidateCache, data, loadData, conf);
+            }
 
             // Add new bundle to preallocated.
             loadData.getBrokerData().get(broker).getPreallocatedBundleData().put(bundle, data);

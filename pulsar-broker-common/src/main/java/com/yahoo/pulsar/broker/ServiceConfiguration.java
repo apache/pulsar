@@ -264,6 +264,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // Name of load manager to use
     @FieldContext(dynamic = true)
     private String loadManagerClassName = "com.yahoo.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl";
+    // If true, (and ModularLoadManagerImpl is being used), the load manager will attempt to 
+    // use only brokers running the latest software version (to minimize impact to bundles)
+    @FieldContext(dynamic = true)
+    private boolean preferLaterVersions = false;
 
     public String getZookeeperServers() {
         return zookeeperServers;
@@ -978,5 +982,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public void setLoadManagerClassName(String loadManagerClassName) {
         this.loadManagerClassName = loadManagerClassName;
+    }
+
+    public boolean isPreferLaterVersions() {
+        return preferLaterVersions;
+    }
+
+    public void setPreferLaterVersions(boolean preferLaterVersions) {
+        this.preferLaterVersions = preferLaterVersions;
     }
 }
