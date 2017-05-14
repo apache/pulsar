@@ -200,7 +200,6 @@
     <dependency>
       <groupId>com.github.zafarkhaja</groupId>
       <artifactId>java-semver</artifactId>
-      <version>0.9.0</version>
     </dependency>
 
     <dependency>

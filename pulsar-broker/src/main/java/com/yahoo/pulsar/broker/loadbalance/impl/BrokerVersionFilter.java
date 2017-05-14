@@ -127,6 +127,8 @@ public class BrokerVersionFilter implements BrokerFilter {
             throw new BrokerFilterBadVersionException("Cannot determine newest broker version: " + x.getMessage());
         }
 
+        int numBrokersLatestVersion=0;
+        int numBrokersOlderVersion=0;
         Iterator<String> brokerIterator = brokers.iterator();
         while ( brokerIterator.hasNext() ) {
             String broker = brokerIterator.next();
@@ -135,11 +137,16 @@ public class BrokerVersionFilter implements BrokerFilter {
             com.github.zafarkhaja.semver.Version brokerVersionVersion = Version.valueOf(brokerVersion);
 
             if ( brokerVersionVersion.equals(latestVersion) ) {
-                LOG.info("Broker [{}] is running the latest version ([{}])", broker, brokerVersion);
+                LOG.debug("Broker [{}] is running the latest version ([{}])", broker, brokerVersion);
+                ++numBrokersLatestVersion;
             } else {
                 LOG.info("Broker [{}] is running an older version ([{}]); latest version is [{}]", broker, brokerVersion, latestVersion);
+                ++numBrokersOlderVersion;
                 brokerIterator.remove();
             }
+        }
+        if ( numBrokersOlderVersion == 0 ) {
+            LOG.info("All {} brokers are running the latest version [{}]", numBrokersLatestVersion, latestVersion);
         }
     }
 }
