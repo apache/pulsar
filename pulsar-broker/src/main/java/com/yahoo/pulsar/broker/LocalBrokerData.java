@@ -71,6 +71,9 @@ public class LocalBrokerData extends JSONWritable implements ServiceLookupData {
     // The bundles lost since the last invocation of update.
     private Set<String> lastBundleLosses;
 
+    // The version string that this broker is running, obtained from the Maven build artifact in the POM
+    private String brokerVersionString;
+
     // For JSON only.
     public LocalBrokerData() {
         this(null, null, null, null);
@@ -335,6 +338,14 @@ public class LocalBrokerData extends JSONWritable implements ServiceLookupData {
 
     public void setMsgRateOut(double msgRateOut) {
         this.msgRateOut = msgRateOut;
+    }
+
+    public void setBrokerVersionString(String brokerVersionString) {
+        this.brokerVersionString = brokerVersionString;
+    }
+
+    public String getBrokerVersionString() {
+        return brokerVersionString;
     }
 
     @Override

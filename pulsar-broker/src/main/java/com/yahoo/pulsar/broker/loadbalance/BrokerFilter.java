@@ -18,6 +18,7 @@ package com.yahoo.pulsar.broker.loadbalance;
 import java.util.Set;
 
 import com.yahoo.pulsar.broker.BundleData;
+import com.yahoo.pulsar.broker.PulsarService;
 import com.yahoo.pulsar.broker.ServiceConfiguration;
 
 /**
@@ -40,6 +41,9 @@ public interface BrokerFilter {
      *            The load data from the leader broker.
      * @param conf
      *            The service configuration.
+     * @throws BrokerFilterException
+     *            There was an error in the pipeline and the brokers should be reset to their original value
      */
-    void filter(Set<String> brokers, BundleData bundleToAssign, LoadData loadData, ServiceConfiguration conf);
+    public void filter(Set<String> brokers, BundleData bundleToAssign, LoadData loadData, ServiceConfiguration conf)
+                       throws BrokerFilterException;
 }
