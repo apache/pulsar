@@ -135,8 +135,8 @@ public class ConcurrentLongPairSetTest {
         assertEquals(set.size(), insertItems);
 
         Set<LongPair> pairs = new HashSet<>();
-        set.forEach(pair -> {
-            pairs.add(pair);
+        set.forEach((first, second) -> {
+            pairs.add(new LongPair(first, second));
         });
 
         pairs.forEach(pair -> set.remove(pair.first, -1));
@@ -279,9 +279,9 @@ public class ConcurrentLongPairSetTest {
         assertEquals(values, Lists.newArrayList(new LongPair(0, 0), new LongPair(1, 1), new LongPair(3, 3),
                 new LongPair(6, 6), new LongPair(7, 7)));
 
-        set.forEach(i -> {
-            if (i.first < 5) {
-                set.remove(i.first, i.second);
+        set.forEach((first, second) -> {
+            if (first < 5) {
+                set.remove(first, second);
             }
         });
         assertEquals(set.size(), values.size() - 3);
@@ -305,8 +305,9 @@ public class ConcurrentLongPairSetTest {
         assertEquals(values, Lists.newArrayList(new LongPair(0, 0), new LongPair(1, 1), new LongPair(3, 3),
                 new LongPair(6, 6), new LongPair(7, 7)));
 
-        set.removeIf(pair -> pair.first < 5);
+        int removeItems = set.removeIf((first, second) -> first < 5);
 
+        assertEquals(3, removeItems);
         assertEquals(set.size(), values.size() - 3);
         values = new ArrayList<>(set.items());
         values.sort(null);
@@ -328,7 +329,8 @@ public class ConcurrentLongPairSetTest {
         assertEquals(items.size(), n);
         assertEquals(limitItems.size(), limit);
 
-        set.removeIf(pair -> limitItems.contains(pair));
+        int totalRemovedItems = set.removeIf((first, second) -> limitItems.contains((new LongPair(first, second))));
+        assertEquals(limitItems.size(), totalRemovedItems);
         assertEquals(set.size(), n - limit);
     }
 

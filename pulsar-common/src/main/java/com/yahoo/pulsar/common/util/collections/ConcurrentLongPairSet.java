@@ -51,6 +51,14 @@ public class ConcurrentLongPairSet {
         void accept(LongPair item);
     }
 
+    public interface LongPairPredicate {
+        boolean test(long v1, long v2);
+    }
+
+    public static interface LongPairConsumer {
+        void accept(long v1, long v2);
+    }
+
     public ConcurrentLongPairSet() {
         this(DefaultExpectedItems);
     }
@@ -143,7 +151,7 @@ public class ConcurrentLongPairSet {
         }
     }
 
-    public void forEach(ConsumerLong processor) {
+    public void forEach(LongPairConsumer processor) {
         for (Section s : sections) {
             s.forEach(processor);
         }
@@ -156,16 +164,14 @@ public class ConcurrentLongPairSet {
      *            a predicate which returns {@code true} for elements to be removed
      * @return {@code true} if any elements were removed
      * 
-     * @return
+     * @return number of removed values
      */
-    public boolean removeIf(Predicate<LongPair> filter) {
-        boolean removed = false;
+    public int removeIf(LongPairPredicate filter) {
+        int removedValues = 0;
         for (Section s : sections) {
-            if (s.removeIf(filter)) {
-                removed = true;
-            }
+            removedValues += s.removeIf(filter);
         }
-        return removed;
+        return removedValues;
     }
 
     /**
@@ -173,7 +179,7 @@ public class ConcurrentLongPairSet {
      */
     public Set<LongPair> items() {
         Set<LongPair> items = new HashSet<>();
-        forEach(items::add);
+        forEach((item1, item2) -> items.add(new LongPair(item1, item2)));
         return items;
     }
 
@@ -183,9 +189,9 @@ public class ConcurrentLongPairSet {
     public Set<LongPair> items(int numberOfItems) {
         Set<LongPair> items = new HashSet<>();
         for (Section s : sections) {
-            s.forEach(pair -> {
+            s.forEach((item1, item2) -> {
                 if (items.size() < numberOfItems) {
-                    items.add(pair);
+                    items.add(new LongPair(item1, item2));
                 }
             });
             if (items.size() >= numberOfItems) {
@@ -337,9 +343,9 @@ public class ConcurrentLongPairSet {
             }
         }
 
-        private boolean removeIf(Predicate<LongPair> filter) {
+        private int removeIf(LongPairPredicate filter) {
             Objects.requireNonNull(filter);
-            boolean removed = false;
+            int removedItems = 0;
 
             // Go through all the buckets for this section
             for (int bucket = 0; bucket < table.length; bucket += 2) {
@@ -347,15 +353,16 @@ public class ConcurrentLongPairSet {
                 long storedItem2 = table[bucket + 1];
 
                 if (storedItem1 != DeletedItem && storedItem1 != EmptyItem) {
-                    if (filter.test(new LongPair(storedItem1, storedItem2))) {
+                    if (filter.test(storedItem1, storedItem2)) {
                         long h = hash(storedItem1, storedItem2);
-                        remove(storedItem1, storedItem2, (int) h);
-                        removed = true;
+                        if (remove(storedItem1, storedItem2, (int) h)) {
+                            removedItems++;
+                        }
                     }
                 }
             }
 
-            return removed;
+            return removedItems;
         }
 
         private void cleanBucket(int bucket) {
@@ -382,7 +389,7 @@ public class ConcurrentLongPairSet {
             }
         }
 
-        public void forEach(ConsumerLong processor) {
+        public void forEach(LongPairConsumer processor) {
             long stamp = tryOptimisticRead();
 
             long[] table = this.table;
@@ -413,7 +420,7 @@ public class ConcurrentLongPairSet {
                     }
 
                     if (storedItem1 != DeletedItem && storedItem1 != EmptyItem) {
-                        processor.accept(new LongPair(storedItem1, storedItem2));
+                        processor.accept(storedItem1, storedItem2);
                     }
                 }
             } finally {
