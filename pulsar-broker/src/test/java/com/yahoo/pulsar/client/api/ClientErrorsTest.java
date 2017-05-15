@@ -589,7 +589,7 @@ public class ClientErrorsTest {
     }
 
     // Run this test multiple times to reproduce race conditions on reconnection logic
-    @Test(invocationCount = 100)
+    @Test(invocationCount = 10)
     public void testProducerReconnect() throws Exception {
         AtomicInteger numOfConnections = new AtomicInteger();
         AtomicReference<ChannelHandlerContext> channelCtx = new AtomicReference<>();

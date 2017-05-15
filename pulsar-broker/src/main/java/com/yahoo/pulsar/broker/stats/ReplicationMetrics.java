@@ -16,6 +16,8 @@
 package com.yahoo.pulsar.broker.stats;
 
 import com.google.common.collect.Maps;
+import com.yahoo.pulsar.common.stats.Metrics;
+
 import io.netty.util.Recycler;
 import java.util.Map;
 import io.netty.util.Recycler.Handle;

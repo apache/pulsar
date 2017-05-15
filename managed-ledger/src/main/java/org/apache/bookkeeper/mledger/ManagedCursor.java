@@ -417,4 +417,9 @@ public interface ManagedCursor {
      * @return
      */
     public boolean isActive();
+
+    /**
+     * Tells whether the cursor is durable or just kept in memory
+     */
+    public boolean isDurable();
 }

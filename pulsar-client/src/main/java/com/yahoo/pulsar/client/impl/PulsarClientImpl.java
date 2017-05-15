@@ -34,10 +34,13 @@ import com.google.common.collect.Maps;
 import com.yahoo.pulsar.client.api.ClientConfiguration;
 import com.yahoo.pulsar.client.api.Consumer;
 import com.yahoo.pulsar.client.api.ConsumerConfiguration;
+import com.yahoo.pulsar.client.api.MessageId;
 import com.yahoo.pulsar.client.api.Producer;
 import com.yahoo.pulsar.client.api.ProducerConfiguration;
 import com.yahoo.pulsar.client.api.PulsarClient;
 import com.yahoo.pulsar.client.api.PulsarClientException;
+import com.yahoo.pulsar.client.api.Reader;
+import com.yahoo.pulsar.client.api.ReaderConfiguration;
 import com.yahoo.pulsar.client.util.ExecutorProvider;
 import com.yahoo.pulsar.client.util.FutureUtil;
 import com.yahoo.pulsar.common.naming.DestinationName;
@@ -253,7 +256,7 @@ public class PulsarClientImpl implements PulsarClient {
                 consumer = new PartitionedConsumerImpl(PulsarClientImpl.this, topic, subscription, conf,
                         metadata.partitions, listenerThread, consumerSubscribedFuture);
             } else {
-                consumer = new ConsumerImpl(PulsarClientImpl.this, topic, subscription, conf, listenerThread,
+                consumer = new ConsumerImpl(PulsarClientImpl.this, topic, subscription, conf, listenerThread, -1,
                         consumerSubscribedFuture);
             }
 
@@ -267,6 +270,81 @@ public class PulsarClientImpl implements PulsarClient {
         });
 
         return consumerSubscribedFuture;
+    }
+
+    @Override
+    public Reader createReader(String topic, MessageId startMessageId, ReaderConfiguration conf)
+            throws PulsarClientException {
+        try {
+            return createReaderAsync(topic, startMessageId, conf).get();
+        } catch (ExecutionException e) {
+            Throwable t = e.getCause();
+            if (t instanceof PulsarClientException) {
+                throw (PulsarClientException) t;
+            } else {
+                throw new PulsarClientException(t);
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarClientException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Reader> createReaderAsync(String topic, MessageId startMessageId,
+            ReaderConfiguration conf) {
+        if (state.get() != State.Open) {
+            return FutureUtil.failedFuture(new PulsarClientException.AlreadyClosedException("Client already closed"));
+        }
+        if (!DestinationName.isValid(topic)) {
+            return FutureUtil.failedFuture(new PulsarClientException.InvalidTopicNameException("Invalid topic name"));
+        }
+        if (startMessageId == null) {
+            return FutureUtil
+                    .failedFuture(new PulsarClientException.InvalidConfigurationException("Invalid startMessageId"));
+        }
+        if (conf == null) {
+            return FutureUtil.failedFuture(
+                    new PulsarClientException.InvalidConfigurationException("Consumer configuration undefined"));
+        }
+
+        CompletableFuture<Reader> readerFuture = new CompletableFuture<>();
+
+        getPartitionedTopicMetadata(topic).thenAccept(metadata -> {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Received topic metadata. partitions: {}", topic, metadata.partitions);
+            }
+
+            if (metadata.partitions > 1) {
+                readerFuture.completeExceptionally(
+                        new PulsarClientException("Topic reader cannot be created on a partitioned topic"));
+                return;
+            }
+
+            CompletableFuture<Consumer> consumerSubscribedFuture = new CompletableFuture<>();
+            // gets the next single threaded executor from the list of executors
+            ExecutorService listenerThread = externalExecutorProvider.getExecutor();
+            ReaderImpl reader = new ReaderImpl(PulsarClientImpl.this, topic, startMessageId, conf, listenerThread,
+                    consumerSubscribedFuture);
+
+            synchronized (consumers) {
+                consumers.put(reader.getConsumer(), Boolean.TRUE);
+            }
+
+            consumerSubscribedFuture.thenRun(() -> {
+                readerFuture.complete(reader);
+            }).exceptionally(ex -> {
+                log.warn("[{}] Failed to get create topic reader", topic, ex);
+                readerFuture.completeExceptionally(ex);
+                return null;
+            });
+        }).exceptionally(ex -> {
+            log.warn("[{}] Failed to get partitioned topic metadata", topic, ex);
+            readerFuture.completeExceptionally(ex);
+            return null;
+        });
+
+        return readerFuture;
     }
 
     @Override

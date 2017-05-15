@@ -84,10 +84,16 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // Path for the file used to determine the rotation status for the broker
     // when responding to service discovery health checks
     private String statusFilePath;
-    // Max number of unacknowledged messages allowed to receive messages by a consumer on a shared subscription. Broker will stop sending
-    // messages to consumer once, this limit reaches until consumer starts acknowledging messages back
-    // Using a value of 0, is disabling unackedMessage-limit check and consumer can receive messages without any restriction
+    // Max number of unacknowledged messages allowed to receive messages by a consumer on a shared subscription. Broker
+    // will stop sending messages to consumer once, this limit reaches until consumer starts acknowledging messages back
+    // and unack count reaches to maxUnackedMessagesPerConsumer/2 Using a value of 0, is disabling unackedMessage-limit
+    // check and consumer can receive messages without any restriction
     private int maxUnackedMessagesPerConsumer = 50000;
+    // Max number of unacknowledged messages allowed per shared subscription. Broker will stop dispatching messages to
+    // all consumers of the subscription once this limit reaches until consumer starts acknowledging messages back and
+    // unack count reaches to limit/2. Using a value of 0, is disabling unackedMessage-limit
+    // check and dispatcher can dispatch messages without any restriction
+    private int maxUnackedMessagesPerSubscription = 4 * 50000;
     // Max number of concurrent lookup request broker allows to throttle heavy incoming lookup traffic
     @FieldContext(dynamic = true)
     private int maxConcurrentLookupRequest = 10000;
@@ -434,6 +440,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public void setMaxUnackedMessagesPerConsumer(int maxUnackedMessagesPerConsumer) {
         this.maxUnackedMessagesPerConsumer = maxUnackedMessagesPerConsumer;
+    }
+
+    public int getMaxUnackedMessagesPerSubscription() {
+        return maxUnackedMessagesPerSubscription;
+    }
+
+    public void setMaxUnackedMessagesPerSubscription(int maxUnackedMessagesPerSubscription) {
+        this.maxUnackedMessagesPerSubscription = maxUnackedMessagesPerSubscription;
     }
 
     public int getMaxConcurrentLookupRequest() {

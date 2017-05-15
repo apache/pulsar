@@ -175,7 +175,7 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         });
         assertTrue(ex.get());
 
-        PersistentMessageExpiryMonitor monitor = new PersistentMessageExpiryMonitor("topicname", c1);
+        PersistentMessageExpiryMonitor monitor = new PersistentMessageExpiryMonitor("topicname", c1.getName(), c1);
         monitor.findEntryFailed(new ManagedLedgerException.ConcurrentFindCursorPositionException("failed"), null);
         Field field = monitor.getClass().getDeclaredField("expirationCheckInProgress");
         field.setAccessible(true);

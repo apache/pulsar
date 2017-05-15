@@ -34,6 +34,9 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
 import org.apache.bookkeeper.test.PortManager;
+import org.apache.bookkeeper.util.ZkUtils;
+import org.apache.zookeeper.CreateMode;
+import org.apache.zookeeper.ZooDefs;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,9 +48,11 @@ import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
 import com.google.common.hash.Hashing;
 import com.yahoo.pulsar.broker.BrokerData;
+import com.yahoo.pulsar.broker.BundleData;
 import com.yahoo.pulsar.broker.LocalBrokerData;
 import com.yahoo.pulsar.broker.PulsarService;
 import com.yahoo.pulsar.broker.ServiceConfiguration;
+import com.yahoo.pulsar.broker.TimeAverageMessageData;
 import com.yahoo.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import com.yahoo.pulsar.client.admin.Namespaces;
 import com.yahoo.pulsar.client.admin.PulsarAdmin;
@@ -222,6 +227,36 @@ public class ModularLoadManagerImplTest {
         for (int i = 2; i < 7; ++i) {
             final ServiceUnitId serviceUnit = makeBundle(Integer.toString(i));
             assert (primaryLoadManager.selectBrokerForAssignment(serviceUnit).equals(primaryHost));
+        }
+    }
+
+    // Test that bundles belonging to the same namespace are distributed evenly among brokers.
+    @Test
+    public void testEvenBundleDistribution() throws Exception {
+        final NamespaceBundle[] bundles = LoadBalancerTestingUtils.makeBundles(nsFactory, "test", "test", "test", 16);
+        int numAssignedToPrimary = 0;
+        int numAssignedToSecondary = 0;
+        final BundleData bundleData = new BundleData(10, 1000);
+        final TimeAverageMessageData longTermMessageData = new TimeAverageMessageData(1000);
+        longTermMessageData.setMsgRateIn(1000);
+        bundleData.setLongTermData(longTermMessageData);
+        final String firstBundleDataPath = String.format("%s/%s", ModularLoadManagerImpl.BUNDLE_DATA_ZPATH, bundles[0]);
+        // Write long message rate for first bundle to ensure that even bundle distribution is not a coincidence of
+        // balancing by message rate. If we were balancing by message rate, one of the brokers should only have this
+        // one bundle.
+        ZkUtils.createFullPathOptimistic(pulsar1.getZkClient(), firstBundleDataPath, bundleData.getJsonBytes(),
+                ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+        for (final NamespaceBundle bundle : bundles) {
+            if (primaryLoadManager.selectBrokerForAssignment(bundle).equals(primaryHost)) {
+                ++numAssignedToPrimary;
+            } else {
+                ++numAssignedToSecondary;
+            }
+            if ((numAssignedToPrimary + numAssignedToSecondary) % 2 == 0) {
+                // On even number of assignments, assert that an equal number of bundles have been assigned between
+                // them.
+                assert (numAssignedToPrimary == numAssignedToSecondary);
+            }
         }
     }
 

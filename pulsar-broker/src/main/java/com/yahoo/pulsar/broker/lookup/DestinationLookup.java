@@ -50,8 +50,6 @@ import com.yahoo.pulsar.common.lookup.data.LookupData;
 import com.yahoo.pulsar.common.policies.data.ClusterData;
 import com.yahoo.pulsar.common.util.Codec;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
 import io.netty.buffer.ByteBuf;
 
 @Path("/v2/destination/")

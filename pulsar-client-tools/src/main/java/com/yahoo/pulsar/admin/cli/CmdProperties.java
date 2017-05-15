@@ -99,7 +99,7 @@ public class CmdProperties extends CmdBase {
         }
     }
 
-    CmdProperties(PulsarAdmin admin) {
+    public CmdProperties(PulsarAdmin admin) {
         super("properties", admin);
         jcommander.addCommand("list", new List());
         jcommander.addCommand("get", new Get());

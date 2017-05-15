@@ -29,8 +29,8 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.yahoo.pulsar.common.policies.data.PersistentTopicStats;
+import com.yahoo.pulsar.common.stats.Metrics;
 import com.yahoo.pulsar.broker.PulsarService;
-import com.yahoo.pulsar.broker.stats.Metrics;
 
 abstract class AbstractMetrics {
 

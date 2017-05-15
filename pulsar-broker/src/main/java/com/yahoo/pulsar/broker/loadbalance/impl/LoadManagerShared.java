@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 import org.slf4j.Logger;
@@ -125,6 +126,22 @@ public class LoadManagerShared {
         }
     }
 
+    /**
+     * Using the given bundles, populate the namespace to bundle range map.
+     *
+     * @param bundles
+     *            Bundles with which to populate.
+     * @param target
+     *            Map to fill.
+     */
+    public static void fillNamespaceToBundlesMap(final Set<String> bundles, final Map<String, Set<String>> target) {
+        bundles.forEach(bundleName -> {
+            final String namespaceName = getNamespaceNameFromBundleName(bundleName);
+            final String bundleRange = getBundleRangeFromBundleName(bundleName);
+            target.computeIfAbsent(namespaceName, k -> new HashSet<>()).add(bundleRange);
+        });
+    }
+
     // From a full bundle name, extract the bundle range.
     public static String getBundleRangeFromBundleName(String bundleName) {
         // the bundle format is property/cluster/namespace/0x00000000_0xFFFFFFFF
@@ -179,5 +196,54 @@ public class LoadManagerShared {
                     AdminResource.LOAD_SHEDDING_UNLOAD_DISABLED_FLAG_PATH, e);
         }
         return unloadDisabledInLoadShedding;
+    }
+
+    /**
+     * Removes the brokers which have more bundles assigned to them in the same namespace as the incoming bundle than at
+     * least one other available broker from consideration.
+     * 
+     * @param assignedBundleName
+     *            Name of bundle to be assigned.
+     * @param candidates
+     *            Brokers available for placement.
+     * @param brokerToNamespaceToBundleRange
+     *            Map from brokers to namespaces to bundle ranges.
+     */
+    public static void removeMostServicingBrokersForNamespace(final String assignedBundleName,
+            final Set<String> candidates, final Map<String, Map<String, Set<String>>> brokerToNamespaceToBundleRange) {
+        if (candidates.isEmpty()) {
+            return;
+        }
+        final String namespaceName = getNamespaceNameFromBundleName(assignedBundleName);
+        int leastBundles = Integer.MAX_VALUE;
+        for (final String broker : candidates) {
+            if (brokerToNamespaceToBundleRange.containsKey(broker)) {
+                final Set<String> bundleRanges = brokerToNamespaceToBundleRange.get(broker).get(namespaceName);
+                if (bundleRanges == null) {
+                    // Assume that when the namespace is absent, there are no bundles for this namespace assigned to
+                    // that broker.
+                    leastBundles = 0;
+                    break;
+                }
+                leastBundles = Math.min(leastBundles, bundleRanges.size());
+            } else {
+                // Assume non-present brokers have 0 bundles.
+                leastBundles = 0;
+                break;
+            }
+        }
+        if (leastBundles == 0) {
+            // By assumption, the namespace name will not be present if there are no bundles in the namespace
+            // assigned to the broker.
+            candidates.removeIf(broker -> brokerToNamespaceToBundleRange.containsKey(broker)
+                    && brokerToNamespaceToBundleRange.get(broker).containsKey(namespaceName));
+        } else {
+            final int finalLeastBundles = leastBundles;
+            // We may safely assume that each broker has at least one bundle for this namespace.
+            // Note that this case is far less likely since it implies that there are at least as many bundles for this
+            // namespace as brokers.
+            candidates.removeIf(broker -> brokerToNamespaceToBundleRange.get(broker).get(namespaceName)
+                    .size() != finalLeastBundles);
+        }
     }
 }

@@ -46,10 +46,21 @@ public interface Entry {
      * @return the position at which the entry was stored
      */
     Position getPosition();
+    
+    /**
+     * @return ledgerId of the position
+     */
+    long getLedgerId();
+
+    /**
+     * @return entryId of the position
+     */
+    long getEntryId();
 
     /**
      * Release the resources (data) allocated for this entry and recycle if all the resources are deallocated (ref-count
      * of data reached to 0)
      */
     boolean release();
+
 }

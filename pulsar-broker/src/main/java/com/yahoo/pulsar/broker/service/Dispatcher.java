@@ -65,4 +65,6 @@ public interface Dispatcher {
 
     void redeliverUnacknowledgedMessages(Consumer consumer, List<PositionImpl> positions);
 
+    void addUnAckedMessages(int unAckMessages);
+
 }

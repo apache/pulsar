@@ -18,6 +18,7 @@ package com.yahoo.pulsar.broker.service;
 import java.util.concurrent.CompletableFuture;
 
 import com.yahoo.pulsar.broker.service.persistent.PersistentSubscription;
+import com.yahoo.pulsar.client.api.MessageId;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import com.yahoo.pulsar.common.policies.data.BacklogQuota;
 import com.yahoo.pulsar.common.policies.data.Policies;
@@ -39,7 +40,7 @@ public interface Topic {
     void removeProducer(Producer producer);
 
     CompletableFuture<Consumer> subscribe(ServerCnx cnx, String subscriptionName, long consumerId, SubType subType,
-            int priorityLevel, String consumerName);
+            int priorityLevel, String consumerName, boolean isDurable, MessageId startMessageId);
 
     CompletableFuture<Void> unsubscribe(String subName);
 

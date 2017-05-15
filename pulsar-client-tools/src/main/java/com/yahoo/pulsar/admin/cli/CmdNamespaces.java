@@ -490,7 +490,7 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
-    CmdNamespaces(PulsarAdmin admin) {
+    public CmdNamespaces(PulsarAdmin admin) {
         super("namespaces", admin);
         jcommander.addCommand("list", new GetNamespacesPerProperty());
         jcommander.addCommand("list-cluster", new GetNamespacesPerCluster());

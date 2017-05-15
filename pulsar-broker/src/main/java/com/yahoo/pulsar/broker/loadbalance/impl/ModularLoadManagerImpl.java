@@ -19,6 +19,7 @@ import static com.yahoo.pulsar.broker.admin.AdminResource.jsonMapper;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -97,6 +98,10 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
     // Broker host usage object used to calculate system resource usage.
     private BrokerHostUsage brokerHostUsage;
 
+    // Map from brokers to namespaces to the bundle ranges in that namespace assigned to that broker.
+    // Used to distribute bundles within a namespace evely across brokers.
+    private final Map<String, Map<String, Set<String>>> brokerToNamespaceToBundleRange;
+
     // Path to the ZNode containing the LocalBrokerData json for this broker.
     private String brokerZnodePath;
 
@@ -151,6 +156,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
      */
     public ModularLoadManagerImpl() {
         brokerCandidateCache = new HashSet<>();
+        brokerToNamespaceToBundleRange = new HashMap<>();
         defaultStats = new NamespaceBundleStats();
         filterPipeline = new ArrayList<>();
         loadData = new LoadData();
@@ -381,6 +387,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
         final Map<String, BundleData> bundleData = loadData.getBundleData();
         // Iterate over the broker data.
         for (Map.Entry<String, BrokerData> brokerEntry : loadData.getBrokerData().entrySet()) {
+            final String broker = brokerEntry.getKey();
             final BrokerData brokerData = brokerEntry.getValue();
             final Map<String, NamespaceBundleStats> statsMap = brokerData.getLocalData().getLastStats();
 
@@ -420,6 +427,13 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
 
             // Using the newest data, update the aggregated time-average data for the current broker.
             brokerData.getTimeAverageData().reset(statsMap.keySet(), bundleData, defaultStats);
+            final Map<String, Set<String>> namespaceToBundleRange = brokerToNamespaceToBundleRange
+                    .computeIfAbsent(broker, k -> new HashMap<>());
+            synchronized (namespaceToBundleRange) {
+                namespaceToBundleRange.clear();
+                LoadManagerShared.fillNamespaceToBundlesMap(statsMap.keySet(), namespaceToBundleRange);
+                LoadManagerShared.fillNamespaceToBundlesMap(preallocatedBundleData.keySet(), namespaceToBundleRange);
+            }
         }
     }
 
@@ -516,6 +530,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
                     key -> getBundleDataOrDefault(bundle));
             brokerCandidateCache.clear();
             LoadManagerShared.applyPolicies(serviceUnit, policies, brokerCandidateCache, getAvailableBrokers());
+            LoadManagerShared.removeMostServicingBrokersForNamespace(serviceUnit.toString(), brokerCandidateCache,
+                    brokerToNamespaceToBundleRange);
             log.info("{} brokers being considered for assignment of {}", brokerCandidateCache.size(), bundle);
 
             // Use the filter pipeline to finalize broker candidates.
@@ -548,6 +564,10 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
             loadData.getBrokerData().get(broker).getPreallocatedBundleData().put(bundle, data);
             preallocatedBundleToBroker.put(bundle, broker);
 
+            final String namespaceName = LoadManagerShared.getNamespaceNameFromBundleName(bundle);
+            final String bundleRange = LoadManagerShared.getBundleRangeFromBundleName(bundle);
+            brokerToNamespaceToBundleRange.get(broker).computeIfAbsent(namespaceName, k -> new HashSet<>())
+                    .add(bundleRange);
             return broker;
         }
     }

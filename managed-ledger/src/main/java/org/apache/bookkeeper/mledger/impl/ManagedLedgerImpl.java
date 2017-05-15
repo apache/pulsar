@@ -683,6 +683,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     @Override
+    public ManagedCursor newNonDurableCursor(Position startCursorPosition) throws ManagedLedgerException {
+        checkManagedLedgerIsOpen();
+        checkFenced();
+
+        return new NonDurableCursorImpl(bookKeeper, config, this, null, (PositionImpl) startCursorPosition);
+    }
+
+    @Override
     public Iterable<ManagedCursor> getCursors() {
         return cursors;
     }
@@ -1393,6 +1401,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             for (LedgerInfo ls : ledgers.headMap(slowestReaderLedgerId, false).values()) {
                 boolean expired = hasLedgerRetentionExpired(ls.getTimestamp());
                 boolean overRetentionQuota = TOTAL_SIZE_UPDATER.get(this) > ((long) config.getRetentionSizeInMB()) * 1024 * 1024;
+
+                if (log.isDebugEnabled()) {
+                    log.debug(
+                            "[{}] Checking ledger {} -- time-old: {} sec -- expired: {} -- over-quota: {} -- current-ledger: {}",
+                            name, ls.getLedgerId(), (System.currentTimeMillis() - ls.getTimestamp()) / 1000.0, expired,
+                            overRetentionQuota, currentLedger.getId());
+                }
                 if (ls.getLedgerId() == currentLedger.getId() || (!expired && !overRetentionQuota)) {
                     if (log.isDebugEnabled()) {
                         if (!expired) {
@@ -1868,7 +1883,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     public boolean isCursorActive(ManagedCursor cursor) {
-        return activeCursors.get(cursor.getName()) != null;
+        return cursor.isDurable() && activeCursors.get(cursor.getName()) != null;
     }
 
     private boolean currentLedgerIsFull() {

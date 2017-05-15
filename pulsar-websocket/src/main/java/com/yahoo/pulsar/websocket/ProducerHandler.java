@@ -15,10 +15,18 @@
  */
 package com.yahoo.pulsar.websocket;
 
+import static com.yahoo.pulsar.websocket.WebSocketError.FailedToCreateProducer;
+import static com.yahoo.pulsar.websocket.WebSocketError.FailedToDeserializeFromJSON;
+import static com.yahoo.pulsar.websocket.WebSocketError.PayloadEncodingError;
+import static com.yahoo.pulsar.websocket.WebSocketError.UnknownError;
+import static java.lang.String.format;
+
 import java.io.IOException;
 import java.util.Base64;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLongFieldUpdater;
+import java.util.concurrent.atomic.LongAdder;
 
 import javax.servlet.http.HttpServletRequest;
 
@@ -37,8 +45,7 @@ import com.yahoo.pulsar.common.naming.DestinationName;
 import com.yahoo.pulsar.common.util.ObjectMapperFactory;
 import com.yahoo.pulsar.websocket.data.ProducerAck;
 import com.yahoo.pulsar.websocket.data.ProducerMessage;
-import static java.lang.String.format;
-import static com.yahoo.pulsar.websocket.WebSocketError.*;
+import com.yahoo.pulsar.websocket.stats.StatsBuckets;
 
 
 /**
@@ -53,14 +60,29 @@ import static com.yahoo.pulsar.websocket.WebSocketError.*;
 public class ProducerHandler extends AbstractWebSocketHandler {
 
     private Producer producer;
+    private final LongAdder numMsgsSent;
+    private final LongAdder numMsgsFailed;
+    private final LongAdder numBytesSent;
+    private final StatsBuckets publishLatencyStatsUSec;
+    private volatile long msgPublishedCounter = 0;
+    private static final AtomicLongFieldUpdater<ProducerHandler> MSG_PUBLISHED_COUNTER_UPDATER =
+            AtomicLongFieldUpdater.newUpdater(ProducerHandler.class, "msgPublishedCounter");
+    
+    public static final long[] ENTRY_LATENCY_BUCKETS_USEC = { 500, 1_000, 5_000, 10_000, 20_000, 50_000, 100_000,
+            200_000, 1000_000 };
 
     public ProducerHandler(WebSocketService service, HttpServletRequest request) {
         super(service, request);
+        this.numMsgsSent = new LongAdder();
+        this.numBytesSent = new LongAdder();
+        this.numMsgsFailed = new LongAdder();
+        this.publishLatencyStatsUSec = new StatsBuckets(ENTRY_LATENCY_BUCKETS_USEC);
     }
 
     @Override
     public void close() throws IOException {
         if (producer != null) {
+            this.service.removeProducer(this);
             producer.close();
         }
     }
@@ -71,7 +93,8 @@ public class ProducerHandler extends AbstractWebSocketHandler {
 
         try {
             ProducerConfiguration conf = getProducerConfiguration();
-            producer = service.getPulsarClient().createProducer(topic, conf);
+            this.producer = service.getPulsarClient().createProducer(topic, conf);
+            this.service.addProducer(this);
         } catch (Exception e) {
             close(FailedToCreateProducer, e.getMessage());
         }
@@ -95,6 +118,7 @@ public class ProducerHandler extends AbstractWebSocketHandler {
             return;
         }
 
+        final long msgSize = rawPayload.length;
         MessageBuilder builder = MessageBuilder.create().setContent(rawPayload);
 
         if (sendRequest.properties != null) {
@@ -108,16 +132,48 @@ public class ProducerHandler extends AbstractWebSocketHandler {
         }
         Message msg = builder.build();
 
+        final long now = System.nanoTime();
         producer.sendAsync(msg).thenAccept(msgId -> {
+            updateSentMsgStats(msgSize, TimeUnit.NANOSECONDS.toMicros(System.nanoTime() - now));
             if (isConnected()) {
                 String messageId = Base64.getEncoder().encodeToString(msgId.toByteArray());
                 sendAckResponse(new ProducerAck(messageId, sendRequest.context));
             }
         }).exceptionally(exception -> {
+            numMsgsFailed.increment();
             sendAckResponse(
                     new ProducerAck(UnknownError, exception.getMessage(), null, sendRequest.context));
             return null;
         });
+    }
+
+    public Producer getProducer() {
+        return this.producer;
+    }
+
+    public long getAndResetNumMsgsSent() {
+        return numMsgsSent.sumThenReset();
+    }
+
+    public long getAndResetNumBytesSent() {
+        return numBytesSent.sumThenReset();
+    }
+
+    public long getAndResetNumMsgsFailed() {
+        return numMsgsFailed.sumThenReset();
+    }
+
+    public long[] getAndResetPublishLatencyStatsUSec() {
+        publishLatencyStatsUSec.refresh();
+        return publishLatencyStatsUSec.getBuckets();
+    }
+
+    public StatsBuckets getPublishLatencyStatsUSec() {
+        return this.publishLatencyStatsUSec;
+    }
+
+    public long getMsgPublishedCounter() {
+        return MSG_PUBLISHED_COUNTER_UPDATER.get(this);
     }
 
     protected CompletableFuture<Boolean> isAuthorized(String authRole) {
@@ -134,14 +190,20 @@ public class ProducerHandler extends AbstractWebSocketHandler {
             log.warn("[{}] Failed to send ack {}", producer.getTopic(), e.getMessage(), e);
         }
     }
-    
+  
+    private void updateSentMsgStats(long msgSize, long latencyUsec) {
+        this.publishLatencyStatsUSec.addValue(latencyUsec);
+        this.numBytesSent.add(msgSize);
+        this.numMsgsSent.increment();
+        MSG_PUBLISHED_COUNTER_UPDATER.getAndIncrement(this);
+    }
+
     private ProducerConfiguration getProducerConfiguration() {
         ProducerConfiguration conf = new ProducerConfiguration();
 
-        if (queryParams.containsKey("blockIfQueueFull")) {
-            conf.setBlockIfQueueFull(Boolean.parseBoolean(queryParams.get("blockIfQueueFull")));
-        }
-
+        // Set to false to prevent the server thread from being blocked if a lot of messages are pending.
+        conf.setBlockIfQueueFull(false);
+        
         if (queryParams.containsKey("sendTimeoutMillis")) {
             conf.setSendTimeout(Integer.parseInt(queryParams.get("sendTimeoutMillis")), TimeUnit.MILLISECONDS);
         }

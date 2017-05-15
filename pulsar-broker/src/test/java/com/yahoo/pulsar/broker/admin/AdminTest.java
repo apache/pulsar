@@ -57,7 +57,6 @@ import com.google.common.collect.Sets;
 import com.yahoo.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import com.yahoo.pulsar.broker.cache.ConfigurationCacheService;
 import com.yahoo.pulsar.broker.loadbalance.ResourceUnit;
-import com.yahoo.pulsar.broker.stats.Metrics;
 import com.yahoo.pulsar.broker.web.PulsarWebResource;
 import com.yahoo.pulsar.broker.web.RestException;
 import com.yahoo.pulsar.common.policies.data.AuthAction;
@@ -71,6 +70,7 @@ import com.yahoo.pulsar.common.policies.data.PropertyAdmin;
 import com.yahoo.pulsar.common.policies.data.ResourceQuota;
 import com.yahoo.pulsar.common.policies.data.loadbalancer.LoadReport;
 import com.yahoo.pulsar.common.stats.AllocatorStats;
+import com.yahoo.pulsar.common.stats.Metrics;
 import com.yahoo.pulsar.common.util.ObjectMapperFactory;
 
 @Test

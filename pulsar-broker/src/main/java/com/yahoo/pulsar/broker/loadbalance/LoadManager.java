@@ -25,11 +25,11 @@ import com.yahoo.pulsar.broker.PulsarService;
 import com.yahoo.pulsar.broker.ServiceConfiguration;
 import com.yahoo.pulsar.broker.loadbalance.impl.ModularLoadManagerWrapper;
 import com.yahoo.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
-import com.yahoo.pulsar.broker.stats.Metrics;
 import com.yahoo.pulsar.common.naming.ServiceUnitId;
 import com.yahoo.pulsar.common.policies.data.loadbalancer.LoadReport;
 import com.yahoo.pulsar.common.policies.data.loadbalancer.ServiceLookupData;
 import com.yahoo.pulsar.zookeeper.ZooKeeperCache.Deserializer;
+import com.yahoo.pulsar.common.stats.Metrics;
 
 /**
  * LoadManager runs though set of load reports collected from different brokers and generates a recommendation of

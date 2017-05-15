@@ -101,7 +101,7 @@ public class CmdClusters extends CmdBase {
         }
     }
 
-    CmdClusters(PulsarAdmin admin) {
+    public CmdClusters(PulsarAdmin admin) {
         super("clusters", admin);
         jcommander.addCommand("get", new Get());
         jcommander.addCommand("create", new Create());

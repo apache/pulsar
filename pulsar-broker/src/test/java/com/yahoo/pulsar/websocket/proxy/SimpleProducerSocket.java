@@ -68,13 +68,16 @@ public class SimpleProducerSocket {
     }
 
     @OnWebSocketConnect
-    public void onConnect(Session session) throws InterruptedException, IOException, JsonParseException {
+    public void onConnect(Session session) throws Exception {
         log.info("Got connect: {}", session);
         this.session = session;
-        for (int i = 0; i < 10; i++) {
+        sendMessage(10);
+    }
+    
+    public void sendMessage(int totalMsgs) throws Exception {
+        for (int i = 0; i < totalMsgs; i++) {
             this.session.getRemote().sendString(getTestJsonPayload(i));
         }
-
     }
 
     @OnWebSocketMessage

@@ -79,7 +79,7 @@ public class CmdBrokers extends CmdBase {
         }
     }
     
-    CmdBrokers(PulsarAdmin admin) {
+    public CmdBrokers(PulsarAdmin admin) {
         super("brokers", admin);
         jcommander.addCommand("list", new List());
         jcommander.addCommand("namespaces", new Namespaces());

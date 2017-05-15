@@ -135,6 +135,23 @@ public interface ManagedLedger {
     public ManagedCursor openCursor(String name) throws InterruptedException, ManagedLedgerException;
 
     /**
+     * Creates a new cursor whose metadata is not backed by durable storage. A caller can treat the non-durable cursor
+     * exactly like a normal cursor, with the only difference in that after restart it will not remember which entries
+     * were deleted. Also it does not prevent data from being deleted.
+     * <p>
+     * The cursor is anonymous and can be positioned on an arbitrary position.
+     * <p>
+     * This method is not-blocking.
+     *
+     * @param startCursorPosition
+     *            the position where the cursor should be initialized, or null to start from the current latest entry.
+     *            When starting on a particular cursor position, the first entry to be returned will be the entry next
+     *            to the specified position
+     * @return the new NonDurableCursor
+     */
+    public ManagedCursor newNonDurableCursor(Position startCursorPosition) throws ManagedLedgerException;
+
+    /**
      * Delete a ManagedCursor asynchronously.
      *
      * @see #deleteCursor(String)
