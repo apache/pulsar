@@ -126,7 +126,9 @@ public class WebSocketService implements Closeable {
             pulsarClient.close();
         }
 
-        authenticationService.close();
+        if (authenticationService != null) {
+            authenticationService.close();
+        }
 
         if (globalZkCache != null) {
             globalZkCache.close();
