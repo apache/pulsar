@@ -14,7 +14,7 @@ in `broker.conf` to
 
 Alternatively, the load manager may also be changed dynamically via the `pulsar-admin` tool as follows:
 
-`pulsar-admin update-dynamic-config --config loadManagerClassName --value 
+`pulsar-admin update-dynamic-config --config loadManagerClassName --value
 com.yahoo.broker.loadbalance.impl.ModularLoadManagerImpl`
 
 The admin tool may also be used to change back to `com.yahoo.broker.loadbalance.impl.SimpleLoadManagerImpl`. In either
@@ -27,13 +27,13 @@ There are a few different ways to determine which load manager is being used:
 1. Run `pulsar-admin brokers get-all-dynamic-config` and examine the `loadManagerClassName` element:
 
 ```
-$ ./pulsar-admin brokers get-all-dynamic-config                                                                                                                           
+$ ./pulsar-admin brokers get-all-dynamic-config
 {
   "loadManagerClassName" : "com.yahoo.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl"
 }
 ```
 
-If there is no `loadManagerClassName` element, then the default load manager (`com.yahoo.broker.loadbalance.impl.SimpleLoadManagerImpl`) 
+If there is no `loadManagerClassName` element, then the default load manager (`com.yahoo.broker.loadbalance.impl.SimpleLoadManagerImpl`)
 is being used.
 
 2. Look at a load report in ZooKeeper
@@ -43,8 +43,7 @@ will have many differences. E.g., the `systemResourceUsage` subelements (`bandwi
 Here is an example load report from `com.yahoo.broker.loadbalance.impl.ModularLoadManagerImpl`:
 
 ```
-{
-    "bandwidthIn": {
+ndwidthIn": {
         "limit": 10240000.0,
         "usage": 4.256510416666667
     },
@@ -97,7 +96,7 @@ will look like this:
 ```
 
 3. The command-line broker monitor (`./pulsar-perf monitor-brokers ...`) will have a different output format depending on which load manager
-implementation is being used.   
+implementation is being used.
 
 Here is an example from `com.yahoo.broker.loadbalance.impl.ModularLoadManagerImpl`:
 ```
@@ -130,7 +129,6 @@ Here is an example from `com.yahoo.broker.loadbalance.impl.SimpleLoadManagerImpl
 ||               |54.84          |134.48         |189.31         |126.54         |320.96         |447.50         ||
 ===================================================================================================================
 ```
-
 It is important to note that `com.yahoo.broker.loadbalance.impl.ModularLoadManagerImpl` is _centralized_, meaning all requests
 to assign a bundle (whether it's been seen before or whether this is the first time) only get handled by the _lead_ broker
 (which can change over time). To determine the current lead broker, examine this node in ZooKeeper: `/loadbalance/leader`
@@ -144,7 +142,7 @@ Here, the available data is subdivided into the bundle data and the broker data.
 #### Broker Data
 The broker data is contained in the class `com.yahoo.pulsar.broker.BrokerData`. It is further subdivided into two parts,
 one being the local data which every broker individually writes to ZooKeeper, and the other being the historical broker
-data which is written to ZooKeeper by the leader broker. 
+data which is written to ZooKeeper by the leader broker.
 
 ##### Local Broker Data
 The local broker data is contained in the class
@@ -159,7 +157,7 @@ The local broker data is contained in the class
 * Names of all bundles assigned to this broker
 * Most recent changes in bundle assignments for this broker
 
-The local broker data is updated periodically according to the service configuration 
+The local broker data is updated periodically according to the service configuration
 "loadBalancerReportUpdateMaxIntervalMinutes". After any broker updates their local broker data, the leader broker will
 receive the update immediately via a ZooKeeper watch, where the local data is read from the ZooKeeper node
 `/loadbalance/brokers/<broker host/port>`
@@ -175,10 +173,10 @@ long-term data for steady-state decisions. Both time frames maintain the followi
 
 Unlike the bundle data, the broker data does not maintain samples for the global broker message rates and throughputs,
 which is not expected to remain steady as new bundles are removed or added. Instead, this data is aggregated over the
-short-term and long-term data for the bundles. See the section on bundle data to understand how that data is collected 
+short-term and long-term data for the bundles. See the section on bundle data to understand how that data is collected
 and maintained. The historical broker data is updated for each broker in memory by the leader broker whenever any broker
-writes their local data to ZooKeeper. Then, the historical data is written to ZooKeeper by the leader broker 
-periodically according to the configuration `loadBalancerResourceQuotaUpdateIntervalMinutes`. 
+writes their local data to ZooKeeper. Then, the historical data is written to ZooKeeper by the leader broker
+periodically according to the configuration `loadBalancerResourceQuotaUpdateIntervalMinutes`.
 
 ##### Bundle Data
 The bundle data is contained in the class `com.yahoo.pulsar.broker.BundleData`.
@@ -191,11 +189,11 @@ The information maintained in each time frame is
 
 The time frames are implemented by maintaining the average of these values over a set, limited number of samples, where
 the samples are obtained through the message rate and throughput values in the local data. Thus, if the update interval
-for the local data is 2 minutes, the number of short samples is 10 and the number of long samples is 1000, the 
+for the local data is 2 minutes, the number of short samples is 10 and the number of long samples is 1000, the
 short-term data is maintained over a period of `10 samples * 2 minutes / sample = 20 minutes`, while the long-term
 data is similarly over a period of 2000 minutes. Whenever there are not enough samples to satisfy a given time frame,
 the average is taken only over the existing samples. When no samples are available, default values are assumed until
-they are overwritten by the first sample. Currently, the default values are 
+they are overwritten by the first sample. Currently, the default values are
 
 * Message rate in/out: 50 messages per second both ways
 * Message throughput in/out: 50KB per second both ways
@@ -205,11 +203,11 @@ Then, the bundle data is written to ZooKeeper by the leader broker periodically 
 broker data, according to the configuration `loadBalancerResourceQuotaUpdateIntervalMinutes`.
 
 ### Traffic Distribution
-The modular load manager uses the abstraction provided by 
-`com.yahoo.pulsar.broker.loadbalance.ModularLoadManagerStrategy` to make decisions about bundle assignment. The 
-strategy makes a decision by considering the service configuration, the entire load data, and the bundle data for the 
-bundle to be assigned. Currently, the only supported strategy is 
-`com.yahoo.pulsar.broker.loadbalance.impl.LeastLongTermMessageRate`, though soon users will have the ability to inject 
+The modular load manager uses the abstraction provided by
+`com.yahoo.pulsar.broker.loadbalance.ModularLoadManagerStrategy` to make decisions about bundle assignment. The
+strategy makes a decision by considering the service configuration, the entire load data, and the bundle data for the
+bundle to be assigned. Currently, the only supported strategy is
+`com.yahoo.pulsar.broker.loadbalance.impl.LeastLongTermMessageRate`, though soon users will have the ability to inject
 their own strategies if desired.
 
 #### Least Long Term Message Rate Strategy
@@ -217,11 +215,11 @@ As its name suggests, the least long term message rate strategy attempts to dist
 the message rate in the long-term time window for each broker is roughly the same. However, simply balancing load based
 on message rate does not handle the issue of asymmetric resource burden per message on each broker. Thus, the system
 resource usages, which are CPU, memory, direct memory, bandwidth in, and bandwidth out, are also considered in the
-assignment process. This is done by weighting the final message rate according to 
-`1 / (overload_threshold - max_usage)`, where `overload_threshold` corresponds to the configuration 
+assignment process. This is done by weighting the final message rate according to
+`1 / (overload_threshold - max_usage)`, where `overload_threshold` corresponds to the configuration
 `loadBalancerBrokerOverloadedThresholdPercentage` and `max_usage` is the maximum proportion among the system resources
 that is being utilized by the candidate broker. This multiplier ensures that machines with are being more heavily taxed
-by the same message rates will receive less load. In particular, it tries to ensure that if one machine is overloaded, 
+by the same message rates will receive less load. In particular, it tries to ensure that if one machine is overloaded,
 then all machines are approximately overloaded. In the case in which a broker's max usage exceeds the overload
 threshold, that broker is not considered for bundle assignment. If all brokers are overloaded, the bundle is randomly
 assigned.
