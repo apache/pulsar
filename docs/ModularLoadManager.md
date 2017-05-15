@@ -20,6 +20,121 @@ com.yahoo.broker.loadbalance.impl.ModularLoadManagerImpl`
 The admin tool may also be used to change back to `com.yahoo.broker.loadbalance.impl.SimpleLoadManagerImpl`. In either
 case, any mistake in specifying the load manager will cause Pulsar to default to `SimpleLoadManagerImpl`.
 
+## Verification
+
+There are a few different ways to determine which load manager is being used:
+
+1. Run `pulsar-admin brokers get-all-dynamic-config` and examine the `loadManagerClassName` element:
+
+```
+$ ./pulsar-admin brokers get-all-dynamic-config                                                                                                                           
+{
+  "loadManagerClassName" : "com.yahoo.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl"
+}
+```
+
+If there is no `loadManagerClassName` element, then the default load manager (`com.yahoo.broker.loadbalance.impl.SimpleLoadManagerImpl`) 
+is being used.
+
+2. Look at a load report in ZooKeeper
+
+With `com.yahoo.broker.loadbalance.impl.ModularLoadManagerImpl`, the load report in `/loadbalance/brokers/...`
+will have many differences. E.g., the `systemResourceUsage` subelements (`bandwidthIn`, `bandwidthOut`, ...) are now all at the top-level.
+Here is an example load report from `com.yahoo.broker.loadbalance.impl.ModularLoadManagerImpl`:
+
+```
+{
+    "bandwidthIn": {
+        "limit": 10240000.0,
+        "usage": 4.256510416666667
+    },
+    "bandwidthOut": {
+        "limit": 10240000.0,
+        "usage": 5.287239583333333
+    },
+    "bundles": [],
+    "cpu": {
+        "limit": 2400.0,
+        "usage": 5.7353247655435915
+    },
+    "directMemory": {
+        "limit": 16384.0,
+        "usage": 1.0
+    },
+    ...
+}
+```
+
+With `com.yahoo.broker.loadbalance.impl.SimpleLoadManagerImpl`, the load report in `/loadbalance/brokers/...`
+will look like this:
+
+```
+{
+    "systemResourceUsage": {
+        "bandwidthIn": {
+            "limit": 10240000.0,
+            "usage": 0.0
+        },
+        "bandwidthOut": {
+            "limit": 10240000.0,
+            "usage": 0.0
+        },
+        "cpu": {
+            "limit": 2400.0,
+            "usage": 0.0
+        },
+        "directMemory": {
+            "limit": 16384.0,
+            "usage": 1.0
+        },
+        "memory": {
+            "limit": 8192.0,
+            "usage": 3903.0
+        }
+    },
+    ...
+}
+```
+
+3. The command-line broker monitor (`./pulsar-perf monitor-brokers ...`) will have a different output format depending on which load manager
+implementation is being used.   
+
+Here is an example from `com.yahoo.broker.loadbalance.impl.ModularLoadManagerImpl`:
+```
+===================================================================================================================
+||SYSTEM         |CPU %          |MEMORY %       |DIRECT %       |BW IN %        |BW OUT %       |MAX %          ||
+||               |0.00           |48.33          |0.01           |0.00           |0.00           |48.33          ||
+||COUNT          |TOPIC          |BUNDLE         |PRODUCER       |CONSUMER       |BUNDLE +       |BUNDLE -       ||
+||               |4              |4              |0              |2              |4              |0              ||
+||LATEST         |MSG/S IN       |MSG/S OUT      |TOTAL          |KB/S IN        |KB/S OUT       |TOTAL          ||
+||               |0.00           |0.00           |0.00           |0.00           |0.00           |0.00           ||
+||SHORT          |MSG/S IN       |MSG/S OUT      |TOTAL          |KB/S IN        |KB/S OUT       |TOTAL          ||
+||               |0.00           |0.00           |0.00           |0.00           |0.00           |0.00           ||
+||LONG           |MSG/S IN       |MSG/S OUT      |TOTAL          |KB/S IN        |KB/S OUT       |TOTAL          ||
+||               |0.00           |0.00           |0.00           |0.00           |0.00           |0.00           ||
+===================================================================================================================
+```
+
+Here is an example from `com.yahoo.broker.loadbalance.impl.SimpleLoadManagerImpl`:
+```
+===================================================================================================================
+||COUNT          |TOPIC          |BUNDLE         |PRODUCER       |CONSUMER       |BUNDLE +       |BUNDLE -       ||
+||               |4              |4              |0              |2              |0              |0              ||
+||RAW SYSTEM     |CPU %          |MEMORY %       |DIRECT %       |BW IN %        |BW OUT %       |MAX %          ||
+||               |0.25           |47.94          |0.01           |0.00           |0.00           |47.94          ||
+||ALLOC SYSTEM   |CPU %          |MEMORY %       |DIRECT %       |BW IN %        |BW OUT %       |MAX %          ||
+||               |0.20           |1.89           |               |1.27           |3.21           |3.21           ||
+||RAW MSG        |MSG/S IN       |MSG/S OUT      |TOTAL          |KB/S IN        |KB/S OUT       |TOTAL          ||
+||               |0.00           |0.00           |0.00           |0.01           |0.01           |0.01           ||
+||ALLOC MSG      |MSG/S IN       |MSG/S OUT      |TOTAL          |KB/S IN        |KB/S OUT       |TOTAL          ||
+||               |54.84          |134.48         |189.31         |126.54         |320.96         |447.50         ||
+===================================================================================================================
+```
+
+It is important to note that `com.yahoo.broker.loadbalance.impl.ModularLoadManagerImpl` is _centralized_, meaning all requests
+to assign a bundle (whether it's been seen before or whether this is the first time) only get handled by the _lead_ broker
+(which can change over time). To determine the current lead broker, examine this node in ZooKeeper: `/loadbalance/leader`
+
 ## Implementation
 
 ### Data
