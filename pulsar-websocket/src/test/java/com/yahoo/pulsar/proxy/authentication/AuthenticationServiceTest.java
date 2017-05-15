@@ -46,6 +46,7 @@ public class AuthenticationServiceTest {
         AuthenticationService service = new AuthenticationService(config);
         String result = service.authenticate(null, "auth");
         assertEquals(result, s_authentication_success);
+        service.close();
     }
 
     @Test
@@ -61,6 +62,7 @@ public class AuthenticationServiceTest {
         when(request.getHeader(anyString())).thenReturn("data");
         String result = service.authenticateHttpRequest(request);
         assertEquals(result, s_authentication_success);
+        service.close();
     }
 
     public static class MockAuthenticationProvider implements AuthenticationProvider {
