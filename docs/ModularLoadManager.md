@@ -43,7 +43,8 @@ will have many differences. E.g., the `systemResourceUsage` subelements (`bandwi
 Here is an example load report from `com.yahoo.broker.loadbalance.impl.ModularLoadManagerImpl`:
 
 ```
-ndwidthIn": {
+{
+    "bandwidthIn": {
         "limit": 10240000.0,
         "usage": 4.256510416666667
     },
