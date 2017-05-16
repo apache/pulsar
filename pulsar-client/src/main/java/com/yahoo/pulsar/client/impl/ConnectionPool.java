@@ -132,6 +132,7 @@ public class ConnectionPool implements Closeable {
         // Trigger async connect to broker
         bootstrap.connect(address).addListener((ChannelFuture future) -> {
             if (!future.isSuccess()) {
+                log.warn("Failed to open connection to {} : {}", address, future.cause().getClass().getSimpleName());
                 cnxFuture.completeExceptionally(new PulsarClientException(future.cause()));
                 cleanupConnection(address, connectionKey, cnxFuture);
                 return;
