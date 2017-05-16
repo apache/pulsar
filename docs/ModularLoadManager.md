@@ -33,8 +33,8 @@ $ ./pulsar-admin brokers get-all-dynamic-config
 }
 ```
 
-If there is no `loadManagerClassName` element, then the default load manager (`com.yahoo.broker.loadbalance.impl.SimpleLoadManagerImpl`) 
-is being used. 
+If there is no `loadManagerClassName` element, then the default load manager (`com.yahoo.broker.loadbalance.impl.SimpleLoadManagerImpl`)
+is being used.
 
 2. Look at a load report in ZooKeeper
 
