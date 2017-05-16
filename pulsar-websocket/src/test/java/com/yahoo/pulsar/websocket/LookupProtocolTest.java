@@ -35,6 +35,7 @@ public class LookupProtocolTest {
         lookupField.setAccessible(true);
         Assert.assertEquals(lookupField.get(testClient).getClass().getName(), "com.yahoo.pulsar.client.impl.HttpLookupService");
         Assert.assertFalse(testClient.getConfiguration().isUseTls());
+        service.close();
     }
 
     @Test
@@ -50,6 +51,7 @@ public class LookupProtocolTest {
         lookupField.setAccessible(true);
         Assert.assertEquals(lookupField.get(testClient).getClass().getName(), "com.yahoo.pulsar.client.impl.HttpLookupService");
         Assert.assertTrue(testClient.getConfiguration().isUseTls());
+        service.close();
     }
 
     @Test
@@ -65,6 +67,7 @@ public class LookupProtocolTest {
         lookupField.setAccessible(true);
         Assert.assertEquals(lookupField.get(testClient).getClass().getName(), "com.yahoo.pulsar.client.impl.BinaryProtoLookupService");
         Assert.assertFalse(testClient.getConfiguration().isUseTls());
+        service.close();
     }
 
     @Test
@@ -81,5 +84,6 @@ public class LookupProtocolTest {
         lookupField.setAccessible(true);
         Assert.assertEquals(lookupField.get(testClient).getClass().getName(), "com.yahoo.pulsar.client.impl.BinaryProtoLookupService");
         Assert.assertTrue(testClient.getConfiguration().isUseTls());
+        service.close();
     }
 }
