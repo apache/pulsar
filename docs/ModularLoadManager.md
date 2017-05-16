@@ -34,7 +34,7 @@ $ ./pulsar-admin brokers get-all-dynamic-config
 ```
 
 If there is no `loadManagerClassName` element, then the default load manager (`com.yahoo.broker.loadbalance.impl.SimpleLoadManagerImpl`) 
-is being used.
+is being used. 
 
 2. Look at a load report in ZooKeeper
 
@@ -97,7 +97,7 @@ will look like this:
 ```
 
 3. The command-line broker monitor (`./pulsar-perf monitor-brokers ...`) will have a different output format depending on which load manager
-implementation is being used.   
+implementation is being used.
 
 Here is an example from `com.yahoo.broker.loadbalance.impl.ModularLoadManagerImpl`:
 ```
