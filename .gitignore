@@ -10,6 +10,7 @@ pulsar-broker/src/test/resources/log4j.properties
 *.log
 
 *.versionsBackup
+*/bin
 
 # Eclipse
 .classpath
