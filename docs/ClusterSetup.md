@@ -41,6 +41,18 @@ server.3=zk3.us-west.example.com:2888:3888
 ...
 ```
 
+Then on each hosts, we need to specify the id of the server in the 
+specific `myid` file. See [ZK admin guide](https://zookeeper.apache.org/doc/r3.4.10/zookeeperAdmin.html#sc_zkMulitServerSetup)
+for more in depth reference.
+
+For example, on `zk1.us-west.example.com`, we need to set it like:
+```
+$ mkdir -p data/zookeeper
+$ echo 1 > data/zookeeper/myid
+```
+
+On `zk2.us-west.example.com` it would be `echo 2 > data/zookeeper/myid` and so on.
+
 Start ZK service on all the hosts:
 
 ```shell
@@ -65,6 +77,8 @@ server.2=zk2.us-west.example.com:2185:2186
 server.3=zk3.us-west.example.com:2185:2186
 ...
 ```
+
+As before, create the `myid` files for each server on `data/global-zookeeper/myid`.
 
 ##### Multi-cluster pulsar instance
 
