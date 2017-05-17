@@ -51,7 +51,7 @@ $ mkdir -p data/zookeeper
 $ echo 1 > data/zookeeper/myid
 ```
 
-On `zk2.us-west.example.com` it would be `echo 1 > data/zookeeper/myid` and so on.
+On `zk2.us-west.example.com` it would be `echo 2 > data/zookeeper/myid` and so on.
 
 Start ZK service on all the hosts:
 
