@@ -37,17 +37,19 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
 
-import com.yahoo.pulsar.broker.loadbalance.LoadManager;
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
-import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
+import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.commons.lang.SystemUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
@@ -66,9 +68,11 @@ import com.yahoo.pulsar.broker.ServiceConfiguration;
 import com.yahoo.pulsar.broker.admin.AdminResource;
 import com.yahoo.pulsar.broker.authentication.AuthenticationService;
 import com.yahoo.pulsar.broker.authorization.AuthorizationManager;
+import com.yahoo.pulsar.broker.loadbalance.LoadManager;
 import com.yahoo.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import com.yahoo.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import com.yahoo.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
+import com.yahoo.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import com.yahoo.pulsar.broker.service.persistent.PersistentReplicator;
 import com.yahoo.pulsar.broker.service.persistent.PersistentTopic;
 import com.yahoo.pulsar.broker.stats.ClusterReplicationMetrics;
@@ -94,6 +98,7 @@ import com.yahoo.pulsar.common.stats.Metrics;
 import com.yahoo.pulsar.common.util.FieldParser;
 import com.yahoo.pulsar.common.util.ObjectMapperFactory;
 import com.yahoo.pulsar.common.util.collections.ConcurrentOpenHashMap;
+import com.yahoo.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import com.yahoo.pulsar.zookeeper.ZooKeeperCacheListener;
 import com.yahoo.pulsar.zookeeper.ZooKeeperDataCache;
 
@@ -110,6 +115,7 @@ import io.netty.channel.epoll.EpollServerSocketChannel;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import jersey.repackaged.com.google.common.collect.Sets;
 
 public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies> {
     private static final Logger log = LoggerFactory.getLogger(BrokerService.class);
@@ -159,6 +165,19 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     
     public static final String BROKER_SERVICE_CONFIGURATION_PATH = "/admin/configuration";
     private final ZooKeeperDataCache<Map<String, String>> dynamicConfigurationCache;
+    
+    private static final int FALSE = 0;
+    private static final int TRUE = 1;
+    private static final AtomicIntegerFieldUpdater<BrokerService> TOTAL_UNACKED_MESSAGES_UPDATER =
+            AtomicIntegerFieldUpdater.newUpdater(BrokerService.class, "totalUnackedMessages");
+    private volatile int totalUnackedMessages = 0;
+    private final int maxUnackedMessages;
+    public final int maxUnackedMsgsPerDispatcher;
+    private volatile int blockedDispatcherOnHighUnackedMsgs = FALSE;
+    private static final AtomicIntegerFieldUpdater<BrokerService> BLOCKED_DISPATCHER_ON_HIGH_UNACKMSG_UPDATER = AtomicIntegerFieldUpdater
+            .newUpdater(BrokerService.class, "blockedDispatcherOnHighUnackedMsgs");
+    private final ConcurrentOpenHashSet<PersistentDispatcherMultipleConsumers> blockedDispatchers;
+    private final ReadWriteLock lock = new ReentrantReadWriteLock();
 
     public BrokerService(PulsarService pulsar) throws Exception {
         this.pulsar = pulsar;
@@ -221,12 +240,27 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 return ObjectMapperFactory.getThreadLocal().readValue(content, HashMap.class);
             }
         };
+        this.blockedDispatchers = new ConcurrentOpenHashSet<>();
         // update dynamic configuration and register-listener
         updateConfigurationAndRegisterListeners();
         this.lookupRequestSemaphore = new AtomicReference<Semaphore>(
                 new Semaphore(pulsar.getConfiguration().getMaxConcurrentLookupRequest(), false));
         this.topicLoadRequestSemaphore = new AtomicReference<Semaphore>(
                 new Semaphore(pulsar.getConfiguration().getMaxConcurrentTopicLoadRequest(), false));
+        if (pulsar.getConfiguration().getUnAckMsgSubscriptionPercentageLimitOnBrokerBlocked() > 0.0) {
+            this.maxUnackedMessages = pulsar.getConfiguration().getMaxUnackedMessagesPerBroker();
+            this.maxUnackedMsgsPerDispatcher = (int) ((maxUnackedMessages
+                    * pulsar.getConfiguration().getUnAckMsgSubscriptionPercentageLimitOnBrokerBlocked()) / 100);
+            log.info("Enabling per-broker unack-message limit {} and dispatcher-limit {} on blocked-broker",
+                    maxUnackedMessages, maxUnackedMsgsPerDispatcher);
+        } else {
+            this.maxUnackedMessages = 0;
+            this.maxUnackedMsgsPerDispatcher = 0;
+            log.warn(
+                    "Disabling per broker unack-msg blocking due invalid unAckMsgSubscriptionPercentageLimitOnBrokerBlocked {} ",
+                    pulsar.getConfiguration().getUnAckMsgSubscriptionPercentageLimitOnBrokerBlocked());
+        }
+        
 
         PersistentReplicator.setReplicatorQueueSize(pulsar.getConfiguration().getReplicationProducerQueueSize());
     }
@@ -1089,4 +1123,103 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     public ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, PersistentTopic>>> getMultiLayerTopicMap() {
         return multiLayerTopicsMap;
     }
+    
+    /**
+     * Adds given dispatcher's unackMessage count to broker-unack message count and if it reaches to the
+     * {@link #maxUnackedMessages} then it blocks all the dispatchers which has unack-messages higher than
+     * {@link #maxUnackedMsgsPerDispatcher}. It unblocks all dispatchers once broker-unack message counts decreased to
+     * ({@link #maxUnackedMessages}/2)
+     * 
+     * @param dispatcher
+     * @param numberOfMessages
+     */
+    public void addUnAckedMessages(PersistentDispatcherMultipleConsumers dispatcher, int numberOfMessages) {
+        // don't block dispatchers if maxUnackedMessages = 0
+        if (maxUnackedMessages <= 0) {
+            return;
+        }
+        int unAckedMessages = TOTAL_UNACKED_MESSAGES_UPDATER.addAndGet(this, numberOfMessages);
+        if (unAckedMessages >= maxUnackedMessages
+                && BLOCKED_DISPATCHER_ON_HIGH_UNACKMSG_UPDATER.compareAndSet(this, FALSE, TRUE)) {
+            // block dispatcher with higher unack-msg when it reaches broker-unack msg limit
+            log.info("[{}] Starting blocking dispatchers with unacked msgs {} due to reached max broker limit {}",
+                    maxUnackedMessages, maxUnackedMsgsPerDispatcher);
+            executor().submit(() -> blockDispatchersWithLargeUnAckMessages());
+        } else if (BLOCKED_DISPATCHER_ON_HIGH_UNACKMSG_UPDATER.get(this) == TRUE
+                && unAckedMessages < maxUnackedMessages / 2) {
+            // unblock broker-dispatching if received enough acked messages back
+            if (BLOCKED_DISPATCHER_ON_HIGH_UNACKMSG_UPDATER.compareAndSet(this, TRUE, FALSE)) {
+                unblockDispatchersOnUnAckMessages(blockedDispatchers.values());
+            }
+        } else if (BLOCKED_DISPATCHER_ON_HIGH_UNACKMSG_UPDATER.get(this) == TRUE
+                && !dispatcher.isBlockedDispatcherOnUnackedMsgs()
+                && dispatcher.getTotalUnackedMessages() > maxUnackedMsgsPerDispatcher) {
+            // block dispatcher: if broker is already blocked and dispatcher reaches to max dispatcher limit when broker
+            // is blocked
+            lock.readLock().lock();
+            try {
+                log.info("[{}] dispatcher reached to max unack msg limit on blocked-broker {}", dispatcher.getName(),
+                        dispatcher.getTotalUnackedMessages());
+                dispatcher.blockDispatcherOnUnackedMsgs();
+                blockedDispatchers.add(dispatcher);
+            } finally {
+                lock.readLock().unlock();
+            }
+
+        }
+    }
+    
+    public boolean isBrokerDispatchingBlocked() {
+        return BLOCKED_DISPATCHER_ON_HIGH_UNACKMSG_UPDATER.get(this) == TRUE;
+    }
+
+    private void blockDispatchersWithLargeUnAckMessages() {
+        lock.readLock().lock();
+        try {
+            topics.forEach((name, topicFuture) -> {
+                if (topicFuture.isDone()) {
+                    try {
+                        topicFuture.get().getSubscriptions().forEach((subName, persistentSubscription) -> {
+                            if (persistentSubscription
+                                    .getDispatcher() instanceof PersistentDispatcherMultipleConsumers) {
+                                PersistentDispatcherMultipleConsumers dispatcher = (PersistentDispatcherMultipleConsumers) persistentSubscription
+                                        .getDispatcher();
+                                int dispatcherUnAckMsgs = dispatcher.getTotalUnackedMessages();
+                                if (dispatcherUnAckMsgs > maxUnackedMsgsPerDispatcher) {
+                                    log.info("[{}] Blocking dispatcher due to reached max broker limit {}",
+                                            dispatcher.getName(), dispatcher.getTotalUnackedMessages());
+                                    dispatcher.blockDispatcherOnUnackedMsgs();
+                                    blockedDispatchers.add(dispatcher);
+                                }
+                            }
+                        });
+                    } catch (Exception e) {
+                        log.warn("Failed to get topic from future ", e);
+                    }
+                }
+            });
+        } finally {
+            lock.readLock().unlock();
+        }
+    }
+
+    /**
+     * Unblocks the dispatchers and removes it from the {@link #blockedDispatchers} list
+     * 
+     * @param dispatcherList
+     */
+    public void unblockDispatchersOnUnAckMessages(List<PersistentDispatcherMultipleConsumers> dispatcherList) {
+        lock.writeLock().lock();
+        try {
+            dispatcherList.forEach(dispatcher -> {
+                dispatcher.unBlockDispatcherOnUnackedMsgs();
+                executor().submit(() -> dispatcher.readMoreEntries());
+                log.info("[{}] Dispatcher is unblocked", dispatcher.getName());
+                blockedDispatchers.remove(dispatcher);
+            });
+        } finally {
+            lock.writeLock().unlock();
+        }
+    }
+
 }

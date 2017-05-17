@@ -23,7 +23,9 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
+import java.lang.reflect.Field;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
@@ -42,11 +44,14 @@ import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
 import com.yahoo.pulsar.broker.namespace.NamespaceService;
+import com.yahoo.pulsar.broker.service.BrokerService;
+import com.yahoo.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import com.yahoo.pulsar.broker.service.persistent.PersistentTopic;
 import com.yahoo.pulsar.client.impl.ConsumerImpl;
 import com.yahoo.pulsar.client.impl.MessageIdImpl;
 import com.yahoo.pulsar.common.policies.data.PersistentSubscriptionStats;
 import com.yahoo.pulsar.common.policies.data.PersistentTopicStats;
+import com.yahoo.pulsar.common.util.collections.ConcurrentOpenHashSet;
 
 import jersey.repackaged.com.google.common.collect.Sets;
 
@@ -653,6 +658,341 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
         }
         receivedMsgs.removeAll(unackMsgs);
         assertTrue(receivedMsgs.isEmpty());
+    }
+    
+    /**
+     * </pre>
+     * verifies perBroker dispatching blocking. A. maxUnAckPerBroker = 200, maxUnAckPerDispatcher = 20 Now, it tests
+     * with 3 subscriptions.
+     * 
+     * 1. Subscription-1: try to consume without acking 
+     *  a. consumer will be blocked after 200 (maxUnAckPerBroker) msgs
+     *  b. even second consumer will not receive any new messages 
+     *  c. broker will have 1 blocked dispatcher 
+     * 2. Subscription-2: try to consume without acking 
+     *  a. as broker is already blocked it will block subscription after 20 msgs (maxUnAckPerDispatcher) 
+     *  b. broker will have 2 blocked dispatchers 
+     * 3. Subscription-3: try to consume with acking 
+     *  a. as consumer is acking not reached maxUnAckPerDispatcher=20 unack msg => consumes all produced msgs 
+     * 4.Subscription-1 : acks all pending msgs and consume by acking 
+     *  a. broker unblocks all dispatcher and sub-1 consumes all messages 
+     * 5. Subscription-2 : it triggers redelivery and acks all messages so, it consumes all produced messages
+     * </pre>
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testBlockBrokerDispatching() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        int unAckedMessages = pulsar.getConfiguration().getMaxUnackedMessagesPerBroker();
+        double unAckedMessagePercentage = pulsar.getConfiguration()
+                .getUnAckMsgSubscriptionPercentageLimitOnBrokerBlocked();
+        try {
+            final int maxUnAckPerBroker = 200;
+            final double unAckMsgPercentagePerDispatcher = 10;
+            int maxUnAckPerDispatcher = (int) ((maxUnAckPerBroker * unAckMsgPercentagePerDispatcher) / 100); // 200 *
+                                                                                                             // 10% = 20
+                                                                                                             // messages
+            pulsar.getConfiguration().setMaxUnackedMessagesPerBroker(maxUnAckPerBroker);
+            pulsar.getConfiguration()
+                    .setUnAckMsgSubscriptionPercentageLimitOnBrokerBlocked(unAckMsgPercentagePerDispatcher);
+
+            stopBroker();
+            startBroker();
+
+            Field field = BrokerService.class.getDeclaredField("blockedDispatchers");
+            field.setAccessible(true);
+            ConcurrentOpenHashSet<PersistentDispatcherMultipleConsumers> blockedDispatchers = (ConcurrentOpenHashSet<PersistentDispatcherMultipleConsumers>) field
+                    .get(pulsar.getBrokerService());
+
+            final int receiverQueueSize = 10;
+            final int totalProducedMsgs = maxUnAckPerBroker * 3;
+            final String topicName = "persistent://my-property/use/my-ns/unacked-topic";
+            final String subscriberName1 = "subscriber-1";
+            final String subscriberName2 = "subscriber-2";
+            final String subscriberName3 = "subscriber-3";
+
+            ConsumerConfiguration conf = new ConsumerConfiguration();
+            conf.setSubscriptionType(SubscriptionType.Shared);
+            conf.setReceiverQueueSize(receiverQueueSize);
+            ConsumerImpl consumer1Sub1 = (ConsumerImpl) pulsarClient.subscribe(topicName, subscriberName1, conf);
+            // create subscription-2 and 3
+            ConsumerImpl consumer1Sub2 = (ConsumerImpl) pulsarClient.subscribe(topicName, subscriberName2, conf);
+            consumer1Sub2.close();
+            ConsumerImpl consumer1Sub3 = (ConsumerImpl) pulsarClient.subscribe(topicName, subscriberName3, conf);
+            consumer1Sub3.close();
+
+            Producer producer = pulsarClient.createProducer("persistent://my-property/use/my-ns/unacked-topic",
+                    new ProducerConfiguration());
+
+            // Produced Messages
+            for (int i = 0; i < totalProducedMsgs; i++) {
+                String message = "my-message-" + i;
+                producer.send(message.getBytes());
+            }
+
+            /*****
+             * (1) try to consume messages: without acking messages and dispatcher will be blocked once it reaches
+             * maxUnAckPerBroker limit
+             ***/
+            Message msg = null;
+            Set<MessageId> messages1 = Sets.newHashSet();
+            for (int j = 0; j < totalProducedMsgs; j++) {
+                msg = consumer1Sub1.receive(100, TimeUnit.MILLISECONDS);
+                if (msg != null) {
+                    messages1.add(msg.getMessageId());
+                } else {
+                    break;
+                }
+            }
+            // client must receive number of messages = maxUnAckPerbroker rather all produced messages
+            assertEquals(messages1.size(), maxUnAckPerBroker, 2 * receiverQueueSize);
+            // (1.b) consumer2 with same sub should not receive any more messages as subscription is blocked
+            ConsumerImpl consumer2Sub1 = (ConsumerImpl) pulsarClient.subscribe(topicName, subscriberName1, conf);
+            int consumer2Msgs = 0;
+            for (int j = 0; j < totalProducedMsgs; j++) {
+                msg = consumer2Sub1.receive(100, TimeUnit.MILLISECONDS);
+                if (msg != null) {
+                    consumer2Msgs++;
+                } else {
+                    break;
+                }
+            }
+            // consumer should not consume any more messages as broker has blocked the dispatcher
+            assertEquals(consumer2Msgs, 0);
+            consumer2Sub1.close();
+            // (1.c) verify that dispatcher is part of blocked dispatcher
+            assertEquals(blockedDispatchers.size(), 1);
+            String dispatcherName = blockedDispatchers.values().get(0).getName();
+            String subName = dispatcherName.substring(dispatcherName.lastIndexOf("/") + 2, dispatcherName.length());
+            assertEquals(subName, subscriberName1);
+
+            /**
+             * (2) However, other subscription2 should still be able to consume messages until it reaches to
+             * maxUnAckPerDispatcher limit
+             **/
+            consumer1Sub2 = (ConsumerImpl) pulsarClient.subscribe(topicName, subscriberName2, conf);
+            Set<MessageId> messages2 = Sets.newHashSet();
+            for (int j = 0; j < totalProducedMsgs; j++) {
+                msg = consumer1Sub2.receive(100, TimeUnit.MILLISECONDS);
+                if (msg != null) {
+                    messages2.add(msg.getMessageId());
+                } else {
+                    break;
+                }
+            }
+            // (2.b) It should receive only messages with limit of maxUnackPerDispatcher
+            assertEquals(messages2.size(), maxUnAckPerDispatcher, receiverQueueSize);
+            assertEquals(blockedDispatchers.size(), 2);
+
+            /** (3) if Subscription3 is acking then it shouldn't be blocked **/
+            consumer1Sub3 = (ConsumerImpl) pulsarClient.subscribe(topicName, subscriberName3, conf);
+            int consumedMsgsSub3 = 0;
+            for (int j = 0; j < totalProducedMsgs; j++) {
+                msg = consumer1Sub3.receive(100, TimeUnit.MILLISECONDS);
+                if (msg != null) {
+                    consumedMsgsSub3++;
+                    consumer1Sub3.acknowledge(msg);
+                } else {
+                    break;
+                }
+            }
+            assertEquals(consumedMsgsSub3, totalProducedMsgs);
+            assertEquals(blockedDispatchers.size(), 2);
+
+            /** (4) try to ack messages from sub1 which should unblock broker */
+            messages1.forEach(consumer1Sub1::acknowledgeAsync);
+            // sleep so, broker receives all ack back to unblock subscription
+            Thread.sleep(1000);
+            for (int j = 0; j < totalProducedMsgs; j++) {
+                msg = consumer1Sub1.receive(1, TimeUnit.SECONDS);
+                if (msg != null) {
+                    messages1.add(msg.getMessageId());
+                    consumer1Sub1.acknowledge(msg);
+                } else {
+                    break;
+                }
+            }
+            assertEquals(messages1.size(), totalProducedMsgs);
+            // it unblocks all consumers
+            assertEquals(blockedDispatchers.size(), 0);
+
+            /** (5) try redelivery on sub2 consumer and verify to consume all messages */
+            consumer1Sub2.redeliverUnacknowledgedMessages();
+            messages2.clear();
+            for (int j = 0; j < totalProducedMsgs; j++) {
+                msg = consumer1Sub2.receive(100, TimeUnit.MILLISECONDS);
+                if (msg != null) {
+                    messages2.add(msg.getMessageId());
+                    consumer1Sub2.acknowledge(msg);
+                } else {
+                    break;
+                }
+            }
+            assertEquals(messages2.size(), totalProducedMsgs);
+
+            consumer1Sub1.close();
+            consumer1Sub2.close();
+            consumer1Sub3.close();
+
+            log.info("-- Exiting {} test --", methodName);
+        } catch (Exception e) {
+            fail();
+        } finally {
+            pulsar.getConfiguration().setMaxUnackedMessagesPerBroker(unAckedMessages);
+            pulsar.getConfiguration().setUnAckMsgSubscriptionPercentageLimitOnBrokerBlocked(unAckedMessagePercentage);
+        }
+    }
+
+    /**
+     * Verifies if broker is already blocked multiple subscriptions if one of them acked back perBrokerDispatcherLimit
+     * messages then that dispatcher gets unblocked and starts consuming messages
+     * 
+     * <pre>
+     * 1. subscription-1 consume messages and doesn't ack so it reaches maxUnAckPerBroker(200) and blocks sub-1
+     * 2. subscription-2 can consume only dispatcherLimitWhenBrokerIsBlocked(20) and then sub-2 gets blocked
+     * 3. subscription-2 acks back 10 messages (dispatcherLimitWhenBrokerIsBlocked/2) to gets unblock
+     * 4. sub-2 starts acking once it gets unblocked and it consumes all published messages
+     * </pre>
+     * 
+     */
+    @Test
+    public void testBrokerDispatchBlockAndSubAckBackRequiredMsgs() {
+
+        log.info("-- Starting {} test --", methodName);
+
+        int unAckedMessages = pulsar.getConfiguration().getMaxUnackedMessagesPerBroker();
+        double unAckedMessagePercentage = pulsar.getConfiguration()
+                .getUnAckMsgSubscriptionPercentageLimitOnBrokerBlocked();
+        try {
+            final int maxUnAckPerBroker = 200;
+            final double unAckMsgPercentagePerDispatcher = 10;
+            int maxUnAckPerDispatcher = (int) ((maxUnAckPerBroker * unAckMsgPercentagePerDispatcher) / 100); // 200 *
+                                                                                                             // 10% = 20
+                                                                                                             // messages
+            pulsar.getConfiguration().setMaxUnackedMessagesPerBroker(maxUnAckPerBroker);
+            pulsar.getConfiguration()
+                    .setUnAckMsgSubscriptionPercentageLimitOnBrokerBlocked(unAckMsgPercentagePerDispatcher);
+
+            stopBroker();
+            startBroker();
+
+            Field field = BrokerService.class.getDeclaredField("blockedDispatchers");
+            field.setAccessible(true);
+            ConcurrentOpenHashSet<PersistentDispatcherMultipleConsumers> blockedDispatchers = (ConcurrentOpenHashSet<PersistentDispatcherMultipleConsumers>) field
+                    .get(pulsar.getBrokerService());
+
+            final int receiverQueueSize = 10;
+            final int totalProducedMsgs = maxUnAckPerBroker * 3;
+            final String topicName = "persistent://my-property/use/my-ns/unacked-topic";
+            final String subscriberName1 = "subscriber-1";
+            final String subscriberName2 = "subscriber-2";
+
+            ConsumerConfiguration conf = new ConsumerConfiguration();
+            conf.setSubscriptionType(SubscriptionType.Shared);
+            conf.setReceiverQueueSize(receiverQueueSize);
+            ConsumerImpl consumer1Sub1 = (ConsumerImpl) pulsarClient.subscribe(topicName, subscriberName1, conf);
+            // create subscription-2 and 3
+            ConsumerImpl consumer1Sub2 = (ConsumerImpl) pulsarClient.subscribe(topicName, subscriberName2, conf);
+            consumer1Sub2.close();
+
+            Producer producer = pulsarClient.createProducer("persistent://my-property/use/my-ns/unacked-topic",
+                    new ProducerConfiguration());
+
+            // Produced Messages
+            for (int i = 0; i < totalProducedMsgs; i++) {
+                String message = "my-message-" + i;
+                producer.send(message.getBytes());
+            }
+
+            /*****
+             * (1) try to consume messages: without acking messages and dispatcher will be blocked once it reaches
+             * maxUnAckPerBroker limit
+             ***/
+            Message msg = null;
+            Set<MessageId> messages1 = Sets.newHashSet();
+            for (int j = 0; j < totalProducedMsgs; j++) {
+                msg = consumer1Sub1.receive(100, TimeUnit.MILLISECONDS);
+                if (msg != null) {
+                    messages1.add(msg.getMessageId());
+                } else {
+                    break;
+                }
+            }
+            // client must receive number of messages = maxUnAckPerbroker rather all produced messages
+            assertEquals(messages1.size(), maxUnAckPerBroker, 2 * receiverQueueSize);
+            // (1.b) consumer2 with same sub should not receive any more messages as subscription is blocked
+            ConsumerImpl consumer2Sub1 = (ConsumerImpl) pulsarClient.subscribe(topicName, subscriberName1, conf);
+            int consumer2Msgs = 0;
+            for (int j = 0; j < totalProducedMsgs; j++) {
+                msg = consumer2Sub1.receive(100, TimeUnit.MILLISECONDS);
+                if (msg != null) {
+                    consumer2Msgs++;
+                } else {
+                    break;
+                }
+            }
+            // consumer should not consume any more messages as broker has blocked the dispatcher
+            assertEquals(consumer2Msgs, 0);
+            consumer2Sub1.close();
+            // (1.c) verify that dispatcher is part of blocked dispatcher
+            assertEquals(blockedDispatchers.size(), 1);
+            String dispatcherName = blockedDispatchers.values().get(0).getName();
+            String subName = dispatcherName.substring(dispatcherName.lastIndexOf("/") + 2, dispatcherName.length());
+            assertEquals(subName, subscriberName1);
+
+            /**
+             * (2) However, other subscription2 should still be able to consume messages until it reaches to
+             * maxUnAckPerDispatcher limit
+             **/
+            consumer1Sub2 = (ConsumerImpl) pulsarClient.subscribe(topicName, subscriberName2, conf);
+            Set<MessageId> messages2 = Sets.newHashSet();
+            for (int j = 0; j < totalProducedMsgs; j++) {
+                msg = consumer1Sub2.receive(100, TimeUnit.MILLISECONDS);
+                if (msg != null) {
+                    messages2.add(msg.getMessageId());
+                } else {
+                    break;
+                }
+            }
+            // (2.b) It should receive only messages with limit of maxUnackPerDispatcher
+            assertEquals(messages2.size(), maxUnAckPerDispatcher, receiverQueueSize);
+            assertEquals(blockedDispatchers.size(), 2);
+
+            // (2.c) Now subscriber-2 is blocked: so acking back should unblock dispatcher
+            Iterator<MessageId> itrMsgs = messages2.iterator();
+            int additionalMsgConsumedAfterBlocked = messages2.size() - maxUnAckPerDispatcher + 1; // eg. 25 -20 = 5
+            for (int i = 0; i < (additionalMsgConsumedAfterBlocked + (maxUnAckPerDispatcher / 2)); i++) {
+                consumer1Sub2.acknowledge(itrMsgs.next());
+            }
+            // let ack completed
+            Thread.sleep(1000);
+            // verify subscriber2 is unblocked and ready to consume more messages
+            assertEquals(blockedDispatchers.size(), 1);
+            for (int j = 0; j < totalProducedMsgs; j++) {
+                msg = consumer1Sub2.receive(200, TimeUnit.MILLISECONDS);
+                if (msg != null) {
+                    messages2.add(msg.getMessageId());
+                    consumer1Sub2.acknowledge(msg);
+                } else {
+                    break;
+                }
+            }
+            // verify it consumed all messages now
+            assertEquals(messages2.size(), totalProducedMsgs);
+
+            consumer1Sub1.close();
+            consumer1Sub2.close();
+
+            log.info("-- Exiting {} test --", methodName);
+        } catch (Exception e) {
+            fail();
+        } finally {
+            pulsar.getConfiguration().setMaxUnackedMessagesPerBroker(unAckedMessages);
+            pulsar.getConfiguration().setUnAckMsgSubscriptionPercentageLimitOnBrokerBlocked(unAckedMessagePercentage);
+        }
+
     }
 
     private void rolloverPerIntervalStats() {

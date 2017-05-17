@@ -94,6 +94,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // unack count reaches to limit/2. Using a value of 0, is disabling unackedMessage-limit
     // check and dispatcher can dispatch messages without any restriction
     private int maxUnackedMessagesPerSubscription = 4 * 50000;
+    // Max number of unacknowledged messages allowed per broker. Once this limit reaches, broker will stop dispatching
+    // messages to all shared subscription which has higher number of unack messages until subscriptions start
+    // acknowledging messages back and unack count reaches to limit/2. Using a value of 0, is disabling
+    // unackedMessage-limit check and broker doesn't block dispatchers
+    private int maxUnackedMessagesPerBroker = 30000000;
+    // Once broker reaches maxUnackedMessagesPerBroker limit, it blocks subscriptions which has higher unacked messages
+    // than this percentage limit and subscription will not receive any new messages until that subscription acks back
+    // limit/2 messages 
+    private double unAckMsgSubscriptionPercentageLimitOnBrokerBlocked = 0.16;
     // Max number of concurrent lookup request broker allows to throttle heavy incoming lookup traffic
     @FieldContext(dynamic = true)
     private int maxConcurrentLookupRequest = 10000;
@@ -450,6 +459,23 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public void setMaxUnackedMessagesPerSubscription(int maxUnackedMessagesPerSubscription) {
         this.maxUnackedMessagesPerSubscription = maxUnackedMessagesPerSubscription;
+    }
+
+    public int getMaxUnackedMessagesPerBroker() {
+        return maxUnackedMessagesPerBroker;
+    }
+
+    public void setMaxUnackedMessagesPerBroker(int maxUnackedMessagesPerBroker) {
+        this.maxUnackedMessagesPerBroker = maxUnackedMessagesPerBroker;
+    }
+
+    public double getUnAckMsgSubscriptionPercentageLimitOnBrokerBlocked() {
+        return unAckMsgSubscriptionPercentageLimitOnBrokerBlocked;
+    }
+
+    public void setUnAckMsgSubscriptionPercentageLimitOnBrokerBlocked(
+            double unAckMsgSubscriptionPercentageLimitOnBrokerBlocked) {
+        this.unAckMsgSubscriptionPercentageLimitOnBrokerBlocked = unAckMsgSubscriptionPercentageLimitOnBrokerBlocked;
     }
 
     public int getMaxConcurrentLookupRequest() {
