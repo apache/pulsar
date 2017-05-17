@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory;
 import com.yahoo.pulsar.broker.PulsarService;
 import com.yahoo.pulsar.broker.admin.AdminResource;
 import com.yahoo.pulsar.broker.loadbalance.BrokerHostUsage;
+import com.yahoo.pulsar.broker.stats.metrics.JvmMetrics;
 import com.yahoo.pulsar.common.naming.NamespaceName;
 import com.yahoo.pulsar.common.naming.ServiceUnitId;
 import com.yahoo.pulsar.common.policies.data.loadbalancer.SystemResourceUsage;
@@ -169,8 +170,7 @@ public class LoadManagerShared {
         systemResourceUsage.memory.limit = (double) maxHeapMemoryInBytes / MIBI;
 
         // Collect JVM direct memory
-        systemResourceUsage.directMemory.usage = (double) (sun.misc.SharedSecrets.getJavaNioAccess()
-                .getDirectBufferPool().getMemoryUsed() / MIBI);
+        systemResourceUsage.directMemory.usage = (double) (JvmMetrics.getJvmDirectMemoryUsed() / MIBI);
         systemResourceUsage.directMemory.limit = (double) (sun.misc.VM.maxDirectMemory() / MIBI);
 
         return systemResourceUsage;
