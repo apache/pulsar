@@ -6,18 +6,18 @@ abstractions so that complex load management strategies may be implemented.
 ## Usage
 To use the modular load manager, change
 
-`loadManagerClassName=com.yahoo.broker.loadbalance.impl.SimpleLoadManagerImpl`
+`loadManagerClassName=com.yahoo.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl`
 
 in `broker.conf` to
 
-`loadManagerClassName=com.yahoo.broker.loadbalance.impl.ModularLoadManagerImpl`
+`loadManagerClassName=com.yahoo.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl`
 
 Alternatively, the load manager may also be changed dynamically via the `pulsar-admin` tool as follows:
 
 `pulsar-admin update-dynamic-config --config loadManagerClassName --value
-com.yahoo.broker.loadbalance.impl.ModularLoadManagerImpl`
+com.yahoo.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl`
 
-The admin tool may also be used to change back to `com.yahoo.broker.loadbalance.impl.SimpleLoadManagerImpl`. In either
+The admin tool may also be used to change back to `com.yahoo.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl`. In either
 case, any mistake in specifying the load manager will cause Pulsar to default to `SimpleLoadManagerImpl`.
 
 ## Verification
@@ -33,14 +33,14 @@ $ ./pulsar-admin brokers get-all-dynamic-config
 }
 ```
 
-If there is no `loadManagerClassName` element, then the default load manager (`com.yahoo.broker.loadbalance.impl.SimpleLoadManagerImpl`)
+If there is no `loadManagerClassName` element, then the default load manager (`com.yahoo.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl`)
 is being used.
 
 2. Look at a load report in ZooKeeper
 
-With `com.yahoo.broker.loadbalance.impl.ModularLoadManagerImpl`, the load report in `/loadbalance/brokers/...`
+With `com.yahoo.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl`, the load report in `/loadbalance/brokers/...`
 will have many differences. E.g., the `systemResourceUsage` subelements (`bandwidthIn`, `bandwidthOut`, ...) are now all at the top-level.
-Here is an example load report from `com.yahoo.broker.loadbalance.impl.ModularLoadManagerImpl`:
+Here is an example load report from `com.yahoo.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl`:
 
 ```
 {
@@ -65,7 +65,7 @@ Here is an example load report from `com.yahoo.broker.loadbalance.impl.ModularLo
 }
 ```
 
-With `com.yahoo.broker.loadbalance.impl.SimpleLoadManagerImpl`, the load report in `/loadbalance/brokers/...`
+With `com.yahoo.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl`, the load report in `/loadbalance/brokers/...`
 will look like this:
 
 ```
@@ -99,7 +99,7 @@ will look like this:
 3. The command-line broker monitor (`./pulsar-perf monitor-brokers ...`) will have a different output format depending on which load manager
 implementation is being used.
 
-Here is an example from `com.yahoo.broker.loadbalance.impl.ModularLoadManagerImpl`:
+Here is an example from `com.yahoo.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl`:
 ```
 ===================================================================================================================
 ||SYSTEM         |CPU %          |MEMORY %       |DIRECT %       |BW IN %        |BW OUT %       |MAX %          ||
@@ -115,7 +115,7 @@ Here is an example from `com.yahoo.broker.loadbalance.impl.ModularLoadManagerImp
 ===================================================================================================================
 ```
 
-Here is an example from `com.yahoo.broker.loadbalance.impl.SimpleLoadManagerImpl`:
+Here is an example from `com.yahoo.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl`:
 ```
 ===================================================================================================================
 ||COUNT          |TOPIC          |BUNDLE         |PRODUCER       |CONSUMER       |BUNDLE +       |BUNDLE -       ||
@@ -130,7 +130,7 @@ Here is an example from `com.yahoo.broker.loadbalance.impl.SimpleLoadManagerImpl
 ||               |54.84          |134.48         |189.31         |126.54         |320.96         |447.50         ||
 ===================================================================================================================
 ```
-It is important to note that `com.yahoo.broker.loadbalance.impl.ModularLoadManagerImpl` is _centralized_, meaning all requests
+It is important to note that `com.yahoo.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl` is _centralized_, meaning all requests
 to assign a bundle (whether it's been seen before or whether this is the first time) only get handled by the _lead_ broker
 (which can change over time). To determine the current lead broker, examine this node in ZooKeeper: `/loadbalance/leader`
 
