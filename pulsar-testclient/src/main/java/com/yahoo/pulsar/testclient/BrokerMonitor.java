@@ -72,7 +72,7 @@ public class BrokerMonitor {
     private static final Object[] ALLOC_SYSTEM_ROW = makeSystemRow("ALLOC SYSTEM");
     private static final Object[] RAW_MESSAGE_ROW = makeMessageRow("RAW MSG");
     private static final Object[] ALLOC_MESSAGE_ROW = makeMessageRow("ALLOC MSG");
-    private static final Object[] GLOBAL_HEADER = { "BROKER", "BUNDLE", "MSG/S", "KB/S", "MAX %" };
+    private static final Object[] GLOBAL_HEADER = { "BROKER", "BUNDLE", "MSG/S", "LONG/S", "KB/S", "MAX %" };
 
     private final Map<String, Object> loadData;
 
@@ -129,6 +129,7 @@ public class BrokerMonitor {
             int totalBundles = 0;
             double totalThroughput = 0;
             double totalMessageRate = 0;
+            double totalLongTermMessageRate = 0;
             double maxMaxUsage = 0;
             int i = 1;
             for (final Map.Entry<String, Object> entry : loadData.entrySet()) {
@@ -138,12 +139,14 @@ public class BrokerMonitor {
                 rows[i][0] = broker;
                 int numBundles;
                 double messageRate;
+                double longTermMessageRate;
                 double messageThroughput;
                 double maxUsage;
                 if (data instanceof LoadReport) {
                     final LoadReport loadReport = (LoadReport) data;
                     numBundles = (int) loadReport.getNumBundles();
                     messageRate = loadReport.getMsgRateIn() + loadReport.getMsgRateOut();
+                    longTermMessageRate = loadReport.getAllocatedMsgRateIn() + loadReport.getAllocatedMsgRateOut();
                     messageThroughput = (loadReport.getAllocatedBandwidthIn() + loadReport.getAllocatedBandwidthOut())
                             / 1024;
                     final SystemResourceUsage systemResourceUsage = loadReport.getSystemResourceUsage();
@@ -158,6 +161,14 @@ public class BrokerMonitor {
                     final LocalBrokerData localData = (LocalBrokerData) data;
                     numBundles = localData.getNumBundles();
                     messageRate = localData.getMsgRateIn() + localData.getMsgRateOut();
+                    final String timeAveragePath = ModularLoadManagerImpl.TIME_AVERAGE_BROKER_ZPATH + "/" + broker;
+                    try {
+                        final TimeAverageBrokerData timeAverageData = gson.fromJson(
+                                new String(zkClient.getData(timeAveragePath, false, null)), TimeAverageBrokerData.class);
+                        longTermMessageRate = timeAverageData.getLongTermMsgRateIn() + timeAverageData.getLongTermMsgRateOut();
+                    } catch ( Exception x ) {
+                        throw new RuntimeException(x);
+                    }
                     messageThroughput = (localData.getMsgThroughputIn() + localData.getMsgThroughputOut()) / 1024;
                     maxUsage = localData.getMaxResourceUsage();
                 } else {
@@ -167,10 +178,12 @@ public class BrokerMonitor {
                 rows[i][1] = numBundles;
                 rows[i][2] = messageRate;
                 rows[i][3] = messageThroughput;
-                rows[i][4] = maxUsage;
+                rows[i][4] = longTermMessageRate;
+                rows[i][5] = maxUsage;
 
                 totalBundles += numBundles;
                 totalMessageRate += messageRate;
+                totalLongTermMessageRate += longTermMessageRate;
                 totalThroughput += messageThroughput;
                 maxMaxUsage = Math.max(maxUsage, maxMaxUsage);
                 ++i;
@@ -180,8 +193,9 @@ public class BrokerMonitor {
             rows[finalRow][0] = "TOTAL";
             rows[finalRow][1] = totalBundles;
             rows[finalRow][2] = totalMessageRate;
-            rows[finalRow][3] = totalThroughput;
-            rows[finalRow][4] = maxMaxUsage;
+            rows[finalRow][3] = totalLongTermMessageRate;
+            rows[finalRow][4] = totalThroughput;
+            rows[finalRow][5] = maxMaxUsage;
             final String table = globalTableMaker.make(rows);
             log.info("Overall Broker Data:\n{}", table);
         }
