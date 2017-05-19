@@ -69,6 +69,7 @@ import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import com.yahoo.pulsar.common.naming.DestinationName;
 import com.yahoo.pulsar.common.policies.data.loadbalancer.NamespaceBundleStats;
 import com.yahoo.pulsar.common.stats.Metrics;
+import com.yahoo.pulsar.common.util.collections.ConcurrentLongPairSet;
 
 /**
  */
@@ -1161,7 +1162,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
                 .getDispatcher();
         Field replayMap = PersistentDispatcherMultipleConsumers.class.getDeclaredField("messagesToReplay");
         replayMap.setAccessible(true);
-        TreeSet<PositionImpl> messagesToReplay = Sets.newTreeSet();
+        ConcurrentLongPairSet messagesToReplay = new ConcurrentLongPairSet(64, 1);
 
         assertNotNull(subRef);
 
@@ -1182,7 +1183,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
             }
             if (i < replayIndex) {
                 // (3) accumulate acked messages for replay
-                messagesToReplay.add(new PositionImpl(msgId.getLedgerId(), msgId.getEntryId()));
+                messagesToReplay.add(msgId.getLedgerId(), msgId.getEntryId());
             }
         }
 
@@ -1195,7 +1196,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         assertEquals(messagesToReplay.size(), 0);
 
         // (b) fill messageReplyBucket with already acked entry again: and try to publish new msg and read it
-        messagesToReplay.add(new PositionImpl(firstAckedMsg.getLedgerId(), firstAckedMsg.getEntryId()));
+        messagesToReplay.add(firstAckedMsg.getLedgerId(), firstAckedMsg.getEntryId());
         replayMap.set(dispatcher, messagesToReplay);
         // send new message
         final String testMsg = "testMsg";
