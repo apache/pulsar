@@ -13,9 +13,6 @@
 
 <!-- /TOC -->
 
-***This API is considered experimental and might change before it's finalized.
-We encourage to submit feedback on this WebSocket API.***
-
 Pulsar WebSocket API is meant to provide a simple way to interact with Pulsar
 from languages outside the JVM.
 
