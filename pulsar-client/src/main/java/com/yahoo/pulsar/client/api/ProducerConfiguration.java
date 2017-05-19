@@ -37,7 +37,7 @@ public class ProducerConfiguration implements Serializable {
     private static final long serialVersionUID = 1L;
     private long sendTimeoutMs = 30000;
     private int maxPendingMessages = 1000;
-    private boolean blockIfQueueFull = true;
+    private boolean blockIfQueueFull = false;
     private MessageRoutingMode messageRouteMode = MessageRoutingMode.SinglePartition;
     private MessageRouter customMessageRouter = null;
     private long batchingMaxPublishDelayMs = 10;
