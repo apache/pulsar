@@ -27,7 +27,7 @@
         static boost::thread_specific_ptr<log4cxx::LoggerPtr> threadSpecificLogPtr; \
         log4cxx::LoggerPtr* ptr = threadSpecificLogPtr.get(); \
         if (!ptr) { \
-            threadSpecificLogPtr.reset(new log4cxx::LoggerPtr(log4cxx::Logger::getLogger("pulsar." __FILE__)));\
+            threadSpecificLogPtr.reset(new log4cxx::LoggerPtr(log4cxx::Logger::getLogger(LOG_CATEGORY_NAME __FILE__)));\
             ptr = threadSpecificLogPtr.get(); \
         } \
         return *ptr;                                      \
