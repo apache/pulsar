@@ -21,6 +21,13 @@ set(Boost_NO_BOOST_CMAKE ON)
 
 set (CMAKE_CXX_FLAGS "-Wno-deprecated-declarations ${CMAKE_CXX_FLAGS}")
 set(PROTOBUF_LIBRARIES $ENV{PROTOBUF_LIBRARIES})
+set(LOG_CATEGORY_NAME $ENV{LOG_CATEGORY_NAME})
+
+if (NOT LOG_CATEGORY_NAME)
+    set(LOG_CATEGORY_NAME "\"pulsar.\"")
+endif(NOT LOG_CATEGORY_NAME)
+
+add_definitions(-DLOG_CATEGORY_NAME=${LOG_CATEGORY_NAME})
 
 find_package(Boost REQUIRED COMPONENTS program_options filesystem regex thread system)
 find_package(OpenSSL REQUIRED)
