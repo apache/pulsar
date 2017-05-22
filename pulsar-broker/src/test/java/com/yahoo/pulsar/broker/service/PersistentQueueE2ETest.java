@@ -44,6 +44,7 @@ import com.yahoo.pulsar.client.api.ConsumerConfiguration;
 import com.yahoo.pulsar.client.api.Message;
 import com.yahoo.pulsar.client.api.MessageId;
 import com.yahoo.pulsar.client.api.Producer;
+import com.yahoo.pulsar.client.api.ProducerConfiguration;
 import com.yahoo.pulsar.client.api.PulsarClientException;
 import com.yahoo.pulsar.client.api.SubscriptionType;
 import com.yahoo.pulsar.client.util.FutureUtil;
@@ -261,7 +262,9 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
         Consumer consumer2 = pulsarClient.subscribe(topicName, subName, conf2);
 
         List<CompletableFuture<MessageId>> futures = Lists.newArrayListWithCapacity(numMsgs);
-        Producer producer = pulsarClient.createProducer(topicName);
+        ProducerConfiguration conf = new ProducerConfiguration();
+        conf.setMaxPendingMessages(numMsgs + 1);
+        Producer producer = pulsarClient.createProducer(topicName, conf);
         for (int i = 0; i < numMsgs; i++) {
             String message = "msg-" + i;
             futures.add(producer.sendAsync(message.getBytes()));
