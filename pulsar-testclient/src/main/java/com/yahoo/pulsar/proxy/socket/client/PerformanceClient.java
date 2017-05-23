@@ -62,17 +62,17 @@ public class PerformanceClient {
         @Parameter(names = { "--conf-file" }, description = "Configuration file")
         public String confFile;
 
-        @Parameter(names = { "-u", "--proxy-url" }, description = "Pulsar Proxy URL", required = true)
+        @Parameter(names = { "-u", "--proxy-url" }, description = "Pulsar Proxy URL, e.g., \"ws://localhost:8080/\"", required = true)
         public String proxyURL;
 
         @Parameter(description = "/persistent/my-property/cluster1/my-ns/my-topic", required = true)
-        public String destination;
+        public List<String> destinations;
 
         @Parameter(names = { "-r", "--rate" }, description = "Publish rate msg/s across topics")
         public int msgRate = 100;
 
         @Parameter(names = { "-s", "--size" }, description = "Message size in byte")
-        public int msgSize = 1;
+        public int msgSize = 1024;
 
         @Parameter(names = { "-t", "--num-topic" }, description = "Number of topics")
         public int numTopics = 1;
@@ -99,7 +99,7 @@ public class PerformanceClient {
     public Arguments loadArguments(String[] args) {
         Arguments arguments = new Arguments();
         jc = new JCommander(arguments);
-        jc.setProgramName("pulsar-websocket-perf-producer");
+        jc.setProgramName("pulsar-perf websocket");
 
         try {
             jc.parse(args);
@@ -110,6 +110,12 @@ public class PerformanceClient {
         }
 
         if (arguments.help) {
+            jc.usage();
+            System.exit(-1);
+        }
+
+        if (arguments.destinations.size() != 1) {
+            System.err.println("Only one topic name is allowed");
             jc.usage();
             System.exit(-1);
         }
@@ -148,9 +154,9 @@ public class PerformanceClient {
             String destination) throws InterruptedException, FileNotFoundException {
         ExecutorService executor = Executors.newCachedThreadPool(new DefaultThreadFactory("pulsar-perf-producer-exec"));
         HashMap<String, Tuple> producersMap = new HashMap<>();
-        String produceBaseEndPoint = baseUrl + destination;
+        String produceBaseEndPoint = baseUrl + "ws/producer" + destination;
         for (int i = 0; i < numOfTopic; i++) {
-            String topic = produceBaseEndPoint + "1" + "/";
+            String topic = numOfTopic > 1 ? produceBaseEndPoint + String.valueOf(i) : produceBaseEndPoint;
             URI produceUri = URI.create(topic);
 
             WebSocketClient produceClient = new WebSocketClient(new SslContextFactory(true));
@@ -183,7 +189,7 @@ public class PerformanceClient {
                 while (true) {
                     for (String topic : producersMap.keySet()) {
                         if (messages > 0) {
-                            if (totalSent++ >= messages) {
+                            if (totalSent >= messages) {
                                 log.trace("------------------- DONE -----------------------");
                                 Thread.sleep(10000);
                                 System.exit(0);
@@ -196,9 +202,9 @@ public class PerformanceClient {
                             Thread.sleep(10000);
                             System.exit(0);
                         }
-                        producersMap.get(topic).getSocket().sendMsg((String) String.valueOf(totalSent), sizeOfMessage);
+                        producersMap.get(topic).getSocket().sendMsg(String.valueOf(totalSent++), sizeOfMessage);
                         messagesSent.increment();
-                        bytesSent.add(1000);
+                        bytesSent.add(sizeOfMessage);
                     }
                 }
 
@@ -214,7 +220,7 @@ public class PerformanceClient {
         Histogram reportHistogram = null;
 
         String statsFileName = "perf-websocket-producer-" + System.currentTimeMillis() + ".hgrm";
-        log.info("Dumping latency stats to %s \n", statsFileName);
+        log.info("Dumping latency stats to {} \n", statsFileName);
 
         PrintStream histogramLog = new PrintStream(new FileOutputStream(statsFileName), false);
         HistogramLogWriter histogramLogWriter = new HistogramLogWriter(histogramLog);
@@ -264,7 +270,7 @@ public class PerformanceClient {
         PerformanceClient test = new PerformanceClient();
         Arguments arguments = test.loadArguments(args);
         test.runPerformanceTest(arguments.numMessages, arguments.msgRate, arguments.numTopics, arguments.msgSize,
-                arguments.proxyURL, arguments.destination);
+                arguments.proxyURL, arguments.destinations.get(0));
     }
 
     private class Tuple {
