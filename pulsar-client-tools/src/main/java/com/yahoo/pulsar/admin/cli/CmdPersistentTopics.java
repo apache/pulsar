@@ -60,6 +60,7 @@ public class CmdPersistentTopics extends CmdBase {
         jcommander.addCommand("expire-messages", new ExpireMessages());
         jcommander.addCommand("expire-messages-all-subscriptions", new ExpireMessagesForAllSubscriptions());
         jcommander.addCommand("create-partitioned-topic", new CreatePartitionedCmd());
+        jcommander.addCommand("update-partitioned-topic", new UpdatePartitionedCmd());
         jcommander.addCommand("get-partitioned-topic-metadata", new GetPartitionedTopicMetadataCmd());
         jcommander.addCommand("delete-partitioned-topic", new DeletePartitionedCmd());
         jcommander.addCommand("peek-messages", new PeekMessages());
@@ -168,6 +169,24 @@ public class CmdPersistentTopics extends CmdBase {
         void run() throws Exception {
             String persistentTopic = validatePersistentTopic(params);
             persistentTopics.createPartitionedTopic(persistentTopic, numPartitions);
+        }
+    }
+
+    @Parameters(commandDescription = "Update existing non-global partitioned topic. \n"
+            + "\t\tNew updating number of partitions must be greater than existing number of partitions.")
+    private class UpdatePartitionedCmd extends CliCommand {
+
+        @Parameter(description = "persistent://property/cluster/namespace/destination\n", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-p",
+                "--partitions" }, description = "Number of partitions for the topic", required = true)
+        private int numPartitions;
+
+        @Override
+        void run() throws Exception {
+            String persistentTopic = validatePersistentTopic(params);
+            persistentTopics.updatePartitionedTopic(persistentTopic, numPartitions);
         }
     }
 
