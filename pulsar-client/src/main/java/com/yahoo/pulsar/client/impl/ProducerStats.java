@@ -244,5 +244,12 @@ public class ProducerStats implements Serializable {
         return totalAcksReceived.longValue();
     }
 
+    public void cancelStatsTimeout() {
+        if (statTimeout != null) {
+            statTimeout.cancel();
+            statTimeout = null;
+        }
+    }
+
     private static final Logger log = LoggerFactory.getLogger(ProducerStats.class);
 }

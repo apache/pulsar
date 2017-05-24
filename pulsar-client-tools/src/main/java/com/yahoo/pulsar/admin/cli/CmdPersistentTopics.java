@@ -16,6 +16,7 @@
 package com.yahoo.pulsar.admin.cli;
 
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import com.beust.jcommander.Parameter;
@@ -28,6 +29,7 @@ import com.yahoo.pulsar.client.admin.PersistentTopics;
 import com.yahoo.pulsar.client.admin.PulsarAdmin;
 import com.yahoo.pulsar.client.admin.PulsarAdminException;
 import com.yahoo.pulsar.client.api.Message;
+import com.yahoo.pulsar.client.api.MessageId;
 import com.yahoo.pulsar.client.impl.MessageIdImpl;
 
 import io.netty.buffer.ByteBuf;
@@ -65,6 +67,7 @@ public class CmdPersistentTopics extends CmdBase {
         jcommander.addCommand("delete-partitioned-topic", new DeletePartitionedCmd());
         jcommander.addCommand("peek-messages", new PeekMessages());
         jcommander.addCommand("reset-cursor", new ResetCursor());
+        jcommander.addCommand("terminate", new Terminate());
     }
 
     @Parameters(commandDescription = "Get the list of destinations under a namespace.")
@@ -347,7 +350,7 @@ public class CmdPersistentTopics extends CmdBase {
             persistentTopics.skipMessages(persistentTopic, subName, numMessages);
         }
     }
-    
+
     @Parameters(commandDescription = "Expire messages that older than given expiry time (in seconds) for the subscription")
     private class ExpireMessages extends CliCommand {
         @Parameter(description = "persistent://property/cluster/namespace/destination", required = true)
@@ -366,7 +369,7 @@ public class CmdPersistentTopics extends CmdBase {
             persistentTopics.expireMessages(persistentTopic, subName, expireTimeInSeconds);
         }
     }
-    
+
     @Parameters(commandDescription = "Expire messages that older than given expiry time (in seconds) for all subscriptions")
     private class ExpireMessagesForAllSubscriptions extends CliCommand {
         @Parameter(description = "persistent://property/cluster/namespace/destination", required = true)
@@ -403,6 +406,24 @@ public class CmdPersistentTopics extends CmdBase {
             // now - go back time
             long timestamp = System.currentTimeMillis() - resetTimeInMillis;
             persistentTopics.resetCursor(persistentTopic, subName, timestamp);
+        }
+    }
+
+    @Parameters(commandDescription = "Terminate a topic and don't allow any more messages to be published")
+    private class Terminate extends CliCommand {
+        @Parameter(description = "persistent://property/cluster/namespace/destination", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+
+            try {
+                MessageId lastMessageId = persistentTopics.terminateTopicAsync(persistentTopic).get();
+                System.out.println("Topic succesfully terminated at " + lastMessageId);
+            } catch (InterruptedException | ExecutionException e) {
+                throw new PulsarAdminException(e);
+            }
         }
     }
 

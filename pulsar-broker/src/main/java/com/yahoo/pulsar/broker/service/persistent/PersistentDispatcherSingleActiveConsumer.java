@@ -29,6 +29,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.NoMoreEntriesToReadException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.slf4j.Logger;
@@ -164,7 +165,7 @@ public final class PersistentDispatcherSingleActiveConsumer implements Dispatche
         IS_CLOSED_UPDATER.set(this, TRUE);
         return disconnectAllConsumers();
     }
-    
+
     /**
      * Disconnect all consumers on this dispatcher (server side close). This triggers channelInactive on the inbound
      * handler which calls dispatcher.removeConsumer(), where the closeFuture is completed
@@ -191,7 +192,7 @@ public final class PersistentDispatcherSingleActiveConsumer implements Dispatche
     public void reset() {
         IS_CLOSED_UPDATER.set(this, FALSE);
     }
-    
+
     @Override
     public synchronized void readEntriesComplete(final List<Entry> entries, Object obj) {
         Consumer readConsumer = (Consumer) obj;
@@ -327,7 +328,13 @@ public final class PersistentDispatcherSingleActiveConsumer implements Dispatche
 
         long waitTimeMillis = readFailureBackoff.next();
 
-        if (!(exception instanceof TooManyRequestsException)) {
+        if (exception instanceof NoMoreEntriesToReadException) {
+            if (cursor.getNumberOfEntriesInBacklog() == 0) {
+                // Topic has been terminated and there are no more entries to read
+                // Notify the consumer only if all the messages were already acknowledged
+                consumers.forEach(Consumer::reachedEndOfTopic);
+            }
+        } else if (!(exception instanceof TooManyRequestsException)) {
             log.error("[{}] Error reading entries at {} : {} - Retrying to read in {} seconds", c,
                     cursor.getReadPosition(), exception.getMessage(), waitTimeMillis / 1000.0);
         } else {

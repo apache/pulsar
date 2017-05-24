@@ -86,6 +86,11 @@ public class PersistentSubscription implements Subscription {
             throw new SubscriptionFencedException("Subscription is fenced");
         }
 
+        if (topic.getManagedLedger().isTerminated() && cursor.getNumberOfEntriesInBacklog() == 0) {
+            // Immediately notify the consumer that there are no more available messages
+            consumer.reachedEndOfTopic();
+        }
+
         if (dispatcher == null || !dispatcher.isConsumerConnected()) {
             switch (consumer.subType()) {
             case Exclusive:
@@ -172,6 +177,11 @@ public class PersistentSubscription implements Subscription {
                 log.debug("[{}][{}] Individual ack on {}", topicName, subName, position);
             }
             cursor.asyncDelete(position, deleteCallback, position);
+        }
+
+        if (topic.getManagedLedger().isTerminated() && cursor.getNumberOfEntriesInBacklog() == 0) {
+            // Notify all consumer that the end of topic was reached
+            dispatcher.getConsumers().forEach(Consumer::reachedEndOfTopic);
         }
     }
 
@@ -620,10 +630,17 @@ public class PersistentSubscription implements Subscription {
     public void addUnAckedMessages(int unAckMessages) {
         dispatcher.addUnAckedMessages(unAckMessages);
     }
-    
+
     @Override
     public void markTopicWithBatchMessagePublished() {
         topic.markBatchMessagePublished();
+    }
+
+    void topicTerminated() {
+        if (cursor.getNumberOfEntriesInBacklog() == 0) {
+            // Immediately notify the consumer that there are no more available messages
+            dispatcher.getConsumers().forEach(Consumer::reachedEndOfTopic);
+        }
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentSubscription.class);

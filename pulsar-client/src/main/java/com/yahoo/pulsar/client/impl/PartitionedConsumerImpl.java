@@ -128,7 +128,7 @@ public class PartitionedConsumerImpl extends ConsumerBase {
 
             if (incomingMessages.size() >= maxReceiverQueueSize
                     || (incomingMessages.size() > sharedQueueResumeThreshold && !pausedConsumers.isEmpty())) {
-                // mark this consumer to be resumed later: if No more space left in shared queue, 
+                // mark this consumer to be resumed later: if No more space left in shared queue,
                 // or if any consumer is already paused (to create fair chance for already paused consumers)
                 pausedConsumers.add(consumer);
             } else {
@@ -429,6 +429,11 @@ public class PartitionedConsumerImpl extends ConsumerBase {
     @Override
     public int getAvailablePermits() {
         return consumers.stream().mapToInt(ConsumerImpl::getAvailablePermits).sum();
+    }
+
+    @Override
+    public boolean hasReachedEndOfTopic() {
+        return consumers.stream().allMatch(Consumer::hasReachedEndOfTopic);
     }
 
     @Override

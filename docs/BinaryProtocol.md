@@ -443,6 +443,15 @@ On redelivery, messages an be sent to the same consumer or, in the case of a
 shared subscription, spread across all available consumers.
 
 
+##### Command ReachedEndOfTopic
+
+This is sent by a broker to a particular consumer, whenever the topic
+has been "terminated" and all the messages on the subscription were
+acknowledged.
+
+The client should use this command to notify the application that no more
+messages are coming from the consumer.
+
 ## Service discovery
 
 ### Topic lookup

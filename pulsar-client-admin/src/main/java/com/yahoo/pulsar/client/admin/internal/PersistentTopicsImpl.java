@@ -37,6 +37,9 @@ import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.gson.Gson;
@@ -46,6 +49,8 @@ import com.yahoo.pulsar.client.admin.PulsarAdminException;
 import com.yahoo.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import com.yahoo.pulsar.client.api.Authentication;
 import com.yahoo.pulsar.client.api.Message;
+import com.yahoo.pulsar.client.api.MessageId;
+import com.yahoo.pulsar.client.impl.MessageIdImpl;
 import com.yahoo.pulsar.client.impl.MessageImpl;
 import com.yahoo.pulsar.common.naming.DestinationName;
 import com.yahoo.pulsar.common.naming.NamespaceName;
@@ -453,7 +458,7 @@ public class PersistentTopicsImpl extends BaseResource implements PersistentTopi
             throw new PulsarAdminException(e.getCause());
         }
     }
-    
+
     @Override
     public CompletableFuture<Void> skipMessagesAsync(String destination, String subName, long numMessages) {
         DestinationName ds = validateTopic(destination);
@@ -463,7 +468,7 @@ public class PersistentTopicsImpl extends BaseResource implements PersistentTopi
                         .path(encodedSubName).path("skip").path(String.valueOf(numMessages)),
                 Entity.entity("", MediaType.APPLICATION_JSON));
     }
-    
+
     @Override
     public void expireMessages(String destination, String subName, long expireTimeInSeconds) throws PulsarAdminException {
         try {
@@ -475,7 +480,7 @@ public class PersistentTopicsImpl extends BaseResource implements PersistentTopi
             throw new PulsarAdminException(e.getCause());
         }
     }
-    
+
     @Override
     public CompletableFuture<Void> expireMessagesAsync(String destination, String subName, long expireTimeInSeconds) {
         DestinationName ds = validateTopic(destination);
@@ -485,7 +490,7 @@ public class PersistentTopicsImpl extends BaseResource implements PersistentTopi
                         .path(encodedSubName).path("expireMessages").path(String.valueOf(expireTimeInSeconds)),
                 Entity.entity("", MediaType.APPLICATION_JSON));
     }
-    
+
     @Override
     public void expireMessagesForAllSubscriptions(String destination, long expireTimeInSeconds) throws PulsarAdminException {
         try {
@@ -497,7 +502,7 @@ public class PersistentTopicsImpl extends BaseResource implements PersistentTopi
             throw new PulsarAdminException(e.getCause());
         }
     }
-    
+
     @Override
     public CompletableFuture<Void> expireMessagesForAllSubscriptionsAsync(String destination, long expireTimeInSeconds) {
         DestinationName ds = validateTopic(destination);
@@ -608,6 +613,37 @@ public class PersistentTopicsImpl extends BaseResource implements PersistentTopi
                 Entity.entity("", MediaType.APPLICATION_JSON));
     }
 
+    @Override
+    public CompletableFuture<MessageId> terminateTopicAsync(String destination) {
+        DestinationName ds = validateTopic(destination);
+
+        final CompletableFuture<MessageId> future = new CompletableFuture<>();
+        try {
+            WebTarget target = persistentTopics.path(ds.getNamespace()).path(ds.getEncodedLocalName())
+                    .path("terminate");
+
+            request(target).async().post(Entity.entity("", MediaType.APPLICATION_JSON),
+                    new InvocationCallback<MessageIdImpl>() {
+
+                        @Override
+                        public void completed(MessageIdImpl messageId) {
+                            future.complete(messageId);
+                        }
+
+                        @Override
+                        public void failed(Throwable throwable) {
+                            log.warn("[{}] Failed to perform http post request: {}", target.getUri(),
+                                    throwable.getMessage());
+                            future.completeExceptionally(getApiException(throwable.getCause()));
+                        }
+                    });
+        } catch (PulsarAdminException cae) {
+            future.completeExceptionally(cae);
+        }
+
+        return future;
+    }
+
     /*
      * returns destination name with encoded Local Name
      */
@@ -656,4 +692,6 @@ public class PersistentTopicsImpl extends BaseResource implements PersistentTopi
             }
         }
     }
+
+    private static final Logger log = LoggerFactory.getLogger(PersistentTopicsImpl.class);
 }

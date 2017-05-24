@@ -99,6 +99,8 @@ public class ConsumerImpl extends ConsumerBase {
     private final SubscriptionMode subscriptionMode;
     private final MessageId startMessageId;
 
+    private volatile boolean hasReachedEndOfTopic;
+
     static enum SubscriptionMode {
         // Make the subscription to be backed by a durable cursor that will retain messages and persist the current
         // position
@@ -1082,6 +1084,20 @@ public class ConsumerImpl extends ConsumerBase {
             return null;
         }
         return stats;
+    }
+
+    void setTerminated() {
+        log.info("[{}] [{}] [{}] Consumer has reached the end of topic", subscription, topic, consumerName);
+        hasReachedEndOfTopic = true;
+        if (listener != null) {
+            // Propagate notification to listener
+            listener.reachedEndOfTopic(this);
+        }
+    }
+
+    @Override
+    public boolean hasReachedEndOfTopic() {
+        return hasReachedEndOfTopic;
     }
 
     private static final Logger log = LoggerFactory.getLogger(ConsumerImpl.class);
