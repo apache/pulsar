@@ -17,10 +17,10 @@ package com.yahoo.pulsar.broker.service.persistent;
 
 import java.util.List;
 import java.util.Set;
-import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import static java.util.stream.Collectors.toSet;
 
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
@@ -34,15 +34,15 @@ import org.slf4j.LoggerFactory;
 
 import com.carrotsearch.hppc.ObjectHashSet;
 import com.carrotsearch.hppc.ObjectSet;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Sets;
+import com.google.common.collect.ComparisonChain;
 import com.yahoo.pulsar.broker.service.BrokerServiceException;
 import com.yahoo.pulsar.broker.service.Consumer;
 import com.yahoo.pulsar.broker.service.Dispatcher;
 import com.yahoo.pulsar.client.impl.Backoff;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import com.yahoo.pulsar.common.util.Codec;
+import com.yahoo.pulsar.common.util.collections.ConcurrentLongPairSet;
+import com.yahoo.pulsar.common.util.collections.ConcurrentLongPairSet.LongPair;
 import com.yahoo.pulsar.utils.CopyOnWriteArrayList;
 
 /**
@@ -58,7 +58,7 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
     private final ObjectSet<Consumer> consumerSet = new ObjectHashSet<>();
 
     private CompletableFuture<Void> closeFuture = null;
-    private TreeSet<PositionImpl> messagesToReplay;
+    private ConcurrentLongPairSet messagesToReplay;
 
     private int currentConsumerRoundRobinIndex = 0;
     private boolean havePendingRead = false;
@@ -90,7 +90,7 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
         this.cursor = cursor;
         this.name = topic.getName() + " / " + Codec.decode(cursor.getName());
         this.topic = topic;
-        this.messagesToReplay = Sets.newTreeSet();
+        this.messagesToReplay = new ConcurrentLongPairSet(512, 2);
         this.readBatchSize = MaxReadBatchSize;
         this.maxUnackedMessages = topic.getBrokerService().pulsar().getConfiguration()
                 .getMaxUnackedMessagesPerSubscription();
@@ -142,7 +142,7 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
                     log.debug("[{}] Consumer are left, reading more entries", name);
                 }
                 consumer.getPendingAcks().forEach((ledgerId, entryId, batchSize, none) -> {
-                    messagesToReplay.add(new PositionImpl(ledgerId, entryId));
+                    messagesToReplay.add(ledgerId, entryId);
                 });
                 totalAvailablePermits -= consumer.getAvailablePermits();
                 readMoreEntries();
@@ -180,8 +180,8 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
                     return;
                 }
 
-                Set<PositionImpl> messagesToReplayNow = ImmutableSet
-                        .copyOf(Iterables.limit(messagesToReplay, messagesToRead));
+                Set<PositionImpl> messagesToReplayNow = messagesToReplay.items(messagesToRead).stream()
+                        .map(pair -> new PositionImpl(pair.first, pair.second)).collect(toSet());
 
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Schedule replay of {} messages for {} consumers", name, messagesToReplayNow.size(),
@@ -192,7 +192,9 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
                 Set<? extends Position> deletedMessages = cursor.asyncReplayEntries(messagesToReplayNow, this,
                         ReadType.Replay);
                 // clear already acked positions from replay bucket
-                messagesToReplay.removeAll(deletedMessages);
+                
+                deletedMessages.forEach(position -> messagesToReplay.remove(((PositionImpl) position).getLedgerId(),
+                        ((PositionImpl) position).getEntryId()));
                 // if all the entries are acked-entries and cleared up from messagesToReplay, try to read
                 // next entries as readCompletedEntries-callback was never called 
                 if ((messagesToReplayNow.size() - deletedMessages.size()) == 0) {
@@ -317,7 +319,7 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
                 // remove positions first from replay list first : sendMessages recycles entries
                 if (readType == ReadType.Replay) {
                     entries.subList(start, start + messagesForC).forEach(entry -> {
-                        messagesToReplay.remove((PositionImpl) entry.getPosition());
+                        messagesToReplay.remove(entry.getLedgerId(), entry.getEntryId());
                     });
                 }
                 
@@ -335,7 +337,7 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
                         entries.size() - start);
             }
             entries.subList(start, entries.size()).forEach(entry -> {
-                messagesToReplay.add((PositionImpl) entry.getPosition());
+                messagesToReplay.add(entry.getLedgerId(), entry.getEntryId());
                 entry.release();
             });
         }
@@ -370,7 +372,10 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
             havePendingReplayRead = false;
             if (exception instanceof ManagedLedgerException.InvalidReplayPositionException) {
                 PositionImpl markDeletePosition = (PositionImpl) cursor.getMarkDeletedPosition();
-                messagesToReplay.removeIf(current -> current.compareTo(markDeletePosition) <= 0);
+                messagesToReplay.removeIf((ledgerId, entryId) -> {
+                    return ComparisonChain.start().compare(ledgerId, markDeletePosition.getLedgerId())
+                            .compare(entryId, markDeletePosition.getEntryId()).result() <= 0;
+                });
             }
         }
 
@@ -555,7 +560,7 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
     @Override
     public synchronized void redeliverUnacknowledgedMessages(Consumer consumer) {
         consumer.getPendingAcks().forEach((ledgerId, entryId, batchSize, none) -> {
-            messagesToReplay.add(new PositionImpl(ledgerId, entryId));
+            messagesToReplay.add(ledgerId, entryId);
         });
         if (log.isDebugEnabled()) {
             log.debug("[{}] Redelivering unacknowledged messages for consumer ", consumer);
@@ -565,7 +570,7 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
 
     @Override
     public synchronized void redeliverUnacknowledgedMessages(Consumer consumer, List<PositionImpl> positions) {
-        messagesToReplay.addAll(positions);
+        positions.forEach(position -> messagesToReplay.add(position.getLedgerId(), position.getEntryId()));
         if (log.isDebugEnabled()) {
             log.debug("[{}] Redelivering unacknowledged messages for consumer ", consumer);
         }
