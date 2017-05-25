@@ -20,6 +20,8 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.Serializable;
 
+import com.yahoo.pulsar.client.impl.ConsumerImpl.PersistentMode;
+
 public class ReaderConfiguration implements Serializable {
 
     private int receiverQueueSize = 1000;
@@ -27,6 +29,8 @@ public class ReaderConfiguration implements Serializable {
     private ReaderListener readerListener;
 
     private String readerName = null;
+    
+    private PersistentMode persistentMode = PersistentMode.Persistent;
 
     /**
      * @return the configured {@link ReaderListener} for the reader
@@ -91,6 +95,14 @@ public class ReaderConfiguration implements Serializable {
         checkArgument(readerName != null && !readerName.equals(""));
         this.readerName = readerName;
         return this;
+    }
+
+    public PersistentMode getPersistentMode() {
+        return persistentMode;
+    }
+
+    public void setPersistentMode(PersistentMode persistentMode) {
+        this.persistentMode = persistentMode;
     }
 
     private static final long serialVersionUID = 1L;

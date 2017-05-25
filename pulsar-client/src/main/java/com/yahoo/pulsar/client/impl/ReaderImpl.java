@@ -60,7 +60,7 @@ public class ReaderImpl implements Reader {
         }
 
         consumer = new ConsumerImpl(client, topic, subscription, consumerConfiguration, listenerExecutor, -1,
-                consumerFuture, SubscriptionMode.NonDurable, startMessageId);
+                consumerFuture, SubscriptionMode.NonDurable, readerConfiguration.getPersistentMode(), startMessageId);
     }
 
     @Override

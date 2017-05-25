@@ -25,6 +25,7 @@ import org.apache.bookkeeper.client.AsyncCallback.CloseCallback;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
+import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.util.SafeRun;
 import org.apache.bookkeeper.util.SafeRunnable;
@@ -83,9 +84,42 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
     }
 
     public void initiate() {
+
+        // dispatch message immediately to non-persistent cursors
+        if (!ml.getNonPersistentNonDurableCursors().isEmpty()) {
+
+            boolean dispatchMessage = false;
+            // if no persistent cursor present and not enough permit then notify callback with failure
+            if (ml.getNonPersistentCursorReadLimiter().tryAcquire()) {
+                // notify cursors immediately with data
+                ByteBuf duplicateBuffer = RecyclableDuplicateByteBuf.create(data);
+                Entry entry = EntryImpl.create(ledger.getId(), entryId, duplicateBuffer);
+                ml.getNonPersistentNonDurableCursors().forEach(cursor -> {
+                    ml.getExecutor().submitOrdered(ml.getName(), SafeRun.safeRun(() -> {
+                        cursor.notify(entry);
+                    }));
+                });
+                dispatchMessage = true;
+            }
+
+            // if no persistent cursor present then complete the callback immediately and do not persist message
+            if (!ml.hasCursors() && ml.getWaitingCursorsCount() == 0) {
+                AddEntryCallback cb = callbackUpdater.getAndSet(this, null);
+                if (cb != null) {
+                    if (dispatchMessage) {
+                        cb.addComplete(PositionImpl.get(ledger.getId(), entryId), ctx);
+                    } else {
+                        cb.addFailed(new ManagedLedgerException.TooManyRequestsException(
+                                "publish rate limited on " + ml.getName()), ctx);
+                    }
+                    this.recycle();
+                    return;
+                }
+            }
+        }
+        
         ByteBuf duplicateBuffer = RecyclableDuplicateByteBuf.create(data);
         // duplicatedBuffer has refCnt=1 at this point
-
         ledger.asyncAddEntry(duplicateBuffer, this, ctx);
 
         // Internally, asyncAddEntry() is refCnt neutral to respect to the passed buffer and it will keep a ref on it

@@ -22,6 +22,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenCursorCallback;
+import org.apache.bookkeeper.mledger.impl.NonPersistentNonDurableCursorImpl.EntryAvailableCallback;
 
 import com.google.common.annotations.Beta;
 
@@ -299,4 +300,6 @@ public interface ManagedLedger {
      * @return the slowest consumer
      */
     public ManagedCursor getSlowestConsumer();
+
+    ManagedCursor newNonPersistentNonDurableCursor(EntryAvailableCallback callback) throws ManagedLedgerException;
 }

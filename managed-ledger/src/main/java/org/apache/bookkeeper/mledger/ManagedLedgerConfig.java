@@ -35,6 +35,7 @@ public class ManagedLedgerConfig {
     private int maxEntriesPerLedger = 50000;
     private int maxSizePerLedgerMb = 100;
     private int minimumRolloverTimeMs = 0;
+    private int maxNonPersistentReadLimit = 1000;
     private long maximumRolloverTimeMs = TimeUnit.HOURS.toMillis(4);
     private int ensembleSize = 3;
     private int writeQuorumSize = 2;
@@ -106,6 +107,25 @@ public class ManagedLedgerConfig {
         this.minimumRolloverTimeMs = (int) unit.toMillis(minimumRolloverTime);
         checkArgument(maximumRolloverTimeMs >= minimumRolloverTimeMs,
                 "Minimum rollover time needs to be less than maximum rollover time");
+    }
+
+    /**
+     * 
+     * @return max entries a non-persistent cursor can read per second
+     */
+    public int getMaxNonPersistentReadLimit() {
+        return maxNonPersistentReadLimit;
+    }
+
+    /**
+     * 
+     * Set rate limiting for non-persistent cursor to read in memory added entry 
+     * 
+     * @param maxNonPersistentReadLimit
+     *            max entries a non-persistent cursor can read per second
+     */
+    public void setMaxNonPersistentReadLimit(int maxNonPersistentReadLimit) {
+        this.maxNonPersistentReadLimit = maxNonPersistentReadLimit;
     }
 
     /**
@@ -365,4 +385,5 @@ public class ManagedLedgerConfig {
         this.maxUnackedRangesToPersist = maxUnackedRangesToPersist;
         return this;
     }
+   
 }

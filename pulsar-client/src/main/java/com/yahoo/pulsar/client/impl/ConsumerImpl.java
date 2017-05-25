@@ -97,7 +97,9 @@ public class ConsumerImpl extends ConsumerBase {
     protected final ConsumerStats stats;
     private final int priorityLevel;
     private final SubscriptionMode subscriptionMode;
+    private final PersistentMode persistentMode;
     private final MessageId startMessageId;
+    private final boolean dropMessageOnQueueFull;
 
     static enum SubscriptionMode {
         // Make the subscription to be backed by a durable cursor that will retain messages and persist the current
@@ -108,18 +110,28 @@ public class ConsumerImpl extends ConsumerBase {
         NonDurable
     }
 
+    public static enum PersistentMode {
+        // Subscription reads message once it has been persist by broker and broker can deliver with guarantee
+        Persistent,
+
+        // Subscription tries to dispatch message before it has been persist by broker
+        NonPersistent
+    }
+
     ConsumerImpl(PulsarClientImpl client, String topic, String subscription, ConsumerConfiguration conf,
             ExecutorService listenerExecutor, int partitionIndex, CompletableFuture<Consumer> subscribeFuture) {
         this(client, topic, subscription, conf, listenerExecutor, partitionIndex, subscribeFuture,
-                SubscriptionMode.Durable, null);
+                SubscriptionMode.Durable, PersistentMode.Persistent, null);
     }
 
     ConsumerImpl(PulsarClientImpl client, String topic, String subscription, ConsumerConfiguration conf,
             ExecutorService listenerExecutor, int partitionIndex, CompletableFuture<Consumer> subscribeFuture,
-            SubscriptionMode subscriptionMode, MessageId startMessageId) {
+            SubscriptionMode subscriptionMode, PersistentMode persistentMode, MessageId startMessageId) {
         super(client, topic, subscription, conf, conf.getReceiverQueueSize(), listenerExecutor, subscribeFuture);
         this.consumerId = client.newConsumerId();
         this.subscriptionMode = subscriptionMode;
+        this.persistentMode = persistentMode;
+        this.dropMessageOnQueueFull = PersistentMode.NonPersistent.equals(persistentMode);
         this.startMessageId = startMessageId;
         AVAILABLE_PERMITS_UPDATER.set(this, 0);
         this.subscribeTimeout = System.currentTimeMillis() + client.getConfiguration().getOperationTimeoutMs();
@@ -490,6 +502,7 @@ public class ConsumerImpl extends ConsumerBase {
         }
 
         boolean isDurable = subscriptionMode == SubscriptionMode.Durable;
+        boolean isPersistent = persistentMode == PersistentMode.Persistent;
         MessageIdData startMessageIdData;
         if (isDurable) {
             // For regular durable subscriptions, the message id from where to restart will be determined by the broker.
@@ -504,7 +517,7 @@ public class ConsumerImpl extends ConsumerBase {
         }
 
         ByteBuf request = Commands.newSubscribe(topic, subscription, consumerId, requestId, getSubType(), priorityLevel,
-                consumerName, isDurable, startMessageIdData);
+                consumerName, isDurable, isPersistent, startMessageIdData);
         if (startMessageIdData != null) {
             startMessageIdData.recycle();
         }
@@ -666,6 +679,14 @@ public class ConsumerImpl extends ConsumerBase {
                     messageId.getEntryId());
         }
 
+        if (!canReceiveMessage()) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}][{}] Dropped received message: {}/{}", topic, subscription, messageId.getLedgerId(),
+                        messageId.getEntryId());
+            }
+            return;
+        }
+        
         MessageMetadata msgMetadata = null;
         ByteBuf payload = headersAndPayload;
 
@@ -765,6 +786,10 @@ public class ConsumerImpl extends ConsumerBase {
                 }
             });
         }
+    }
+
+    private boolean canReceiveMessage() {
+        return !(dropMessageOnQueueFull && incomingMessages.size() >= conf.getReceiverQueueSize());
     }
 
     /**

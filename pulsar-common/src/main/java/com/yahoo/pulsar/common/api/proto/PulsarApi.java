@@ -4024,6 +4024,10 @@ public final class PulsarApi {
     // optional .pulsar.proto.MessageIdData start_message_id = 9;
     boolean hasStartMessageId();
     com.yahoo.pulsar.common.api.proto.PulsarApi.MessageIdData getStartMessageId();
+    
+    // optional bool persistent = 10 [default = true];
+    boolean hasPersistent();
+    boolean getPersistent();
   }
   public static final class CommandSubscribe extends
       com.google.protobuf.GeneratedMessageLite
@@ -4260,6 +4264,16 @@ public final class PulsarApi {
       return startMessageId_;
     }
     
+    // optional bool persistent = 10 [default = true];
+    public static final int PERSISTENT_FIELD_NUMBER = 10;
+    private boolean persistent_;
+    public boolean hasPersistent() {
+      return ((bitField0_ & 0x00000200) == 0x00000200);
+    }
+    public boolean getPersistent() {
+      return persistent_;
+    }
+    
     private void initFields() {
       topic_ = "";
       subscription_ = "";
@@ -4270,6 +4284,7 @@ public final class PulsarApi {
       priorityLevel_ = 0;
       durable_ = true;
       startMessageId_ = com.yahoo.pulsar.common.api.proto.PulsarApi.MessageIdData.getDefaultInstance();
+      persistent_ = true;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -4341,6 +4356,9 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000100) == 0x00000100)) {
         output.writeMessage(9, startMessageId_);
       }
+      if (((bitField0_ & 0x00000200) == 0x00000200)) {
+        output.writeBool(10, persistent_);
+      }
     }
     
     private int memoizedSerializedSize = -1;
@@ -4384,6 +4402,10 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000100) == 0x00000100)) {
         size += com.google.protobuf.CodedOutputStream
           .computeMessageSize(9, startMessageId_);
+      }
+      if (((bitField0_ & 0x00000200) == 0x00000200)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeBoolSize(10, persistent_);
       }
       memoizedSerializedSize = size;
       return size;
@@ -4516,6 +4538,8 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000080);
         startMessageId_ = com.yahoo.pulsar.common.api.proto.PulsarApi.MessageIdData.getDefaultInstance();
         bitField0_ = (bitField0_ & ~0x00000100);
+        persistent_ = true;
+        bitField0_ = (bitField0_ & ~0x00000200);
         return this;
       }
       
@@ -4585,6 +4609,10 @@ public final class PulsarApi {
           to_bitField0_ |= 0x00000100;
         }
         result.startMessageId_ = startMessageId_;
+        if (((from_bitField0_ & 0x00000200) == 0x00000200)) {
+          to_bitField0_ |= 0x00000200;
+        }
+        result.persistent_ = persistent_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -4617,6 +4645,9 @@ public final class PulsarApi {
         }
         if (other.hasStartMessageId()) {
           mergeStartMessageId(other.getStartMessageId());
+        }
+        if (other.hasPersistent()) {
+          setPersistent(other.getPersistent());
         }
         return this;
       }
@@ -4725,6 +4756,11 @@ public final class PulsarApi {
               input.readMessage(subBuilder, extensionRegistry);
               setStartMessageId(subBuilder.buildPartial());
               subBuilder.recycle();
+              break;
+            }
+            case 80: {
+              bitField0_ |= 0x00000200;
+              persistent_ = input.readBool();
               break;
             }
           }
@@ -4989,6 +5025,27 @@ public final class PulsarApi {
         startMessageId_ = com.yahoo.pulsar.common.api.proto.PulsarApi.MessageIdData.getDefaultInstance();
         
         bitField0_ = (bitField0_ & ~0x00000100);
+        return this;
+      }
+      
+      // optional bool persistent = 10 [default = true];
+      private boolean persistent_ = true;
+      public boolean hasPersistent() {
+        return ((bitField0_ & 0x00000200) == 0x00000200);
+      }
+      public boolean getPersistent() {
+        return persistent_;
+      }
+      public Builder setPersistent(boolean value) {
+        bitField0_ |= 0x00000200;
+        persistent_ = value;
+        
+        return this;
+      }
+      public Builder clearPersistent() {
+        bitField0_ = (bitField0_ & ~0x00000200);
+        persistent_ = true;
+        
         return this;
       }
       

@@ -581,6 +581,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             config.setMaxSizePerLedgerMb(2048);
 
             config.setMetadataEnsembleSize(serviceConfig.getManagedLedgerDefaultEnsembleSize());
+            config.setMaxNonPersistentReadLimit(serviceConfig.getMaxNonPersistentReadLimit());
             config.setMetadataWriteQuorumSize(serviceConfig.getManagedLedgerDefaultWriteQuorum());
             config.setMetadataAckQuorumSize(serviceConfig.getManagedLedgerDefaultAckQuorum());
             config.setMetadataMaxEntriesPerLedger(serviceConfig.getManagedLedgerCursorMaxEntriesPerLedger());

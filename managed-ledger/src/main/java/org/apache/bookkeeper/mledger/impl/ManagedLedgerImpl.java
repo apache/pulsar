@@ -31,7 +31,10 @@ import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.*;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLongFieldUpdater;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 import org.apache.bookkeeper.client.AsyncCallback.CreateCallback;
 import org.apache.bookkeeper.client.AsyncCallback.OpenCallback;
@@ -57,6 +60,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.VoidCallback;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
 import org.apache.bookkeeper.mledger.impl.MetaStore.Stat;
+import org.apache.bookkeeper.mledger.impl.NonPersistentNonDurableCursorImpl.EntryAvailableCallback;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.mledger.util.CallbackMutex;
@@ -76,6 +80,7 @@ import com.google.common.util.concurrent.RateLimiter;
 import com.yahoo.pulsar.common.api.Commands;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import com.yahoo.pulsar.common.util.collections.ConcurrentLongHashMap;
+import com.yahoo.pulsar.common.util.collections.ConcurrentOpenHashSet;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -99,6 +104,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     private final ManagedCursorContainer cursors = new ManagedCursorContainer();
     private final ManagedCursorContainer activeCursors = new ManagedCursorContainer();
+    
+    private final RateLimiter nonPersistentCursorReadLimiter;
 
     // Ever increasing counter of entries added
     static final AtomicLongFieldUpdater<ManagedLedgerImpl> ENTRIES_ADDED_COUNTER_UPDATER =
@@ -116,6 +123,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     // Cursors that are waiting to be notified when new entries are persisted
     final ConcurrentLinkedQueue<ManagedCursorImpl> waitingCursors;
+    final ConcurrentOpenHashSet<NonPersistentNonDurableCursorImpl> nonPersistentNonDurableCursors;
 
     // This map is used for concurrent open cursor requests, where the 2nd request will attach a listener to the
     // uninitialized cursor future from the 1st request
@@ -199,9 +207,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         this.mbean = new ManagedLedgerMBeanImpl(this);
         this.entryCache = factory.getEntryCacheManager().getEntryCache(this);
         this.waitingCursors = Queues.newConcurrentLinkedQueue();
+        this.nonPersistentNonDurableCursors = new ConcurrentOpenHashSet<>();
         this.uninitializedCursors = Maps.newHashMap();
         this.updateCursorRateLimit = RateLimiter.create(1);
-
+        this.nonPersistentCursorReadLimiter = RateLimiter.create(config.getMaxNonPersistentReadLimit());
+        
         // Get the next rollover time. Add a random value upto 5% to avoid rollover multiple ledgers at the same time
         this.maximumRolloverTimeMs = (long) (config.getMaximumRolloverTimeMs() * (1 + random.nextDouble() * 5 / 100.0));
     }
@@ -689,6 +699,15 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         return new NonDurableCursorImpl(bookKeeper, config, this, null, (PositionImpl) startCursorPosition);
     }
+    
+    @Override
+    public ManagedCursor newNonPersistentNonDurableCursor(EntryAvailableCallback callback) throws ManagedLedgerException {
+        checkManagedLedgerIsOpen();
+        checkFenced();
+
+        return new NonPersistentNonDurableCursorImpl(bookKeeper, config, this, null, callback);
+        
+    }
 
     @Override
     public Iterable<ManagedCursor> getCursors() {
@@ -707,6 +726,22 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
      */
     public boolean hasActiveCursors() {
         return !activeCursors.isEmpty();
+    }
+    
+    public boolean hasCursors() {
+        return !cursors.isEmpty();
+    }
+    
+    public boolean addNonPersistentNonDurableCursors(NonPersistentNonDurableCursorImpl cursor) {
+        return nonPersistentNonDurableCursors.add(cursor);
+    }
+
+    public boolean removeNonPersistentNonDurableCursors(NonPersistentNonDurableCursorImpl cursor) {
+        return nonPersistentNonDurableCursors.remove(cursor);
+    }
+    
+    public ConcurrentOpenHashSet<NonPersistentNonDurableCursorImpl> getNonPersistentNonDurableCursors() {
+        return nonPersistentNonDurableCursors;
     }
 
     @Override
@@ -2008,6 +2043,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         return entryCache.getSize();
     }
 
+    protected RateLimiter getNonPersistentCursorReadLimiter() {
+        return nonPersistentCursorReadLimiter;
+    }
+    
     private static final Logger log = LoggerFactory.getLogger(ManagedLedgerImpl.class);
 
 }

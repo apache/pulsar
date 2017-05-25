@@ -29,6 +29,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.Sets;
+import com.yahoo.pulsar.client.impl.ConsumerImpl.PersistentMode;
 import com.yahoo.pulsar.common.policies.data.PersistentTopicStats;
 
 public class TopicReaderTest extends ProducerConsumerBase {
@@ -215,7 +216,6 @@ public class TopicReaderTest extends ProducerConsumerBase {
             String message = "my-message-" + i;
             messageIds.add(producer.send(message.getBytes()));
         }
-
         Reader reader = pulsarClient.createReader("persistent://my-property/use/my-ns/my-topic1", messageIds.get(4),
                 new ReaderConfiguration());
 
@@ -236,4 +236,34 @@ public class TopicReaderTest extends ProducerConsumerBase {
         producer.close();
     }
 
+    @Test
+    public void testStreamReader() throws Exception {
+        ReaderConfiguration readerConf = new ReaderConfiguration();
+        readerConf.setPersistentMode(PersistentMode.NonPersistent);
+        Reader reader = pulsarClient.createReader("persistent://my-property/use/my-ns/my-topic1", MessageId.earliest,
+                readerConf);
+
+        ProducerConfiguration producerConf = new ProducerConfiguration();
+
+        Producer producer = pulsarClient.createProducer("persistent://my-property/use/my-ns/my-topic1", producerConf);
+        int totalPublishMessage = 200;
+        for (int i = 0; i < totalPublishMessage; i++) {
+            String message = "my-message-" + i;
+            producer.send(message.getBytes());
+        }
+
+        Message msg = null;
+        Set<String> messageSet = Sets.newHashSet();
+        for (int i = 0; i < totalPublishMessage; i++) {
+            msg = reader.readNext(1, TimeUnit.SECONDS);
+            String receivedMessage = new String(msg.getData());
+            String expectedMessage = "my-message-" + i;
+            testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
+        }
+
+        // Acknowledge the consumption of all messages at once
+        reader.close();
+        producer.close();
+    }
+    
 }
