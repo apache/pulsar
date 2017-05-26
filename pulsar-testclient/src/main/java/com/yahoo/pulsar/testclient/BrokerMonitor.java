@@ -49,7 +49,7 @@ public class BrokerMonitor {
     private static final Logger log = LoggerFactory.getLogger(BrokerMonitor.class);
 
     private static final String BROKER_ROOT = "/loadbalance/brokers";
-    private static final int ZOOKEEPER_TIMEOUT_MILLIS = 5000;
+    private static final int ZOOKEEPER_TIMEOUT_MILLIS = 30000;
     private static final int GLOBAL_STATS_PRINT_PERIOD_MILLIS = 60000;
     private final ZooKeeper zkClient;
     private static final Gson gson = new Gson();
