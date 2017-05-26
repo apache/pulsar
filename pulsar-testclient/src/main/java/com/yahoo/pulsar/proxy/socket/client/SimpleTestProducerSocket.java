@@ -74,8 +74,9 @@ public class SimpleTestProducerSocket {
         JsonObject json = new Gson().fromJson(msg, JsonObject.class);
         long endTimeNs = System.nanoTime();
         long startTime = endTimeNs;
-        if (startTimeMap.get(json.get(CONTEXT)) != null)
-            startTime = startTimeMap.get(json.get(CONTEXT));
+        if (startTimeMap.get(json.get(CONTEXT).getAsString()) != null) {
+            startTime = startTimeMap.get(json.get(CONTEXT).getAsString());
+        }
         long latencyNs = endTimeNs - startTime;
         recorder.recordValue(NANOSECONDS.toMicros(latencyNs));
     }
@@ -92,8 +93,7 @@ public class SimpleTestProducerSocket {
             throws IOException, JsonParseException, InterruptedException, ExecutionException {
         byte[] payload = new byte[sizeOfMessage];
         String message = getEncoder().encodeToString(payload);
-        String timeStamp = "{\"content\": \"" + message + "\",\"context\": \"" + context
-                + "\", \"pulsar-properties\" : {\"test\" :[\"test\"]}}";
+        String timeStamp = "{\"payload\": \"" + message + "\",\"context\": \"" + context + "\"}";
         String sampleMsg = new Gson().fromJson(timeStamp, JsonObject.class).toString();
         if (this.session != null && this.session.isOpen() && this.session.getRemote() != null) {
             startTimeMap.put(context, System.nanoTime());
