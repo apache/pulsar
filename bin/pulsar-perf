@@ -79,7 +79,7 @@ where command is one of:
     monitor-brokers         Continuously receive broker data and/or load reports
     simulation-client       Run a simulation server acting as a Pulsar client
     simulation-controller   Run a simulation controller to give commands to servers
-    websocket               Run a websocket producer
+    websocket-producer      Run a websocket producer
 
     help                           This help message
 
@@ -151,7 +151,7 @@ elif [ "$COMMAND" == "simulation-client" ]; then
     exec $JAVA $OPTS com.yahoo.pulsar.testclient.LoadSimulationClient "$@"
 elif [ "$COMMAND" == "simulation-controller" ]; then
     exec $JAVA $OPTS com.yahoo.pulsar.testclient.LoadSimulationController "$@"
-elif [ "$COMMAND" == "websocket" ]; then
+elif [ "$COMMAND" == "websocket-producer" ]; then
     exec $JAVA $OPTS com.yahoo.pulsar.proxy.socket.client.PerformanceClient "$@"
 elif [ "$COMMAND" == "help" ]; then
     pulsar_help;

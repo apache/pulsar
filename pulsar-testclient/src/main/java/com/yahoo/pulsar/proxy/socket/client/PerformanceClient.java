@@ -99,7 +99,7 @@ public class PerformanceClient {
     public Arguments loadArguments(String[] args) {
         Arguments arguments = new Arguments();
         jc = new JCommander(arguments);
-        jc.setProgramName("pulsar-perf websocket");
+        jc.setProgramName("pulsar-perf-websocket-producer");
 
         try {
             jc.parse(args);
