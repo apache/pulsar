@@ -60,15 +60,21 @@ public class LeastLongTermMessageRate implements ModularLoadManagerStrategy {
         final TimeAverageBrokerData timeAverageData = brokerData.getTimeAverageData();
         final double maxUsage = brokerData.getLocalData().getMaxResourceUsage();
         if (maxUsage > overloadThreshold) {
+            log.warn("Broker {} is overloaded: message rate={}, max usage={}",
+                    brokerData.getLocalData().getWebServiceUrl(), maxUsage);
             return Double.POSITIVE_INFINITY;
         }
         // 1 / weight is the proportion of load this machine should receive in proportion to a machine with no system
         // resource burden. This attempts to spread out the load in such a way that machines only become overloaded if
         // there is too much load for the system to handle (e.g., all machines are at least nearly overloaded).
         final double weight = 1 / (overloadThreshold - maxUsage);
-        final double totalMessageRateEstimate = totalMessageRate + timeAverageData.getLongTermMsgRateIn()
+        final double timeAverageLongTermMessageRate = timeAverageData.getLongTermMsgRateIn()
                 + timeAverageData.getLongTermMsgRateOut();
-        return weight * totalMessageRateEstimate;
+        final double totalMessageRateEstimate = totalMessageRate + timeAverageLongTermMessageRate;
+        final double score = weight * totalMessageRateEstimate;
+        log.info("Broker {} has long term message rate {}, weight {}, and score of {}",
+                brokerData.getLocalData().getWebServiceUrl(), totalMessageRateEstimate, weight, score);
+        return score;
     }
 
     /**
@@ -104,7 +110,6 @@ public class LeastLongTermMessageRate implements ModularLoadManagerStrategy {
                         localData.getBandwidthOut().percentUsage());
 
             }
-            log.debug("{} got score {}", broker, score);
             if (score < minScore) {
                 // Clear best brokers since this score beats the other brokers.
                 bestBrokers.clear();
