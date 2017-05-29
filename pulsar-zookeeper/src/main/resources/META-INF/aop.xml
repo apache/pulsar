@@ -1,0 +1,13 @@
+<aspectj>
+
+  <aspects>
+    <aspect name="com.yahoo.pulsar.zookeeper.FinalRequestProcessorAspect" />
+    <aspect name="com.yahoo.pulsar.zookeeper.ZooKeeperServerAspect" />
+  </aspects>
+
+  <weaver>
+    <include within="org.apache.zookeeper.server.FinalRequestProcessor" />
+    <include within="org.apache.zookeeper.server.ZooKeeperServer" />
+  </weaver>
+
+</aspectj>

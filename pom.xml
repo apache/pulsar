@@ -84,6 +84,7 @@ flexible messaging model and an intuitive client API.</description>
     <module>pulsar-testclient</module>
     <module>pulsar-broker-auth-athenz</module>
     <module>pulsar-client-auth-athenz</module>
+    <module>pulsar-zookeeper</module>
     <module>all</module>
   </modules>
 
@@ -102,7 +103,8 @@ flexible messaging model and an intuitive client API.</description>
     <storm.version>0.9.5</storm.version>
     <jetty.version>9.3.11.v20160721</jetty.version>
     <athenz.version>1.1.8</athenz.version>
-
+    <prometheus.version>0.0.21</prometheus.version>
+    <aspectj.version>1.8.9</aspectj.version>
   </properties>
 
   <dependencyManagement>
@@ -412,6 +414,24 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
+        <groupId>io.prometheus</groupId>
+        <artifactId>simpleclient</artifactId>
+        <version>${prometheus.version}</version>
+      </dependency>
+      
+      <dependency>
+        <groupId>io.prometheus</groupId>
+        <artifactId>simpleclient_hotspot</artifactId>
+        <version>${prometheus.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>io.prometheus</groupId>
+        <artifactId>simpleclient_servlet</artifactId>
+        <version>${prometheus.version}</version>
+      </dependency>
+
+      <dependency>
         <groupId>org.apache.spark</groupId>
         <artifactId>spark-streaming_2.10</artifactId>
         <version>2.1.0</version>
@@ -437,6 +457,18 @@ flexible messaging model and an intuitive client API.</description>
             <artifactId>netty-all</artifactId>
           </exclusion>
         </exclusions>
+      </dependency>
+
+      <dependency>
+        <groupId>org.aspectj</groupId>
+        <artifactId>aspectjrt</artifactId>
+        <version>${aspectj.version}</version>
+      </dependency>
+    
+      <dependency>
+        <groupId>org.aspectj</groupId>
+        <artifactId>aspectjweaver</artifactId>
+        <version>${aspectj.version}</version>
       </dependency>
 
     </dependencies>

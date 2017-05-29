@@ -192,12 +192,19 @@ elif [ $COMMAND == "bookie" ]; then
     exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.bookkeeper.proto.BookieServer --conf $PULSAR_BOOKKEEPER_CONF $@
 elif [ $COMMAND == "zookeeper" ]; then
     PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"zookeeper.log"}
-    exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.zookeeper.server.quorum.QuorumPeerMain $PULSAR_ZK_CONF $@
+
+    # Add instrumentation
+    WEAVER_JAR=`find $PULSAR_HOME/lib -name 'aspectjweaver-*.jar'`
+    if [ -n "$WEAVER_JAR" ]; then OPTS="$OPTS -javaagent:$WEAVER_JAR"; fi
+    exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE com.yahoo.pulsar.zookeeper.ZooKeeperStarter $PULSAR_ZK_CONF $@
 elif [ $COMMAND == "global-zookeeper" ]; then
     PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"global-zookeeper.log"}
     # Allow global ZK to turn into read-only mode when it cannot reach the quorum
     OPTS="${OPTS} -Dreadonlymode.enabled=true"
-    exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.zookeeper.server.quorum.QuorumPeerMain $PULSAR_GLOBAL_ZK_CONF $@
+    # Add instrumentation
+    WEAVER_JAR=`find $PULSAR_HOME/lib -name 'aspectjweaver-*.jar'`
+    if [ -n "$WEAVER_JAR" ]; then OPTS="$OPTS -javaagent:$WEAVER_JAR"; fi
+    exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE com.yahoo.pulsar.zookeeper.ZooKeeperStarter $PULSAR_GLOBAL_ZK_CONF $@
 elif [ $COMMAND == "discovery" ]; then
     PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"discovery.log"}
     exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE com.yahoo.pulsar.discovery.service.server.DiscoveryServiceStarter $PULSAR_DISCOVERY_CONF $@
