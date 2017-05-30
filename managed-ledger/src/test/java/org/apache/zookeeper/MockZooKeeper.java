@@ -159,6 +159,13 @@ public class MockZooKeeper extends ZooKeeper {
 
             tree.put(path, Pair.create(data, 0));
 
+            final Set<Watcher> toNotify = Sets.newHashSet();
+            toNotify.addAll(watchers.get(path));
+            watchers.removeAll(path);
+            final String finalPath = path;
+            executor.execute(() -> toNotify.forEach(watcher -> watcher
+                    .process(new WatchedEvent(EventType.NodeCreated, KeeperState.SyncConnected, finalPath))));
+
             if (!parent.isEmpty()) {
                 final Set<Watcher> toNotifyParent = Sets.newHashSet();
                 toNotifyParent.addAll(watchers.get(parent));
@@ -495,6 +502,11 @@ public class MockZooKeeper extends ZooKeeper {
 
     @Override
     public void exists(String path, boolean watch, StatCallback cb, Object ctx) {
+        exists(path, null, cb, ctx);
+    }
+
+    @Override
+    public void exists(String path, Watcher watcher, StatCallback cb, Object ctx) {
         executor.execute(() -> {
             mutex.lock();
             if (getProgrammedFailStatus()) {
@@ -513,6 +525,17 @@ public class MockZooKeeper extends ZooKeeper {
             } else {
                 mutex.unlock();
                 cb.processResult(KeeperException.Code.NoNode, path, ctx, null);
+                if (watcher != null) {
+                    watchers.put(path, watcher);
+                }
+
+                if (tree.containsKey(path)) {
+                    mutex.unlock();
+                    cb.processResult(0, path, ctx, new Stat());
+                } else {
+                    mutex.unlock();
+                    cb.processResult(KeeperException.Code.NoNode, path, ctx, null);
+                }
             }
         });
     }
