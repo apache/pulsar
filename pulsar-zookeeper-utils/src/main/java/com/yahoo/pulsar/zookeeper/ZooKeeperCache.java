@@ -289,31 +289,30 @@ public abstract class ZooKeeperCache implements Watcher {
             CompletableFuture<Entry<Object, Stat>> zkFuture = new CompletableFuture<>();
 
             // Broker doesn't restart on global-zk session lost: so handling unexpected exception
-
-            zkSession.get().getData(path, watcher, (rc, path1, ctx, content, stat) -> {
-                Executor exec = scheduledExecutor != null ? scheduledExecutor : executor;
-                // If node exists, get the data from the node.
-                // avoid using the zk-client thread to process the result
-                try {
-                    if (rc == KeeperException.Code.OK.intValue()) {
+            try {
+                this.zkSession.get().getData(path, watcher, (rc, path1, ctx, content, stat) -> {
+                    Executor exec = scheduledExecutor != null ? scheduledExecutor : executor;
+                    if (rc == Code.OK.intValue()) {
                         try {
                             T obj = deserializer.deserialize(path, content);
-
+                            // avoid using the zk-client thread to process the result
                             exec.execute(() -> zkFuture.complete(new SimpleImmutableEntry<Object, Stat>(obj, stat)));
                         } catch (Exception e) {
                             exec.execute(() -> zkFuture.completeExceptionally(e));
                         }
                     } else if (rc == Code.NONODE.intValue()) {
-                        // Not exceptional, so complete with null. Later, we will put a watch on via exists.
+                        // Return null values for missing z-nodes, as this is not "exceptional" condition
+                        // Later, we will put a watch on via exists.
                         exec.execute(() -> zkFuture.complete(null));
                     } else {
-                        // Actually exceptional case.
                         exec.execute(() -> zkFuture.completeExceptionally(KeeperException.create(rc)));
                     }
-                } catch (Exception e) {
-                    exec.execute(() -> zkFuture.completeExceptionally(e));
-                }
-            }, null);
+                }, null);
+            } catch (Exception e) {
+                LOG.warn("Failed to access zkSession for {} {}", path, e.getMessage(), e);
+                zkFuture.completeExceptionally(e);
+            }
+
             return zkFuture;
         }).thenAccept(result -> {
             if (result != null) {
