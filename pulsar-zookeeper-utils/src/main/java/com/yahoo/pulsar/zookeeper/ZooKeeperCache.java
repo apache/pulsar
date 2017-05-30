@@ -86,7 +86,8 @@ public abstract class ZooKeeperCache implements Watcher {
 
     protected AtomicReference<ZooKeeper> zkSession = new AtomicReference<ZooKeeper>(null);
 
-    public ZooKeeperCache(ZooKeeper zkSession, OrderedSafeExecutor executor, ScheduledExecutorService scheduledExecutor) {
+    public ZooKeeperCache(ZooKeeper zkSession, OrderedSafeExecutor executor,
+            ScheduledExecutorService scheduledExecutor) {
         checkNotNull(executor);
         checkNotNull(scheduledExecutor);
         this.executor = executor;
@@ -289,33 +290,51 @@ public abstract class ZooKeeperCache implements Watcher {
 
             // Broker doesn't restart on global-zk session lost: so handling unexpected exception
             try {
-                this.zkSession.get().getData(path, watcher, (rc, path1, ctx, content, stat) -> {
+                // Put watch on the node no matter what
+                zkSession.get().getData(path, watcher, (rc, path1, ctx, content, stat) -> {
                     Executor exec = scheduledExecutor != null ? scheduledExecutor : executor;
-                    if (rc == Code.OK.intValue()) {
-                        try {
-                            T obj = deserializer.deserialize(path, content);
-                            // avoid using the zk-client thread to process the result
-                            exec.execute(() -> zkFuture.complete(new SimpleImmutableEntry<Object, Stat>(obj, stat)));
-                        } catch (Exception e) {
-                            exec.execute(() -> zkFuture.completeExceptionally(e));
+                    // If node exists, get the data from the node.
+                    // avoid using the zk-client thread to process the result
+                    try {
+                        if (rc == KeeperException.Code.OK.intValue()) {
+                            try {
+                                T obj = deserializer.deserialize(path, content);
+
+                                exec.execute(() -> zkFuture.complete(new SimpleImmutableEntry<Object, Stat>(obj, stat)));
+                            } catch (Exception e) {
+                                exec.execute(() -> zkFuture.completeExceptionally(e));
+                            }
+                        } else if (rc == Code.NONODE.intValue()) {
+                            // Not exceptional, so complete with null. Later, we will put a watch on via exists.
+                            exec.execute(() -> zkFuture.complete(null));
+                        } else {
+                            // Actually exceptional case.
+                            exec.execute(() -> zkFuture.completeExceptionally(KeeperException.create(rc)));
                         }
-                    } else if (rc == Code.NONODE.intValue()) {
-                        // Return null values for missing z-nodes, as this is not "exceptional" condition
-                        exec.execute(() -> zkFuture.complete(null));
-                    } else {
-                        exec.execute(() -> zkFuture.completeExceptionally(KeeperException.create(rc)));
+                    } catch (Exception e) {
+                        exec.execute(() -> zkFuture.completeExceptionally(e));
                     }
-                }, null);                
-            } catch (Exception e) {
+                }, null);
+            } catch (Throwable e) {
                 LOG.warn("Failed to access zkSession for {} {}", path, e.getMessage(), e);
                 zkFuture.completeExceptionally(e);
             }
-            
             return zkFuture;
         }).thenAccept(result -> {
             if (result != null) {
                 future.complete(Optional.of((Entry<T, Stat>) result));
             } else {
+                // Put a watch via exists since get failed.
+                try {
+                    if (zkSession.get().exists(path, watcher) != null) {
+                        // Node got created, try again.
+                        // Null watcher so we are not double watching the event.
+                        dataCache.synchronous().invalidate(path);
+                        future.complete(getDataAsync(path, null, deserializer).get());
+                    }
+                } catch (Exception e) {
+                    future.completeExceptionally(e);
+                }
                 future.complete(Optional.empty());
             }
         }).exceptionally(ex -> {
@@ -394,7 +413,7 @@ public abstract class ZooKeeperCache implements Watcher {
             }
         }
     }
-    
+
     public void stop() {
         if (shouldShutdownExecutor) {
             this.executor.shutdown();
