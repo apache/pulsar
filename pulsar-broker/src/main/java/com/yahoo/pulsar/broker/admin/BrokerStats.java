@@ -24,29 +24,25 @@ import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.container.AsyncResponse;
-import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.StreamingOutput;
 
-import com.yahoo.pulsar.broker.loadbalance.LoadManager;
 import org.apache.bookkeeper.mledger.proto.PendingBookieOpsStats;
-import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.yahoo.pulsar.broker.loadbalance.LoadManager;
 import com.yahoo.pulsar.broker.loadbalance.ResourceUnit;
 import com.yahoo.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import com.yahoo.pulsar.broker.stats.AllocatorStatsGenerator;
 import com.yahoo.pulsar.broker.stats.BookieClientStatsGenerator;
 import com.yahoo.pulsar.broker.stats.MBeanStatsGenerator;
-import com.yahoo.pulsar.common.stats.Metrics;
-import com.yahoo.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
 import com.yahoo.pulsar.broker.web.RestException;
 import com.yahoo.pulsar.common.naming.NamespaceName;
 import com.yahoo.pulsar.common.policies.data.loadbalancer.LoadReport;
 import com.yahoo.pulsar.common.stats.AllocatorStats;
+import com.yahoo.pulsar.common.stats.Metrics;
 
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
