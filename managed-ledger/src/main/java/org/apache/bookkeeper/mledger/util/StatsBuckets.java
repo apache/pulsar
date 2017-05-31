@@ -71,6 +71,17 @@ public class StatsBuckets {
         this.count = count;
     }
 
+    public void reset() {
+        sum = 0;
+        sumCounter.reset();
+        count = 0;
+
+        for (int i = 0; i < buckets.length; i++) {
+            buckets[i].reset();
+            values[i] = 0;
+        }
+    }
+
     public long[] getBuckets() {
         return values;
     }
@@ -85,6 +96,16 @@ public class StatsBuckets {
 
     public double getAvg() {
         return sum / (double) count;
+    }
+
+    public void addAll(StatsBuckets other) {
+        checkArgument(boundaries.length == other.boundaries.length);
+
+        for (int i = 0; i < buckets.length; i++) {
+            buckets[i].add(other.values[i]);
+        }
+
+        sumCounter.add(other.count);
     }
 
     private boolean isSorted(long[] array) {
