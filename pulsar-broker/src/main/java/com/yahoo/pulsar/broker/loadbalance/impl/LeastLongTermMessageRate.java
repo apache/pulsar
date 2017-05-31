@@ -47,9 +47,7 @@ public class LeastLongTermMessageRate implements ModularLoadManagerStrategy {
     // Form a score for a broker using its preallocated bundle data and time average data.
     // This is done by summing all preallocated long-term message rates and adding them to the broker's overall
     // long-term message rate, which is itself the sum of the long-term message rate of every allocated bundle.
-    // Once the total long-term message rate is calculated, the score is then weighted by
-    // max_usage < overload_threshold ? 1 / (overload_threshold - max_usage): Inf
-    // This weight attempts to discourage the placement of bundles on brokers whose system resource usage is high.
+    // Any broker at (or above) the overload threshold will have a score of POSITIVE_INFINITY.
     private static double getScore(final BrokerData brokerData, final ServiceConfiguration conf) {
         final double overloadThreshold = conf.getLoadBalancerBrokerOverloadedThresholdPercentage() / 100.0;
         double totalMessageRate = 0;
@@ -60,21 +58,16 @@ public class LeastLongTermMessageRate implements ModularLoadManagerStrategy {
         final TimeAverageBrokerData timeAverageData = brokerData.getTimeAverageData();
         final double maxUsage = brokerData.getLocalData().getMaxResourceUsage();
         if (maxUsage > overloadThreshold) {
-            log.warn("Broker {} is overloaded: message rate={}, max usage={}",
-                    brokerData.getLocalData().getWebServiceUrl(), maxUsage);
+            log.warn("Broker {} is overloaded: max usage={}", brokerData.getLocalData().getWebServiceUrl(), maxUsage);
             return Double.POSITIVE_INFINITY;
         }
-        // 1 / weight is the proportion of load this machine should receive in proportion to a machine with no system
-        // resource burden. This attempts to spread out the load in such a way that machines only become overloaded if
-        // there is too much load for the system to handle (e.g., all machines are at least nearly overloaded).
-        final double weight = 1 / (overloadThreshold - maxUsage);
         final double timeAverageLongTermMessageRate = timeAverageData.getLongTermMsgRateIn()
                 + timeAverageData.getLongTermMsgRateOut();
         final double totalMessageRateEstimate = totalMessageRate + timeAverageLongTermMessageRate;
-        final double score = weight * totalMessageRateEstimate;
-        log.info("Broker {} has long term message rate {}, weight {}, and score of {}",
-                brokerData.getLocalData().getWebServiceUrl(), totalMessageRateEstimate, weight, score);
-        return score;
+
+        log.debug("Broker {} has long term message rate {}",
+                brokerData.getLocalData().getWebServiceUrl(), totalMessageRateEstimate);
+        return totalMessageRateEstimate;
     }
 
     /**
