@@ -136,9 +136,9 @@ public class MockBrokerService {
                 return;
             }
             // default
-            ctx.writeAndFlush(Commands.newConnected(connect));
+            ctx.writeAndFlush(Commands.newConnected(connect.getProtocolVersion()));
         }
-        
+
         @Override
         protected void handlePartitionMetadataRequest(CommandPartitionedTopicMetadata request) {
             if (handlePartitionlookup != null) {
@@ -157,7 +157,7 @@ public class MockBrokerService {
             }
             // default
             ctx.writeAndFlush(Commands.newLookupResponse("pulsar://127.0.0.1:" + brokerServicePort, null, true,
-                    LookupType.Connect, lookup.getRequestId()));
+                    LookupType.Connect, lookup.getRequestId(), false));
         }
 
         @Override
@@ -349,7 +349,7 @@ public class MockBrokerService {
     public void resetHandleConnect() {
         handleConnect = null;
     }
-    
+
     public void setHandlePartitionLookup(CommandPartitionLookupHook hook) {
         handlePartitionlookup = hook;
     }
@@ -357,11 +357,11 @@ public class MockBrokerService {
     public void resetHandlePartitionLookup() {
         handlePartitionlookup = null;
     }
-    
+
     public void setHandleLookup(CommandTopicLookupHook hook) {
         handleTopiclookup = hook;
     }
-    
+
     public void resetHandleLookup() {
         handleTopiclookup = null;
     }

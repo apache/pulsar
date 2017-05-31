@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl;
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.client.impl.HttpClient.getPulsarClientVersion;
 
+import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
@@ -77,6 +78,8 @@ public class ClientCnx extends PulsarHandler {
     private final int maxNumberOfRejectedRequestPerConnection;
     private final int rejectedRequestResetTimeSec = 60;
 
+    private String targetBrokerAddress = null;
+
     enum State {
         None, SentConnectFrame, Ready
     }
@@ -95,13 +98,19 @@ public class ClientCnx extends PulsarHandler {
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         super.channelActive(ctx);
-        log.info("{} Connected to broker", ctx.channel());
+
+        if (targetBrokerAddress == null) {
+            log.info("{} Connected to broker", ctx.channel());
+        } else {
+            log.info("{} Connected through proxy to target broker at {}", ctx.channel(), targetBrokerAddress);
+        }
         String authData = "";
         if (authentication.getAuthData().hasDataFromCommand()) {
             authData = authentication.getAuthData().getCommandData();
         }
         // Send CONNECT command
-        ctx.writeAndFlush(Commands.newConnect(authentication.getAuthMethodName(), authData, getPulsarClientVersion()))
+        ctx.writeAndFlush(Commands.newConnect(authentication.getAuthMethodName(), authData, getPulsarClientVersion(),
+                targetBrokerAddress))
                 .addListener(future -> {
                     if (future.isSuccess()) {
                         if (log.isDebugEnabled()) {
@@ -240,10 +249,7 @@ public class ClientCnx extends PulsarHandler {
                             .completeExceptionally(new PulsarClientException.LookupException("Empty lookup response"));
                 }
             } else {
-                // return LookupDataResult when Result.response = connect/redirect
-                boolean redirect = CommandLookupTopicResponse.LookupType.Redirect.equals(lookupResult.getResponse());
-                requestFuture.complete(new LookupDataResult(lookupResult.getBrokerServiceUrl(),
-                        lookupResult.getBrokerServiceUrlTls(), redirect, lookupResult.getAuthoritative()));
+                requestFuture.complete(new LookupDataResult(lookupResult));
             }
         } else {
             log.warn("{} Received unknown request id from server: {}", ctx.channel(), lookupResult.getRequestId());
@@ -377,7 +383,7 @@ public class ClientCnx extends PulsarHandler {
         return state == State.Ready;
     }
 
-    CompletableFuture<LookupDataResult> newLookup(ByteBuf request, long requestId) {
+    public CompletableFuture<LookupDataResult> newLookup(ByteBuf request, long requestId) {
         CompletableFuture<LookupDataResult> future = new CompletableFuture<>();
 
         if (addPendingLookupRequests(requestId, future)) {
@@ -475,6 +481,11 @@ public class ClientCnx extends PulsarHandler {
 
     void removeConsumer(final long consumerId) {
         consumers.remove(consumerId);
+    }
+
+    void setTargetBroker(InetSocketAddress targetBrokerAddress) {
+        this.targetBrokerAddress = String.format("%s:%d", targetBrokerAddress.getHostString(),
+                targetBrokerAddress.getPort());
     }
 
     private PulsarClientException getPulsarClientException(ServerError error, String errorMsg) {

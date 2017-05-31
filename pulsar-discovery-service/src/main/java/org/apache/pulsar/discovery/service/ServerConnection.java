@@ -97,7 +97,7 @@ public class ServerConnection extends PulsarHandler {
                 return;
             }
         }
-        ctx.writeAndFlush(Commands.newConnected(connect));
+        ctx.writeAndFlush(Commands.newConnected(connect.getProtocolVersion()));
         state = State.Connected;
         remoteEndpointProtocolVersion = connect.getProtocolVersion();
     }
@@ -110,7 +110,7 @@ public class ServerConnection extends PulsarHandler {
         }
         sendPartitionMetadataResponse(partitionMetadata);
     }
-    
+
     /**
      * handles discovery request from client ands sends next active broker address
      */
@@ -122,7 +122,7 @@ public class ServerConnection extends PulsarHandler {
         }
         sendLookupResponse(lookup.getRequestId());
     }
-    
+
     private void close() {
         ctx.close();
     }
@@ -131,11 +131,11 @@ public class ServerConnection extends PulsarHandler {
         try {
             LoadReport availableBroker = service.getDiscoveryProvider().nextBroker();
             ctx.writeAndFlush(Commands.newLookupResponse(availableBroker.getPulsarServiceUrl(),
-                    availableBroker.getPulsarServiceUrlTls(), false, Redirect, requestId));
+                    availableBroker.getPulsarServiceUrlTls(), false, Redirect, requestId, false));
         } catch (PulsarServerException e) {
             LOG.warn("[{}] Failed to get next active broker {}", remoteAddress, e.getMessage(), e);
             ctx.writeAndFlush(
-                    Commands.newLookupResponse(ServerError.ServiceNotReady, e.getMessage(), requestId));
+                    Commands.newLookupErrorResponse(ServerError.ServiceNotReady, e.getMessage(), requestId));
         }
     }
 
@@ -155,7 +155,7 @@ public class ServerConnection extends PulsarHandler {
             return null;
         });
     }
-    
+
     @Override
     protected boolean isHandshakeCompleted() {
         return state == State.Connected;

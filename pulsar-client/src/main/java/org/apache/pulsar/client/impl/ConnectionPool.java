@@ -113,30 +113,51 @@ public class ConnectionPool implements Closeable {
     private static final Random random = new Random();
 
     public CompletableFuture<ClientCnx> getConnection(final InetSocketAddress address) {
+        return getConnection(address, address);
+    }
+
+    /**
+     * Get a connection from the pool.
+     * <p>
+     * The connection can either be created or be coming from the pool itself.
+     * <p>
+     * When specifying multiple addresses, the logicalAddress is used as a tag for the broker,
+     * while the physicalAddress is where the connection is actually happening.
+     * <p>
+     * These two addresses can be different when the client is forced to connect through
+     * a proxy layer. Essentially, the pool is using the logical address as a way to
+     * decide whether to reuse a particular connection.
+     *
+     * @param logicalAddress the address to use as the broker tag
+     * @param physicalAddress the real address where the TCP connection should be made
+     * @return a future that will produce the ClientCnx object
+     */
+    public CompletableFuture<ClientCnx> getConnection(InetSocketAddress logicalAddress, InetSocketAddress physicalAddress) {
         if (maxConnectionsPerHosts == 0) {
             // Disable pooling
-            return createConnection(address, -1);
+            return createConnection(logicalAddress, physicalAddress, -1);
         }
 
         final int randomKey = signSafeMod(random.nextInt(), maxConnectionsPerHosts);
 
-        return pool.computeIfAbsent(address, a -> new ConcurrentHashMap<>()) //
-                .computeIfAbsent(randomKey, k -> createConnection(address, randomKey));
+        return pool.computeIfAbsent(logicalAddress, a -> new ConcurrentHashMap<>()) //
+                .computeIfAbsent(randomKey, k -> createConnection(logicalAddress, physicalAddress, randomKey));
     }
 
-    private CompletableFuture<ClientCnx> createConnection(InetSocketAddress address, int connectionKey) {
+    private CompletableFuture<ClientCnx> createConnection(InetSocketAddress logicalAddress,
+            InetSocketAddress physicalAddress, int connectionKey) {
         if (log.isDebugEnabled()) {
-            log.debug("Connection for {} not found in cache", address);
+            log.debug("Connection for {} not found in cache", logicalAddress);
         }
 
         final CompletableFuture<ClientCnx> cnxFuture = new CompletableFuture<ClientCnx>();
 
         // Trigger async connect to broker
-        bootstrap.connect(address).addListener((ChannelFuture future) -> {
+        bootstrap.connect(physicalAddress).addListener((ChannelFuture future) -> {
             if (!future.isSuccess()) {
-                log.warn("Failed to open connection to {} : {}", address, future.cause().getClass().getSimpleName());
+                log.warn("Failed to open connection to {} : {}", physicalAddress, future.cause().getClass().getSimpleName());
                 cnxFuture.completeExceptionally(new PulsarClientException(future.cause()));
-                cleanupConnection(address, connectionKey, cnxFuture);
+                cleanupConnection(logicalAddress, connectionKey, cnxFuture);
                 return;
             }
 
@@ -147,7 +168,7 @@ public class ConnectionPool implements Closeable {
                 if (log.isDebugEnabled()) {
                     log.debug("Removing closed connection from pool: {}", v);
                 }
-                cleanupConnection(address, connectionKey, cnxFuture);
+                cleanupConnection(logicalAddress, connectionKey, cnxFuture);
             });
 
             // We are connected to broker, but need to wait until the connect/connected handshake is
@@ -161,6 +182,14 @@ public class ConnectionPool implements Closeable {
                 return;
             }
 
+            if (!logicalAddress.equals(physicalAddress)) {
+                // We are connecting through a proxy. We need to set the target broker in the ClientCnx object so that
+                // it can be specified when sending the CommandConnect.
+                // That phase will happen in the ClientCnx.connectionActive() which will be invoked immediately after
+                // this method.
+                cnx.setTargetBroker(logicalAddress);
+            }
+
             cnx.connectionFuture().thenRun(() -> {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Connection handshake completed", cnx.channel());
@@ -169,7 +198,7 @@ public class ConnectionPool implements Closeable {
             }).exceptionally(exception -> {
                 log.warn("[{}] Connection handshake failed: {}", cnx.channel(), exception.getMessage());
                 cnxFuture.completeExceptionally(exception);
-                cleanupConnection(address, connectionKey, cnxFuture);
+                cleanupConnection(logicalAddress, connectionKey, cnxFuture);
                 cnx.ctx().close();
                 return null;
             });

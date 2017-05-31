@@ -109,6 +109,7 @@ enum ProtocolVersion {
 	v7 = 7;  // Added CommandLookupTopic - Binary Lookup 
 	v8 = 8;  // Added CommandConsumerStats - Client fetches broker side consumer stats
 	v9 = 9;  // Added end of topic notification
+	v10 = 10;// Added proxy to broker
 }
 
 message CommandConnect {
@@ -117,6 +118,15 @@ message CommandConnect {
 	optional string auth_method_name = 5;
 	optional bytes auth_data = 3;
 	optional int32 protocol_version = 4 [default = 0];
+
+	// Client can ask to be proxyied to a specific broker
+	// This is only honored by a Pulsar proxy
+	optional string proxy_to_broker_url = 6;
+
+	// Original principal that was verified by
+	// a Pulsar proxy. In this case the auth info above
+	// will the the auth of the proxy itself
+	optional string original_principal = 7;
 }
 
 message CommandConnected {
@@ -173,7 +183,6 @@ message CommandLookupTopic {
 	optional bool authoritative      = 3 [default = false];
 }
 
-
 message CommandLookupTopicResponse {
 	enum LookupType {
 		Redirect = 0;
@@ -188,6 +197,11 @@ message CommandLookupTopicResponse {
 	optional bool authoritative           = 5 [default = false];
 	optional ServerError error            = 6;
 	optional string message               = 7;
+	
+    // If it's true, indicates to the client that it must
+	// always connect through the service url after the 
+	// lookup has been completed.
+	optional bool proxy_through_service_url = 8 [default = false];
 }
 
 /// Create a new Producer on a topic, assigning the given producer_id,
