@@ -474,5 +474,8 @@ public class ZookeeperCacheTest {
         // Give time for watch to fire.
         Thread.sleep(100);
         assert (counter.get() == 1);
+        zkExecutor.shutdown();
+        executor.shutdown();
+        scheduledExecutor.shutdown();
     }
 }
