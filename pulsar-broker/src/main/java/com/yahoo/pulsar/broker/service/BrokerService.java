@@ -425,8 +425,10 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                     configuration.setAuthentication(pulsar.getConfiguration().getBrokerClientAuthenticationPlugin(),
                             pulsar.getConfiguration().getBrokerClientAuthenticationParameters());
                 }
-                String clusterUrl = configuration.isUseTls() ? (isNotBlank(data.getBrokerServiceUrlTls())
-                        ? data.getBrokerServiceUrlTls() : data.getServiceUrlTls()) : null;
+                String clusterUrl = configuration.isUseTls()
+                        ? (isNotBlank(data.getBrokerServiceUrlTls()) ? data.getBrokerServiceUrlTls()
+                                : data.getServiceUrlTls())
+                        : null;
                 clusterUrl = (isNotBlank(clusterUrl)) ? clusterUrl
                         : (isNotBlank(data.getBrokerServiceUrl()) ? data.getBrokerServiceUrl() : data.getServiceUrl());
                 return new PulsarClientImpl(clusterUrl, configuration, this.workerGroup);
@@ -1082,5 +1084,9 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             inactivityMonitor.schedule(() -> createPendingLoadTopic(), 100, TimeUnit.MILLISECONDS);
         }
 
+    }
+
+    public ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, PersistentTopic>>> getMultiLayerTopicMap() {
+        return multiLayerTopicsMap;
     }
 }
