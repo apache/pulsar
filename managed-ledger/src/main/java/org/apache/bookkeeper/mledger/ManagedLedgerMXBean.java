@@ -16,6 +16,7 @@
 package org.apache.bookkeeper.mledger;
 
 import org.apache.bookkeeper.mledger.proto.PendingBookieOpsStats;
+import org.apache.bookkeeper.mledger.util.StatsBuckets;
 
 public interface ManagedLedgerMXBean {
 
@@ -94,6 +95,10 @@ public interface ManagedLedgerMXBean {
     long[] getLedgerSwitchLatencyBuckets();
 
     double getLedgerSwitchLatencyAverageUsec();
+
+    StatsBuckets getInternalAddEntryLatencyBuckets();
+
+    StatsBuckets getInternalEntrySizeBuckets();
 
     PendingBookieOpsStats getPendingBookieOpsStats();
 }
