@@ -237,6 +237,16 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
     }
 
     @Override
+    public StatsBuckets getInternalAddEntryLatencyBuckets() {
+        return addEntryLatencyStatsUsec;
+    }
+
+    @Override
+    public StatsBuckets getInternalEntrySizeBuckets() {
+        return entryStats;
+    }
+
+    @Override
     public double getLedgerSwitchLatencyAverageUsec() {
         return ledgerSwitchLatencyStatsUsec.getAvg();
     }
