@@ -20,6 +20,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -231,6 +232,11 @@ public class ManagedCursorContainerTest {
         @Override
         public boolean isActive() {
             return true;
+        }
+
+        @Override
+        public Set<? extends Position> getNotDeletedMessages() {
+            return new HashSet<PositionImpl>();
         }
     }
 

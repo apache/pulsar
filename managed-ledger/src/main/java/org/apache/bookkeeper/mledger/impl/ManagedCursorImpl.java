@@ -197,10 +197,19 @@ public class ManagedCursorImpl implements ManagedCursor {
                     // closed and the last mark-delete position is stored in the ManagedCursorInfo itself.s
                     PositionImpl recoveredPosition = new PositionImpl(info.getMarkDeleteLedgerId(),
                             info.getMarkDeleteEntryId());
+                    PositionImpl lastIndividualAckedMessage = null;
                     if (info.getIndividualDeletedMessagesCount() > 0) {
                         recoverIndividualDeletedMessages(info.getIndividualDeletedMessagesList());
+                        // also recover readPosition to last acked message
+                        lastIndividualAckedMessage = new PositionImpl(info.getIndividualDeletedMessagesList()
+                                .get(info.getIndividualDeletedMessagesCount() - 1).getUpperEndpoint());
                     }
                     recoveredCursor(recoveredPosition);
+                    // if individualDeletedMessages are recovered then readPosition should be set after last
+                    // Acked-Message
+                    if (lastIndividualAckedMessage != null) {
+                        ManagedCursorImpl.this.readPosition = lastIndividualAckedMessage;
+                    }
                     callback.operationComplete();
                 } else {
                     // Need to proceed and read the last entry in the specified ledger to find out the last position
@@ -268,13 +277,51 @@ public class ManagedCursorImpl implements ManagedCursor {
                 }
 
                 PositionImpl position = new PositionImpl(positionInfo);
+                PositionImpl lastIndividualAckedMessage = null;
                 if (positionInfo.getIndividualDeletedMessagesCount() > 0) {
                     recoverIndividualDeletedMessages(positionInfo.getIndividualDeletedMessagesList());
+                    // also recover readPosition to last acked message
+                    lastIndividualAckedMessage = new PositionImpl(
+                            positionInfo.getIndividualDeletedMessagesList().get(positionInfo.getIndividualDeletedMessagesCount() - 1).getUpperEndpoint());
                 }
                 recoveredCursor(position);
+                // if individualDeletedMessages are recovered then readPosition should be set after last Acked-Message
+                if (lastIndividualAckedMessage != null) {
+                    this.readPosition = lastIndividualAckedMessage;
+                }
                 callback.operationComplete();
             }, null);
         }, null);
+    }
+
+    /**
+     * return unacked messages which are not part of individual deleted messages
+     * 
+     * @return
+     */
+    @Override
+    public Set<? extends Position> getNotDeletedMessages() {
+
+        PositionImpl lastUpperEndPosition = null;
+        Set<PositionImpl> replaySet = Sets.newHashSet();
+        for (Range<PositionImpl> messageRange : individualDeletedMessages.asRanges()) {
+            PositionImpl currentLowerEndPosition = messageRange.lowerEndpoint();
+            PositionImpl currentUpperEndPosition = messageRange.upperEndpoint();
+            // add first deleteRange message-position
+            if (lastUpperEndPosition == null) {
+                replaySet.add(currentLowerEndPosition);
+            } else {
+                // add all message positions between previous upperEndPoint to current lowerEndPoint
+                while (lastUpperEndPosition != null && lastUpperEndPosition.compareTo(currentLowerEndPosition) < 0) {
+                    lastUpperEndPosition = ledger.getNextValidPosition(lastUpperEndPosition);
+                    if (lastUpperEndPosition != null) {
+                        replaySet.add(lastUpperEndPosition);
+                    }
+                }
+            }
+            lastUpperEndPosition = currentUpperEndPosition;
+        }
+        return replaySet;
     }
 
     private void recoverIndividualDeletedMessages(List<MLDataFormats.MessageRange> individualDeletedMessagesList) {
