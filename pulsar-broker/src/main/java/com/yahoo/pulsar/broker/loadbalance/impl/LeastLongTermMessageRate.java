@@ -65,8 +65,10 @@ public class LeastLongTermMessageRate implements ModularLoadManagerStrategy {
                 + timeAverageData.getLongTermMsgRateOut();
         final double totalMessageRateEstimate = totalMessageRate + timeAverageLongTermMessageRate;
 
-        log.debug("Broker {} has long term message rate {}",
-                brokerData.getLocalData().getWebServiceUrl(), totalMessageRateEstimate);
+        if (log.isDebugEnabled()) {
+            log.debug("Broker {} has long term message rate {}",
+                    brokerData.getLocalData().getWebServiceUrl(), totalMessageRateEstimate);
+        }
         return totalMessageRateEstimate;
     }
 
