@@ -36,7 +36,7 @@ struct ProducerConfigurationImpl {
     ProducerConfigurationImpl()
             : sendTimeoutMs(30000),
               compressionType(CompressionNone),
-              maxPendingMessages(30000),
+              maxPendingMessages(1000),
               routingMode(ProducerConfiguration::UseSinglePartition),
               blockIfQueueFull(false),
               batchingEnabled(false),
