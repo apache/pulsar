@@ -426,11 +426,15 @@ public class Commands {
     public static ByteBuf newLookupResponse(String brokerServiceUrl, String brokerServiceUrlTls, boolean authoritative,
             LookupType response, long requestId) {
         CommandLookupTopicResponse.Builder connectionBuilder = CommandLookupTopicResponse.newBuilder();
-        connectionBuilder.setBrokerServiceUrl(brokerServiceUrl);
+        if (brokerServiceUrl != null) {
+            connectionBuilder.setBrokerServiceUrl(brokerServiceUrl);
+        }
         if (brokerServiceUrlTls != null) {
             connectionBuilder.setBrokerServiceUrlTls(brokerServiceUrlTls);    
         }
-        connectionBuilder.setResponse(response);
+        if (response != null) {
+            connectionBuilder.setResponse(response);
+        }
         connectionBuilder.setRequestId(requestId);
         connectionBuilder.setAuthoritative(authoritative);
 
