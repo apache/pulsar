@@ -446,6 +446,9 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
         if (!subscriptionFuture.isDone()) {
             subscriptionFuture.complete(subscription);
+        } else {
+            // failed to initialize managed-cursor: clean up created subscription
+            subscriptions.remove(subscriptionName);
         }
 
         return subscriptionFuture;
