@@ -1595,9 +1595,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             PositionImpl newReadPosition = ledger.getNextValidPosition(markDeletePosition);
             PositionImpl oldReadPosition = readPosition;
 
-            if (log.isDebugEnabled()) {
-                log.debug("Rewind from {} to {}", oldReadPosition, newReadPosition);
-            }
+            log.info("[{}] Rewind from {} to {}", name, oldReadPosition, newReadPosition);
 
             readPosition = newReadPosition;
         } finally {
