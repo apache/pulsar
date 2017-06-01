@@ -104,7 +104,7 @@ spec:
     clusterIP: None
     selector:
         app: pulsar
-        component: monitoring
+        component: prometheus
 
 
 ---
@@ -147,7 +147,7 @@ spec:
     clusterIP: None
     selector:
         app: pulsar
-        component: monitoring
+        component: grafana
 
 
 
