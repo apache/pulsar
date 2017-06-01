@@ -50,8 +50,7 @@ public interface Producer extends Closeable {
     /**
      * Send a message asynchronously
      * <p>
-     * When the producer queue is full, by default this method will <b>block</b> until there will be space available in
-     * the queue.
+     * When the producer queue is full, by default this method will throw an exception {@link PulsarClientException#ProducerQueueIsFullError}
      * <p>
      * See {@link ProducerConfiguration#setMaxPendingMessages} to configure the producer queue size and
      * {@link ProducerConfiguration#setBlockIfQueueFull(boolean)} to change the blocking behavior.
@@ -90,8 +89,7 @@ public interface Producer extends Closeable {
      * });</code>
      * </pre>
      * <p>
-     * When the producer queue is full, by default this method will <b>block</b> until there will be space available in
-     * the queue.
+     * When the producer queue is full, by default this method will throw an exception {@link PulsarClientException#ProducerQueueIsFullError}
      * <p>
      * See {@link ProducerConfiguration#setMaxPendingMessages} to configure the producer queue size and
      * {@link ProducerConfiguration#setBlockIfQueueFull(boolean)} to change the blocking behavior.

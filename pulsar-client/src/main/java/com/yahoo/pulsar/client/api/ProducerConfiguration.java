@@ -83,8 +83,8 @@ public class ProducerConfiguration implements Serializable {
     /**
      * Set the max size of the queue holding the messages pending to receive an acknowledgment from the broker.
      * <p>
-     * When the queue is full, by default, all calls to {@link Producer#send} and {@link Producer#sendAsync} and send
-     * will block the calling thread. Use {@link #setBlockIfQueueFull} to change the blocking behavior.
+     * When the queue is full, by default, all calls to {@link Producer#send} and {@link Producer#sendAsync}
+     * will fail unless blockIfQueueFull is set to true. Use {@link #setBlockIfQueueFull} to change the blocking behavior.
      *
      * @param maxPendingMessages
      * @return
@@ -108,7 +108,7 @@ public class ProducerConfiguration implements Serializable {
      * Set whether the {@link Producer#send} and {@link Producer#sendAsync} operations should block when the outgoing
      * message queue is full.
      * <p>
-     * Default is <code>true</code>. If set to <code>false</code>, send operations will immediately fail with
+     * Default is <code>false</code>. If set to <code>false</code>, send operations will immediately fail with
      * {@link ProducerQueueIsFullError} when there is no space left in pending queue.
      *
      * @param blockIfQueueFull
