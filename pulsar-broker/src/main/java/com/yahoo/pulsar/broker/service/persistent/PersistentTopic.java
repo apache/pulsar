@@ -358,7 +358,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             lock.readLock().unlock();
         }
 
-        CompletableFuture<Subscription> subscriptionFuture = isDurable ? //
+        CompletableFuture<? extends Subscription> subscriptionFuture = isDurable ? //
                 getDurableSubscription(subscriptionName) //
                 : getNonDurableSubscription(subscriptionName, startMessageId);
 
@@ -402,7 +402,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         return future;
     }
 
-    private CompletableFuture<Subscription> getDurableSubscription(String subscriptionName) {
+    private CompletableFuture<? extends Subscription> getDurableSubscription(String subscriptionName) {
         CompletableFuture<Subscription> subscriptionFuture = new CompletableFuture<>();
         ledger.asyncOpenCursor(Codec.encode(subscriptionName), new OpenCursorCallback() {
             @Override
@@ -425,7 +425,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         return subscriptionFuture;
     }
 
-    private CompletableFuture<Subscription> getNonDurableSubscription(String subscriptionName, MessageId startMessageId) {
+    private CompletableFuture<? extends Subscription> getNonDurableSubscription(String subscriptionName, MessageId startMessageId) {
         CompletableFuture<Subscription> subscriptionFuture = new CompletableFuture<>();
 
         Subscription subscription = subscriptions.computeIfAbsent(subscriptionName, name -> {
@@ -446,9 +446,18 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
         if (!subscriptionFuture.isDone()) {
             subscriptionFuture.complete(subscription);
+        } else {
+            // failed to initialize managed-cursor: clean up created subscription
+            subscriptions.remove(subscriptionName);
         }
 
         return subscriptionFuture;
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public CompletableFuture<PersistentSubscription> createSubscription(String subscriptionName) {
+        return (CompletableFuture<PersistentSubscription>) getDurableSubscription(subscriptionName);
     }
 
     /**

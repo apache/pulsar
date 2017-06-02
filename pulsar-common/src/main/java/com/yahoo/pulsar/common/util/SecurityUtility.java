@@ -93,7 +93,9 @@ public class SecurityUtility {
             if (trustCertficates == null || trustCertficates.length == 0) {
                 tmf.init((KeyStore) null);
             } else {
-                ksh.setCertificate("trust", trustCertficates[0]);
+                for (int i = 0; i < trustCertficates.length; i++) {
+                    ksh.setCertificate("trust" + i, trustCertficates[i]);
+                }
                 tmf.init(ksh.getKeyStore());
             }
 

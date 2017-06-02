@@ -19,7 +19,6 @@ import static com.yahoo.pulsar.broker.admin.AdminResource.jsonMapper;
 import static org.apache.commons.lang3.StringUtils.isNotEmpty;
 
 import java.io.IOException;
-import java.net.URL;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -48,8 +47,6 @@ import com.google.common.base.Charsets;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
-import com.google.common.cache.RemovalListener;
-import com.google.common.cache.RemovalNotification;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
@@ -62,7 +59,6 @@ import com.yahoo.pulsar.broker.loadbalance.BrokerHostUsage;
 import com.yahoo.pulsar.broker.loadbalance.LoadManager;
 import com.yahoo.pulsar.broker.loadbalance.PlacementStrategy;
 import com.yahoo.pulsar.broker.loadbalance.ResourceUnit;
-import com.yahoo.pulsar.client.admin.PulsarAdmin;
 import com.yahoo.pulsar.common.naming.NamespaceName;
 import com.yahoo.pulsar.common.naming.ServiceUnitId;
 import com.yahoo.pulsar.common.policies.data.ResourceQuota;
@@ -1062,7 +1058,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
         }
     }
 
-    private SystemResourceUsage getSystemResourceUsage() throws IOException {
+    public SystemResourceUsage getSystemResourceUsage() throws IOException {
         SystemResourceUsage systemResourceUsage = LoadManagerShared.getSystemResourceUsage(brokerHostUsage);
         long memoryUsageInMBytes = getAverageJvmHeapUsageMBytes();
         systemResourceUsage.memory.usage = (double) memoryUsageInMBytes;

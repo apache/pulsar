@@ -1595,9 +1595,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             PositionImpl newReadPosition = ledger.getNextValidPosition(markDeletePosition);
             PositionImpl oldReadPosition = readPosition;
 
-            if (log.isDebugEnabled()) {
-                log.debug("Rewind from {} to {}", oldReadPosition, newReadPosition);
-            }
+            log.info("[{}] Rewind from {} to {}", name, oldReadPosition, newReadPosition);
 
             readPosition = newReadPosition;
         } finally {
@@ -2172,6 +2170,22 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
     }
 
+    /**
+     * Checks given position is part of deleted-range and returns next position of upper-end as all the messages are
+     * deleted up to that point
+     * 
+     * @param position
+     * @return next available position
+     */
+    public PositionImpl getNextAvailablePosition(PositionImpl position) {
+        Range<PositionImpl> range = individualDeletedMessages.rangeContaining(position);
+        if (range != null) {
+            PositionImpl nextPosition = range.upperEndpoint().getNext();
+            return (nextPosition != null && nextPosition.compareTo(position) > 0) ? nextPosition : position.getNext();
+        }
+        return position.getNext();
+    }
+    
     public boolean isIndividuallyDeletedEntriesEmpty() {
         lock.readLock().lock();
         try {
