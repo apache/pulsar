@@ -25,7 +25,6 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.SkipEntriesCallback;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 
 import com.google.common.annotations.Beta;
 import com.google.common.base.Predicate;
@@ -423,11 +422,4 @@ public interface ManagedCursor {
      * Tells whether the cursor is durable or just kept in memory
      */
     public boolean isDurable();
-
-    /**
-     * Return unacked messages which are not part of individual deleted messages
-     * 
-     * @return
-     */
-    public Set<? extends Position> getNotDeletedMessages();
 }
