@@ -350,6 +350,7 @@ public class BatchMessageTest extends BrokerTestBase {
         consumer.close();
 
         ProducerConfiguration producerConf = new ProducerConfiguration();
+        producerConf.setMaxPendingMessages(numMsgs + 1);
         producerConf.setBatchingMaxPublishDelay(30000, TimeUnit.MILLISECONDS);
         producerConf.setBatchingMaxMessages(numMsgsInBatch);
         producerConf.setBatchingEnabled(true);
