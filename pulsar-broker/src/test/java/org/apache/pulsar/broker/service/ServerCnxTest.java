@@ -515,7 +515,7 @@ public class ServerCnxTest {
         topicRef = (PersistentTopic) brokerService.getTopicReference(nonExistentTopicName);
         assertNotNull(topicRef);
         assertTrue(topicRef.getSubscriptions().containsKey(successSubName));
-        assertTrue(topicRef.getPersistentSubscription(successSubName).getDispatcher().isConsumerConnected());
+        assertTrue(topicRef.getSubscription(successSubName).getDispatcher().isConsumerConnected());
         assertTrue(getResponse() instanceof CommandSuccess);
     }
 
@@ -1047,7 +1047,7 @@ public class ServerCnxTest {
 
         assertNotNull(topicRef);
         assertTrue(topicRef.getSubscriptions().containsKey(successSubName));
-        assertTrue(topicRef.getPersistentSubscription(successSubName).getDispatcher().isConsumerConnected());
+        assertTrue(topicRef.getSubscription(successSubName).getDispatcher().isConsumerConnected());
 
         // test SUBSCRIBE on topic creation success and cursor failure
         clientCommand = Commands.newSubscribe(successTopicName, failSubName, 2, 2, SubType.Exclusive,

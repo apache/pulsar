@@ -83,6 +83,11 @@ public class PersistentSubscription implements Subscription {
     }
 
     @Override
+    public String getName() {
+        return this.subName;
+    }
+
+    @Override
     public synchronized void addConsumer(Consumer consumer) throws BrokerServiceException {
         if (IS_FENCED_UPDATER.get(this) == TRUE) {
             log.warn("Attempting to add consumer {} on a fenced subscription", consumer);
