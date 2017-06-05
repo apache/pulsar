@@ -63,11 +63,11 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
         if (service.isAuthenticationEnabled()) {
             try {
                 authRole = service.getAuthenticationService().authenticateHttpRequest(request);
-                log.info("[{}] Authenticated WebSocket producer {} on topic {}", session.getRemoteAddress(), authRole,
+                log.info("[{}] Authenticated WebSocket client {} on topic {}", session.getRemoteAddress(), authRole,
                         topic);
 
             } catch (AuthenticationException e) {
-                log.warn("[{}] Failed to authenticated WebSocket producer {} on topic {}: {}",
+                log.warn("[{}] Failed to authenticated WebSocket client {} on topic {}: {}",
                         session.getRemoteAddress(), authRole, topic, e.getMessage());
                 close(WebSocketError.AuthenticationError);
                 return;
@@ -77,14 +77,18 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
         if (service.isAuthorizationEnabled()) {
             final String role = authRole;
             isAuthorized(authRole).thenApply(isAuthorized -> {
-                if(!isAuthorized) {
+                if(isAuthorized) {
+                    createClient(session);
+                } else {
                     log.warn("[{}] WebSocket Client [{}] is not authorized on topic {}", session.getRemoteAddress(), role,
                             topic);
                     close(WebSocketError.NotAuthorizedError);
                 }
                 return null;
             });
+            return;
         }
+        createClient(session);
     }
 
     @Override
@@ -125,8 +129,6 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
         return null;
     }
 
-    protected abstract CompletableFuture<Boolean> isAuthorized(String authRole);
-
     private String extractTopicName(HttpServletRequest request) {
         String uri = request.getRequestURI();
         List<String> parts = Splitter.on("/").splitToList(uri);
@@ -142,6 +144,10 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
         DestinationName dn = DestinationName.get("persistent", parts.get(4), parts.get(5), parts.get(6), parts.get(7));
         return dn.toString();
     }
+
+    protected abstract CompletableFuture<Boolean> isAuthorized(String authRole);
+
+    protected abstract void createClient(Session session);
 
     private static final Logger log = LoggerFactory.getLogger(AbstractWebSocketHandler.class);
 }

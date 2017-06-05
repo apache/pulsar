@@ -88,14 +88,14 @@ public class ProducerHandler extends AbstractWebSocketHandler {
     }
 
     @Override
-    public void onWebSocketConnect(Session session) {
-        super.onWebSocketConnect(session);
-
+    protected void createClient(Session session) {
         try {
             ProducerConfiguration conf = getProducerConfiguration();
             this.producer = service.getPulsarClient().createProducer(topic, conf);
             this.service.addProducer(this);
         } catch (Exception e) {
+            log.warn("[{}] Failed in creating producer on topic {}", session.getRemoteAddress(),
+                    topic, e);
             close(FailedToCreateProducer, e.getMessage());
         }
     }
@@ -176,6 +176,7 @@ public class ProducerHandler extends AbstractWebSocketHandler {
         return MSG_PUBLISHED_COUNTER_UPDATER.get(this);
     }
 
+    @Override
     protected CompletableFuture<Boolean> isAuthorized(String authRole) {
         return service.getAuthorizationManager().canProduceAsync(DestinationName.get(topic), authRole);
     }

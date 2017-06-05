@@ -87,9 +87,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
     }
 
     @Override
-    public void onWebSocketConnect(Session session) {
-        super.onWebSocketConnect(session);
-
+    protected void createClient(Session session) {
         try {
             this.consumer = service.getPulsarClient().subscribe(topic, subscription, conf);
             this.service.addConsumer(this);
