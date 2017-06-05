@@ -39,6 +39,7 @@ import com.yahoo.pulsar.client.admin.internal.ClustersImpl;
 import com.yahoo.pulsar.client.admin.internal.JacksonConfigurator;
 import com.yahoo.pulsar.client.admin.internal.LookupImpl;
 import com.yahoo.pulsar.client.admin.internal.NamespacesImpl;
+import com.yahoo.pulsar.client.admin.internal.NonPersistentTopicsImpl;
 import com.yahoo.pulsar.client.admin.internal.PersistentTopicsImpl;
 import com.yahoo.pulsar.client.admin.internal.PropertiesImpl;
 import com.yahoo.pulsar.client.admin.internal.ResourceQuotasImpl;
@@ -62,6 +63,7 @@ public class PulsarAdmin implements Closeable {
     private final Properties properties;
     private final Namespaces namespaces;
     private final PersistentTopics persistentTopics;
+    private final NonPersistentTopics nonPersistentTopics;
     private final ResourceQuotas resourceQuotas;
 
     private final Client client;
@@ -156,6 +158,7 @@ public class PulsarAdmin implements Closeable {
         this.properties = new PropertiesImpl(web, auth);
         this.namespaces = new NamespacesImpl(web, auth);
         this.persistentTopics = new PersistentTopicsImpl(web, auth);
+        this.nonPersistentTopics = new NonPersistentTopicsImpl(web, auth);
         this.resourceQuotas = new ResourceQuotasImpl(web, auth);
         this.lookups = new LookupImpl(root, auth, pulsarConfig.isUseTls());
     }
@@ -244,6 +247,13 @@ public class PulsarAdmin implements Closeable {
      */
     public PersistentTopics persistentTopics() {
         return persistentTopics;
+    }
+
+    /**
+     * @return the persistentTopics management object
+     */
+    public NonPersistentTopics nonPersistentTopics() {
+        return nonPersistentTopics;
     }
 
     /**

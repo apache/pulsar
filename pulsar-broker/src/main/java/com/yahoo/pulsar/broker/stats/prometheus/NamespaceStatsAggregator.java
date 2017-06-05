@@ -18,6 +18,7 @@ package com.yahoo.pulsar.broker.stats.prometheus;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl;
 
 import com.yahoo.pulsar.broker.PulsarService;
+import com.yahoo.pulsar.broker.service.Topic;
 import com.yahoo.pulsar.broker.service.persistent.PersistentTopic;
 import com.yahoo.pulsar.common.policies.data.ReplicatorStats;
 import com.yahoo.pulsar.utils.SimpleTextOutputStream;
@@ -50,16 +51,20 @@ public class NamespaceStatsAggregator {
         });
     }
 
-    private static void updateNamespaceStats(AggregatedNamespaceStats stats, PersistentTopic topic) {
-        // Managed Ledger stats
-        ManagedLedgerMBeanImpl mlStats = (ManagedLedgerMBeanImpl) topic.getManagedLedger().getStats();
+    private static void updateNamespaceStats(AggregatedNamespaceStats stats, Topic topic) {
+        
+        if(topic instanceof PersistentTopic) {
+         // Managed Ledger stats
+            ManagedLedgerMBeanImpl mlStats = (ManagedLedgerMBeanImpl) ((PersistentTopic)topic).getManagedLedger().getStats();
 
-        stats.storageSize += mlStats.getStoredMessagesSize();
-        stats.storageWriteLatencyBuckets.addAll(mlStats.getInternalAddEntryLatencyBuckets());
-        stats.entrySizeBuckets.addAll(mlStats.getInternalEntrySizeBuckets());
+            stats.storageSize += mlStats.getStoredMessagesSize();
+            stats.storageWriteLatencyBuckets.addAll(mlStats.getInternalAddEntryLatencyBuckets());
+            stats.entrySizeBuckets.addAll(mlStats.getInternalEntrySizeBuckets());
 
-        stats.storageWriteRate = mlStats.getAddEntryMessagesRate();
-        stats.storageReadRate = mlStats.getReadEntriesRate();
+            stats.storageWriteRate = mlStats.getAddEntryMessagesRate();
+            stats.storageReadRate = mlStats.getReadEntriesRate();    
+        }
+        
         stats.topicsCount++;
 
         topic.getProducers().forEach(producer -> {

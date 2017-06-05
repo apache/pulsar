@@ -38,6 +38,7 @@ import org.slf4j.LoggerFactory;
 
 import com.yahoo.pulsar.broker.service.BrokerService;
 import com.yahoo.pulsar.broker.service.BrokerServiceException.TopicBusyException;
+import com.yahoo.pulsar.broker.service.Replicator;
 import com.yahoo.pulsar.client.api.MessageId;
 import com.yahoo.pulsar.client.api.ProducerConfiguration;
 import com.yahoo.pulsar.client.impl.Backoff;
@@ -52,7 +53,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 
-public class PersistentReplicator implements ReadEntriesCallback, DeleteCallback {
+public class PersistentReplicator implements Replicator, ReadEntriesCallback, DeleteCallback {
 
     private final BrokerService brokerService;
     private final PersistentTopic topic;

@@ -42,7 +42,6 @@ import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.zookeeper.CreateMode;
-import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.data.Stat;
 import org.mockito.invocation.InvocationOnMock;
@@ -54,15 +53,11 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.google.common.collect.Lists;
 import com.google.common.hash.Hashing;
 import com.yahoo.pulsar.broker.LocalBrokerData;
-import com.yahoo.pulsar.broker.PulsarServerException;
-import com.yahoo.pulsar.broker.PulsarService;
 import com.yahoo.pulsar.broker.loadbalance.LoadManager;
-import com.yahoo.pulsar.broker.loadbalance.ModularLoadManager;
 import com.yahoo.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import com.yahoo.pulsar.broker.loadbalance.impl.ModularLoadManagerWrapper;
 import com.yahoo.pulsar.broker.lookup.LookupResult;
@@ -76,13 +71,10 @@ import com.yahoo.pulsar.common.naming.NamespaceBundle;
 import com.yahoo.pulsar.common.naming.NamespaceBundleFactory;
 import com.yahoo.pulsar.common.naming.NamespaceBundles;
 import com.yahoo.pulsar.common.naming.NamespaceName;
-import com.yahoo.pulsar.common.naming.ServiceUnitId;
 import com.yahoo.pulsar.common.policies.data.Policies;
 import com.yahoo.pulsar.common.policies.data.loadbalancer.LoadReport;
-import com.yahoo.pulsar.common.policies.data.loadbalancer.ServiceLookupData;
 import com.yahoo.pulsar.common.util.ObjectMapperFactory;
 import com.yahoo.pulsar.common.util.collections.ConcurrentOpenHashMap;
-import com.yahoo.pulsar.zookeeper.ZooKeeperCache.Deserializer;
 
 public class NamespaceServiceTest extends BrokerTestBase {
 
@@ -184,11 +176,11 @@ public class NamespaceServiceTest extends BrokerTestBase {
 
         PersistentTopic topic = new PersistentTopic(dn.toString(), ledger, pulsar.getBrokerService());
         Method method = pulsar.getBrokerService().getClass().getDeclaredMethod("addTopicToStatsMaps",
-                DestinationName.class, PersistentTopic.class);
+                DestinationName.class, Topic.class);
         method.setAccessible(true);
         method.invoke(pulsar.getBrokerService(), dn, topic);
         String nspace = originalBundle.getNamespaceObject().toString();
-        List<PersistentTopic> list = this.pulsar.getBrokerService().getAllTopicsFromNamespaceBundle(nspace,
+        List<Topic> list = this.pulsar.getBrokerService().getAllTopicsFromNamespaceBundle(nspace,
                 originalBundle.toString());
         assertNotNull(list);
 

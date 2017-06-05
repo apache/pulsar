@@ -40,6 +40,8 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.primitives.Longs;
 
+import io.netty.buffer.ByteBuf;
+
 public class EntryCacheManager {
 
     private final long maxSize;
@@ -233,5 +235,9 @@ public class EntryCacheManager {
 
     }
 
+    public static Entry create(long ledgerId, long entryId, ByteBuf data) {
+        return EntryImpl.create(ledgerId, entryId, data);
+    }
+    
     private static final Logger log = LoggerFactory.getLogger(EntryCacheManager.class);
 }

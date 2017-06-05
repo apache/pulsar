@@ -100,6 +100,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // Max number of concurrent topic loading request broker allows to control number of zk-operations
     @FieldContext(dynamic = true)
     private int maxConcurrentTopicLoadRequest = 5000;
+    // Rate limit the number of messages can be published per second by each non-persistent topic
+    private int maxPublishMessageRatePerNonPersistentTopic = 1000;
+    // Number of worker threads to serve non-persistent topic 
+    private int numWorkerThreadsForNonPersistentTopic = 8;
 
     /***** --- TLS --- ****/
     // Enable TLS
@@ -464,6 +468,22 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public void setMaxConcurrentTopicLoadRequest(int maxConcurrentTopicLoadRequest) {
         this.maxConcurrentTopicLoadRequest = maxConcurrentTopicLoadRequest;
+    }
+
+    public int getMaxPublishMessageRatePerNonPersistentTopic() {
+        return maxPublishMessageRatePerNonPersistentTopic;
+    }
+
+    public void setMaxPublishMessageRatePerNonPersistentTopic(int maxPublishMessageRatePerNonPersistentTopic) {
+        this.maxPublishMessageRatePerNonPersistentTopic = maxPublishMessageRatePerNonPersistentTopic;
+    }
+
+    public int getNumWorkerThreadsForNonPersistentTopic() {
+        return numWorkerThreadsForNonPersistentTopic;
+    }
+
+    public void setNumWorkerThreadsForNonPersistentTopic(int numWorkerThreadsForNonPersistentTopic) {
+        this.numWorkerThreadsForNonPersistentTopic = numWorkerThreadsForNonPersistentTopic;
     }
 
     public boolean isTlsEnabled() {

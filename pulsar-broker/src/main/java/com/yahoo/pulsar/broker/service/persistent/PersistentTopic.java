@@ -66,6 +66,7 @@ import com.yahoo.pulsar.broker.service.BrokerServiceException.TopicBusyException
 import com.yahoo.pulsar.broker.service.BrokerServiceException.TopicFencedException;
 import com.yahoo.pulsar.broker.service.Consumer;
 import com.yahoo.pulsar.broker.service.Producer;
+import com.yahoo.pulsar.broker.service.Replicator;
 import com.yahoo.pulsar.broker.service.ServerCnx;
 import com.yahoo.pulsar.broker.service.Subscription;
 import com.yahoo.pulsar.broker.service.Topic;
@@ -109,7 +110,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     // Subscriptions to this topic
     private final ConcurrentOpenHashMap<String, PersistentSubscription> subscriptions;
 
-    private final ConcurrentOpenHashMap<String, PersistentReplicator> replicators;
+    private final ConcurrentOpenHashMap<String, Replicator> replicators;
 
     private final BrokerService brokerService;
 
@@ -402,7 +403,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         return future;
     }
 
-    private CompletableFuture<? extends Subscription> getDurableSubscription(String subscriptionName) {
+    private CompletableFuture<Subscription> getDurableSubscription(String subscriptionName) {
         CompletableFuture<Subscription> subscriptionFuture = new CompletableFuture<>();
         ledger.asyncOpenCursor(Codec.encode(subscriptionName), new OpenCursorCallback() {
             @Override
@@ -453,8 +454,8 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
     @SuppressWarnings("unchecked")
     @Override
-    public CompletableFuture<PersistentSubscription> createSubscription(String subscriptionName) {
-        return (CompletableFuture<PersistentSubscription>) getDurableSubscription(subscriptionName);
+    public CompletableFuture<Subscription> createSubscription(String subscriptionName) {
+        return getDurableSubscription(subscriptionName);
     }
 
     /**
@@ -699,7 +700,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         // Check for replicators to be stopped
         replicators.forEach((cluster, replicator) -> {
             // Update message TTL
-            replicator.updateMessageTTL(newMessageTTLinSeconds);
+            ((PersistentReplicator) replicator).updateMessageTTL(newMessageTTLinSeconds);
 
             if (!cluster.equals(localCluster)) {
                 if (!configuredClusters.contains(cluster)) {
@@ -721,7 +722,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                     .orElseThrow(() -> new KeeperException.NoNodeException());
             if (policies.message_ttl_in_seconds != 0) {
                 subscriptions.forEach((subName, sub) -> sub.expireMessages(policies.message_ttl_in_seconds));
-                replicators.forEach((region, replicator) -> replicator.expireMessages(policies.message_ttl_in_seconds));
+                replicators.forEach((region, replicator) -> ((PersistentReplicator)replicator).expireMessages(policies.message_ttl_in_seconds));
             }
         } catch (Exception e) {
             if (log.isDebugEnabled()) {
@@ -800,7 +801,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         return subscriptions;
     }
 
-    public PersistentSubscription getPersistentSubscription(String subscriptionName) {
+    public PersistentSubscription getSubscription(String subscriptionName) {
         return subscriptions.get(subscriptionName);
     }
 
@@ -808,11 +809,11 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         return brokerService;
     }
 
-    public ConcurrentOpenHashMap<String, PersistentReplicator> getReplicators() {
+    public ConcurrentOpenHashMap<String, Replicator> getReplicators() {
         return replicators;
     }
 
-    public PersistentReplicator getPersistentReplicator(String remoteCluster) {
+    public Replicator getPersistentReplicator(String remoteCluster) {
         return replicators.get(remoteCluster);
     }
 
@@ -858,7 +859,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         nsStats.replicatorCount += topicStats.remotePublishersStats.size();
         replicators.forEach((cluster, replicator) -> {
             // Update replicator cursor state
-            replicator.updateCursorState();
+            ((PersistentReplicator) replicator).updateCursorState();
 
             // Update replicator stats
             ReplicatorStats rStat = replicator.getStats();
@@ -1291,12 +1292,12 @@ public class PersistentTopic implements Topic, AddEntryCallback {
      */
     public CompletableFuture<Void> clearBacklog(String cursorName) {
         log.info("[{}] Clearing backlog for cursor {} in the topic.", topic, cursorName);
-        PersistentSubscription sub = getPersistentSubscription(cursorName);
+        PersistentSubscription sub = getSubscription(cursorName);
         if (sub != null) {
             return sub.clearBacklog();
         }
 
-        PersistentReplicator repl = getPersistentReplicator(cursorName);
+        PersistentReplicator repl = (PersistentReplicator) getPersistentReplicator(cursorName);
         if (repl != null) {
             return repl.clearBacklog();
         }

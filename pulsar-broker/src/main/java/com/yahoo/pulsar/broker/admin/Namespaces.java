@@ -54,6 +54,8 @@ import com.google.common.collect.Lists;
 import com.yahoo.pulsar.broker.PulsarServerException;
 import static com.yahoo.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
 import com.yahoo.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
+import com.yahoo.pulsar.broker.service.Subscription;
+import com.yahoo.pulsar.broker.service.Topic;
 import com.yahoo.pulsar.broker.service.persistent.PersistentReplicator;
 import com.yahoo.pulsar.broker.service.persistent.PersistentSubscription;
 import com.yahoo.pulsar.broker.service.persistent.PersistentTopic;
@@ -1270,7 +1272,7 @@ public class Namespaces extends AdminResource {
 
     private void clearBacklog(NamespaceName nsName, String bundleRange, String subscription) {
         try {
-            List<PersistentTopic> topicList = pulsar().getBrokerService()
+            List<Topic> topicList = pulsar().getBrokerService()
                     .getAllTopicsFromNamespaceBundle(nsName.toString(), nsName.toString() + "/" + bundleRange);
 
             List<CompletableFuture<Void>> futures = Lists.newArrayList();
@@ -1278,12 +1280,16 @@ public class Namespaces extends AdminResource {
                 if (subscription.startsWith(pulsar().getConfiguration().getReplicatorPrefix())) {
                     subscription = PersistentReplicator.getRemoteCluster(subscription);
                 }
-                for (PersistentTopic topic : topicList) {
-                    futures.add(topic.clearBacklog(subscription));
+                for (Topic topic : topicList) {
+                    if(topic instanceof PersistentTopic) {
+                        futures.add(((PersistentTopic)topic).clearBacklog(subscription));    
+                    }
                 }
             } else {
-                for (PersistentTopic topic : topicList) {
-                    futures.add(topic.clearBacklog());
+                for (Topic topic : topicList) {
+                    if(topic instanceof PersistentTopic) {
+                        futures.add(((PersistentTopic)topic).clearBacklog());    
+                    }
                 }
             }
 
@@ -1297,14 +1303,14 @@ public class Namespaces extends AdminResource {
 
     private void unsubscribe(NamespaceName nsName, String bundleRange, String subscription) {
         try {
-            List<PersistentTopic> topicList = pulsar().getBrokerService()
+            List<Topic> topicList = pulsar().getBrokerService()
                     .getAllTopicsFromNamespaceBundle(nsName.toString(), nsName.toString() + "/" + bundleRange);
             List<CompletableFuture<Void>> futures = Lists.newArrayList();
             if (subscription.startsWith(pulsar().getConfiguration().getReplicatorPrefix())) {
                 throw new RestException(Status.PRECONDITION_FAILED, "Cannot unsubscribe a replication cursor");
             } else {
-                for (PersistentTopic topic : topicList) {
-                    PersistentSubscription sub = topic.getPersistentSubscription(subscription);
+                for (Topic topic : topicList) {
+                    Subscription sub = topic.getSubscription(subscription);
                     if (sub != null) {
                         futures.add(sub.delete());
                     }

@@ -21,6 +21,7 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 
 import javax.servlet.ServletContext;
 import javax.ws.rs.WebApplicationException;
@@ -43,10 +44,14 @@ import com.yahoo.pulsar.broker.PulsarService;
 import com.yahoo.pulsar.broker.cache.LocalZooKeeperCacheService;
 import com.yahoo.pulsar.broker.web.PulsarWebResource;
 import com.yahoo.pulsar.broker.web.RestException;
+import com.yahoo.pulsar.client.api.PulsarClientException;
+import com.yahoo.pulsar.common.naming.DestinationDomain;
+import com.yahoo.pulsar.common.naming.DestinationName;
 import com.yahoo.pulsar.common.naming.NamespaceBundle;
 import com.yahoo.pulsar.common.naming.NamespaceBundleFactory;
 import com.yahoo.pulsar.common.naming.NamespaceBundles;
 import com.yahoo.pulsar.common.naming.NamespaceName;
+import com.yahoo.pulsar.common.partition.PartitionedTopicMetadata;
 import com.yahoo.pulsar.common.policies.data.BundlesData;
 import com.yahoo.pulsar.common.policies.data.ClusterData;
 import com.yahoo.pulsar.common.policies.data.Policies;
@@ -56,11 +61,14 @@ import com.yahoo.pulsar.common.util.ObjectMapperFactory;
 import com.yahoo.pulsar.zookeeper.ZooKeeperCache;
 import com.yahoo.pulsar.zookeeper.ZooKeeperChildrenCache;
 import com.yahoo.pulsar.zookeeper.ZooKeeperDataCache;
+import com.yahoo.pulsar.zookeeper.ZooKeeperCache.Deserializer;
 
 public abstract class AdminResource extends PulsarWebResource {
     private static final Logger log = LoggerFactory.getLogger(AdminResource.class);
     private static final String POLICIES_READONLY_FLAG_PATH = "/admin/flags/policies-readonly";
     public static final String LOAD_SHEDDING_UNLOAD_DISABLED_FLAG_PATH = "/admin/flags/load-shedding-unload-disabled";
+    public static final String PARTITIONED_TOPIC_PATH_ZNODE = "partitioned-topics";
+    public static final String PARTITIONED_NON_PERSISTENT_TOPIC_PATH_ZNODE = "partitioned-np-topics";
 
     protected ZooKeeper globalZk() {
         return pulsar().getGlobalZkCache().getZooKeeper();
@@ -100,6 +108,8 @@ public abstract class AdminResource extends PulsarWebResource {
             return "topic";
         } else if (uri.getPath().startsWith("persistent/")) {
             return "persistent";
+        } else if (uri.getPath().startsWith("non-persistent/")) {
+            return "non-persistent";
         } else {
             throw new RestException(Status.INTERNAL_SERVER_ERROR, "domain() invoked from wrong resource");
         }
@@ -278,4 +288,71 @@ public abstract class AdminResource extends PulsarWebResource {
         return pulsar().getConfigurationCache().namespaceIsolationPoliciesCache();
     }
 
+    protected PartitionedTopicMetadata getPartitionedTopicMetadata(String property, String cluster, String namespace,
+            String destination, boolean authoritative) {
+        DestinationName dn = DestinationName.get(domain(), property, cluster, namespace, destination);
+        validateClusterOwnership(dn.getCluster());
+
+        try {
+            checkConnect(dn);
+        } catch (WebApplicationException e) {
+            validateAdminAccessOnProperty(dn.getProperty());
+        } catch (Exception e) {
+            // unknown error marked as internal server error
+            log.warn("Unexpected error while authorizing lookup. destination={}, role={}. Error: {}", destination,
+                    clientAppId(), e.getMessage(), e);
+            throw new RestException(e);
+        }
+
+        final String znodePath = domain().equals(DestinationDomain.persistent.value()) ? PARTITIONED_TOPIC_PATH_ZNODE
+                : PARTITIONED_NON_PERSISTENT_TOPIC_PATH_ZNODE;
+        String path = path(znodePath, property, cluster, namespace, domain(),
+                dn.getEncodedLocalName());
+        PartitionedTopicMetadata partitionMetadata = fetchPartitionedTopicMetadata(pulsar(), path);
+
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] Total number of partitions for topic {} is {}", clientAppId(), dn,
+                    partitionMetadata.partitions);
+        }
+        return partitionMetadata;
+    }
+
+    protected static PartitionedTopicMetadata fetchPartitionedTopicMetadata(PulsarService pulsar, String path) {
+        try {
+            return fetchPartitionedTopicMetadataAsync(pulsar, path).get();
+        } catch (Exception e) {
+            if (e.getCause() instanceof RestException) {
+                throw (RestException) e;
+            }
+            throw new RestException(e);
+        }
+    }
+
+    protected static CompletableFuture<PartitionedTopicMetadata> fetchPartitionedTopicMetadataAsync(PulsarService pulsar,
+            String path) {
+        CompletableFuture<PartitionedTopicMetadata> metadataFuture = new CompletableFuture<>();
+        try {
+            // gets the number of partitions from the zk cache
+            pulsar.getGlobalZkCache().getDataAsync(path, new Deserializer<PartitionedTopicMetadata>() {
+                @Override
+                public PartitionedTopicMetadata deserialize(String key, byte[] content) throws Exception {
+                    return jsonMapper().readValue(content, PartitionedTopicMetadata.class);
+                }
+            }).thenAccept(metadata -> {
+                // if the partitioned topic is not found in zk, then the topic is not partitioned
+                if (metadata.isPresent()) {
+                    metadataFuture.complete(metadata.get());
+                } else {
+                    metadataFuture.complete(new PartitionedTopicMetadata());
+                }
+            }).exceptionally(ex -> {
+                metadataFuture.completeExceptionally(ex);
+                return null;
+            });
+        } catch (Exception e) {
+            metadataFuture.completeExceptionally(e);
+        }
+        return metadataFuture;
+    }
+    
 }
