@@ -86,7 +86,7 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
         Consumer consumer2 = pulsarClient.subscribe(topicName, subName, consumerConf2);
 
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);
-        PersistentSubscription subRef = topicRef.getPersistentSubscription(subName);
+        PersistentSubscription subRef = topicRef.getSubscription(subName);
 
         assertNotNull(topicRef);
         assertNotNull(subRef);
@@ -238,7 +238,7 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
         }
 
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
-        subRef = topicRef.getPersistentSubscription(subName);
+        subRef = topicRef.getSubscription(subName);
         assertNull(subRef);
 
         producer.close();
@@ -275,16 +275,16 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
         PersistentTopic topicRef;
         topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(destName.getPartition(0).toString());
         PersistentDispatcherSingleActiveConsumer disp0 = (PersistentDispatcherSingleActiveConsumer) topicRef
-                .getPersistentSubscription(subName).getDispatcher();
+                .getSubscription(subName).getDispatcher();
         topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(destName.getPartition(1).toString());
         PersistentDispatcherSingleActiveConsumer disp1 = (PersistentDispatcherSingleActiveConsumer) topicRef
-                .getPersistentSubscription(subName).getDispatcher();
+                .getSubscription(subName).getDispatcher();
         topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(destName.getPartition(2).toString());
         PersistentDispatcherSingleActiveConsumer disp2 = (PersistentDispatcherSingleActiveConsumer) topicRef
-                .getPersistentSubscription(subName).getDispatcher();
+                .getSubscription(subName).getDispatcher();
         topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(destName.getPartition(3).toString());
         PersistentDispatcherSingleActiveConsumer disp3 = (PersistentDispatcherSingleActiveConsumer) topicRef
-                .getPersistentSubscription(subName).getDispatcher();
+                .getSubscription(subName).getDispatcher();
 
         List<CompletableFuture<MessageId>> futures = Lists.newArrayListWithCapacity(numMsgs);
         Producer producer = pulsarClient.createProducer(topicName, producerConf);

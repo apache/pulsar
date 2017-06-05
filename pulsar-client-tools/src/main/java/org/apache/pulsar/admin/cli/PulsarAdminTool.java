@@ -77,6 +77,7 @@ public class PulsarAdminTool {
         commandMap.put("properties", CmdProperties.class);
         commandMap.put("namespaces", CmdNamespaces.class);
         commandMap.put("persistent", CmdPersistentTopics.class);
+        commandMap.put("non-persistent", CmdNonPersistentTopics.class);
         commandMap.put("resource-quotas", CmdResourceQuotas.class);
     }
 

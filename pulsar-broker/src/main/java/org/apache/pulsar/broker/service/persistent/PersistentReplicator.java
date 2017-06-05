@@ -38,6 +38,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsExcep
 import org.apache.bookkeeper.mledger.util.Rate;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicBusyException;
+import org.apache.pulsar.broker.service.Replicator;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.ProducerConfiguration;
 import org.apache.pulsar.client.impl.Backoff;
@@ -54,7 +55,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 
-public class PersistentReplicator implements ReadEntriesCallback, DeleteCallback {
+public class PersistentReplicator implements Replicator, ReadEntriesCallback, DeleteCallback {
 
     private final BrokerService brokerService;
     private final PersistentTopic topic;
