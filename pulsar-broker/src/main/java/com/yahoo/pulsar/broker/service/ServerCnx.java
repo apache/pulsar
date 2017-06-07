@@ -336,6 +336,7 @@ public class ServerCnx extends PulsarHandler {
         final SubType subType = subscribe.getSubType();
         final String consumerName = subscribe.getConsumerName();
         final boolean isDurable = subscribe.getDurable();
+        final boolean isPersistent = subscribe.getPersistent();
         final MessageIdImpl startMessageId = subscribe.hasStartMessageId()
                 ? new MessageIdImpl(subscribe.getStartMessageId().getLedgerId(),
                         subscribe.getStartMessageId().getEntryId(), subscribe.getStartMessageId().getPartition())
@@ -375,7 +376,7 @@ public class ServerCnx extends PulsarHandler {
                 }
 
                 service.getTopic(topicName).thenCompose(topic -> topic.subscribe(ServerCnx.this, subscriptionName,
-                        consumerId, subType, priorityLevel, consumerName, isDurable, startMessageId))
+                        consumerId, subType, priorityLevel, consumerName, isDurable, isPersistent, startMessageId))
                         .thenAccept(consumer -> {
                             if (consumerFuture.complete(consumer)) {
                                 log.info("[{}] Created subscription on topic {} / {}", remoteAddress, topicName,

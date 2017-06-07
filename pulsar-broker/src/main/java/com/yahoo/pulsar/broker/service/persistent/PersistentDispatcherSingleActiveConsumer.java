@@ -244,6 +244,14 @@ public final class PersistentDispatcherSingleActiveConsumer implements Dispatche
     }
 
     @Override
+    public void sendMessages(List<Entry> entries) {
+        Consumer currentConsumer = ACTIVE_CONSUMER_UPDATER.get(this);
+        if(currentConsumer!=null) {
+            currentConsumer.sendMessages(entries);    
+        }
+    }
+    
+    @Override
     public synchronized void consumerFlow(Consumer consumer, int additionalNumberOfMessages) {
         if (!havePendingRead) {
             if (ACTIVE_CONSUMER_UPDATER.get(this) == consumer) {

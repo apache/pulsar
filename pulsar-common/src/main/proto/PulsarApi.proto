@@ -134,14 +134,20 @@ message CommandSubscribe {
 	optional string consumer_name = 6;
 	optional int32 priority_level = 7;
 
-	// Signal wether the subscription should be backed by a
+	// Signal whether the subscription should be backed by a
 	// durable cursor or not
 	optional bool durable = 8 [default = true];
-
+	
 	// If specified, the subscription will position the cursor
 	// markd-delete position  on the particular message id and
 	// will send messages from that point
 	optional MessageIdData start_message_id = 9;
+	
+	// Signal whether the subscription should be backed by a
+	// persistent non-durable cursor or not. Non-persistent 
+	// cursor doesn't read persistent messages
+	optional bool persistent = 10 [default = true];
+	
 }
 
 message CommandPartitionedTopicMetadata {

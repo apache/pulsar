@@ -40,7 +40,7 @@ public interface Topic {
     void removeProducer(Producer producer);
 
     CompletableFuture<Consumer> subscribe(ServerCnx cnx, String subscriptionName, long consumerId, SubType subType,
-            int priorityLevel, String consumerName, boolean isDurable, MessageId startMessageId);
+            int priorityLevel, String consumerName, boolean isDurable, boolean isNonPersistent, MessageId startMessageId);
     
     CompletableFuture<PersistentSubscription> createSubscription(String subscriptionName);
 

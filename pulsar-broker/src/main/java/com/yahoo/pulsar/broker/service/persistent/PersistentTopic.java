@@ -27,6 +27,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -44,6 +45,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.impl.NonPersistentNonDurableCursorImpl.EntryAvailableCallback;
 import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -324,7 +326,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
     @Override
     public CompletableFuture<Consumer> subscribe(final ServerCnx cnx, String subscriptionName, long consumerId,
-            SubType subType, int priorityLevel, String consumerName, boolean isDurable, MessageId startMessageId) {
+            SubType subType, int priorityLevel, String consumerName, boolean isDurable, boolean isPersistent, MessageId startMessageId) {
 
         final CompletableFuture<Consumer> future = new CompletableFuture<>();
 
@@ -360,7 +362,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
         CompletableFuture<? extends Subscription> subscriptionFuture = isDurable ? //
                 getDurableSubscription(subscriptionName) //
-                : getNonDurableSubscription(subscriptionName, startMessageId);
+                : getNonDurableSubscription(subscriptionName, startMessageId, isPersistent);
 
         int maxUnackedMessages  = isDurable ? brokerService.pulsar().getConfiguration().getMaxUnackedMessagesPerConsumer() :0;
 
@@ -425,23 +427,42 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         return subscriptionFuture;
     }
 
-    private CompletableFuture<? extends Subscription> getNonDurableSubscription(String subscriptionName, MessageId startMessageId) {
+    private CompletableFuture<? extends Subscription> getNonDurableSubscription(String subscriptionName, MessageId startMessageId, boolean isPersistent) {
         CompletableFuture<Subscription> subscriptionFuture = new CompletableFuture<>();
 
         Subscription subscription = subscriptions.computeIfAbsent(subscriptionName, name -> {
-            // Create a new non-durable cursor only for the first consumer that connects
-            MessageIdImpl msgId = startMessageId != null ? (MessageIdImpl) startMessageId
-                    : (MessageIdImpl) MessageId.latest;
+            if (isPersistent) {
+                // Create a new non-durable cursor only for the first consumer that connects
+                MessageIdImpl msgId = startMessageId != null ? (MessageIdImpl) startMessageId
+                        : (MessageIdImpl) MessageId.latest;
 
-            Position startPosition = new PositionImpl(msgId.getLedgerId(), msgId.getEntryId());
-            ManagedCursor cursor = null;
-            try {
-                cursor = ledger.newNonDurableCursor(startPosition);
-            } catch (ManagedLedgerException e) {
-                subscriptionFuture.completeExceptionally(e);
+                Position startPosition = new PositionImpl(msgId.getLedgerId(), msgId.getEntryId());
+                ManagedCursor cursor = null;
+                try {
+                    cursor = ledger.newNonDurableCursor(startPosition);
+                } catch (ManagedLedgerException e) {
+                    subscriptionFuture.completeExceptionally(e);
+                }
+
+                return new PersistentSubscription(this, subscriptionName, cursor);
+            } else {
+                AtomicReference<PersistentSubscription> subscriptionRef = new AtomicReference<PersistentSubscription>();
+                ManagedCursor cursor = null;
+                try {
+                    cursor = ledger.newNonPersistentNonDurableCursor((entries) -> {
+                        try {
+                            subscriptionRef.get().getDispatcher().sendMessages(entries);
+                        } catch (Exception e) {
+                            log.warn("Failed to deliver messages on non-durable subscription {} ", ledger.getName());
+                        }
+                    });
+                } catch (ManagedLedgerException e) {
+                    subscriptionFuture.completeExceptionally(e);
+                }
+                PersistentSubscription sub = new PersistentSubscription(this, subscriptionName, cursor);
+                subscriptionRef.set(sub);
+                return sub;
             }
-
-            return new PersistentSubscription(this, subscriptionName, cursor);
         });
 
         if (!subscriptionFuture.isDone()) {

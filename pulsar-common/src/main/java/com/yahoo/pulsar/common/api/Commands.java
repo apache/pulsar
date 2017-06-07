@@ -288,11 +288,12 @@ public class Commands {
     public static ByteBuf newSubscribe(String topic, String subscription, long consumerId, long requestId,
             SubType subType, int priorityLevel, String consumerName) {
         return newSubscribe(topic, subscription, consumerId, requestId, subType, priorityLevel, consumerName,
-                true /* isDurable */, null /* startMessageId */ );
+                true /* isDurable */, true /*isPersistentSubscription*/, null /* startMessageId */ );
     }
 
     public static ByteBuf newSubscribe(String topic, String subscription, long consumerId, long requestId,
-            SubType subType, int priorityLevel, String consumerName, boolean isDurable, MessageIdData startMessageId) {
+            SubType subType, int priorityLevel, String consumerName, boolean isDurable,
+            boolean isPersistentSubscription, MessageIdData startMessageId) {
         CommandSubscribe.Builder subscribeBuilder = CommandSubscribe.newBuilder();
         subscribeBuilder.setTopic(topic);
         subscribeBuilder.setSubscription(subscription);
@@ -302,6 +303,7 @@ public class Commands {
         subscribeBuilder.setRequestId(requestId);
         subscribeBuilder.setPriorityLevel(priorityLevel);
         subscribeBuilder.setDurable(isDurable);
+        subscribeBuilder.setPersistent(isPersistentSubscription);
         if (startMessageId != null) {
             subscribeBuilder.setStartMessageId(startMessageId);
         }

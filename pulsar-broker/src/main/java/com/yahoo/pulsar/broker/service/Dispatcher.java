@@ -20,6 +20,8 @@ import java.util.concurrent.CompletableFuture;
 
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import com.yahoo.pulsar.utils.CopyOnWriteArrayList;
+
+import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 
 public interface Dispatcher {
@@ -66,5 +68,7 @@ public interface Dispatcher {
     void redeliverUnacknowledgedMessages(Consumer consumer, List<PositionImpl> positions);
 
     void addUnAckedMessages(int unAckMessages);
+
+    void sendMessages(List<Entry> entries);
 
 }

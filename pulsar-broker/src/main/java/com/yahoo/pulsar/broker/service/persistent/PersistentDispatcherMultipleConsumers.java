@@ -394,6 +394,14 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
 
     }
     
+    @Override
+    public void sendMessages(List<Entry> entries) {
+        Consumer consumer = getNextConsumer();
+        if (consumer != null) {
+            consumer.sendMessages(entries);
+        }
+    }
+
     /**
      * <pre>
      * Broker gives more priority while dispatching messages. Here, broker follows descending priorities. (eg:
