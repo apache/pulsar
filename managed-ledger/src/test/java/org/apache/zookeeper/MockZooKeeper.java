@@ -55,6 +55,7 @@ public class MockZooKeeper extends ZooKeeper {
     private boolean alwaysFail = false;
 
     private ExecutorService executor;
+    private ExecutorService callbackExecutor;
 
     private AtomicInteger stepsToFail;
     private KeeperException.Code failReturnCode;
@@ -93,6 +94,7 @@ public class MockZooKeeper extends ZooKeeper {
         } else {
             this.executor = Executors.newFixedThreadPool(1, new DefaultThreadFactory("mock-zookeeper"));
         }
+        this.callbackExecutor = Executors.newFixedThreadPool(4, new DefaultThreadFactory("mock-zookeeper-callback"));
         SetMultimap<String, Watcher> w = HashMultimap.create();
         watchers = Multimaps.synchronizedSetMultimap(w);
         stopped = false;
@@ -152,7 +154,7 @@ public class MockZooKeeper extends ZooKeeper {
             final Set<Watcher> toNotifyParent = Sets.newHashSet();
             toNotifyParent.addAll(watchers.get(parent));
 
-            executor.execute(() -> {
+            callbackExecutor.execute(() -> {
                 toNotifyParent.forEach(watcher -> watcher
                         .process(new WatchedEvent(EventType.NodeChildrenChanged, KeeperState.SyncConnected, parent)));
             });
@@ -170,7 +172,7 @@ public class MockZooKeeper extends ZooKeeper {
             return;
         }
 
-        executor.execute(() -> {
+        callbackExecutor.execute(() -> {
             String parent = path.substring(0, path.lastIndexOf("/"));
 
             if (getProgrammedFailStatus()) {
@@ -182,7 +184,9 @@ public class MockZooKeeper extends ZooKeeper {
             } else if (!parent.isEmpty() && !tree.containsKey(parent)) {
                 cb.processResult(KeeperException.Code.NONODE.intValue(), path, ctx, null);
             } else {
-                tree.put(path, Pair.create(new String(data), 0));
+                synchronized (this) {
+                    tree.put(path, Pair.create(new String(data), 0));
+                }
                 cb.processResult(0, path, ctx, null);
                 if (!parent.isEmpty()) {
                     watchers.get(parent).forEach(watcher -> watcher.process(
@@ -241,27 +245,25 @@ public class MockZooKeeper extends ZooKeeper {
     public void getData(final String path, final Watcher watcher, final DataCallback cb, final Object ctx) {
         executor.execute(() -> {
             checkReadOpDelay();
-            synchronized (MockZooKeeper.this) {
-                if (getProgrammedFailStatus()) {
-                    cb.processResult(failReturnCode.intValue(), path, ctx, null, null);
-                    return;
-                } else if (stopped) {
-                    cb.processResult(KeeperException.Code.CONNECTIONLOSS.intValue(), path, ctx, null, null);
-                    return;
+            if (getProgrammedFailStatus()) {
+                cb.processResult(failReturnCode.intValue(), path, ctx, null, null);
+                return;
+            } else if (stopped) {
+                cb.processResult(KeeperException.Code.CONNECTIONLOSS.intValue(), path, ctx, null, null);
+                return;
+            }
+
+            Pair<String, Integer> value = tree.get(path);
+            if (value == null) {
+                cb.processResult(KeeperException.Code.NONODE.intValue(), path, ctx, null, null);
+            } else {
+                if (watcher != null) {
+                    watchers.put(path, watcher);
                 }
 
-                Pair<String, Integer> value = tree.get(path);
-                if (value == null) {
-                    cb.processResult(KeeperException.Code.NONODE.intValue(), path, ctx, null, null);
-                } else {
-                    if (watcher != null) {
-                        watchers.put(path, watcher);
-                    }
-
-                    Stat stat = new Stat();
-                    stat.setVersion(value.second);
-                    cb.processResult(0, path, ctx, value.first.getBytes(), stat);
-                }
+                Stat stat = new Stat();
+                stat.setVersion(value.second);
+                cb.processResult(0, path, ctx, value.first.getBytes(), stat);
             }
         });
     }
@@ -269,35 +271,33 @@ public class MockZooKeeper extends ZooKeeper {
     @Override
     public void getChildren(final String path, final Watcher watcher, final ChildrenCallback cb, final Object ctx) {
         executor.execute(() -> {
-            synchronized (MockZooKeeper.this) {
-                if (getProgrammedFailStatus()) {
-                    cb.processResult(failReturnCode.intValue(), path, ctx, null);
-                    return;
-                } else if (stopped) {
-                    cb.processResult(KeeperException.Code.ConnectionLoss, path, ctx, null);
-                    return;
-                }
+            if (getProgrammedFailStatus()) {
+                cb.processResult(failReturnCode.intValue(), path, ctx, null);
+                return;
+            } else if (stopped) {
+                cb.processResult(KeeperException.Code.ConnectionLoss, path, ctx, null);
+                return;
+            }
 
-                List<String> children = Lists.newArrayList();
-                for (String item : tree.tailMap(path).keySet()) {
-                    if (!item.startsWith(path)) {
-                        break;
-                    } else {
-                        if (path.length() >= item.length()) {
-                            continue;
-                        }
+            List<String> children = Lists.newArrayList();
+            for (String item : tree.tailMap(path).keySet()) {
+                if (!item.startsWith(path)) {
+                    break;
+                } else {
+                    if (path.length() >= item.length()) {
+                        continue;
+                    }
 
-                        String child = item.substring(path.length() + 1);
-                        if (!child.contains("/")) {
-                            children.add(child);
-                        }
+                    String child = item.substring(path.length() + 1);
+                    if (!child.contains("/")) {
+                        children.add(child);
                     }
                 }
+            }
 
-                cb.processResult(0, path, ctx, children);
-                if (watcher != null) {
-                    watchers.put(path, watcher);
-                }
+            cb.processResult(0, path, ctx, children);
+            if (watcher != null) {
+                watchers.put(path, watcher);
             }
         });
     }
@@ -365,38 +365,36 @@ public class MockZooKeeper extends ZooKeeper {
     @Override
     public void getChildren(final String path, boolean watcher, final Children2Callback cb, final Object ctx) {
         executor.execute(() -> {
-            synchronized (MockZooKeeper.this) {
-                if (getProgrammedFailStatus()) {
-                    cb.processResult(failReturnCode.intValue(), path, ctx, null, null);
-                    return;
-                } else if (stopped) {
-                    cb.processResult(KeeperException.Code.ConnectionLoss, path, ctx, null, null);
-                    return;
-                } else if (!tree.containsKey(path)) {
-                    cb.processResult(KeeperException.Code.NoNode, path, ctx, null, null);
-                    return;
-                }
+            if (getProgrammedFailStatus()) {
+                cb.processResult(failReturnCode.intValue(), path, ctx, null, null);
+                return;
+            } else if (stopped) {
+                cb.processResult(KeeperException.Code.ConnectionLoss, path, ctx, null, null);
+                return;
+            } else if (!tree.containsKey(path)) {
+                cb.processResult(KeeperException.Code.NoNode, path, ctx, null, null);
+                return;
+            }
 
-                log.debug("getChildren path={}", path);
-                List<String> children = Lists.newArrayList();
-                for (String item : tree.tailMap(path).keySet()) {
-                    log.debug("Checking path {}", item);
-                    if (!item.startsWith(path)) {
-                        break;
-                    } else if (item.equals(path)) {
-                        continue;
-                    } else {
-                        String child = item.substring(path.length() + 1);
-                        log.debug("child: '{}'", child);
-                        if (!child.contains("/")) {
-                            children.add(child);
-                        }
+            log.debug("getChildren path={}", path);
+            List<String> children = Lists.newArrayList();
+            for (String item : tree.tailMap(path).keySet()) {
+                log.debug("Checking path {}", item);
+                if (!item.startsWith(path)) {
+                    break;
+                } else if (item.equals(path)) {
+                    continue;
+                } else {
+                    String child = item.substring(path.length() + 1);
+                    log.debug("child: '{}'", child);
+                    if (!child.contains("/")) {
+                        children.add(child);
                     }
                 }
-
-                log.debug("getChildren done path={} result={}", path, children);
-                cb.processResult(0, path, ctx, children, new Stat());
             }
+
+            log.debug("getChildren done path={} result={}", path, children);
+            cb.processResult(0, path, ctx, children, new Stat());
         });
     }
 
@@ -438,20 +436,18 @@ public class MockZooKeeper extends ZooKeeper {
 
     public void exists(String path, boolean watch, StatCallback cb, Object ctx) {
         executor.execute(() -> {
-            synchronized (this) {
-                if (getProgrammedFailStatus()) {
-                    cb.processResult(failReturnCode.intValue(), path, ctx, null);
-                    return;
-                } else if (stopped) {
-                    cb.processResult(KeeperException.Code.ConnectionLoss, path, ctx, null);
-                    return;
-                }
+            if (getProgrammedFailStatus()) {
+                cb.processResult(failReturnCode.intValue(), path, ctx, null);
+                return;
+            } else if (stopped) {
+                cb.processResult(KeeperException.Code.ConnectionLoss, path, ctx, null);
+                return;
+            }
 
-                if (tree.containsKey(path)) {
-                    cb.processResult(0, path, ctx, new Stat());
-                } else {
-                    cb.processResult(KeeperException.Code.NoNode, path, ctx, null);
-                }
+            if (tree.containsKey(path)) {
+                cb.processResult(0, path, ctx, new Stat());
+            } else {
+                cb.processResult(KeeperException.Code.NoNode, path, ctx, null);
             }
         });
     }
@@ -459,17 +455,15 @@ public class MockZooKeeper extends ZooKeeper {
     @Override
     public void sync(String path, VoidCallback cb, Object ctx) {
         executor.execute(() -> {
-            synchronized (this) {
-                if (getProgrammedFailStatus()) {
-                    cb.processResult(failReturnCode.intValue(), path, ctx);
-                    return;
-                } else if (stopped) {
-                    cb.processResult(KeeperException.Code.ConnectionLoss, path, ctx);
-                    return;
-                }
-
-                cb.processResult(0, path, ctx);
+            if (getProgrammedFailStatus()) {
+                cb.processResult(failReturnCode.intValue(), path, ctx);
+                return;
+            } else if (stopped) {
+                cb.processResult(KeeperException.Code.ConnectionLoss, path, ctx);
+                return;
             }
+
+            cb.processResult(0, path, ctx);
         });
 
     }
@@ -524,43 +518,41 @@ public class MockZooKeeper extends ZooKeeper {
             return;
         }
 
-        executor.execute(() -> {
+        callbackExecutor.execute(() -> {
             final Set<Watcher> toNotify = Sets.newHashSet();
 
-            synchronized (MockZooKeeper.this) {
-                if (getProgrammedFailStatus()) {
-                    cb.processResult(failReturnCode.intValue(), path, ctx, null);
-                    return;
-                } else if (stopped) {
-                    cb.processResult(KeeperException.Code.ConnectionLoss, path, ctx, null);
-                    return;
-                }
-
-                if (!tree.containsKey(path)) {
-                    cb.processResult(KeeperException.Code.NoNode, path, ctx, null);
-                    return;
-                }
-
-                int currentVersion = tree.get(path).second;
-
-                // Check version
-                if (version != -1 && version != currentVersion) {
-                    log.debug("[{}] Current version: {} -- Expected: {}", path, currentVersion, version);
-                    cb.processResult(KeeperException.Code.BadVersion, path, ctx, null);
-                    return;
-                }
-
-                int newVersion = currentVersion + 1;
-                log.debug("[{}] Updating -- current version: {}", path, currentVersion);
-                tree.put(path, Pair.create(new String(data), newVersion));
-                Stat stat = new Stat();
-                stat.setVersion(newVersion);
-                cb.processResult(0, path, ctx, stat);
-
-
-                toNotify.addAll(watchers.get(path));
-                watchers.removeAll(path);
+            if (getProgrammedFailStatus()) {
+                cb.processResult(failReturnCode.intValue(), path, ctx, null);
+                return;
+            } else if (stopped) {
+                cb.processResult(KeeperException.Code.ConnectionLoss, path, ctx, null);
+                return;
             }
+
+            if (!tree.containsKey(path)) {
+                cb.processResult(KeeperException.Code.NoNode, path, ctx, null);
+                return;
+            }
+
+            int currentVersion = tree.get(path).second;
+
+            // Check version
+            if (version != -1 && version != currentVersion) {
+                log.debug("[{}] Current version: {} -- Expected: {}", path, currentVersion, version);
+                cb.processResult(KeeperException.Code.BadVersion, path, ctx, null);
+                return;
+            }
+
+            int newVersion = currentVersion + 1;
+            log.debug("[{}] Updating -- current version: {}", path, currentVersion);
+            tree.put(path, Pair.create(new String(data), newVersion));
+            Stat stat = new Stat();
+            stat.setVersion(newVersion);
+            cb.processResult(0, path, ctx, stat);
+
+
+            toNotify.addAll(watchers.get(path));
+            watchers.removeAll(path);
 
             for (Watcher watcher : toNotify) {
                 watcher.process(new WatchedEvent(EventType.NodeDataChanged, KeeperState.SyncConnected, path));
@@ -676,6 +668,7 @@ public class MockZooKeeper extends ZooKeeper {
         tree.clear();
         watchers.clear();
         executor.shutdownNow();
+        callbackExecutor.shutdown();
     }
 
     void checkProgrammedFail() throws KeeperException {
