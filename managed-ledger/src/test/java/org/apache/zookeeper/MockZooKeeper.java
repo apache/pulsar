@@ -173,24 +173,23 @@ public class MockZooKeeper extends ZooKeeper {
         executor.execute(() -> {
             String parent = path.substring(0, path.lastIndexOf("/"));
 
-            synchronized (MockZooKeeper.this) {
-                if (getProgrammedFailStatus()) {
-                    cb.processResult(failReturnCode.intValue(), path, ctx, null);
-                } else if (stopped) {
-                    cb.processResult(KeeperException.Code.CONNECTIONLOSS.intValue(), path, ctx, null);
-                } else if (tree.containsKey(path)) {
-                    cb.processResult(KeeperException.Code.NODEEXISTS.intValue(), path, ctx, null);
-                } else if (!parent.isEmpty() && !tree.containsKey(parent)) {
-                    cb.processResult(KeeperException.Code.NONODE.intValue(), path, ctx, null);
-                } else {
-                    tree.put(path, Pair.create(new String(data), 0));
-                    cb.processResult(0, path, ctx, null);
-                    if (!parent.isEmpty()) {
-                        watchers.get(parent).forEach(watcher -> watcher.process(
-                                new WatchedEvent(EventType.NodeChildrenChanged, KeeperState.SyncConnected, parent)));
-                    }
+            if (getProgrammedFailStatus()) {
+                cb.processResult(failReturnCode.intValue(), path, ctx, null);
+            } else if (stopped) {
+                cb.processResult(KeeperException.Code.CONNECTIONLOSS.intValue(), path, ctx, null);
+            } else if (tree.containsKey(path)) {
+                cb.processResult(KeeperException.Code.NODEEXISTS.intValue(), path, ctx, null);
+            } else if (!parent.isEmpty() && !tree.containsKey(parent)) {
+                cb.processResult(KeeperException.Code.NONODE.intValue(), path, ctx, null);
+            } else {
+                tree.put(path, Pair.create(new String(data), 0));
+                cb.processResult(0, path, ctx, null);
+                if (!parent.isEmpty()) {
+                    watchers.get(parent).forEach(watcher -> watcher.process(
+                            new WatchedEvent(EventType.NodeChildrenChanged, KeeperState.SyncConnected, parent)));
                 }
             }
+            
         });
     }
 
