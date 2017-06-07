@@ -208,6 +208,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // Percentage of change to trigger load report update
     private int loadBalancerReportUpdateThresholdPercentage = 10;
     // maximum interval to update load report
+    @FieldContext(dynamic = true)
     private int loadBalancerReportUpdateMaxIntervalMinutes = 15;
     // Frequency of report to collect
     private int loadBalancerHostUsageCheckIntervalMinutes = 1;
