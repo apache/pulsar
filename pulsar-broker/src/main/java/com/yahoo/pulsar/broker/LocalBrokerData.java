@@ -136,11 +136,11 @@ public class LocalBrokerData extends JSONWritable implements ServiceLookupData {
     // Update resource usage given each individual usage.
     private void updateSystemResourceUsage(final ResourceUsage cpu, final ResourceUsage memory,
             final ResourceUsage directMemory, final ResourceUsage bandwidthIn, final ResourceUsage bandwidthOut) {
-        this.cpu = cpu;
-        this.memory = memory;
-        this.directMemory = directMemory;
-        this.bandwidthIn = bandwidthIn;
-        this.bandwidthOut = bandwidthOut;
+        this.cpu = new ResourceUsage(cpu);
+        this.memory = new ResourceUsage(memory);
+        this.directMemory = new ResourceUsage(directMemory);
+        this.bandwidthIn = new ResourceUsage(bandwidthIn);
+        this.bandwidthOut = new ResourceUsage(bandwidthOut);
     }
 
     // Aggregate all message, throughput, topic count, bundle count, consumer
