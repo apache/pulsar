@@ -1,6 +1,16 @@
 
 # Pulsar C++ client library
+<!-- TOC depthFrom:2 depthTo:3 withLinks:1 updateOnSave:1 orderedList:0 -->
 
+- [Requirements](#requirements)
+- [Platforms](#platforms)
+- [Compilation](#compilation)
+	- [Compile on Ubuntu Server 16.04](#compile-on-ubuntu-server-1604)
+	- [Compile on Mac OS X](#compile-on-mac-os-x)
+- [Tests](#tests)
+- [Requirements for Contributors](#requirements-for-contributors)
+
+<!-- /TOC -->
 Examples for using the API to publish and consume messages can be found on
 https://github.com/yahoo/pulsar/tree/master/pulsar-client-cpp/examples
 
@@ -13,6 +23,8 @@ https://github.com/yahoo/pulsar/tree/master/pulsar-client-cpp/examples
  * LibCurl
  * [GTest](https://github.com/google/googletest)
  * JsonCpp
+
+
 ## Platforms
 
 Pulsar C++ Client Library has been tested on:
@@ -73,9 +85,7 @@ export OPENSSL_ROOT_DIR=/usr/local/opt/openssl/
 
 # For Protobuf
 brew tap homebrew/versions
-brew install protobuf260
-brew install boost
-brew install log4cxx
+brew install protobuf260 boost boost-python log4cxx jsoncpp
 
 # For gtest
 cd $HOME
@@ -83,7 +93,7 @@ git clone https://github.com/google/googletest.git
 cd googletest
 cmake .
 make install
-## Refer gtest documentation in case you get stuck somewhere
+# Refer gtest documentation in case you get stuck somewhere
 ```
 
 #### Compile Pulsar client library:
@@ -109,16 +119,16 @@ ${PULSAR_PATH}/pulsar-client-cpp/perf/perfConsumer
 ```
 
 ## Tests
-```
+```shell
 # Source code
 ${PULSAR_PATH}/pulsar-client-cpp/tests/
 
 # Execution
-## Start standalone broker
+# Start standalone broker
 export PULSAR_STANDALONE_CONF=${PULSAR_PATH}/pulsar-client-cpp/tests/standalone.conf
 ${PULSAR_PATH}/bin/pulsar standalone
 
-## Run the tests
+# Run the tests
 ${PULSAR_PATH}/pulsar-client-cpp/tests/main
 ```
 

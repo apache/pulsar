@@ -19,7 +19,7 @@ project (pulsar-cpp)
 
 set(Boost_NO_BOOST_CMAKE ON)
 
-set (CMAKE_CXX_FLAGS "-Wno-deprecated-declarations ${CMAKE_CXX_FLAGS}")
+set (CMAKE_CXX_FLAGS "-O3 -g -Wno-deprecated-declarations ${CMAKE_CXX_FLAGS}")
 set(PROTOBUF_LIBRARIES $ENV{PROTOBUF_LIBRARIES})
 set(LOG_CATEGORY_NAME $ENV{LOG_CATEGORY_NAME})
 
@@ -29,7 +29,10 @@ endif(NOT LOG_CATEGORY_NAME)
 
 add_definitions(-DLOG_CATEGORY_NAME=${LOG_CATEGORY_NAME})
 
-find_package(Boost REQUIRED COMPONENTS program_options filesystem regex thread system)
+find_package(Boost REQUIRED COMPONENTS program_options filesystem regex
+                                        thread system python
+            )
+find_package(PythonLibs REQUIRED)
 find_package(OpenSSL REQUIRED)
 find_package(ZLIB REQUIRED)
 if (NOT PROTOBUF_LIBRARIES)
@@ -98,3 +101,4 @@ add_subdirectory(lib)
 add_subdirectory(perf)
 add_subdirectory(examples)
 add_subdirectory(tests)
+add_subdirectory(python)
