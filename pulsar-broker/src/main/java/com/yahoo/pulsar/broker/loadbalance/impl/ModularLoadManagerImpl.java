@@ -340,14 +340,15 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
     private boolean needBrokerDataUpdate() {
         final long updateMaxIntervalMillis = TimeUnit.MINUTES
                 .toMillis(conf.getLoadBalancerReportUpdateMaxIntervalMinutes());
-        if (System.currentTimeMillis() - localData.getLastUpdate() > updateMaxIntervalMillis) {
+        long timeSinceLastReportWrittenToZooKeeper = System.currentTimeMillis() - localData.getLastUpdate();
+        if (timeSinceLastReportWrittenToZooKeeper > updateMaxIntervalMillis) {
             log.info("Writing local data to ZooKeeper because time since last update exceeded threshold of {} minutes",
                     conf.getLoadBalancerReportUpdateMaxIntervalMinutes());
             // Always update after surpassing the maximum interval.
             return true;
         }
         final double maxChange = Math
-                .max(percentChange(lastData.getMaxResourceUsage(), localData.getMaxResourceUsage()),
+                .max(100.0 * (Math.abs(lastData.getMaxResourceUsage() - localData.getMaxResourceUsage())),
                         Math.max(percentChange(lastData.getMsgRateIn() + lastData.getMsgRateOut(),
                                 localData.getMsgRateIn() + localData.getMsgRateOut()),
                                 Math.max(
@@ -355,8 +356,9 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
                                                 localData.getMsgThroughputIn() + localData.getMsgThroughputOut()),
                                         percentChange(lastData.getNumBundles(), localData.getNumBundles()))));
         if (maxChange > conf.getLoadBalancerReportUpdateThresholdPercentage()) {
-            log.info("Writing local data to ZooKeeper because maximum change {}% exceeded threshold {}%", maxChange,
-                    conf.getLoadBalancerReportUpdateThresholdPercentage());
+            log.info("Writing local data to ZooKeeper because maximum change {}% exceeded threshold {}%; " +
+                    "time since last report written is {} seconds", maxChange,
+                    conf.getLoadBalancerReportUpdateThresholdPercentage(), timeSinceLastReportWrittenToZooKeeper/1000.0);
             return true;
         }
         return false;
