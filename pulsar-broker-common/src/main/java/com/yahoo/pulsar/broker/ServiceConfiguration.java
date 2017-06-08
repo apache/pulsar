@@ -206,8 +206,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // load placement strategy
     private String loadBalancerPlacementStrategy = "weightedRandomSelection"; // weighted random selection
     // Percentage of change to trigger load report update
+    @FieldContext(dynamic = true)
     private int loadBalancerReportUpdateThresholdPercentage = 10;
     // maximum interval to update load report
+    @FieldContext(dynamic = true)
     private int loadBalancerReportUpdateMaxIntervalMinutes = 15;
     // Frequency of report to collect
     private int loadBalancerHostUsageCheckIntervalMinutes = 1;
