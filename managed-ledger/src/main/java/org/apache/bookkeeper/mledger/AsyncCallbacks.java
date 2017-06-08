@@ -98,6 +98,12 @@ public interface AsyncCallbacks {
         public void deleteFailed(ManagedLedgerException exception, Object ctx);
     }
 
+    public interface TerminateCallback {
+        public void terminateComplete(Position lastCommittedPosition, Object ctx);
+
+        public void terminateFailed(ManagedLedgerException exception, Object ctx);
+    }
+
     public interface FindEntryCallback {
         public void findEntryComplete(Position position, Object ctx);
 

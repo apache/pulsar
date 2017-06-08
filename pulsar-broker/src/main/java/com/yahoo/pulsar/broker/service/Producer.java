@@ -25,12 +25,14 @@ import java.time.Instant;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 
+import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerTerminatedException;
 import org.apache.bookkeeper.mledger.util.Rate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Objects;
+import com.yahoo.pulsar.broker.service.BrokerServiceException.TopicTerminatedException;
 import com.yahoo.pulsar.broker.service.Topic.PublishCallback;
 import com.yahoo.pulsar.common.api.Commands;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.ServerError;
@@ -102,8 +104,8 @@ public class Producer {
     public void publishMessage(long producerId, long sequenceId, ByteBuf headersAndPayload, long batchSize) {
         if (isClosed) {
             cnx.ctx().channel().eventLoop().execute(() -> {
-                cnx.ctx().writeAndFlush(
-                        Commands.newSendError(producerId, sequenceId, new IllegalStateException("Producer is closed")));
+                cnx.ctx().writeAndFlush(Commands.newSendError(producerId, sequenceId, ServerError.PersistenceError,
+                        "Producer is closed"));
                 cnx.completedSendOperation();
             });
 
@@ -125,7 +127,7 @@ public class Producer {
     }
 
     private boolean verifyChecksum(ByteBuf headersAndPayload) {
-        
+
         if (hasChecksum(headersAndPayload)) {
             int checksum = readChecksum(headersAndPayload).intValue();
             int readerIndex = headersAndPayload.readerIndex();
@@ -184,8 +186,12 @@ public class Producer {
         @Override
         public void completed(Exception exception, long ledgerId, long entryId) {
             if (exception != null) {
+                ServerError serverError = (exception instanceof TopicTerminatedException)
+                        ? ServerError.TopicTerminatedError : ServerError.PersistenceError;
+
                 producer.cnx.ctx().channel().eventLoop().execute(() -> {
-                    producer.cnx.ctx().writeAndFlush(Commands.newSendError(producer.producerId, sequenceId, exception));
+                    producer.cnx.ctx().writeAndFlush(Commands.newSendError(producer.producerId, sequenceId, serverError,
+                            exception.getMessage()));
                     producer.cnx.completedSendOperation();
                     producer.publishOperationCompleted();
                 });

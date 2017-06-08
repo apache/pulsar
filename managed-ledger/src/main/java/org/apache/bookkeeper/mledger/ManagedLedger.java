@@ -22,6 +22,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenCursorCallback;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.TerminateCallback;
 
 import com.google.common.annotations.Beta;
 
@@ -250,6 +251,19 @@ public interface ManagedLedger {
      */
     public void checkBackloggedCursors();
 
+    public void asyncTerminate(TerminateCallback callback, Object ctx);
+
+    /**
+     * Terminate the managed ledger and return the last committed entry.
+     * <p>
+     * Once the managed ledger is terminated, it will not accept any more write
+     *
+     * @return
+     * @throws InterruptedException
+     * @throws ManagedLedgerException
+     */
+    public Position terminate() throws InterruptedException, ManagedLedgerException;
+
     /**
      * Close the ManagedLedger.
      * <p>
@@ -299,4 +313,9 @@ public interface ManagedLedger {
      * @return the slowest consumer
      */
     public ManagedCursor getSlowestConsumer();
+
+    /**
+     * Returns whether the managed ledger was terminated
+     */
+    public boolean isTerminated();
 }

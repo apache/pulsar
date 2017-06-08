@@ -350,6 +350,12 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                 info.modificationDate = DATE_FORMAT.format(Instant.ofEpochMilli(stat.getModificationTimestamp()));
 
                 info.ledgers = new ArrayList<>(pbInfo.getLedgerInfoCount());
+                if (pbInfo.hasTerminatedPosition()) {
+                    info.terminatedPosition = new PositionInfo();
+                    info.terminatedPosition.ledgerId = pbInfo.getTerminatedPosition().getLedgerId();
+                    info.terminatedPosition.entryId = pbInfo.getTerminatedPosition().getEntryId();
+                }
+
                 for (int i = 0; i < pbInfo.getLedgerInfoCount(); i++) {
                     MLDataFormats.ManagedLedgerInfo.LedgerInfo pbLedgerInfo = pbInfo.getLedgerInfo(i);
                     LedgerInfo ledgerInfo = new LedgerInfo();
@@ -457,6 +463,6 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     }
 
     private static final Logger log = LoggerFactory.getLogger(ManagedLedgerFactoryImpl.class);
-    
+
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSZ").withZone(ZoneId.systemDefault());
 }

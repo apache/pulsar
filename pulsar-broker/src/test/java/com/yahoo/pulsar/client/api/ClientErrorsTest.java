@@ -21,7 +21,6 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -32,19 +31,12 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+import com.yahoo.pulsar.client.api.PulsarClientException.LookupException;
+import com.yahoo.pulsar.client.impl.ConsumerBase;
+import com.yahoo.pulsar.client.impl.ProducerBase;
 import com.yahoo.pulsar.common.api.Commands;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse.LookupType;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.ServerError;
-import com.yahoo.pulsar.client.api.ClientConfiguration;
-import com.yahoo.pulsar.client.api.Consumer;
-import com.yahoo.pulsar.client.api.ConsumerConfiguration;
-import com.yahoo.pulsar.client.api.Producer;
-import com.yahoo.pulsar.client.api.PulsarClient;
-import com.yahoo.pulsar.client.api.PulsarClientException;
-import com.yahoo.pulsar.client.api.PulsarClientException.LookupException;
-import com.yahoo.pulsar.client.api.SubscriptionType;
-import com.yahoo.pulsar.client.impl.ConsumerBase;
-import com.yahoo.pulsar.client.impl.ProducerBase;
 
 import io.netty.channel.ChannelHandlerContext;
 
@@ -275,7 +267,7 @@ public class ClientErrorsTest {
         mockBrokerService.setHandleSend((ctx, send, headersAndPayload) -> {
             // fail send once, but succeed later
             if (msgCounter.incrementAndGet() == 1) {
-                ctx.writeAndFlush(Commands.newSendError(0, 0, new IllegalStateException("Send Failed")));
+                ctx.writeAndFlush(Commands.newSendError(0, 0, ServerError.PersistenceError, "Send Failed"));
                 return;
             }
             ctx.writeAndFlush(Commands.newSendReceipt(0, 0, 1, 1));
@@ -302,7 +294,7 @@ public class ClientErrorsTest {
     public void testPartitionedSubscribeFailWithoutRetry() throws Exception {
         subscribeFailWithoutRetry("persistent://prop/use/ns/part-t1");
     }
-    
+
     @Test
     public void testLookupWithDisconnection() throws Exception {
         final String brokerUrl = "pulsar://127.0.0.1:" + BROKER_SERVICE_PORT;

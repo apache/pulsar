@@ -29,10 +29,12 @@ abstract class HandlerBase {
     protected final String topic;
     private static final AtomicReferenceFieldUpdater<HandlerBase, State> STATE_UPDATER =
             AtomicReferenceFieldUpdater.newUpdater(HandlerBase.class, State.class, "state");
+    @SuppressWarnings("unused")
     private volatile State state = null;
 
     private static final AtomicReferenceFieldUpdater<HandlerBase, ClientCnx> CLIENT_CNX_UPDATER =
             AtomicReferenceFieldUpdater.newUpdater(HandlerBase.class, ClientCnx.class, "clientCnx");
+    @SuppressWarnings("unused")
     private volatile ClientCnx clientCnx = null;
     protected final Backoff backoff;
 
@@ -42,6 +44,8 @@ abstract class HandlerBase {
         Ready, // Handler is being used
         Closing, // Close cmd has been sent to broker
         Closed, // Broker acked the close
+        Terminated, // Topic associated with this handler
+                    // has been terminated
         Failed // Handler is failed
     };
 
@@ -166,9 +170,11 @@ abstract class HandlerBase {
         case Ready:
             // Ok
             return true;
+
         case Closing:
         case Closed:
         case Failed:
+        case Terminated:
             return false;
         }
         return false;

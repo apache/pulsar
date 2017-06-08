@@ -80,7 +80,7 @@ public interface Consumer extends Closeable {
      * {@code receiveAsync()} should be called subsequently once returned {@code CompletableFuture} gets complete with
      * received message. Else it creates <i> backlog of receive requests </i> in the application.
      * </p>
-     * 
+     *
      * @return {@link CompletableFuture}<{@link Message}> will be completed when message is available
      */
     CompletableFuture<Message> receiveAsync();
@@ -199,14 +199,14 @@ public interface Consumer extends Closeable {
 
     /**
      * Get statistics for the consumer
-     * 
+     *
      * numMsgsReceived : Number of messages received in the current interval numBytesReceived : Number of bytes received
      * in the current interval numReceiveFailed : Number of messages failed to receive in the current interval
      * numAcksSent : Number of acks sent in the current interval numAcksFailed : Number of acks failed to send in the
      * current interval totalMsgsReceived : Total number of messages received totalBytesReceived : Total number of bytes
      * received totalReceiveFailed : Total number of messages failed to receive totalAcksSent : Total number of acks
      * sent totalAcksFailed : Total number of acks failed to sent
-     * 
+     *
      * @return statistic for the consumer or null if ConsumerStats is disabled.
      */
     ConsumerStats getStats();
@@ -223,6 +223,11 @@ public interface Consumer extends Closeable {
      * @return a future that can be used to track the completion of the operation
      */
     CompletableFuture<Void> closeAsync();
+
+    /**
+     * Return true if the topic was terminated and this consumer has already consumed all the messages in the topic.
+     */
+    boolean hasReachedEndOfTopic();
 
     /**
      * Redelivers all the unacknowledged messages. In Failover mode, the request is ignored if the consumer is not

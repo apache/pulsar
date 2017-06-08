@@ -306,6 +306,9 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
         case Closed:
             callback.sendComplete(new PulsarClientException.AlreadyClosedException("Producer already closed"));
             return false;
+        case Terminated:
+            callback.sendComplete(new PulsarClientException.TopicTerminatedException("Topic was terminated"));
+            return false;
         case Failed:
         case Uninitialized:
         default:
@@ -395,12 +398,23 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
             return CompletableFuture.completedFuture(null);
         }
 
+        Timeout timeout = sendTimeout;
+        if (timeout != null) {
+            timeout.cancel();
+            sendTimeout = null;
+        }
+
+        stats.cancelStatsTimeout();
+
         if (getClientCnx() == null || currentState != State.Ready) {
             log.info("[{}] [{}] Closed Producer (not connected)", topic, producerName);
             synchronized (this) {
                 setState(State.Closed);
                 client.cleanupProducer(this);
+                PulsarClientException ex = new PulsarClientException.AlreadyClosedException(
+                        "Producer was already closed");
                 pendingMessages.forEach(msg -> {
+                    msg.callback.sendComplete(ex);
                     msg.cmd.release();
                     msg.recycle();
                 });
@@ -408,15 +422,6 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
             }
 
             return CompletableFuture.completedFuture(null);
-        }
-
-        Timeout timeout = sendTimeout;
-        if (timeout != null) {
-            timeout.cancel();
-        }
-        timeout = stats.getStatTimeout();
-        if (timeout != null) {
-            timeout.cancel();
         }
 
         long requestId = client.newRequestId();
@@ -459,6 +464,17 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
     public boolean isWritable() {
         ClientCnx cnx = getClientCnx();
         return cnx != null && cnx.channel().isWritable();
+    }
+
+    public void terminated(ClientCnx cnx) {
+        State previousState = getAndUpdateState(state -> (state == State.Closed ? State.Closed : State.Terminated));
+        if (previousState != State.Terminated && previousState != State.Closed) {
+            log.info("[{}] [{}] The topic has been terminated", topic, producerName);
+            setClientCnx(null);
+
+            failPendingMessages(cnx,
+                    new PulsarClientException.TopicTerminatedException("The topic has been terminated"));
+        }
     }
 
     void ackReceived(ClientCnx cnx, long sequenceId, long ledgerId, long entryId) {
@@ -523,7 +539,7 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
      * <li><b>if doesn't match with existing checksum</b>: it means message is already corrupt and can't retry again.
      * So, fail send-message by failing callback</li>
      * </ul>
-     * 
+     *
      * @param cnx
      * @param sequenceId
      */
@@ -571,7 +587,7 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
     /**
      * Computes checksum again and verifies it against existing checksum. If checksum doesn't match it means that
      * message is corrupt.
-     * 
+     *
      * @param op
      * @return returns true only if message is not modified and computed-checksum is same as previous checksum else
      *         return false that means that message is corrupted. Returns true if checksum is not present.
@@ -723,6 +739,7 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
                         resendMessages(cnx);
                     }
                 }).exceptionally((e) -> {
+                    Throwable cause = e.getCause();
                     cnx.removeProducer(producerId);
                     if (getState() == State.Closing || getState() == State.Closed) {
                         // Producer was closed while reconnecting, close the connection to make sure the broker
@@ -731,9 +748,9 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
                         return null;
                     }
                     log.error("[{}] [{}] Failed to create producer: {}", topic, producerName,
-                            e.getCause().getMessage());
+                            cause.getMessage());
 
-                    if (e.getCause() instanceof PulsarClientException.ProducerBlockedQuotaExceededException) {
+                    if (cause instanceof PulsarClientException.ProducerBlockedQuotaExceededException) {
                         synchronized (this) {
                             log.warn("[{}] [{}] Topic backlog quota exceeded. Throwing Exception on producer.", topic,
                                     producerName);
@@ -747,21 +764,25 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
                                     "Could not send pending messages as backlog exceeded");
                             failPendingMessages(cnx(), bqe);
                         }
-                    } else if (e.getCause() instanceof PulsarClientException.ProducerBlockedQuotaExceededError) {
+                    } else if (cause instanceof PulsarClientException.ProducerBlockedQuotaExceededError) {
                         log.warn("[{}] [{}] Producer is blocked on creation because backlog exceeded on topic.",
                                 producerName, topic);
                     }
 
-                    if (producerCreatedFuture.isDone() || //
-                    (e.getCause() instanceof PulsarClientException
-                            && isRetriableError((PulsarClientException) e.getCause())
+                    if (cause instanceof PulsarClientException.TopicTerminatedException) {
+                        setState(State.Terminated);
+                        failPendingMessages(cnx(), (PulsarClientException) cause);
+                        producerCreatedFuture.completeExceptionally(cause);
+                        client.cleanupProducer(this);
+                    } else if (producerCreatedFuture.isDone() || //
+                    (cause instanceof PulsarClientException && isRetriableError((PulsarClientException) cause)
                             && System.currentTimeMillis() < createProducerTimeout)) {
                         // Either we had already created the producer once (producerCreatedFuture.isDone()) or we are
                         // still within the initial timeout budget and we are dealing with a retriable error
-                        reconnectLater(e.getCause());
+                        reconnectLater(cause);
                     } else {
                         setState(State.Failed);
-                        producerCreatedFuture.completeExceptionally(e.getCause());
+                        producerCreatedFuture.completeExceptionally(cause);
                         client.cleanupProducer(this);
                     }
 
@@ -834,7 +855,7 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
 
     /**
      * Strips checksum from {@link OpSendMsg} command if present else ignore it.
-     * 
+     *
      * @param op
      */
     private void stripChecksum(OpSendMsg op) {
@@ -1066,11 +1087,11 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
 
     /**
      * Casts input cmd to {@link DoubleByteBuf}
-     * 
+     *
      * Incase if leak-detection level is enabled: pulsar instruments {@link DoubleByteBuf} into LeakAwareByteBuf (type
      * of {@link io.netty.buffer.WrappedByteBuf}) So, this method casts input cmd to {@link DoubleByteBuf} else
      * retrieves it from LeakAwareByteBuf.
-     * 
+     *
      * @param cmd
      * @return DoubleByteBuf or null in case failed to cast input {@link ByteBuf}
      */
