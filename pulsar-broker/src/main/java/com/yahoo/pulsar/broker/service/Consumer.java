@@ -47,7 +47,6 @@ import com.yahoo.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import com.yahoo.pulsar.common.naming.DestinationName;
 import com.yahoo.pulsar.common.policies.data.ConsumerStats;
-import com.yahoo.pulsar.common.util.collections.ConcurrentOpenHashMap;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelFutureListener;
@@ -85,7 +84,7 @@ public class Consumer {
     private final ConcurrentLongLongPairHashMap pendingAcks;
 
     private final ConsumerStats stats;
-    
+
     private final int maxUnackedMessages;
     private static final AtomicIntegerFieldUpdater<Consumer> UNACKED_MESSAGES_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(Consumer.class, "unackedMessages");
@@ -161,7 +160,7 @@ public class Consumer {
         } catch (PulsarServerException pe) {
             log.warn("[{}] [{}] consumer doesn't support batch-message {}", subscription, consumerId,
                     cnx.getRemoteEndpointProtocolVersion());
-            
+
             subscription.markTopicWithBatchMessagePublished();
             sentMessages.setRight(0);
             // disconnect consumer: it will update dispatcher's availablePermits and resend pendingAck-messages of this
@@ -169,7 +168,7 @@ public class Consumer {
             disconnect();
             return sentMessages;
         }
-        
+
         ctx.channel().eventLoop().execute(() -> {
             for (int i = 0; i < entries.size(); i++) {
                 Entry entry = entries.get(i);
@@ -185,7 +184,7 @@ public class Consumer {
                 if (cnx.getRemoteEndpointProtocolVersion() < ProtocolVersion.v6.getNumber()) {
                     readChecksum(metadataAndPayload);
                 }
-                
+
                 // stats
                 msgOut.recordEvent(metadataAndPayload.readableBytes());
 
@@ -337,7 +336,7 @@ public class Consumer {
         } else {
             subscription.acknowledgeMessage(position, ack.getAckType());
         }
-       
+
     }
 
     void flowPermits(int additionalNumberOfMessages) {
@@ -361,11 +360,11 @@ public class Consumer {
         }
 
     }
-    
+
     /**
      * Triggers dispatcher to dispatch {@code blockedPermits} number of messages and adds same number of permits to
      * {@code messagePermits} as it maintains count of actual dispatched message-permits.
-     * 
+     *
      * @param consumer:
      *            Consumer whose blockedPermits needs to be dispatched
      */
@@ -384,18 +383,26 @@ public class Consumer {
     public boolean isBlocked() {
         return blockedConsumerOnUnackedMsgs;
     }
-    
+
+    public void reachedEndOfTopic() {
+        // Only send notification if the client understand the command
+        if (cnx.getRemoteEndpointProtocolVersion() >= ProtocolVersion.v9_VALUE) {
+            log.info("[{}] Notifying consumer that end of topic has been reached", this);
+            cnx.ctx().writeAndFlush(Commands.newReachedEndOfTopic(consumerId));
+        }
+    }
+
     /**
      * Checks if consumer-blocking on unAckedMessages is allowed for below conditions:<br/>
      * a. consumer must have Shared-subscription<br/>
      * b. {@link maxUnackedMessages} value > 0
-     * 
+     *
      * @return
      */
     private boolean shouldBlockConsumerOnUnackMsgs() {
         return SubType.Shared.equals(subType) && maxUnackedMessages > 0;
     }
-    
+
     public void updateRates() {
         msgOut.calculateRate();
         msgRedeliver.calculateRate();
@@ -410,7 +417,7 @@ public class Consumer {
         stats.blockedConsumerOnUnackedMsgs = blockedConsumerOnUnackedMsgs;
         return stats;
     }
-    
+
     public int getUnackedMessages() {
         return UNACKED_MESSAGES_UPDATER.get(this);
     }
@@ -461,8 +468,8 @@ public class Consumer {
      * if ack-message doesn't present into current_consumer's pendingAcks
      *  a. try to remove from other connected subscribed consumers (It happens when client
      * tries to acknowledge message through different consumer under the same subscription)
-     * 
-     * 
+     *
+     *
      * @param position
      */
     private void removePendingAcks(PositionImpl position) {
@@ -477,7 +484,7 @@ public class Consumer {
         } else {
             ackOwnedConsumer = this;
         }
-        
+
         // remove pending message from appropriate consumer and unblock unAckMsg-flow if requires
         if (ackOwnedConsumer != null) {
             int totalAckedMsgs = (int) ackOwnedConsumer.getPendingAcks().get(position.getLedgerId(), position.getEntryId()).first;
@@ -492,11 +499,11 @@ public class Consumer {
             }
         }
     }
-    
+
     public ConcurrentLongLongPairHashMap getPendingAcks() {
         return pendingAcks;
     }
-    
+
     public int getPriorityLevel() {
         return priorityLevel;
     }
@@ -548,20 +555,20 @@ public class Consumer {
             subscription.consumerFlow(this, numberOfBlockedPermits);
         }
     }
-    
+
     public Subscription getSubscription() {
         return subscription;
     }
-    
+
     private int addAndGetUnAckedMsgs(Consumer consumer, int ackedMessages) {
         subscription.addUnAckedMessages(ackedMessages);
         return UNACKED_MESSAGES_UPDATER.addAndGet(this, ackedMessages);
     }
-    
+
     private void clearUnAckedMsgs(Consumer consumer) {
         int unaAckedMsgs = UNACKED_MESSAGES_UPDATER.getAndSet(this, 0);
         subscription.addUnAckedMessages(-unaAckedMsgs);
     }
-    
+
     private static final Logger log = LoggerFactory.getLogger(Consumer.class);
 }

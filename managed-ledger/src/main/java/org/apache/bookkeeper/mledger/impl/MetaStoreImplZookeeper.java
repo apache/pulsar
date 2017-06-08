@@ -68,7 +68,7 @@ public class MetaStoreImplZookeeper implements MetaStore {
             this.creationTimestamp = stat.getCtime();
             this.modificationTimestamp = stat.getMtime();
         }
-        
+
         ZKStat() {
             this.version = 0;
             this.creationTimestamp = System.currentTimeMillis();
@@ -127,6 +127,9 @@ public class MetaStoreImplZookeeper implements MetaStore {
         }
         ManagedLedgerInfo.Builder mlInfo = ManagedLedgerInfo.newBuilder();
         mlInfo.addAllLedgerInfo(infoList);
+        if (info.hasTerminatedPosition()) {
+            mlInfo.setTerminatedPosition(info.getTerminatedPosition());
+        }
         return mlInfo.build();
     }
 

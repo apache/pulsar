@@ -50,11 +50,22 @@ public class ManagedLedgerException extends Exception {
         }
     }
 
+    public static class ManagedLedgerTerminatedException extends ManagedLedgerException {
+        public ManagedLedgerTerminatedException(String msg) {
+            super(msg);
+        }
+    }
+
+    public static class NoMoreEntriesToReadException extends ManagedLedgerException {
+        public NoMoreEntriesToReadException(String msg) {
+            super(msg);
+        }
+    }
+
     public static class InvalidCursorPositionException extends ManagedLedgerException {
         public InvalidCursorPositionException(String msg) {
             super(msg);
         }
-
     }
 
     public static class ConcurrentFindCursorPositionException extends ManagedLedgerException {
@@ -68,7 +79,7 @@ public class ManagedLedgerException extends Exception {
             super(msg);
         }
     }
-    
+
     public static class TooManyRequestsException extends ManagedLedgerException {
         public TooManyRequestsException(String msg) {
             super(msg);

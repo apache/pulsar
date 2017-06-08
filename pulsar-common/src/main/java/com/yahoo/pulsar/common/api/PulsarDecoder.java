@@ -39,6 +39,7 @@ import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandPing;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandPong;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandProducer;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandProducerSuccess;
+import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandReachedEndOfTopic;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandRedeliverUnacknowledgedMessages;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSend;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSendError;
@@ -90,7 +91,7 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                 handlePartitionMetadataRequest(cmd.getPartitionMetadata());
                 cmd.getPartitionMetadata().recycle();
                 break;
-                
+
             case PARTITIONED_METADATA_RESPONSE:
                 checkArgument(cmd.hasPartitionMetadataResponse());
                 handlePartitionResponse(cmd.getPartitionMetadataResponse());
@@ -102,13 +103,13 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                 handleLookup(cmd.getLookupTopic());
                 cmd.getLookupTopic().recycle();
                 break;
-                
+
             case LOOKUP_RESPONSE:
                 checkArgument(cmd.hasLookupTopicResponse());
                 handleLookupResponse(cmd.getLookupTopicResponse());
                 cmd.getLookupTopicResponse().recycle();
-                break;  
-                
+                break;
+
             case ACK:
                 checkArgument(cmd.hasAck());
                 handleAck(cmd.getAck());
@@ -225,7 +226,7 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                 handleRedeliverUnacknowledged(cmd.getRedeliverUnacknowledgedMessages());
                 cmd.getRedeliverUnacknowledgedMessages().recycle();
                 break;
-                
+
             case CONSUMER_STATS:
                 checkArgument(cmd.hasConsumerStats());
                 handleConsumerStats(cmd.getConsumerStats());
@@ -236,6 +237,12 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                 checkArgument(cmd.hasConsumerStatsResponse());
                 handleConsumerStatsResponse(cmd.getConsumerStatsResponse());
                 cmd.getConsumerStatsResponse().recycle();
+                break;
+
+            case REACHED_END_OF_TOPIC:
+                checkArgument(cmd.hasReachedEndOfTopic());
+                handleReachedEndOfTopic(cmd.getReachedEndOfTopic());
+                cmd.getReachedEndOfTopic().recycle();
                 break;
             }
         } finally {
@@ -256,19 +263,19 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
     protected void handlePartitionMetadataRequest(CommandPartitionedTopicMetadata response) {
         throw new UnsupportedOperationException();
     }
-    
+
     protected void handlePartitionResponse(CommandPartitionedTopicMetadataResponse response) {
         throw new UnsupportedOperationException();
     }
-    
+
     protected void handleLookup(CommandLookupTopic lookup) {
         throw new UnsupportedOperationException();
     }
-    
+
     protected void handleLookupResponse(CommandLookupTopicResponse connection) {
         throw new UnsupportedOperationException();
     }
-    
+
     protected void handleConnect(CommandConnect connect) {
         throw new UnsupportedOperationException();
     }
@@ -348,10 +355,14 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
     protected void handleConsumerStats(CommandConsumerStats commandConsumerStats) {
     	throw new UnsupportedOperationException();
     }
-    
+
     protected void handleConsumerStatsResponse(CommandConsumerStatsResponse commandConsumerStatsResponse) {
     	throw new UnsupportedOperationException();
     }
-    
+
+    protected void handleReachedEndOfTopic(CommandReachedEndOfTopic commandReachedEndOfTopic) {
+        throw new UnsupportedOperationException();
+    }
+
     private static final Logger log = LoggerFactory.getLogger(PulsarDecoder.class);
 }

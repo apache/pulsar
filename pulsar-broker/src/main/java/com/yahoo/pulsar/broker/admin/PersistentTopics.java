@@ -80,8 +80,10 @@ import com.yahoo.pulsar.broker.service.persistent.PersistentTopic;
 import com.yahoo.pulsar.broker.web.RestException;
 import com.yahoo.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import com.yahoo.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
+import com.yahoo.pulsar.client.api.MessageId;
 import com.yahoo.pulsar.client.api.PulsarClientException;
 import com.yahoo.pulsar.client.util.FutureUtil;
+import com.yahoo.pulsar.client.impl.MessageIdImpl;
 import com.yahoo.pulsar.common.api.Commands;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.KeyValue;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.MessageMetadata;
@@ -399,11 +401,11 @@ public class PersistentTopics extends AdminResource {
      * It updates number of partitions of an existing non-global partitioned topic. It requires partitioned-topic to be
      * already exist and number of new partitions must be greater than existing number of partitions. Decrementing
      * number of partitions requires deletion of topic which is not supported.
-     * 
+     *
      * Already created partitioned producers and consumers can't see newly created partitions and it requires to
      * recreate them at application so, newly created producers and consumers can connect to newly added partitions as
      * well. Therefore, it can violate partition ordering at producers until all producers are restarted at application.
-     * 
+     *
      * @param property
      * @param cluster
      * @param namespace
@@ -812,7 +814,7 @@ public class PersistentTopics extends AdminResource {
             throw new RestException(exception);
         }
     }
-    
+
     @POST
     @Path("/{property}/{cluster}/{namespace}/{destination}/subscription/{subName}/expireMessages/{expireTimeInSeconds}")
     @ApiOperation(value = "Expire messages on a topic subscription.")
@@ -825,7 +827,7 @@ public class PersistentTopics extends AdminResource {
         destination = decode(destination);
         expireMessages(property, cluster, namespace, destination, subName, expireTimeInSeconds, authoritative);
     }
-    
+
     @POST
     @Path("/{property}/{cluster}/{namespace}/{destination}/all_subscription/expireMessages/{expireTimeInSeconds}")
     @ApiOperation(value = "Expire messages on all subscriptions of topic.")
@@ -1068,6 +1070,32 @@ public class PersistentTopics extends AdminResource {
         return offlineTopicStats;
     }
 
+    @POST
+    @Path("/{property}/{cluster}/{namespace}/{destination}/terminate")
+    @ApiOperation(value = "Terminate a topic. A topic that is terminated will not accept any more " +
+            "messages to be published and will let consumer to drain existing messages in backlog")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic does not exist") })
+    public MessageId terminate(@PathParam("property") String property, @PathParam("cluster") String cluster,
+            @PathParam("namespace") String namespace, @PathParam("destination") @Encoded String destination,
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        destination = decode(destination);
+        DestinationName dn = DestinationName.get(domain(), property, cluster, namespace, destination);
+        PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(property, cluster, namespace,
+                destination, authoritative);
+        if (partitionMetadata.partitions > 0) {
+            throw new RestException(Status.METHOD_NOT_ALLOWED, "Termination of a partitioned topic is not allowed");
+        }
+        validateAdminOperationOnDestination(dn, authoritative);
+        PersistentTopic topic = getTopicReference(dn);
+        try {
+            return topic.terminate().get();
+        } catch (Exception exception) {
+            log.error("[{}] Failed to terminated topic {}", clientAppId(), dn, exception);
+            throw new RestException(exception);
+        }
+    }
+
     public void expireMessages(String property, String cluster, String namespace, String destination, String subName,
             int expireTimeInSeconds, boolean authoritative) {
         DestinationName dn = DestinationName.get(domain(), property, cluster, namespace, destination);
@@ -1109,7 +1137,7 @@ public class PersistentTopics extends AdminResource {
             }
         }
     }
-    
+
     public PartitionedTopicMetadata getPartitionedTopicMetadata(String property, String cluster, String namespace,
             String destination, boolean authoritative) {
         DestinationName dn = DestinationName.get(domain(), property, cluster, namespace, destination);
@@ -1154,7 +1182,7 @@ public class PersistentTopics extends AdminResource {
                 }
             } catch (Exception ex) {
                 // throw without wrapping to PulsarClientException that considers: unknown error marked as internal
-                // server error 
+                // server error
                 log.warn("Failed to authorize {} on cluster {} with unexpected exception {}", clientAppId,
                         dn.toString(), ex.getMessage(), ex);
                 throw ex;
@@ -1252,7 +1280,7 @@ public class PersistentTopics extends AdminResource {
             throw new RestException(Status.NOT_FOUND, "Replicator not found");
         }
     }
-    
+
     private CompletableFuture<Void> updatePartitionedTopic(DestinationName dn, int numPartitions) {
         String path = path(PARTITIONED_TOPIC_PATH_ZNODE, dn.getProperty(), dn.getCluster(), dn.getNamespacePortion(),
                 domain(), dn.getEncodedLocalName());
@@ -1282,9 +1310,9 @@ public class PersistentTopics extends AdminResource {
 
     /**
      * It creates subscriptions for new partitions of existing partitioned-topics
-     * 
+     *
      * @param dn : topic-name: persistent://prop/cluster/ns/topic
-     * @param numPartitions : number partitions for the topics 
+     * @param numPartitions : number partitions for the topics
      */
     private CompletableFuture<Void> createSubscriptions(DestinationName dn, int numPartitions) {
         String path = path(PARTITIONED_TOPIC_PATH_ZNODE, dn.getProperty(), dn.getCluster(), dn.getNamespacePortion(),

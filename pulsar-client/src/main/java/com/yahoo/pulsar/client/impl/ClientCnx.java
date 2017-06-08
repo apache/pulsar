@@ -40,6 +40,7 @@ import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandMessage;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadataResponse;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandProducerSuccess;
+import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandReachedEndOfTopic;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSendError;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSendReceipt;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSuccess;
@@ -58,15 +59,18 @@ public class ClientCnx extends PulsarHandler {
     private State state;
 
     private final ConcurrentLongHashMap<CompletableFuture<String>> pendingRequests = new ConcurrentLongHashMap<>(16, 1);
-    private final ConcurrentLongHashMap<CompletableFuture<LookupDataResult>> pendingLookupRequests = new ConcurrentLongHashMap<>(16, 1);
+    private final ConcurrentLongHashMap<CompletableFuture<LookupDataResult>> pendingLookupRequests = new ConcurrentLongHashMap<>(
+            16, 1);
     private final ConcurrentLongHashMap<ProducerImpl> producers = new ConcurrentLongHashMap<>(16, 1);
     private final ConcurrentLongHashMap<ConsumerImpl> consumers = new ConcurrentLongHashMap<>(16, 1);
 
     private final CompletableFuture<Void> connectionFuture = new CompletableFuture<Void>();
     private final Semaphore pendingLookupRequestSemaphore;
     private final EventLoopGroup eventLoopGroup;
+
     private static final AtomicIntegerFieldUpdater<ClientCnx> NUMBER_OF_REJECTED_REQUESTS_UPDATER = AtomicIntegerFieldUpdater
             .newUpdater(ClientCnx.class, "numberOfRejectRequests");
+    @SuppressWarnings("unused")
     private volatile int numberOfRejectRequests = 0;
     private final int maxNumberOfRejectedRequestPerConnection;
     private final int rejectedRequestResetTimeSec = 60;
@@ -81,7 +85,8 @@ public class ClientCnx extends PulsarHandler {
                 true);
         this.authentication = pulsarClient.getConfiguration().getAuthentication();
         this.eventLoopGroup = pulsarClient.eventLoopGroup();
-        this.maxNumberOfRejectedRequestPerConnection = pulsarClient.getConfiguration().getMaxNumberOfRejectedRequestPerConnection();
+        this.maxNumberOfRejectedRequestPerConnection = pulsarClient.getConfiguration()
+                .getMaxNumberOfRejectedRequestPerConnection();
         this.state = State.None;
     }
 
@@ -94,17 +99,18 @@ public class ClientCnx extends PulsarHandler {
             authData = authentication.getAuthData().getCommandData();
         }
         // Send CONNECT command
-        ctx.writeAndFlush(Commands.newConnect(authentication.getAuthMethodName(), authData, getPulsarClientVersion())).addListener(future -> {
-            if (future.isSuccess()) {
-                if (log.isDebugEnabled()) {
-                    log.debug("Complete: {}", future.isSuccess());
-                }
-                state = State.SentConnectFrame;
-            } else {
-                log.warn("Error during handshake", future.cause());
-                ctx.close();
-            }
-        });
+        ctx.writeAndFlush(Commands.newConnect(authentication.getAuthMethodName(), authData, getPulsarClientVersion()))
+                .addListener(future -> {
+                    if (future.isSuccess()) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("Complete: {}", future.isSuccess());
+                        }
+                        state = State.SentConnectFrame;
+                    } else {
+                        log.warn("Error during handshake", future.cause());
+                        ctx.close();
+                    }
+                });
     }
 
     @Override
@@ -221,7 +227,8 @@ public class ClientCnx extends PulsarHandler {
 
         if (requestFuture != null) {
             // Complete future with exception if : Result.response=fail/null
-            if (!lookupResult.hasResponse() || CommandLookupTopicResponse.LookupType.Failed.equals(lookupResult.getResponse())) {
+            if (!lookupResult.hasResponse()
+                    || CommandLookupTopicResponse.LookupType.Failed.equals(lookupResult.getResponse())) {
                 if (lookupResult.hasError()) {
                     checkServerError(lookupResult.getError(), lookupResult.getMessage());
                     requestFuture.completeExceptionally(
@@ -250,7 +257,8 @@ public class ClientCnx extends PulsarHandler {
 
         if (requestFuture != null) {
             // Complete future with exception if : Result.response=fail/null
-            if (!lookupResult.hasResponse() || CommandPartitionedTopicMetadataResponse.LookupType.Failed.equals(lookupResult.getResponse())) {
+            if (!lookupResult.hasResponse()
+                    || CommandPartitionedTopicMetadataResponse.LookupType.Failed.equals(lookupResult.getResponse())) {
                 if (lookupResult.hasError()) {
                     checkServerError(lookupResult.getError(), lookupResult.getMessage());
                     requestFuture.completeExceptionally(
@@ -265,6 +273,18 @@ public class ClientCnx extends PulsarHandler {
             }
         } else {
             log.warn("{} Received unknown request id from server: {}", ctx.channel(), lookupResult.getRequestId());
+        }
+    }
+
+    @Override
+    protected void handleReachedEndOfTopic(CommandReachedEndOfTopic commandReachedEndOfTopic) {
+        final long consumerId = commandReachedEndOfTopic.getConsumerId();
+
+        log.info("[{}] Broker notification reached the end of topic: {}", remoteAddress, consumerId);
+
+        ConsumerImpl consumer = consumers.get(consumerId);
+        if (consumer != null) {
+            consumer.setTerminated();
         }
     }
 
@@ -286,12 +306,24 @@ public class ClientCnx extends PulsarHandler {
 
     @Override
     protected void handleSendError(CommandSendError sendError) {
-        log.warn("{} Received send error from server: {}", ctx.channel(), sendError);
-        if (ServerError.ChecksumError.equals(sendError.getError())) {
-            long producerId = sendError.getProducerId();
-            long sequenceId = sendError.getSequenceId();
+        log.warn("{} Received send error from server: {} : {}", ctx.channel(), sendError.getError(),
+                sendError.getMessage());
+
+        long producerId = sendError.getProducerId();
+        long sequenceId = sendError.getSequenceId();
+
+        switch (sendError.getError()) {
+        case ChecksumError:
             producers.get(producerId).recoverChecksumError(this, sequenceId);
-        } else {
+            break;
+
+        case TopicTerminatedError:
+            producers.get(producerId).terminated(this);
+            break;
+
+        default:
+            // By default, for transient error, let the reconnection logic
+            // to take place and re-establish the produce again
             ctx.close();
         }
     }
@@ -405,7 +437,7 @@ public class ClientCnx extends PulsarHandler {
      * <li>TooManyRequest: received error count is more than maxNumberOfRejectedRequestPerConnection in
      * #rejectedRequestResetTimeSec</li>
      * </ul>
-     * 
+     *
      * @param error
      * @param errMsg
      */
@@ -426,7 +458,7 @@ public class ClientCnx extends PulsarHandler {
             }
         }
     }
-    
+
     void registerConsumer(final long consumerId, final ConsumerImpl consumer) {
         consumers.put(consumerId, consumer);
     }
@@ -458,11 +490,13 @@ public class ClientCnx extends PulsarHandler {
         case ServiceNotReady:
             return new PulsarClientException.LookupException(errorMsg);
         case TooManyRequests:
-            return new PulsarClientException.TooManyRequestsException(errorMsg);    
+            return new PulsarClientException.TooManyRequestsException(errorMsg);
         case ProducerBlockedQuotaExceededError:
             return new PulsarClientException.ProducerBlockedQuotaExceededError(errorMsg);
         case ProducerBlockedQuotaExceededException:
             return new PulsarClientException.ProducerBlockedQuotaExceededException(errorMsg);
+        case TopicTerminatedError:
+            return new PulsarClientException.TopicTerminatedException(errorMsg);
         case UnknownError:
         default:
             return new PulsarClientException(errorMsg);

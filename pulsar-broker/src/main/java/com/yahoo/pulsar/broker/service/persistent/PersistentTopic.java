@@ -34,12 +34,14 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenCursorCallback;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.TerminateCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedCursor.IndividualDeletedEntries;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerFencedException;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerTerminatedException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
@@ -58,12 +60,13 @@ import com.yahoo.pulsar.broker.service.BrokerService;
 import com.yahoo.pulsar.broker.service.BrokerServiceException;
 import com.yahoo.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import com.yahoo.pulsar.broker.service.BrokerServiceException.NamingException;
-import com.yahoo.pulsar.broker.service.BrokerServiceException.UnsupportedVersionException;
 import com.yahoo.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import com.yahoo.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import com.yahoo.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import com.yahoo.pulsar.broker.service.BrokerServiceException.TopicBusyException;
 import com.yahoo.pulsar.broker.service.BrokerServiceException.TopicFencedException;
+import com.yahoo.pulsar.broker.service.BrokerServiceException.TopicTerminatedException;
+import com.yahoo.pulsar.broker.service.BrokerServiceException.UnsupportedVersionException;
 import com.yahoo.pulsar.broker.service.Consumer;
 import com.yahoo.pulsar.broker.service.Producer;
 import com.yahoo.pulsar.broker.service.ServerCnx;
@@ -117,6 +120,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
     protected static final AtomicLongFieldUpdater<PersistentTopic> USAGE_COUNT_UPDATER =
             AtomicLongFieldUpdater.newUpdater(PersistentTopic.class, "usageCount");
+    @SuppressWarnings("unused")
     private volatile long usageCount = 0;
 
     private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
@@ -125,14 +129,14 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     public final String replicatorPrefix;
 
     private static final double MESSAGE_EXPIRY_THRESHOLD = 1.5;
-    
+
     private static final long POLICY_UPDATE_FAILURE_RETRY_TIME_SECONDS = 60;
 
     public static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSZ").withZone(ZoneId.systemDefault());
 
     // Timestamp of when this topic was last seen active
     private volatile long lastActive;
-    
+
     // Flag to signal that producer of this topic has published batch-message so, broker should not allow consumer which
     // doesn't support batch-message
     private volatile boolean hasBatchMessagePublished = false;
@@ -212,7 +216,16 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     public void addFailed(ManagedLedgerException exception, Object ctx) {
         PublishCallback callback = (PublishCallback) ctx;
         log.error("[{}] Failed to persist msg in store: {}", topic, exception.getMessage());
-        callback.completed(new PersistenceException(exception), -1, -1);
+
+        if (exception instanceof ManagedLedgerTerminatedException) {
+            // Signal the producer that this topic is no longer available
+            callback.completed(new TopicTerminatedException(exception), -1, -1);
+        } else {
+            // Use generic persistence exception
+            callback.completed(new PersistenceException(exception), -1, -1);
+        }
+
+
 
         if (exception instanceof ManagedLedgerFencedException) {
             // If the managed ledger has been fenced, we cannot continue using it. We need to close and reopen
@@ -229,6 +242,11 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             if (isFenced) {
                 log.warn("[{}] Attempting to add producer to a fenced topic", topic);
                 throw new TopicFencedException("Topic is temporarily unavailable");
+            }
+
+            if (ledger.isTerminated()) {
+                log.warn("[{}] Attempting to add producer to a terminated topic", topic);
+                throw new TopicTerminatedException("Topic was already terminated");
             }
 
             if (log.isDebugEnabled()) {
@@ -652,7 +670,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         });
         return result;
     }
-    
+
     @Override
     public CompletableFuture<Void> checkReplication() {
         DestinationName name = DestinationName.get(topic);
@@ -953,7 +971,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                     destStatsStream.writePair("msgRateOut", consumerStats.msgRateOut);
                     destStatsStream.writePair("msgThroughputOut", consumerStats.msgThroughputOut);
                     destStatsStream.writePair("msgRateRedeliver", consumerStats.msgRateRedeliver);
-                    
+
                     if (SubType.Shared.equals(subscription.getType())) {
                         destStatsStream.writePair("unackedMessages", consumerStats.unackedMessages);
                         destStatsStream.writePair("blockedConsumerOnUnackedMsgs",
@@ -981,7 +999,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                         destStatsStream.writePair("blockedSubscriptionOnUnackedMsgs",  dispatcher.isBlockedDispatcherOnUnackedMsgs());
                         destStatsStream.writePair("unackedMessages", dispatcher.getTotalUnackedMessages());
                     }
-                    
+
                 }
 
 
@@ -1242,6 +1260,31 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         return false;
     }
 
+    @Override
+    public CompletableFuture<MessageId> terminate() {
+        CompletableFuture<MessageId> future = new CompletableFuture<>();
+        ledger.asyncTerminate(new TerminateCallback() {
+            @Override
+            public void terminateComplete(Position lastCommittedPosition, Object ctx) {
+                producers.forEach(Producer::disconnect);
+                subscriptions.forEach((name, sub) -> sub.topicTerminated());
+
+                PositionImpl lastPosition = (PositionImpl) lastCommittedPosition;
+                MessageId messageId = new MessageIdImpl(lastPosition.getLedgerId(), lastPosition.getEntryId(), -1);
+
+                log.info("[{}] Topic terminated at {}", getName(), messageId);
+                future.complete(messageId);
+            }
+
+            @Override
+            public void terminateFailed(ManagedLedgerException exception, Object ctx) {
+                future.completeExceptionally(exception);
+            }
+        }, null);
+
+        return future;
+    }
+
     public boolean isOldestMessageExpired(ManagedCursor cursor, long messageTTLInSeconds) {
         MessageImpl msg = null;
         Entry entry = null;
@@ -1310,6 +1353,6 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     public void markBatchMessagePublished() {
         this.hasBatchMessagePublished = true;
     }
-    
+
     private static final Logger log = LoggerFactory.getLogger(PersistentTopic.class);
 }
