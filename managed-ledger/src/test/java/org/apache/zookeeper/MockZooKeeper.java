@@ -665,7 +665,7 @@ public class MockZooKeeper extends ZooKeeper {
         tree.clear();
         watchers.clear();
         executor.shutdownNow();
-        callbackExecutor.shutdown();
+        callbackExecutor.shutdownNow();
     }
 
     void checkProgrammedFail() throws KeeperException {
