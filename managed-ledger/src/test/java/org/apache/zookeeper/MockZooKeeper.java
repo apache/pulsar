@@ -18,7 +18,7 @@ package org.apache.zookeeper;
 import java.lang.reflect.Constructor;
 import java.util.List;
 import java.util.Set;
-import java.util.TreeMap;
+import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -39,7 +39,6 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Multimaps;
 import com.google.common.collect.SetMultimap;
 import com.google.common.collect.Sets;
@@ -49,7 +48,7 @@ import sun.reflect.ReflectionFactory;
 
 @SuppressWarnings({ "deprecation", "restriction", "rawtypes" })
 public class MockZooKeeper extends ZooKeeper {
-    private TreeMap<String, Pair<String, Integer>> tree;
+    private ConcurrentSkipListMap<String, Pair<String, Integer>> tree;
     private SetMultimap<String, Watcher> watchers;
     private boolean stopped;
     private boolean alwaysFail = false;
@@ -88,13 +87,13 @@ public class MockZooKeeper extends ZooKeeper {
     }
 
     private void init(ExecutorService executor) {
-        tree = Maps.newTreeMap();
+        tree = new ConcurrentSkipListMap<>();
         if (executor != null) {
             this.executor = executor;
         } else {
             this.executor = Executors.newFixedThreadPool(1, new DefaultThreadFactory("mock-zookeeper"));
         }
-        this.callbackExecutor = Executors.newFixedThreadPool(4, new DefaultThreadFactory("mock-zookeeper-callback"));
+        this.callbackExecutor = Executors.newCachedThreadPool(new DefaultThreadFactory("mock-zookeeper-callback"));
         SetMultimap<String, Watcher> w = HashMultimap.create();
         watchers = Multimaps.synchronizedSetMultimap(w);
         stopped = false;
@@ -165,7 +164,7 @@ public class MockZooKeeper extends ZooKeeper {
     }
 
     @Override
-    public synchronized void create(final String path, final byte[] data, final List<ACL> acl, CreateMode createMode,
+    public void create(final String path, final byte[] data, final List<ACL> acl, CreateMode createMode,
             final StringCallback cb, final Object ctx) {
         if (stopped) {
             cb.processResult(KeeperException.Code.CONNECTIONLOSS.intValue(), path, ctx, null);
@@ -184,9 +183,7 @@ public class MockZooKeeper extends ZooKeeper {
             } else if (!parent.isEmpty() && !tree.containsKey(parent)) {
                 cb.processResult(KeeperException.Code.NONODE.intValue(), path, ctx, null);
             } else {
-                synchronized (this) {
-                    tree.put(path, Pair.create(new String(data), 0));
-                }
+                tree.put(path, Pair.create(new String(data), 0));
                 cb.processResult(0, path, ctx, null);
                 if (!parent.isEmpty()) {
                     watchers.get(parent).forEach(watcher -> watcher.process(
@@ -500,7 +497,7 @@ public class MockZooKeeper extends ZooKeeper {
             watchers.removeAll(path);
         }
 
-        executor.execute(() -> {
+        callbackExecutor.execute(() -> {
             toNotify.forEach(watcher -> watcher
                     .process(new WatchedEvent(EventType.NodeDataChanged, KeeperState.SyncConnected, path)));
         });
