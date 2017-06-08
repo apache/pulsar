@@ -24,19 +24,13 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.Entry;
-import org.apache.bookkeeper.mledger.ManagedLedgerException;
-import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerFencedException;
-import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.util.SafeRun;
 import org.apache.bookkeeper.util.OrderedSafeExecutor;
 import org.apache.zookeeper.KeeperException;
@@ -48,16 +42,13 @@ import com.carrotsearch.hppc.ObjectObjectHashMap;
 import com.google.common.base.Objects;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import com.google.common.util.concurrent.RateLimiter;
 import com.yahoo.pulsar.broker.admin.AdminResource;
 import com.yahoo.pulsar.broker.service.BrokerService;
 import com.yahoo.pulsar.broker.service.BrokerServiceException;
 import com.yahoo.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import com.yahoo.pulsar.broker.service.BrokerServiceException.NamingException;
-import com.yahoo.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import com.yahoo.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import com.yahoo.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
-import com.yahoo.pulsar.broker.service.BrokerServiceException.TooManyRequestsException;
 import com.yahoo.pulsar.broker.service.BrokerServiceException.TopicBusyException;
 import com.yahoo.pulsar.broker.service.BrokerServiceException.TopicFencedException;
 import com.yahoo.pulsar.broker.service.BrokerServiceException.UnsupportedVersionException;
@@ -109,13 +100,10 @@ public class NonPersistentTopic implements Topic {
     // Prefix for replication cursors
     public final String replicatorPrefix;
 
-    private final RateLimiter messageDispatchLimiter;
-
     protected static final AtomicLongFieldUpdater<NonPersistentTopic> USAGE_COUNT_UPDATER = AtomicLongFieldUpdater
             .newUpdater(NonPersistentTopic.class, "usageCount");
     private volatile long usageCount = 0;
 
-    private final int maxPublishMessagesRate;
     private final OrderedSafeExecutor executor;
     
 
@@ -174,9 +162,6 @@ public class NonPersistentTopic implements Topic {
         this.replicators = new ConcurrentOpenHashMap<>();
         this.isFenced = false;
         this.replicatorPrefix = brokerService.pulsar().getConfiguration().getReplicatorPrefix();
-        this.maxPublishMessagesRate = brokerService.pulsar().getConfiguration()
-                .getMaxPublishMessageRatePerNonPersistentTopic();
-        this.messageDispatchLimiter = RateLimiter.create(maxPublishMessagesRate);
         this.executor = brokerService.getTopicOrderedExecutor();
         USAGE_COUNT_UPDATER.set(this, 0);
 
@@ -186,39 +171,38 @@ public class NonPersistentTopic implements Topic {
     @Override
     public void publishMessage(ByteBuf data, PublishCallback callback) {
 
-        if (messageDispatchLimiter.tryAcquire()) {
-           
-            data.retain();
-            this.executor.submitOrdered(topic, SafeRun.safeRun(() -> {
-                subscriptions.forEach((name, subscription) -> {
-                    Entry entry = create(0L, 0L, data);
-                    subscription.getDispatcher().sendMessages(Lists.newArrayList(entry));    
-                });
-                data.release();
-            }));
-            
-            data.retain();
-            this.executor.submitOrdered(topic, SafeRun.safeRun(() -> {
-                replicators.forEach((name, replicator) -> {
-                    // replicator modifies readerIndex while deserializing message-metadata so, create duplicateBuffer
-                    ByteBuf duplicateBuffer = RecyclableDuplicateByteBuf.create(data);
-                    Entry entry = create(0L, 0L, duplicateBuffer);
-                    // entry internally retains data so, duplicateBuffer should be release here
-                    duplicateBuffer.release();
-                    ((NonPersistentReplicator) replicator).sendMessage(entry);
-                });
-                data.release();
-            }));
-            callback.completed(null, 0L, 0L);
-            ENTRIES_ADDED_COUNTER_UPDATER.incrementAndGet(this);
-        } else {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Dropping published message due to max publish rate limit", topic);
+        AtomicInteger msgDeliveryCount = new AtomicInteger(2);
+        ENTRIES_ADDED_COUNTER_UPDATER.incrementAndGet(this);
+        
+        // retain data so, subscribers can release it later once it dispatch message
+        data.retain();
+        this.executor.submitOrdered(topic, SafeRun.safeRun(() -> {
+            subscriptions.forEach((name, subscription) -> {
+                Entry entry = create(0L, 0L, data);
+                subscription.getDispatcher().sendMessages(Lists.newArrayList(entry));    
+            });
+            data.release();
+            if(msgDeliveryCount.decrementAndGet() == 0) {
+                callback.completed(null, 0L, 0L);
             }
-            callback.completed(new TooManyRequestsException("reached max publish rate " + maxPublishMessagesRate), 0L,
-                    0L);
-        }
-
+        }));
+        
+        // retain data so, replicators can release it later once it dispatch message
+        data.retain();
+        this.executor.submitOrdered(topic, SafeRun.safeRun(() -> {
+            replicators.forEach((name, replicator) -> {
+                // replicator modifies readerIndex while deserializing message-metadata so, create duplicateBuffer
+                ByteBuf duplicateBuffer = RecyclableDuplicateByteBuf.create(data);
+                Entry entry = create(0L, 0L, duplicateBuffer);
+                // entry internally retains data so, duplicateBuffer should be release here
+                duplicateBuffer.release();
+                ((NonPersistentReplicator) replicator).sendMessage(entry);
+            });
+            data.release();
+            if(msgDeliveryCount.decrementAndGet() == 0) {
+                callback.completed(null, 0L, 0L);
+            }
+        }));
     }
 
     @Override

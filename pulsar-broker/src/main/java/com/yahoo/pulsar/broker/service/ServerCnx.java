@@ -83,6 +83,7 @@ public class ServerCnx extends PulsarHandler {
     private int pendingSendRequest = 0;
     private final String replicatorPrefix;
     private String clientVersion = null;
+    private final Semaphore nonPersistentMessageSemaphore;
 
     enum State {
         Start, Connected
@@ -97,6 +98,8 @@ public class ServerCnx extends PulsarHandler {
         this.producers = new ConcurrentLongHashMap<>(8, 1);
         this.consumers = new ConcurrentLongHashMap<>(8, 1);
         this.replicatorPrefix = service.pulsar().getConfiguration().getReplicatorPrefix();
+        this.nonPersistentMessageSemaphore = new Semaphore(
+                service.pulsar().getConfiguration().getMaxConcurrentNonPersistentMessagePerConnection(), false);
     }
 
     @Override
@@ -568,6 +571,11 @@ public class ServerCnx extends PulsarHandler {
             printSendCommandDebug(send, headersAndPayload);
         }
 
+        // avoid processing non-persist message if reached max concurrent-message limit
+        if(producer.isNonPersistentTopic() && !nonPersistentMessageSemaphore.tryAcquire()) {
+            return;
+        }
+        
         startSendOperation();
 
         // Persist the message
@@ -810,10 +818,13 @@ public class ServerCnx extends PulsarHandler {
         }
     }
 
-    public void completedSendOperation() {
+    public void completedSendOperation(boolean isNonPersistentTopic) {
         if (--pendingSendRequest == ResumeReadsThreshold) {
             // Resume reading from socket
             ctx.channel().config().setAutoRead(true);
+        }
+        if (isNonPersistentTopic) {
+            nonPersistentMessageSemaphore.release();
         }
     }
 

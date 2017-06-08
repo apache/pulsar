@@ -218,11 +218,11 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
     @Test
     public void testProducerRateLimit() throws Exception {
 
-        int defaultNonPersistentMessageRate = conf.getMaxPublishMessageRatePerNonPersistentTopic();
+        int defaultNonPersistentMessageRate = conf.getMaxConcurrentNonPersistentMessagePerConnection();
         try {
             final String topic = "non-persistent://my-property/use/my-ns/unacked-topic";
             // restart broker with lower publish rate limit
-            conf.setMaxPublishMessageRatePerNonPersistentTopic(1);
+            conf.setMaxConcurrentNonPersistentMessagePerConnection(1);
             stopBroker();
             startBroker();
             // produce message concurrently
@@ -248,7 +248,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             assertTrue(failed.get());
             producer.close();
         } finally {
-            conf.setMaxPublishMessageRatePerNonPersistentTopic(defaultNonPersistentMessageRate);
+            conf.setMaxConcurrentNonPersistentMessagePerConnection(defaultNonPersistentMessageRate);
         }
 
     }

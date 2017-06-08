@@ -32,6 +32,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Objects;
 import com.yahoo.pulsar.broker.service.Topic.PublishCallback;
+import com.yahoo.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import com.yahoo.pulsar.common.api.Commands;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.ServerError;
 import com.yahoo.pulsar.common.naming.DestinationName;
@@ -62,6 +63,7 @@ public class Producer {
     private final PublisherStats stats;
     private final boolean isRemote;
     private final String remoteCluster;
+    private final boolean isNonPersistentTopic;
 
     public Producer(Topic topic, ServerCnx cnx, long producerId, String producerName, String appId) {
         this.topic = topic;
@@ -71,6 +73,7 @@ public class Producer {
         this.closeFuture = new CompletableFuture<>();
         this.appId = appId;
         this.msgIn = new Rate();
+        this.isNonPersistentTopic = topic instanceof NonPersistentTopic;
 
         this.stats = new PublisherStats();
         stats.address = cnx.clientAddress().toString();
@@ -104,7 +107,7 @@ public class Producer {
             cnx.ctx().channel().eventLoop().execute(() -> {
                 cnx.ctx().writeAndFlush(
                         Commands.newSendError(producerId, sequenceId, new IllegalStateException("Producer is closed")));
-                cnx.completedSendOperation();
+                cnx.completedSendOperation(isNonPersistentTopic);
             });
 
             return;
@@ -114,7 +117,7 @@ public class Producer {
             cnx.ctx().channel().eventLoop().execute(() -> {
                 cnx.ctx().writeAndFlush(
                         Commands.newSendError(producerId, sequenceId, ServerError.ChecksumError, "Checksum failed on the broker"));
-                cnx.completedSendOperation();
+                cnx.completedSendOperation(isNonPersistentTopic);
             });
             return;
         }
@@ -186,7 +189,7 @@ public class Producer {
             if (exception != null) {
                 producer.cnx.ctx().channel().eventLoop().execute(() -> {
                     producer.cnx.ctx().writeAndFlush(Commands.newSendError(producer.producerId, sequenceId, exception));
-                    producer.cnx.completedSendOperation();
+                    producer.cnx.completedSendOperation(producer.isNonPersistentTopic);
                     producer.publishOperationCompleted();
                 });
             } else {
@@ -216,7 +219,7 @@ public class Producer {
             producer.cnx.ctx().writeAndFlush(
                     Commands.newSendReceipt(producer.producerId, sequenceId, ledgerId, entryId),
                     producer.cnx.ctx().voidPromise());
-            producer.cnx.completedSendOperation();
+            producer.cnx.completedSendOperation(producer.isNonPersistentTopic);
             producer.publishOperationCompleted();
             recycle();
         }
@@ -342,6 +345,10 @@ public class Producer {
 
     public PublisherStats getStats() {
         return stats;
+    }
+
+    public boolean isNonPersistentTopic() {
+        return isNonPersistentTopic;
     }
 
     @VisibleForTesting
