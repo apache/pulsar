@@ -60,9 +60,9 @@
 			- [Delete topic](#delete-topic)
 			- [List of topics](#list-of-topics)
 			- [List of partitioned topics](#list-of-partitioned-topics)
-			- [Grant permission](#grant-permission)
-			- [Get permission](#get-permission)
-			- [Revoke permission](#revoke-permission)
+			- [Grant permission](#grant-permission-1)
+			- [Get permission](#get-permission-1)
+			- [Revoke permission](#revoke-permission-1)
 			- [get partitioned topic stats](#get-partitioned-topic-stats)
 			- [Get stats](#get-stats)
 			- [Get detailed stats](#get-detailed-stats)
@@ -1574,7 +1574,7 @@ It shows a list of client role permissions on a given topic.
 ###### CLI
 
 ```
-$ pulsar-admin permissions persistent://test-property/cl1/ns1/tp1
+$ pulsar-admin persistent permissions persistent://test-property/cl1/ns1/tp1
 ```
 
 ```json
