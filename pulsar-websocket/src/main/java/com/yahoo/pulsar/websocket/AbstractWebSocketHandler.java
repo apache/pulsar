@@ -75,18 +75,19 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
         }
 
         if (service.isAuthorizationEnabled()) {
-            final String role = authRole;
-            isAuthorized(authRole).thenApply(isAuthorized -> {
-                if(isAuthorized) {
-                    createClient(session);
-                } else {
-                    log.warn("[{}] WebSocket Client [{}] is not authorized on topic {}", session.getRemoteAddress(), role,
+            try {
+                if (!isAuthorized(authRole)) {
+                    log.warn("[{}] WebSocket Client [{}] is not authorized on topic {}", session.getRemoteAddress(), authRole,
                             topic);
                     close(WebSocketError.NotAuthorizedError);
+                    return;
                 }
-                return null;
-            });
-            return;
+            } catch (Exception e) {
+                log.warn("[{}] Got an exception when authorizing WebSocket client {} on topic {} on: {}",
+                        session.getRemoteAddress(), authRole, topic, e.getMessage());
+                close(WebSocketError.UnknownError);
+                return;
+            }
         }
         createClient(session);
     }
@@ -145,7 +146,7 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
         return dn.toString();
     }
 
-    protected abstract CompletableFuture<Boolean> isAuthorized(String authRole);
+    protected abstract Boolean isAuthorized(String authRole) throws Exception;
 
     protected abstract void createClient(Session session);
 

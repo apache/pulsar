@@ -245,8 +245,8 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
     }
 
     @Override
-    protected CompletableFuture<Boolean> isAuthorized(String authRole) {
-        return service.getAuthorizationManager().canConsumeAsync(DestinationName.get(topic), authRole);
+    protected Boolean isAuthorized(String authRole) throws Exception {
+        return service.getAuthorizationManager().canConsume(DestinationName.get(topic), authRole);
     }
 
     private static String extractSubscription(HttpServletRequest request) {

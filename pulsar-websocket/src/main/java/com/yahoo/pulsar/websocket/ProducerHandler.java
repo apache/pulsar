@@ -177,8 +177,8 @@ public class ProducerHandler extends AbstractWebSocketHandler {
     }
 
     @Override
-    protected CompletableFuture<Boolean> isAuthorized(String authRole) {
-        return service.getAuthorizationManager().canProduceAsync(DestinationName.get(topic), authRole);
+    protected Boolean isAuthorized(String authRole) throws Exception {
+        return service.getAuthorizationManager().canProduce(DestinationName.get(topic), authRole);
     }
 
     private void sendAckResponse(ProducerAck response) {
