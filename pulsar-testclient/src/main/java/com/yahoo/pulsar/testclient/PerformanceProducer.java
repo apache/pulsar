@@ -233,6 +233,9 @@ public class PerformanceProducer {
             producerConf.setMaxPendingMessages(arguments.msgRate);
         }
 
+        // Block if queue is full else we will start seeing errors in sendAsync
+        producerConf.setBlockIfQueueFull(true);
+
         for (int i = 0; i < arguments.numTopics; i++) {
             String topic = (arguments.numTopics == 1) ? prefixTopicName : String.format("%s-%d", prefixTopicName, i);
             log.info("Adding {} publishers on destination {}", arguments.numProducers, topic);

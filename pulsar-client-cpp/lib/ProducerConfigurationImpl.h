@@ -38,7 +38,7 @@ struct ProducerConfigurationImpl {
               compressionType(CompressionNone),
               maxPendingMessages(30000),
               routingMode(ProducerConfiguration::UseSinglePartition),
-              blockIfQueueFull(true),
+              blockIfQueueFull(false),
               batchingEnabled(false),
               batchingMaxMessages(1000),
               batchingMaxAllowedSizeInBytes(128 * 1024), // 128 KB

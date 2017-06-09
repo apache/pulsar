@@ -85,7 +85,7 @@ public class PersistentReplicator implements ReadEntriesCallback, DeleteCallback
     private final Rate msgExpired = new Rate();
 
     private static final ProducerConfiguration producerConfiguration = new ProducerConfiguration().setSendTimeout(0,
-            TimeUnit.SECONDS);
+            TimeUnit.SECONDS).setBlockIfQueueFull(true);
 
     private final Backoff backOff = new Backoff(100, TimeUnit.MILLISECONDS, 1, TimeUnit.MINUTES);
     private int messageTTLInSeconds = 0;
