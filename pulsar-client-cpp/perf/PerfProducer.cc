@@ -286,6 +286,9 @@ int main(int argc, char** argv) {
         producerConf.setBatchingMaxAllowedSizeInBytes(args.batchingMaxAllowedSizeInBytes);
         producerConf.setBatchingMaxPublishDelayMs(args.batchingMaxPublishDelayMs);
     }
+
+    // Block if queue is full else we will start seeing errors in sendAsync
+    producerConf.setBlockIfQueueFull(true);
     pulsar::ClientConfiguration conf;
     conf.setUseTls(args.isUseTls);
     conf.setTlsAllowInsecureConnection(args.isTlsAllowInsecureConnection);
