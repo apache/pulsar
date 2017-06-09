@@ -26,6 +26,8 @@ import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 
 public interface Subscription {
+    String getName();
+    
     void addConsumer(Consumer consumer) throws BrokerServiceException;
 
     void removeConsumer(Consumer consumer) throws BrokerServiceException;

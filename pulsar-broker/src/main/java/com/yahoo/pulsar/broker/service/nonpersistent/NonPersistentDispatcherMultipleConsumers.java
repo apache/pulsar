@@ -48,6 +48,9 @@ public class NonPersistentDispatcherMultipleConsumers implements NonPersistentDi
     private static final AtomicIntegerFieldUpdater<NonPersistentDispatcherMultipleConsumers> IS_CLOSED_UPDATER = AtomicIntegerFieldUpdater
             .newUpdater(NonPersistentDispatcherMultipleConsumers.class, "isClosed");
     private volatile int isClosed = FALSE;
+    private static final AtomicIntegerFieldUpdater<NonPersistentDispatcherMultipleConsumers> TOTAL_AVAILABLE_PERMITS_UPDATER = AtomicIntegerFieldUpdater
+            .newUpdater(NonPersistentDispatcherMultipleConsumers.class, "totalAvailablePermits");
+    private volatile int totalAvailablePermits = 0;
 
     public NonPersistentDispatcherMultipleConsumers(NonPersistentTopic topic, String dispatcherName) {
         this.name = topic.getName() + " / " + dispatcherName;
@@ -76,11 +79,13 @@ public class NonPersistentDispatcherMultipleConsumers implements NonPersistentDi
                     log.info("[{}] All consumers removed. Subscription is disconnected", name);
                     closeFuture.complete(null);
                 }
+                TOTAL_AVAILABLE_PERMITS_UPDATER.set(this, 0);
             }
         } else {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Trying to remove a non-connected consumer: {}", name, consumer);
             }
+            TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this, -consumer.getAvailablePermits());
         }
     }
 
@@ -106,6 +111,21 @@ public class NonPersistentDispatcherMultipleConsumers implements NonPersistentDi
     }
 
     @Override
+    public synchronized void consumerFlow(Consumer consumer, int additionalNumberOfMessages) {
+        if (!consumerSet.contains(consumer)) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Ignoring flow control from disconnected consumer {}", name, consumer);
+            }
+            return;
+        }
+
+        totalAvailablePermits += additionalNumberOfMessages;
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] Trigger new read after receiving flow control message", consumer);
+        }
+    }
+
+    @Override
     public synchronized CompletableFuture<Void> disconnectAllConsumers() {
         closeFuture = new CompletableFuture<>();
         if (consumerList.isEmpty()) {
@@ -128,12 +148,17 @@ public class NonPersistentDispatcherMultipleConsumers implements NonPersistentDi
 
     @Override
     public void sendMessages(List<Entry> entries) {
-        Consumer consumer = getNextConsumer();
+        Consumer consumer = TOTAL_AVAILABLE_PERMITS_UPDATER.get(this) > 0 ? getNextConsumer() : null;
         if (consumer != null) {
-            consumer.sendMessages(entries, false);
+            TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this, -consumer.sendMessages(entries).getRight());
         } else {
             entries.forEach(Entry::release);
         }
+    }
+
+    @Override
+    public boolean hasPermits() {
+        return TOTAL_AVAILABLE_PERMITS_UPDATER.get(this) > 0;
     }
 
     private Consumer getNextConsumer() {

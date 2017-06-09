@@ -60,6 +60,11 @@ public class NonPersistentSubscription implements Subscription {
     }
 
     @Override
+    public String getName() {
+        return this.subName;
+    }
+
+    @Override
     public synchronized void addConsumer(Consumer consumer) throws BrokerServiceException {
         if (IS_FENCED_UPDATER.get(this) == TRUE) {
             log.warn("Attempting to add consumer {} on a fenced subscription", consumer);
@@ -119,7 +124,7 @@ public class NonPersistentSubscription implements Subscription {
 
     @Override
     public void consumerFlow(Consumer consumer, int additionalNumberOfMessages) {
-        // No-op
+        dispatcher.consumerFlow(consumer, additionalNumberOfMessages);
     }
 
     @Override

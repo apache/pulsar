@@ -181,11 +181,21 @@ public final class NonPersistentDispatcherSingleActiveConsumer implements NonPer
     @Override
     public void sendMessages(List<Entry> entries) {
         Consumer currentConsumer = ACTIVE_CONSUMER_UPDATER.get(this);
-        if (currentConsumer != null) {
-            currentConsumer.sendMessages(entries, false);
+        if (currentConsumer != null && currentConsumer.getAvailablePermits() > 0) {
+            currentConsumer.sendMessages(entries);
         } else {
             entries.forEach(Entry::release);
         }
+    }
+
+    @Override
+    public boolean hasPermits() {
+        return ACTIVE_CONSUMER_UPDATER.get(this) != null && ACTIVE_CONSUMER_UPDATER.get(this).getAvailablePermits() > 0;
+    }
+
+    @Override
+    public void consumerFlow(Consumer consumer, int additionalNumberOfMessages) {
+        // No-op
     }
 
     private static final Logger log = LoggerFactory.getLogger(NonPersistentDispatcherSingleActiveConsumer.class);

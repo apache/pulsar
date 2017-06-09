@@ -142,21 +142,6 @@ public class Consumer {
      * @return a promise that can be use to track when all the data has been written into the socket
      */
     public Pair<ChannelPromise, Integer> sendMessages(final List<Entry> entries) {
-        return sendMessages(entries, true);
-    }
-    
-    /**
-     * 
-     * Dispatch a list of entries to the consumer. <br/>
-     * <b>It is also responsible to release entries data and recycle entries object.</b>
-     * 
-     * @param entries
-     * @param updatePermits
-     *            : if true then it updates consumer permits and adds messageId into pendingMessage list for redelivery
-     *            tracking
-     * @return a promise that can be use to track when all the data has been written into the socket
-     */
-    public Pair<ChannelPromise, Integer> sendMessages(final List<Entry> entries, boolean updatePermits) {
         final ChannelHandlerContext ctx = cnx.ctx();
         final MutablePair<ChannelPromise, Integer> sentMessages = new MutablePair<ChannelPromise, Integer>();
         final ChannelPromise writePromise = ctx.newPromise();
@@ -172,7 +157,7 @@ public class Consumer {
         }
 
         try {
-            sentMessages.setRight(updatePermits ? updatePermitsAndPendingAcks(entries) : 0);
+            sentMessages.setRight(updatePermitsAndPendingAcks(entries));
         } catch (PulsarServerException pe) {
             log.warn("[{}] [{}] consumer doesn't support batch-message {}", subscription, consumerId,
                     cnx.getRemoteEndpointProtocolVersion());

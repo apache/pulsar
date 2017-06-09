@@ -30,6 +30,8 @@ import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+
+import org.apache.bookkeeper.mledger.util.SafeRun;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -572,10 +574,15 @@ public class ServerCnx extends PulsarHandler {
         }
 
         // avoid processing non-persist message if reached max concurrent-message limit
-        if(producer.isNonPersistentTopic() && !nonPersistentMessageSemaphore.tryAcquire()) {
+        if (producer.isNonPersistentTopic() && !nonPersistentMessageSemaphore.tryAcquire()) {
+            final long producerId = send.getProducerId();
+            final long sequenceId = send.getSequenceId();
+            service.getTopicOrderedExecutor().submitOrdered(producer.getTopic(), SafeRun.safeRun(() -> {
+                ctx.writeAndFlush(Commands.newSendReceipt(producerId, sequenceId, -1, -1), ctx.voidPromise());
+            }));
             return;
         }
-        
+
         startSendOperation();
 
         // Persist the message

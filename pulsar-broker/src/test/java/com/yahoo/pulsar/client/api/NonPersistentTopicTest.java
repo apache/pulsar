@@ -16,8 +16,10 @@
 package com.yahoo.pulsar.client.api;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.assertFalse;
 
 import java.net.URL;
 import java.util.Set;
@@ -163,7 +165,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
     }
 
     /**
-     * It verifies that consumer drops out messages if consumer is slow to consume message and once internal queue
+     * It verifies that broker doesn't dispatch messages if consumer runs out of permits
      * filled out with messages
      */
     @Test(dataProvider = "subscriptionType")
@@ -173,8 +175,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
         final String topic = "non-persistent://my-property/use/my-ns/unacked-topic";
         final int queueSize = 10;
         ConsumerConfiguration conf = new ConsumerConfiguration();
-        // conf.setSubscriptionType(type);
-        conf.setSubscriptionType(SubscriptionType.Shared);
+        conf.setSubscriptionType(type);
         conf.setReceiverQueueSize(queueSize);
 
         ProducerConfiguration producerConf = new ProducerConfiguration();
@@ -226,9 +227,10 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             stopBroker();
             startBroker();
             // produce message concurrently
-            ExecutorService executor = Executors.newFixedThreadPool(10);
+            ExecutorService executor = Executors.newFixedThreadPool(5);
             AtomicBoolean failed = new AtomicBoolean(false);
             ProducerConfiguration producerConf = new ProducerConfiguration();
+            Consumer consumer = pulsarClient.subscribe(topic, "subscriber-1");
             Producer producer = pulsarClient.createProducer(topic, producerConf);
             byte[] msgData = "testData".getBytes();
             final int totalProduceMessages = 10;
@@ -244,8 +246,24 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
                 });
             }
             latch.await();
+
+            Message msg = null;
+            Set<String> messageSet = Sets.newHashSet();
+            for (int i = 0; i < totalProduceMessages; i++) {
+                msg = consumer.receive(500, TimeUnit.MILLISECONDS);
+                if (msg != null) {
+                    messageSet.add(new String(msg.getData()));
+                } else {
+                    break;
+                }
+            }
+
+            // publish should not be failed
+            assertFalse(failed.get());
+            // but as message should be dropped at broker: broker should not receive the message
+            assertNotEquals(messageSet.size(), totalProduceMessages);
+
             executor.shutdown();
-            assertTrue(failed.get());
             producer.close();
         } finally {
             conf.setMaxConcurrentNonPersistentMessagePerConnection(defaultNonPersistentMessageRate);
@@ -504,8 +522,6 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             assertEquals(messageSet.size(), totalProducedMessages);
 
             Thread.sleep(timeWaitToSync);
-
-            System.out.println("done consuming");
 
             rolloverPerIntervalStats(replicationPulasr);
             stats = topicRef.getStats();

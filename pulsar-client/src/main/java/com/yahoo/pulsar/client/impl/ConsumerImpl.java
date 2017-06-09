@@ -98,7 +98,6 @@ public class ConsumerImpl extends ConsumerBase {
     private final int priorityLevel;
     private final SubscriptionMode subscriptionMode;
     private final MessageId startMessageId;
-    private final boolean isNonPersistent;
 
     static enum SubscriptionMode {
         // Make the subscription to be backed by a durable cursor that will retain messages and persist the current
@@ -122,7 +121,6 @@ public class ConsumerImpl extends ConsumerBase {
         this.consumerId = client.newConsumerId();
         this.subscriptionMode = subscriptionMode;
         this.startMessageId = startMessageId;
-        this.isNonPersistent = topic.startsWith("non-persistent");
         AVAILABLE_PERMITS_UPDATER.set(this, 0);
         this.subscribeTimeout = System.currentTimeMillis() + client.getConfiguration().getOperationTimeoutMs();
         this.partitionIndex = partitionIndex;
@@ -668,14 +666,6 @@ public class ConsumerImpl extends ConsumerBase {
                     messageId.getEntryId());
         }
 
-        if (!canReceiveMessage()) {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}][{}] Dropped received message: {}/{}", topic, subscription, messageId.getLedgerId(),
-                        messageId.getEntryId());
-            }
-            return;
-        }
-        
         MessageMetadata msgMetadata = null;
         ByteBuf payload = headersAndPayload;
 
@@ -775,10 +765,6 @@ public class ConsumerImpl extends ConsumerBase {
                 }
             });
         }
-    }
-
-    private boolean canReceiveMessage() {
-        return !(isNonPersistent && incomingMessages.size() >= conf.getReceiverQueueSize());
     }
 
     /**

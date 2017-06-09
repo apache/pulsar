@@ -50,11 +50,8 @@ public interface NonPersistentDispatcher extends Dispatcher{
     
     void sendMessages(List<Entry> entries);
     
-    @Override
-    default void consumerFlow(Consumer consumer, int additionalNumberOfMessages) {
-        // No-op
-    }
-
+    boolean hasPermits();
+    
     @Override
     default void redeliverUnacknowledgedMessages(Consumer consumer) {
         // No-op

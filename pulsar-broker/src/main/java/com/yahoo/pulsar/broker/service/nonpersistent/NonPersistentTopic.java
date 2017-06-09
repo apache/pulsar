@@ -105,7 +105,6 @@ public class NonPersistentTopic implements Topic {
     private volatile long usageCount = 0;
 
     private final OrderedSafeExecutor executor;
-    
 
     private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
 
@@ -119,8 +118,8 @@ public class NonPersistentTopic implements Topic {
     // doesn't support batch-message
     private volatile boolean hasBatchMessagePublished = false;
     // Ever increasing counter of entries added
-    static final AtomicLongFieldUpdater<NonPersistentTopic> ENTRIES_ADDED_COUNTER_UPDATER =
-            AtomicLongFieldUpdater.newUpdater(NonPersistentTopic.class, "entriesAddedCounter");
+    static final AtomicLongFieldUpdater<NonPersistentTopic> ENTRIES_ADDED_COUNTER_UPDATER = AtomicLongFieldUpdater
+            .newUpdater(NonPersistentTopic.class, "entriesAddedCounter");
     private volatile long entriesAddedCounter = 0;
     private static final long POLICY_UPDATE_FAILURE_RETRY_TIME_SECONDS = 60;
 
@@ -173,33 +172,41 @@ public class NonPersistentTopic implements Topic {
 
         AtomicInteger msgDeliveryCount = new AtomicInteger(2);
         ENTRIES_ADDED_COUNTER_UPDATER.incrementAndGet(this);
-        
-        // retain data so, subscribers can release it later once it dispatch message
-        data.retain();
+
+        // create duplicate buffer for dispatcher because readerIndex of byteBuf can be modified
+        final ByteBuf subscriptionMsgData = RecyclableDuplicateByteBuf.create(data);
+        final ByteBuf replicatorMsgData = RecyclableDuplicateByteBuf.create(data);
         this.executor.submitOrdered(topic, SafeRun.safeRun(() -> {
             subscriptions.forEach((name, subscription) -> {
-                Entry entry = create(0L, 0L, data);
-                subscription.getDispatcher().sendMessages(Lists.newArrayList(entry));    
+                if (subscription.getDispatcher().hasPermits()) {
+                    ByteBuf duplicateBuffer = RecyclableDuplicateByteBuf.create(data);
+                    Entry entry = create(0L, 0L, duplicateBuffer);
+                    // entry internally retains data so, duplicateBuffer should be release here
+                    duplicateBuffer.release();
+                    subscription.getDispatcher().sendMessages(Lists.newArrayList(entry));
+                } else {
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}/{}] doesn't have permit to dispatch message", name, subscription.getName());
+                    }
+                }
             });
-            data.release();
-            if(msgDeliveryCount.decrementAndGet() == 0) {
+            subscriptionMsgData.release();
+            if (msgDeliveryCount.decrementAndGet() == 0) {
                 callback.completed(null, 0L, 0L);
             }
         }));
-        
-        // retain data so, replicators can release it later once it dispatch message
-        data.retain();
+
         this.executor.submitOrdered(topic, SafeRun.safeRun(() -> {
             replicators.forEach((name, replicator) -> {
-                // replicator modifies readerIndex while deserializing message-metadata so, create duplicateBuffer
                 ByteBuf duplicateBuffer = RecyclableDuplicateByteBuf.create(data);
                 Entry entry = create(0L, 0L, duplicateBuffer);
                 // entry internally retains data so, duplicateBuffer should be release here
                 duplicateBuffer.release();
                 ((NonPersistentReplicator) replicator).sendMessage(entry);
             });
-            data.release();
-            if(msgDeliveryCount.decrementAndGet() == 0) {
+
+            replicatorMsgData.release();
+            if (msgDeliveryCount.decrementAndGet() == 0) {
                 callback.completed(null, 0L, 0L);
             }
         }));
@@ -775,11 +782,11 @@ public class NonPersistentTopic implements Topic {
 
         PersistentTopicInternalStats stats = new PersistentTopicInternalStats();
         stats.entriesAddedCounter = ENTRIES_ADDED_COUNTER_UPDATER.get(this);
-        
+
         stats.cursors = Maps.newTreeMap();
         subscriptions.forEach((name, subs) -> stats.cursors.put(name, new CursorStats()));
         replicators.forEach((name, subs) -> stats.cursors.put(name, new CursorStats()));
-        
+
         return stats;
     }
 
