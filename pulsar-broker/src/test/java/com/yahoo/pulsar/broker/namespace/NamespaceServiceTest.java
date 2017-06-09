@@ -257,7 +257,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         NamespaceBundles bundles = namespaceService.getNamespaceBundleFactory().getBundles(nsname);
 
         NamespaceBundle bundle = bundles.getBundles().get(0);
-        assertNotNull(ownershipCache.tryAcquiringOwnership(bundle));
+        assertNotNull(ownershipCache.tryAcquiringOwnership(bundle).get());
         assertNotNull(ownershipCache.getOwnedBundle(bundle));
         ownershipCache.removeOwnership(bundles).get();
         assertNull(ownershipCache.getOwnedBundle(bundle));
