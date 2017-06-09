@@ -66,12 +66,22 @@ class LookupDataResult {
     }
 
  private:
+    friend inline std::ostream& operator<<(std::ostream& os, const LookupDataResult& b);
     std::string brokerUrl_;
     std::string brokerUrlSsl_;
     int partitions;
     bool authoritative;
     bool redirect;
 };
+
+std::ostream& operator<<(std::ostream& os, const LookupDataResult& b) {
+    os << "{ LookupDataResult [brokerUrl_ = " << b.brokerUrl_ << "] [brokerUrlSsl_ = "
+            << b.brokerUrlSsl_ << "] [partitions = "
+            << b.partitions << "] [authoritative = "
+            << b.authoritative << "] [redirect = " << b.redirect
+            << "]";
+    return os;
+}
 
 }
 

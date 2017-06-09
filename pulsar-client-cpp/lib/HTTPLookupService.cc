@@ -124,6 +124,8 @@ namespace pulsar {
         }
         curl_easy_setopt(handle, CURLOPT_HTTPHEADER, list);
 
+        LOG_INFO("Curl Lookup Request sent for" << completeUrl);
+
         // Make get call to server
         res = curl_easy_perform(handle);
 
@@ -132,8 +134,14 @@ namespace pulsar {
 
         switch(res) {
             case CURLE_OK:
-                LOG_DEBUG("Response received successfully for url " << completeUrl);
-                promise.setValue((requestType == PartitionMetaData) ? parsePartitionData(responseData) : parseLookupData(responseData));
+                long response_code;
+                curl_easy_getinfo(handle, CURLINFO_RESPONSE_CODE, &response_code);
+                LOG_INFO("Response received for url " << completeUrl << " code " << response_code);
+                if (response_code == 200) {
+                    promise.setValue((requestType == PartitionMetaData) ? parsePartitionData(responseData) : parseLookupData(responseData));
+                } else {
+                    promise.setFailed(ResultLookupError);
+                }
                 break;
             case CURLE_COULDNT_CONNECT:
             case CURLE_COULDNT_RESOLVE_PROXY:
@@ -168,6 +176,7 @@ namespace pulsar {
         }
         LookupDataResultPtr lookupDataResultPtr = boost::make_shared<LookupDataResult>();
         lookupDataResultPtr->setPartitions(root.get("partitions", 0).asInt());
+        LOG_INFO("parsePartitionData = "<<*lookupDataResultPtr);
         return lookupDataResultPtr;
     }
 
@@ -195,6 +204,7 @@ namespace pulsar {
         LookupDataResultPtr lookupDataResultPtr = boost::make_shared<LookupDataResult>();
         lookupDataResultPtr->setBrokerUrl(brokerUrl);
         lookupDataResultPtr->setBrokerUrlSsl(brokerUrlSsl);
+        LOG_INFO("parseLookupData = "<<*lookupDataResultPtr);
         return lookupDataResultPtr;
     }
 }
