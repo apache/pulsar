@@ -39,72 +39,6 @@ public class StatsOutputStreamTest {
     }
 
     @Test
-    public void testBooleanFormat() {
-        stream.writeBoolean(false);
-        assertEquals(str(), "false");
-
-        stream.writeBoolean(true);
-        assertEquals(str(), "true");
-    }
-
-    @Test
-    public void testLongFormat() {
-        stream.writeLong(0);
-        assertEquals(str(), "0");
-
-        stream.writeLong(-1);
-        assertEquals(str(), "-1");
-
-        stream.writeLong(123456789);
-        assertEquals(str(), "123456789");
-
-        stream.writeLong(-123456789);
-        assertEquals(str(), "-123456789");
-
-        long i = 2 * (long) Integer.MAX_VALUE;
-
-        stream.writeLong(i);
-        assertEquals(str(), Long.toString(i));
-
-        stream.writeLong(Long.MAX_VALUE);
-        assertEquals(str(), Long.toString(Long.MAX_VALUE));
-
-        stream.writeLong(Long.MIN_VALUE);
-        assertEquals(str(), Long.toString(Long.MIN_VALUE));
-
-        // Testing trailing 0s
-        stream.writeLong(100);
-        assertEquals(str(), "100");
-
-        stream.writeLong(-1000);
-        assertEquals(str(), "-1000");
-    }
-
-    @Test
-    public void testDoubleFormat() {
-        stream.writeDouble(0.0);
-        assertEquals(str(), "0.0");
-
-        stream.writeDouble(1.0);
-        assertEquals(str(), "1.0");
-
-        stream.writeDouble(1.123456789);
-        assertEquals(str(), "1.123");
-
-        stream.writeDouble(123456.123456789);
-        assertEquals(str(), "123456.123");
-
-        stream.writeDouble(-123456.123456789);
-        assertEquals(str(), "-123456.123");
-
-        stream.writeDouble(-123456.003456789);
-        assertEquals(str(), "-123456.003");
-
-        stream.writeDouble(-123456.100456789);
-        assertEquals(str(), "-123456.100");
-    }
-
-    @Test
     public void testPairs() {
         stream.writePair("my-count", 1);
         assertEquals(str(), "\"my-count\":1");
@@ -126,22 +60,22 @@ public class StatsOutputStreamTest {
         assertEquals(str(), "[]");
 
         stream.startList();
-        stream.write(1);
+        stream.writeItem(1);
         stream.endList();
         assertEquals(str(), "[1]");
 
         stream.startList();
-        stream.write(1).write(2);
+        stream.writeItem(1).writeItem(2);
         stream.endList();
         assertEquals(str(), "[1,2]");
 
         stream.startList();
-        stream.write(1).write(2).write(3);
+        stream.writeItem(1).writeItem(2).writeItem(3);
         stream.endList();
         assertEquals(str(), "[1,2,3]");
 
         stream.startList();
-        stream.write(1).write(2).write(3).write(false).write(1.0).write("xyz");
+        stream.writeItem(1).writeItem(2).writeItem(3).writeItem(false).writeItem(1.0).writeItem("xyz");
         stream.endList();
         assertEquals(str(), "[1,2,3,false,1.0,\"xyz\"]");
     }
@@ -153,7 +87,7 @@ public class StatsOutputStreamTest {
         assertEquals(str(), "\"abc\":[]");
 
         stream.startList("abc");
-        stream.write(1);
+        stream.writeItem(1);
         stream.endList();
         assertEquals(str(), "\"abc\":[1]");
     }
@@ -207,13 +141,6 @@ public class StatsOutputStreamTest {
         stream.endList();
 
         assertEquals(str(), "[{\"a\":1},{\"b\":2}]");
-    }
-
-    @Test
-    public void testString() {
-        stream.writeEncodedString("�\b`~�ýý8ýH\\abcd\"");
-        assertEquals(str(), "\\ufffd\\u0008`~\\ufffd\\u00fd\\u00fd8\\u00fdH\\\\abcd\\\"");
-
     }
 
     @SuppressWarnings("unchecked")

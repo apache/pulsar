@@ -78,7 +78,7 @@ All sizes are passed as 4 bytes unsigned big endian integers.
  * `CMD` → Protobuf object serialized in binary form
  * Anything coming after it's what gets actually persisted
     * `MAGIC_NUMBER` → *(2 bytes)* `0x0e01` Magic number identifying the current format
-    * `CHECKSUM` → *(2 bytes)* CRC32-C checksum of anything that comes after it
+    * `CHECKSUM` → *(4 bytes)* CRC32-C checksum of anything that comes after it
     * `METADATA_SIZE` → *(4 bytes)* Size of the message metadata
     * `METADATA` → Message metadata stored as binary protobuf message
     * `PAYLOAD` → Anything left in the frame is considered to be the payload and
@@ -442,6 +442,15 @@ pending messages.
 On redelivery, messages an be sent to the same consumer or, in the case of a
 shared subscription, spread across all available consumers.
 
+
+##### Command ReachedEndOfTopic
+
+This is sent by a broker to a particular consumer, whenever the topic
+has been "terminated" and all the messages on the subscription were
+acknowledged.
+
+The client should use this command to notify the application that no more
+messages are coming from the consumer.
 
 ## Service discovery
 

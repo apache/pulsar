@@ -42,6 +42,8 @@ public interface Topic {
     CompletableFuture<Consumer> subscribe(ServerCnx cnx, String subscriptionName, long consumerId, SubType subType,
             int priorityLevel, String consumerName, boolean isDurable, MessageId startMessageId);
 
+    CompletableFuture<PersistentSubscription> createSubscription(String subscriptionName);
+
     CompletableFuture<Void> unsubscribe(String subName);
 
     ConcurrentOpenHashMap<String, PersistentSubscription> getSubscriptions();
@@ -65,4 +67,6 @@ public interface Topic {
     boolean isBacklogQuotaExceeded(String producerName);
 
     BacklogQuota getBacklogQuota();
+
+    CompletableFuture<MessageId> terminate();
 }

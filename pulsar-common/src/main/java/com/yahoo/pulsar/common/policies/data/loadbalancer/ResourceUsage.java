@@ -28,8 +28,12 @@ public class ResourceUsage {
         this.limit = limit;
     }
 
-    public ResourceUsage() {
+    public ResourceUsage(ResourceUsage that) {
+        this.usage = that.usage;
+        this.limit = that.limit;
+    }
 
+    public ResourceUsage() {
     }
 
     public void reset() {

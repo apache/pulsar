@@ -27,6 +27,12 @@ message ManagedLedgerInfo {
     }
     
     repeated LedgerInfo ledgerInfo = 1;
+
+    // If present, it signals the managed ledger has been
+    // terminated and this was the position of the last
+    // committed entry.
+    // No more entries can be written.
+    optional NestedPositionInfo terminatedPosition = 2;
 }
 
 message PositionInfo {

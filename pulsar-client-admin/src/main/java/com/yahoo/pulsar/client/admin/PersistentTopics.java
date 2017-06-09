@@ -29,6 +29,7 @@ import com.yahoo.pulsar.client.admin.PulsarAdminException.NotAuthorizedException
 import com.yahoo.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import com.yahoo.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import com.yahoo.pulsar.client.api.Message;
+import com.yahoo.pulsar.client.api.MessageId;
 import com.yahoo.pulsar.common.partition.PartitionedTopicMetadata;
 import com.yahoo.pulsar.common.policies.data.AuthAction;
 import com.yahoo.pulsar.common.policies.data.PartitionedTopicStats;
@@ -192,6 +193,38 @@ public interface PersistentTopics {
      * @return a future that can be used to track when the partitioned topic is created
      */
     CompletableFuture<Void> createPartitionedTopicAsync(String destination, int numPartitions);
+    
+    /**
+     * Update number of partitions of a non-global partitioned topic.
+     * <p>
+     * It requires partitioned-topic to be already exist and number of new partitions must be greater than existing
+     * number of partitions. Decrementing number of partitions requires deletion of topic which is not supported.
+     * <p>
+     *
+     * @param destination
+     *            Destination name
+     * @param numPartitions
+     *            Number of new partitions of already exist partitioned-topic
+     * 
+     * @return a future that can be used to track when the partitioned topic is updated
+     */
+    void updatePartitionedTopic(String destination, int numPartitions) throws PulsarAdminException;
+
+    /**
+     * Update number of partitions of a non-global partitioned topic asynchronously.
+     * <p>
+     * It requires partitioned-topic to be already exist and number of new partitions must be greater than existing
+     * number of partitions. Decrementing number of partitions requires deletion of topic which is not supported.
+     * <p>
+     *
+     * @param destination
+     *            Destination name
+     * @param numPartitions
+     *            Number of new partitions of already exist partitioned-topic
+     * 
+     * @return a future that can be used to track when the partitioned topic is updated
+     */
+    CompletableFuture<Void> updatePartitionedTopicAsync(String destination, int numPartitions);
 
     /**
      * Get metadata of a partitioned topic.
@@ -275,6 +308,17 @@ public interface PersistentTopics {
      * @return a future that can be used to track when the topic is deleted
      */
     CompletableFuture<Void> deleteAsync(String destination);
+
+    /**
+     * Terminate the topic and prevent any more messages being published on it.
+     * <p>
+     * This
+     *
+     * @param destination
+     *            Destination name
+     * @return the message id of the last message that was published in the topic
+     */
+    CompletableFuture<MessageId> terminateTopicAsync(String destination);
 
     /**
      * Get the list of subscriptions.
@@ -641,7 +685,7 @@ public interface PersistentTopics {
 
     /**
      * Expire all messages older than given N (expireTimeInSeconds) seconds for a given subscription
-     * 
+     *
      * @param destination
      *            Destination name
      * @param subName
@@ -652,10 +696,10 @@ public interface PersistentTopics {
      *             Unexpected error
      */
     public void expireMessages(String destination, String subscriptionName, long expireTimeInSeconds) throws PulsarAdminException;
-    
+
     /**
      * Expire all messages older than given N (expireTimeInSeconds) seconds for a given subscription asynchronously
-     * 
+     *
      * @param destination
      *            Destination name
      * @param subName
@@ -669,7 +713,7 @@ public interface PersistentTopics {
     /**
      * Expire all messages older than given N (expireTimeInSeconds) seconds for all subscriptions of the
      * persistent-topic
-     * 
+     *
      * @param destination
      *            Destination name
      * @param expireTimeInSeconds
@@ -678,19 +722,19 @@ public interface PersistentTopics {
      *             Unexpected error
      */
     public void expireMessagesForAllSubscriptions(String destination, long expireTimeInSeconds) throws PulsarAdminException;
-    
+
 
     /**
      * Expire all messages older than given N (expireTimeInSeconds) seconds for all subscriptions of the
      * persistent-topic asynchronously
-     * 
+     *
      * @param destination
      *            Destination name
      * @param expireTimeInSeconds
      *            Expire messages older than time in seconds
      */
     public CompletableFuture<Void> expireMessagesForAllSubscriptionsAsync(String destination, long expireTimeInSeconds);
-    
+
     /**
      * Peek messages from a topic subscription
      *

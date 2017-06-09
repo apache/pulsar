@@ -20,6 +20,11 @@ public final class MLDataFormats {
         getLedgerInfoOrBuilderList();
     org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfoOrBuilder getLedgerInfoOrBuilder(
         int index);
+    
+    // optional .NestedPositionInfo terminatedPosition = 2;
+    boolean hasTerminatedPosition();
+    org.apache.bookkeeper.mledger.proto.MLDataFormats.NestedPositionInfo getTerminatedPosition();
+    org.apache.bookkeeper.mledger.proto.MLDataFormats.NestedPositionInfoOrBuilder getTerminatedPositionOrBuilder();
   }
   public static final class ManagedLedgerInfo extends
       com.google.protobuf.GeneratedMessage
@@ -566,6 +571,7 @@ public final class MLDataFormats {
       // @@protoc_insertion_point(class_scope:ManagedLedgerInfo.LedgerInfo)
     }
     
+    private int bitField0_;
     // repeated .ManagedLedgerInfo.LedgerInfo ledgerInfo = 1;
     public static final int LEDGERINFO_FIELD_NUMBER = 1;
     private java.util.List<org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgerInfo_;
@@ -587,8 +593,22 @@ public final class MLDataFormats {
       return ledgerInfo_.get(index);
     }
     
+    // optional .NestedPositionInfo terminatedPosition = 2;
+    public static final int TERMINATEDPOSITION_FIELD_NUMBER = 2;
+    private org.apache.bookkeeper.mledger.proto.MLDataFormats.NestedPositionInfo terminatedPosition_;
+    public boolean hasTerminatedPosition() {
+      return ((bitField0_ & 0x00000001) == 0x00000001);
+    }
+    public org.apache.bookkeeper.mledger.proto.MLDataFormats.NestedPositionInfo getTerminatedPosition() {
+      return terminatedPosition_;
+    }
+    public org.apache.bookkeeper.mledger.proto.MLDataFormats.NestedPositionInfoOrBuilder getTerminatedPositionOrBuilder() {
+      return terminatedPosition_;
+    }
+    
     private void initFields() {
       ledgerInfo_ = java.util.Collections.emptyList();
+      terminatedPosition_ = org.apache.bookkeeper.mledger.proto.MLDataFormats.NestedPositionInfo.getDefaultInstance();
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -597,6 +617,12 @@ public final class MLDataFormats {
       
       for (int i = 0; i < getLedgerInfoCount(); i++) {
         if (!getLedgerInfo(i).isInitialized()) {
+          memoizedIsInitialized = 0;
+          return false;
+        }
+      }
+      if (hasTerminatedPosition()) {
+        if (!getTerminatedPosition().isInitialized()) {
           memoizedIsInitialized = 0;
           return false;
         }
@@ -611,6 +637,9 @@ public final class MLDataFormats {
       for (int i = 0; i < ledgerInfo_.size(); i++) {
         output.writeMessage(1, ledgerInfo_.get(i));
       }
+      if (((bitField0_ & 0x00000001) == 0x00000001)) {
+        output.writeMessage(2, terminatedPosition_);
+      }
       getUnknownFields().writeTo(output);
     }
     
@@ -623,6 +652,10 @@ public final class MLDataFormats {
       for (int i = 0; i < ledgerInfo_.size(); i++) {
         size += com.google.protobuf.CodedOutputStream
           .computeMessageSize(1, ledgerInfo_.get(i));
+      }
+      if (((bitField0_ & 0x00000001) == 0x00000001)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeMessageSize(2, terminatedPosition_);
       }
       size += getUnknownFields().getSerializedSize();
       memoizedSerializedSize = size;
@@ -741,6 +774,7 @@ public final class MLDataFormats {
       private void maybeForceBuilderInitialization() {
         if (com.google.protobuf.GeneratedMessage.alwaysUseFieldBuilders) {
           getLedgerInfoFieldBuilder();
+          getTerminatedPositionFieldBuilder();
         }
       }
       private static Builder create() {
@@ -755,6 +789,12 @@ public final class MLDataFormats {
         } else {
           ledgerInfoBuilder_.clear();
         }
+        if (terminatedPositionBuilder_ == null) {
+          terminatedPosition_ = org.apache.bookkeeper.mledger.proto.MLDataFormats.NestedPositionInfo.getDefaultInstance();
+        } else {
+          terminatedPositionBuilder_.clear();
+        }
+        bitField0_ = (bitField0_ & ~0x00000002);
         return this;
       }
       
@@ -792,6 +832,7 @@ public final class MLDataFormats {
       public org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo buildPartial() {
         org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo result = new org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo(this);
         int from_bitField0_ = bitField0_;
+        int to_bitField0_ = 0;
         if (ledgerInfoBuilder_ == null) {
           if (((bitField0_ & 0x00000001) == 0x00000001)) {
             ledgerInfo_ = java.util.Collections.unmodifiableList(ledgerInfo_);
@@ -801,6 +842,15 @@ public final class MLDataFormats {
         } else {
           result.ledgerInfo_ = ledgerInfoBuilder_.build();
         }
+        if (((from_bitField0_ & 0x00000002) == 0x00000002)) {
+          to_bitField0_ |= 0x00000001;
+        }
+        if (terminatedPositionBuilder_ == null) {
+          result.terminatedPosition_ = terminatedPosition_;
+        } else {
+          result.terminatedPosition_ = terminatedPositionBuilder_.build();
+        }
+        result.bitField0_ = to_bitField0_;
         onBuilt();
         return result;
       }
@@ -842,6 +892,9 @@ public final class MLDataFormats {
             }
           }
         }
+        if (other.hasTerminatedPosition()) {
+          mergeTerminatedPosition(other.getTerminatedPosition());
+        }
         this.mergeUnknownFields(other.getUnknownFields());
         return this;
       }
@@ -849,6 +902,12 @@ public final class MLDataFormats {
       public final boolean isInitialized() {
         for (int i = 0; i < getLedgerInfoCount(); i++) {
           if (!getLedgerInfo(i).isInitialized()) {
+            
+            return false;
+          }
+        }
+        if (hasTerminatedPosition()) {
+          if (!getTerminatedPosition().isInitialized()) {
             
             return false;
           }
@@ -883,6 +942,15 @@ public final class MLDataFormats {
               org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo.Builder subBuilder = org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo.newBuilder();
               input.readMessage(subBuilder, extensionRegistry);
               addLedgerInfo(subBuilder.buildPartial());
+              break;
+            }
+            case 18: {
+              org.apache.bookkeeper.mledger.proto.MLDataFormats.NestedPositionInfo.Builder subBuilder = org.apache.bookkeeper.mledger.proto.MLDataFormats.NestedPositionInfo.newBuilder();
+              if (hasTerminatedPosition()) {
+                subBuilder.mergeFrom(getTerminatedPosition());
+              }
+              input.readMessage(subBuilder, extensionRegistry);
+              setTerminatedPosition(subBuilder.buildPartial());
               break;
             }
           }
@@ -1075,6 +1143,96 @@ public final class MLDataFormats {
           ledgerInfo_ = null;
         }
         return ledgerInfoBuilder_;
+      }
+      
+      // optional .NestedPositionInfo terminatedPosition = 2;
+      private org.apache.bookkeeper.mledger.proto.MLDataFormats.NestedPositionInfo terminatedPosition_ = org.apache.bookkeeper.mledger.proto.MLDataFormats.NestedPositionInfo.getDefaultInstance();
+      private com.google.protobuf.SingleFieldBuilder<
+          org.apache.bookkeeper.mledger.proto.MLDataFormats.NestedPositionInfo, org.apache.bookkeeper.mledger.proto.MLDataFormats.NestedPositionInfo.Builder, org.apache.bookkeeper.mledger.proto.MLDataFormats.NestedPositionInfoOrBuilder> terminatedPositionBuilder_;
+      public boolean hasTerminatedPosition() {
+        return ((bitField0_ & 0x00000002) == 0x00000002);
+      }
+      public org.apache.bookkeeper.mledger.proto.MLDataFormats.NestedPositionInfo getTerminatedPosition() {
+        if (terminatedPositionBuilder_ == null) {
+          return terminatedPosition_;
+        } else {
+          return terminatedPositionBuilder_.getMessage();
+        }
+      }
+      public Builder setTerminatedPosition(org.apache.bookkeeper.mledger.proto.MLDataFormats.NestedPositionInfo value) {
+        if (terminatedPositionBuilder_ == null) {
+          if (value == null) {
+            throw new NullPointerException();
+          }
+          terminatedPosition_ = value;
+          onChanged();
+        } else {
+          terminatedPositionBuilder_.setMessage(value);
+        }
+        bitField0_ |= 0x00000002;
+        return this;
+      }
+      public Builder setTerminatedPosition(
+          org.apache.bookkeeper.mledger.proto.MLDataFormats.NestedPositionInfo.Builder builderForValue) {
+        if (terminatedPositionBuilder_ == null) {
+          terminatedPosition_ = builderForValue.build();
+          onChanged();
+        } else {
+          terminatedPositionBuilder_.setMessage(builderForValue.build());
+        }
+        bitField0_ |= 0x00000002;
+        return this;
+      }
+      public Builder mergeTerminatedPosition(org.apache.bookkeeper.mledger.proto.MLDataFormats.NestedPositionInfo value) {
+        if (terminatedPositionBuilder_ == null) {
+          if (((bitField0_ & 0x00000002) == 0x00000002) &&
+              terminatedPosition_ != org.apache.bookkeeper.mledger.proto.MLDataFormats.NestedPositionInfo.getDefaultInstance()) {
+            terminatedPosition_ =
+              org.apache.bookkeeper.mledger.proto.MLDataFormats.NestedPositionInfo.newBuilder(terminatedPosition_).mergeFrom(value).buildPartial();
+          } else {
+            terminatedPosition_ = value;
+          }
+          onChanged();
+        } else {
+          terminatedPositionBuilder_.mergeFrom(value);
+        }
+        bitField0_ |= 0x00000002;
+        return this;
+      }
+      public Builder clearTerminatedPosition() {
+        if (terminatedPositionBuilder_ == null) {
+          terminatedPosition_ = org.apache.bookkeeper.mledger.proto.MLDataFormats.NestedPositionInfo.getDefaultInstance();
+          onChanged();
+        } else {
+          terminatedPositionBuilder_.clear();
+        }
+        bitField0_ = (bitField0_ & ~0x00000002);
+        return this;
+      }
+      public org.apache.bookkeeper.mledger.proto.MLDataFormats.NestedPositionInfo.Builder getTerminatedPositionBuilder() {
+        bitField0_ |= 0x00000002;
+        onChanged();
+        return getTerminatedPositionFieldBuilder().getBuilder();
+      }
+      public org.apache.bookkeeper.mledger.proto.MLDataFormats.NestedPositionInfoOrBuilder getTerminatedPositionOrBuilder() {
+        if (terminatedPositionBuilder_ != null) {
+          return terminatedPositionBuilder_.getMessageOrBuilder();
+        } else {
+          return terminatedPosition_;
+        }
+      }
+      private com.google.protobuf.SingleFieldBuilder<
+          org.apache.bookkeeper.mledger.proto.MLDataFormats.NestedPositionInfo, org.apache.bookkeeper.mledger.proto.MLDataFormats.NestedPositionInfo.Builder, org.apache.bookkeeper.mledger.proto.MLDataFormats.NestedPositionInfoOrBuilder> 
+          getTerminatedPositionFieldBuilder() {
+        if (terminatedPositionBuilder_ == null) {
+          terminatedPositionBuilder_ = new com.google.protobuf.SingleFieldBuilder<
+              org.apache.bookkeeper.mledger.proto.MLDataFormats.NestedPositionInfo, org.apache.bookkeeper.mledger.proto.MLDataFormats.NestedPositionInfo.Builder, org.apache.bookkeeper.mledger.proto.MLDataFormats.NestedPositionInfoOrBuilder>(
+                  terminatedPosition_,
+                  getParentForChildren(),
+                  isClean());
+          terminatedPosition_ = null;
+        }
+        return terminatedPositionBuilder_;
       }
       
       // @@protoc_insertion_point(builder_scope:ManagedLedgerInfo)
@@ -3578,23 +3736,24 @@ public final class MLDataFormats {
       descriptor;
   static {
     java.lang.String[] descriptorData = {
-      "\n\"src/main/proto/MLDataFormats.proto\"\230\001\n" +
+      "\n\"src/main/proto/MLDataFormats.proto\"\311\001\n" +
       "\021ManagedLedgerInfo\0221\n\nledgerInfo\030\001 \003(\0132\035" +
-      ".ManagedLedgerInfo.LedgerInfo\032P\n\nLedgerI" +
-      "nfo\022\020\n\010ledgerId\030\001 \002(\003\022\017\n\007entries\030\002 \001(\003\022\014" +
-      "\n\004size\030\003 \001(\003\022\021\n\ttimestamp\030\004 \001(\003\"c\n\014Posit" +
-      "ionInfo\022\020\n\010ledgerId\030\001 \002(\003\022\017\n\007entryId\030\002 \002" +
-      "(\003\0220\n\031individualDeletedMessages\030\003 \003(\0132\r." +
-      "MessageRange\"7\n\022NestedPositionInfo\022\020\n\010le" +
-      "dgerId\030\001 \002(\003\022\017\n\007entryId\030\002 \002(\003\"f\n\014Message" +
-      "Range\022*\n\rlowerEndpoint\030\001 \002(\0132\023.NestedPos",
-      "itionInfo\022*\n\rupperEndpoint\030\002 \002(\0132\023.Neste" +
-      "dPositionInfo\"\225\001\n\021ManagedCursorInfo\022\027\n\017c" +
-      "ursorsLedgerId\030\001 \002(\003\022\032\n\022markDeleteLedger" +
-      "Id\030\002 \001(\003\022\031\n\021markDeleteEntryId\030\003 \001(\003\0220\n\031i" +
-      "ndividualDeletedMessages\030\004 \003(\0132\r.Message" +
-      "RangeB\'\n#org.apache.bookkeeper.mledger.p" +
-      "rotoH\001"
+      ".ManagedLedgerInfo.LedgerInfo\022/\n\022termina" +
+      "tedPosition\030\002 \001(\0132\023.NestedPositionInfo\032P" +
+      "\n\nLedgerInfo\022\020\n\010ledgerId\030\001 \002(\003\022\017\n\007entrie" +
+      "s\030\002 \001(\003\022\014\n\004size\030\003 \001(\003\022\021\n\ttimestamp\030\004 \001(\003" +
+      "\"c\n\014PositionInfo\022\020\n\010ledgerId\030\001 \002(\003\022\017\n\007en" +
+      "tryId\030\002 \002(\003\0220\n\031individualDeletedMessages" +
+      "\030\003 \003(\0132\r.MessageRange\"7\n\022NestedPositionI" +
+      "nfo\022\020\n\010ledgerId\030\001 \002(\003\022\017\n\007entryId\030\002 \002(\003\"f",
+      "\n\014MessageRange\022*\n\rlowerEndpoint\030\001 \002(\0132\023." +
+      "NestedPositionInfo\022*\n\rupperEndpoint\030\002 \002(" +
+      "\0132\023.NestedPositionInfo\"\225\001\n\021ManagedCursor" +
+      "Info\022\027\n\017cursorsLedgerId\030\001 \002(\003\022\032\n\022markDel" +
+      "eteLedgerId\030\002 \001(\003\022\031\n\021markDeleteEntryId\030\003" +
+      " \001(\003\0220\n\031individualDeletedMessages\030\004 \003(\0132" +
+      "\r.MessageRangeB\'\n#org.apache.bookkeeper." +
+      "mledger.protoH\001"
     };
     com.google.protobuf.Descriptors.FileDescriptor.InternalDescriptorAssigner assigner =
       new com.google.protobuf.Descriptors.FileDescriptor.InternalDescriptorAssigner() {
@@ -3606,7 +3765,7 @@ public final class MLDataFormats {
           internal_static_ManagedLedgerInfo_fieldAccessorTable = new
             com.google.protobuf.GeneratedMessage.FieldAccessorTable(
               internal_static_ManagedLedgerInfo_descriptor,
-              new java.lang.String[] { "LedgerInfo", },
+              new java.lang.String[] { "LedgerInfo", "TerminatedPosition", },
               org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.class,
               org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.Builder.class);
           internal_static_ManagedLedgerInfo_LedgerInfo_descriptor =

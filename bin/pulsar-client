@@ -19,11 +19,11 @@ BINDIR=$(dirname "$0")
 PULSAR_HOME=`cd $BINDIR/..;pwd`
 
 DEFAULT_CLIENT_CONF=$PULSAR_HOME/conf/client.conf
-DEFAULT_LOG_CONF=$PULSAR_HOME/conf/log4j.properties
+DEFAULT_LOG_CONF=$PULSAR_HOME/conf/log4j.shell.properties
 
-if [ -f "$PULSAR_HOME/conf/pulsar_env.sh" ]
+if [ -f "$PULSAR_HOME/conf/pulsar_tools_env.sh" ]
 then
-    . "$PULSAR_HOME/conf/pulsar_env.sh"
+    . "$PULSAR_HOME/conf/pulsar_tools_env.sh"
 fi
 
 # Check for the java to use

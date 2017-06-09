@@ -15,6 +15,8 @@
  */
 package com.yahoo.pulsar.client.api;
 
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
@@ -24,18 +26,22 @@ import static org.testng.Assert.fail;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
+import com.yahoo.pulsar.broker.namespace.NamespaceService;
 import com.yahoo.pulsar.broker.service.persistent.PersistentTopic;
 import com.yahoo.pulsar.client.impl.ConsumerImpl;
 import com.yahoo.pulsar.client.impl.MessageIdImpl;
@@ -58,6 +64,11 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
+    }
+    
+    @DataProvider(name = "gracefulUnload")
+    public Object[][] bundleUnloading() {
+        return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
     }
 
     /**
@@ -573,6 +584,79 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
 
     }
 
+    /**
+     * <pre>
+     * It verifies that cursor-recovery 
+     * 1. recovers individualDeletedMessages
+     * 2. sets readPosition with last acked-message
+     * 3. replay all unack messages 
+     * </pre>
+     * 
+     * @throws Exception
+     */
+    @Test(dataProvider = "gracefulUnload")
+    public void testBrokerSubscriptionRecovery(boolean unloadBundleGracefully) throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        final String topicName = "persistent://my-property/use/my-ns/unacked-topic";
+        final String subscriberName = "subscriber-1";
+        final int totalProducedMsgs = 500;
+
+        ConsumerConfiguration conf = new ConsumerConfiguration();
+        conf.setSubscriptionType(SubscriptionType.Shared);
+        Consumer consumer = pulsarClient.subscribe(topicName, subscriberName, conf);
+
+        ProducerConfiguration producerConf = new ProducerConfiguration();
+
+        Producer producer = pulsarClient.createProducer("persistent://my-property/use/my-ns/unacked-topic",
+                producerConf);
+
+        CountDownLatch latch = new CountDownLatch(totalProducedMsgs);
+        // (1) Produced Messages
+        for (int i = 0; i < totalProducedMsgs; i++) {
+            String message = "my-message-" + i;
+            producer.sendAsync(message.getBytes()).thenAccept(msg -> latch.countDown());
+        }
+        latch.await();
+        // (2) consume all messages except: unackMessages-set
+        Set<Integer> unackMessages = Sets.newHashSet(5, 10, 20, 21, 22, 23, 25, 26, 30, 32, 40, 80, 160, 320);
+        int receivedMsgCount = 0;
+        for (int i = 0; i < totalProducedMsgs; i++) {
+            Message msg = consumer.receive(100, TimeUnit.MILLISECONDS);
+            if (!unackMessages.contains(i)) {
+                consumer.acknowledge(msg);
+            }
+            receivedMsgCount++;
+        }
+        assertEquals(totalProducedMsgs, receivedMsgCount);
+        consumer.close();
+
+        // if broker unload bundle gracefully then cursor metadata recovered from zk else from ledger
+        if (unloadBundleGracefully) {
+            // set clean namespace which will not let broker unload bundle gracefully: stop broker
+            Supplier<NamespaceService> namespaceServiceSupplier = () -> spy(new NamespaceService(pulsar));
+            doReturn(namespaceServiceSupplier).when(pulsar).getNamespaceServiceProvider();
+        }
+        stopBroker();
+
+        // start broker which will recover topic-cursor from the ledger
+        startBroker();
+        consumer = pulsarClient.subscribe(topicName, subscriberName, conf);
+
+        // consumer should only receive unakced messages
+        Set<String> unackMsgs = unackMessages.stream().map(i -> "my-message-" + i).collect(Collectors.toSet());
+        Set<String> receivedMsgs = Sets.newHashSet();
+        for (int i = 0; i < totalProducedMsgs; i++) {
+            Message msg = consumer.receive(500, TimeUnit.MILLISECONDS);
+            if (msg == null) {
+                break;
+            }
+            receivedMsgs.add(new String(msg.getData()));
+        }
+        receivedMsgs.removeAll(unackMsgs);
+        assertTrue(receivedMsgs.isEmpty());
+    }
+    
     private void rolloverPerIntervalStats() {
         try {
             pulsar.getExecutor().submit(() -> pulsar.getBrokerService().updateRates()).get();

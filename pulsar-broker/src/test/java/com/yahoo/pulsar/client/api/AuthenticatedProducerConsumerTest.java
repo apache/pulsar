@@ -165,7 +165,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
      * @throws Exception
      */
     @Test
-    public void testAuthemticationFilterNegative() throws Exception {
+    public void testAuthenticationFilterNegative() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
         Map<String, String> authParams = new HashMap<>();

@@ -26,6 +26,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.NoMoreEntriesToReadException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -192,11 +193,11 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
                 Set<? extends Position> deletedMessages = cursor.asyncReplayEntries(messagesToReplayNow, this,
                         ReadType.Replay);
                 // clear already acked positions from replay bucket
-                
+
                 deletedMessages.forEach(position -> messagesToReplay.remove(((PositionImpl) position).getLedgerId(),
                         ((PositionImpl) position).getEntryId()));
                 // if all the entries are acked-entries and cleared up from messagesToReplay, try to read
-                // next entries as readCompletedEntries-callback was never called 
+                // next entries as readCompletedEntries-callback was never called
                 if ((messagesToReplayNow.size() - deletedMessages.size()) == 0) {
                     havePendingReplayRead = false;
                     readMoreEntries();
@@ -241,7 +242,7 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
         IS_CLOSED_UPDATER.set(this, TRUE);
         return disconnectAllConsumers();
     }
-    
+
     @Override
     public synchronized CompletableFuture<Void> disconnectAllConsumers() {
         closeFuture = new CompletableFuture<>();
@@ -260,7 +261,7 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
     public void reset() {
         IS_CLOSED_UPDATER.set(this, FALSE);
     }
-    
+
     @Override
     public SubType getType() {
         return SubType.Shared;
@@ -315,16 +316,16 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
             int messagesForC = Math.min(Math.min(entriesToDispatch, c.getAvailablePermits()), MaxRoundRobinBatchSize);
 
             if (messagesForC > 0) {
-                
+
                 // remove positions first from replay list first : sendMessages recycles entries
                 if (readType == ReadType.Replay) {
                     entries.subList(start, start + messagesForC).forEach(entry -> {
                         messagesToReplay.remove(entry.getLedgerId(), entry.getEntryId());
                     });
                 }
-                
+
                 int msgSent = c.sendMessages(entries.subList(start, start + messagesForC)).getRight();
-                
+
                 start += messagesForC;
                 entriesToDispatch -= messagesForC;
                 totalAvailablePermits -= msgSent;
@@ -351,7 +352,13 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
         ReadType readType = (ReadType) ctx;
         long waitTimeMillis = readFailureBackoff.next();
 
-        if (!(exception instanceof TooManyRequestsException)) {
+        if (exception instanceof NoMoreEntriesToReadException) {
+            if (cursor.getNumberOfEntriesInBacklog() == 0) {
+                // Topic has been terminated and there are no more entries to read
+                // Notify the consumer only if all the messages were already acknowledged
+                consumerList.forEach(Consumer::reachedEndOfTopic);
+            }
+        } else if (!(exception instanceof TooManyRequestsException)) {
             log.error("[{}] Error reading entries at {} : {}, Read Type {} - Retrying to read in {} seconds", name,
                     cursor.getReadPosition(), exception.getMessage(), readType, waitTimeMillis / 1000.0);
         } else {
@@ -393,17 +400,17 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
         }, waitTimeMillis, TimeUnit.MILLISECONDS);
 
     }
-    
+
     /**
      * <pre>
      * Broker gives more priority while dispatching messages. Here, broker follows descending priorities. (eg:
      * 0=max-priority, 1, 2,..)
      * <p>
      * Broker will first dispatch messages to max priority-level consumers if they
-     * have permits, else broker will consider next priority level consumers. 
-     * Also on the same priority-level, it selects consumer in round-robin manner. 
-     * <p> 
-     * If subscription has consumer-A with  priorityLevel 1 and Consumer-B with priorityLevel 2 then broker will dispatch 
+     * have permits, else broker will consider next priority level consumers.
+     * Also on the same priority-level, it selects consumer in round-robin manner.
+     * <p>
+     * If subscription has consumer-A with  priorityLevel 1 and Consumer-B with priorityLevel 2 then broker will dispatch
      * messages to only consumer-A until it runs out permit and then broker starts dispatching messages to Consumer-B.
      * <p>
      * Consumer PriorityLevel Permits
@@ -414,19 +421,19 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
      * C5       1             1
      * Result of getNextConsumer(): C1, C2, C3, C1, C4, C5, C4
      * </pre>
-     * 
+     *
      * <pre>
      * <b>Algorithm:</b>
-     * 1. consumerList: it stores consumers in sorted-list: max-priority stored first 
+     * 1. consumerList: it stores consumers in sorted-list: max-priority stored first
      * 2. currentConsumerRoundRobinIndex: it always stores last served consumer-index
-     *    
+     *
      * Each time getNextConsumer() is called:<p>
      * 1. It always starts to traverse from the max-priority consumer (first element) from sorted-list
      * 2. Consumers on same priority-level will be treated equally and it tries to pick one of them in round-robin manner
      * 3. If consumer is not available on given priority-level then only it will go to the next lower priority-level consumers
      * 4. Returns null in case it doesn't find any available consumer
      * </pre>
-     * 
+     *
      * @return nextAvailableConsumer
      */
     private Consumer getNextConsumer() {
@@ -465,7 +472,7 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
     /**
      * Finds index of first available consumer which has higher priority then given targetPriority
      * @param targetPriority
-     * @return -1 if couldn't find any available consumer 
+     * @return -1 if couldn't find any available consumer
      */
     private int getConsumerFromHigherPriority(int targetPriority) {
         for (int i = 0; i < currentConsumerRoundRobinIndex; i++) {
@@ -485,7 +492,7 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
      * Finds index of round-robin available consumer that present on same level as consumer on currentRoundRobinIndex if doesn't
      * find consumer on same level then it finds first available consumer on lower priority level else returns index=-1
      * if couldn't find any available consumer in the list
-     * 
+     *
      * @param currentRoundRobinIndex
      * @return
      */
@@ -537,7 +544,7 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
 
     /**
      * returns true only if {@link consumerList} has atleast one unblocked consumer and have available permits
-     * 
+     *
      * @return
      */
     private boolean isAtleastOneConsumerAvailable() {
@@ -552,7 +559,7 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
         }
         return false;
     }
-    
+
     private boolean isConsumerAvailable(Consumer consumer) {
         return consumer != null && !consumer.isBlocked() && consumer.getAvailablePermits() > 0;
     }
@@ -596,7 +603,7 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
             }
         }
     }
-    
+
     public boolean isBlockedDispatcherOnUnackedMsgs() {
         return BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.get(this) == TRUE;
     }
@@ -604,6 +611,6 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
     public int getTotalUnackedMessages() {
         return TOTAL_UNACKED_MESSAGES_UPDATER.get(this);
     }
-    
+
     private static final Logger log = LoggerFactory.getLogger(PersistentDispatcherMultipleConsumers.class);
 }

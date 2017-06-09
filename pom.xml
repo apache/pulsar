@@ -97,12 +97,12 @@ flexible messaging model and an intuitive client API.</description>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
     <bookkeeper.version>4.3.1.60-yahoo</bookkeeper.version>
-
+    <zookeeper.version>3.4.10</zookeeper.version>
     <netty.version>4.0.46.Final</netty.version>
     <storm.version>0.9.5</storm.version>
     <jetty.version>9.3.11.v20160721</jetty.version>
     <athenz.version>1.1.8</athenz.version>
-
+    <prometheus.version>0.0.21</prometheus.version>
   </properties>
 
   <dependencyManagement>
@@ -153,14 +153,14 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>org.apache.zookeeper</groupId>
         <artifactId>zookeeper</artifactId>
-        <version>3.4.8</version>
+        <version>${zookeeper.version}</version>
       </dependency>
 
       <dependency>
         <groupId>org.apache.zookeeper</groupId>
         <artifactId>zookeeper</artifactId>
         <classifier>tests</classifier>
-        <version>3.4.8</version>
+        <version>${zookeeper.version}</version>
       </dependency>
 
       <dependency>
@@ -409,6 +409,18 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>com.github.zafarkhaja</groupId>
         <artifactId>java-semver</artifactId>
         <version>0.9.0</version>
+      </dependency>
+
+      <dependency>
+        <groupId>io.prometheus</groupId>
+        <artifactId>simpleclient</artifactId>
+        <version>${prometheus.version}</version>
+      </dependency>
+      
+      <dependency>
+        <groupId>io.prometheus</groupId>
+        <artifactId>simpleclient_hotspot</artifactId>
+        <version>${prometheus.version}</version>
       </dependency>
 
       <dependency>
