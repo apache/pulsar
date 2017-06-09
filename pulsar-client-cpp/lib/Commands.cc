@@ -76,6 +76,9 @@ PairSharedBuffer Commands::newSend(SharedBuffer& headers, BaseCommand& cmd,
     CommandSend* send = cmd.mutable_send();
     send->set_producer_id(producerId);
     send->set_sequence_id(sequenceId);
+    if (metadata.has_num_messages_in_batch()) {
+        send->set_num_messages(metadata.num_messages_in_batch());
+    }
 
     // / Wire format
     // [TOTAL_SIZE] [CMD_SIZE][CMD] [MAGIC_NUMBER][CHECKSUM] [METADATA_SIZE][METADATA] [PAYLOAD]

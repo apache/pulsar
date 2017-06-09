@@ -363,10 +363,17 @@ public class ModularLoadManagerImplTest {
         lastData.setMsgRateIn(0);
         assert (!needUpdate.get());
 
-        // Minimally test other values to ensure they are included.
+        // Minimally test other absolute values to ensure they are included.
         lastData.getCpu().usage = 100;
         lastData.getCpu().limit = 1000;
         currentData.getCpu().usage = 106;
+        currentData.getCpu().limit = 1000;
+        assert (!needUpdate.get());
+        
+        // Minimally test other absolute values to ensure they are included.
+        lastData.getCpu().usage = 100;
+        lastData.getCpu().limit = 1000;
+        currentData.getCpu().usage = 206;
         currentData.getCpu().limit = 1000;
         assert (needUpdate.get());
 
