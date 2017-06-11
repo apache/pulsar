@@ -9,6 +9,8 @@ All the same features are exposed through Python interface.
 First follow the instructions to compile the Pulsar C++ client library.
 That will also build the Python binding for the library.
 
+Currently the only supported Python version is 2.7.
+
 To install the Python bindings:
 
 ```shell
