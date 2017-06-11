@@ -34,7 +34,7 @@ def get_version():
     output, error = process.communicate()
     if error:
         raise 'Failed to get version: ' + error
-    return output.strip()
+    return str(output.strip())
 
 
 VERSION = get_version()
@@ -49,7 +49,7 @@ class my_build_ext(build_ext.build_ext):
 
         try:
             os.makedirs(os.path.dirname(self.get_ext_fullpath(ext.name)))
-        except OSError, e:
+        except OSError as e:
             if e.errno != 17:  # already exists
                 raise
         shutil.copyfile('_pulsar.so', self.get_ext_fullpath(ext.name))
