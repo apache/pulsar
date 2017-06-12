@@ -87,9 +87,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
     }
 
     @Override
-    public void onWebSocketConnect(Session session) {
-        super.onWebSocketConnect(session);
-
+    protected void createClient(Session session) {
         try {
             this.consumer = service.getPulsarClient().subscribe(topic, subscription, conf);
             this.service.addConsumer(this);
@@ -247,8 +245,8 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
     }
 
     @Override
-    protected CompletableFuture<Boolean> isAuthorized(String authRole) {
-        return service.getAuthorizationManager().canConsumeAsync(DestinationName.get(topic), authRole);
+    protected Boolean isAuthorized(String authRole) throws Exception {
+        return service.getAuthorizationManager().canConsume(DestinationName.get(topic), authRole);
     }
 
     private static String extractSubscription(HttpServletRequest request) {

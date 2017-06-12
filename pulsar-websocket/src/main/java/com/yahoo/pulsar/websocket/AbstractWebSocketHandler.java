@@ -63,11 +63,11 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
         if (service.isAuthenticationEnabled()) {
             try {
                 authRole = service.getAuthenticationService().authenticateHttpRequest(request);
-                log.info("[{}] Authenticated WebSocket producer {} on topic {}", session.getRemoteAddress(), authRole,
+                log.info("[{}] Authenticated WebSocket client {} on topic {}", session.getRemoteAddress(), authRole,
                         topic);
 
             } catch (AuthenticationException e) {
-                log.warn("[{}] Failed to authenticated WebSocket producer {} on topic {}: {}",
+                log.warn("[{}] Failed to authenticated WebSocket client {} on topic {}: {}",
                         session.getRemoteAddress(), authRole, topic, e.getMessage());
                 close(WebSocketError.AuthenticationError);
                 return;
@@ -75,16 +75,21 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
         }
 
         if (service.isAuthorizationEnabled()) {
-            final String role = authRole;
-            isAuthorized(authRole).thenApply(isAuthorized -> {
-                if(!isAuthorized) {
-                    log.warn("[{}] WebSocket Client [{}] is not authorized on topic {}", session.getRemoteAddress(), role,
+            try {
+                if (!isAuthorized(authRole)) {
+                    log.warn("[{}] WebSocket Client [{}] is not authorized on topic {}", session.getRemoteAddress(), authRole,
                             topic);
                     close(WebSocketError.NotAuthorizedError);
+                    return;
                 }
-                return null;
-            });
+            } catch (Exception e) {
+                log.warn("[{}] Got an exception when authorizing WebSocket client {} on topic {} on: {}",
+                        session.getRemoteAddress(), authRole, topic, e.getMessage());
+                close(WebSocketError.UnknownError);
+                return;
+            }
         }
+        createClient(session);
     }
 
     @Override
@@ -125,8 +130,6 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
         return null;
     }
 
-    protected abstract CompletableFuture<Boolean> isAuthorized(String authRole);
-
     private String extractTopicName(HttpServletRequest request) {
         String uri = request.getRequestURI();
         List<String> parts = Splitter.on("/").splitToList(uri);
@@ -142,6 +145,10 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
         DestinationName dn = DestinationName.get("persistent", parts.get(4), parts.get(5), parts.get(6), parts.get(7));
         return dn.toString();
     }
+
+    protected abstract Boolean isAuthorized(String authRole) throws Exception;
+
+    protected abstract void createClient(Session session);
 
     private static final Logger log = LoggerFactory.getLogger(AbstractWebSocketHandler.class);
 }
