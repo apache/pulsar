@@ -23,7 +23,7 @@
   <parent>
     <groupId>com.yahoo.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>1.17.5</version>
+    <version>1.17.6-SNAPSHOT</version>
   </parent>
 
   <artifactId>pulsar-broker-common</artifactId>
