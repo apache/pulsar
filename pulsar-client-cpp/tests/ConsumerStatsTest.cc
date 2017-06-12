@@ -45,7 +45,7 @@ void partitionedCallbackFunction(Result result, BrokerConsumerStats brokerConsum
     latch.countdown();
 }
 
-void simpleCallbackFunction(Result result, BrokerConsumerStats& brokerConsumerStats, Result expectedResult,
+void simpleCallbackFunction(Result result, BrokerConsumerStats brokerConsumerStats, Result expectedResult,
                             uint64_t expectedBacklog, ConsumerType expectedConsumerType) {
     LOG_DEBUG(brokerConsumerStats);
     ASSERT_EQ(result, expectedResult);
