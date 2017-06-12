@@ -23,7 +23,7 @@ consumer = client.subscribe('persistent://sample/standalone/ns/my-topic', "my-su
 
 while True:
     msg = consumer.receive()
-    print("Received message '{}' id='{}'".format(msg.data(), msg.message_id()))
+    print("Received message '{0}' id='{1}'".format(msg.data(), msg.message_id()))
     consumer.acknowledge(msg)
 
 client.close()
