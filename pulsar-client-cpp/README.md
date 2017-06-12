@@ -38,8 +38,9 @@ Pulsar C++ Client Library has been tested on:
 #### Install all dependencies:
 
 ```shell
-apt-get install cmake libssl-dev libcurl4-openssl-dev liblog4cxx-dev \
-                libprotobuf-dev libboost-all-dev  libgtest-dev libjsoncpp-dev
+apt-get install g++ cmake libssl-dev libcurl4-openssl-dev liblog4cxx-dev \
+                libprotobuf-dev libboost-all-dev  libgtest-dev \
+                libjsoncpp-dev libxml2-utils protobuf-compiler
 ```
 
 #### Compile and install Google Test:

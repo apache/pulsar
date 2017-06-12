@@ -58,7 +58,7 @@ exec_cmd() {
 
 if [ "$3" = "all" -o "$3" = "dep" ]; then
   # Install dependant packages
-  exec_cmd "apt-get update && apt-get install -y cmake libssl-dev libcurl4-openssl-dev liblog4cxx10-dev libprotobuf-dev libboost1.55-all-dev libgtest-dev libxml2-utils libjsoncpp-dev";
+  exec_cmd "apt-get update && apt-get install -y cmake libssl-dev libcurl4-openssl-dev liblog4cxx10-dev protobuf-compiler libprotobuf-dev libboost1.55-all-dev libgtest-dev libxml2-utils libjsoncpp-dev";
   if [ ! -f "$1/libgtest.a" ]; then
     echo "Not Found: $1/libgtest.a"
     exec_cmd "pushd /usr/src/gtest && cmake . && make && cp libgtest.a $1/ && popd";
@@ -66,14 +66,6 @@ if [ "$3" = "all" -o "$3" = "dep" ]; then
   if [ ! -d "$1/gtest-parallel/" ]; then
     echo "Not Found: $1/gtest-parallel/"
     exec_cmd "pushd $1/ && git clone https://github.com/google/gtest-parallel.git && popd";
-  fi
-  if [ ! -d "$1/protobuf-2.6.1/" ]; then
-    echo "Not Found: $1/protobuf-2.6.1/"
-    exec_cmd "pushd $1/ && wget https://github.com/google/protobuf/releases/download/v2.6.1/protobuf-2.6.1.tar.gz && popd";
-    exec_cmd "pushd $1/ && tar xvfz $1/protobuf-2.6.1.tar.gz && pushd $1/protobuf-2.6.1 && ./configure && make && make install && popd && popd";
-  else
-    echo "Found: $1/protobuf-2.6.1/"
-    exec_cmd "pushd $1/protobuf-2.6.1 && make install && popd"
   fi
 fi
 
