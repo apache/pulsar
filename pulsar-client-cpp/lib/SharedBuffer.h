@@ -17,6 +17,7 @@
 #ifndef LIB_SHARED_BUFFER_H_
 #define LIB_SHARED_BUFFER_H_
 
+#include <boost/array.hpp>
 #include <boost/asio.hpp>
 #include <boost/make_shared.hpp>
 #include <boost/shared_ptr.hpp>
