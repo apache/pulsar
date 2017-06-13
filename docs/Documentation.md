@@ -4,6 +4,7 @@
 * [Architecture](Architecture.md)
 * Administration
   - [Cluster Setup](ClusterSetup.md)
+  - [Kubernetes deployment](Kubernetes.md)
   - [Dashboard](Dashboard.md)
   - [Admin tools and APIs](AdminTools.md)
 * Features
