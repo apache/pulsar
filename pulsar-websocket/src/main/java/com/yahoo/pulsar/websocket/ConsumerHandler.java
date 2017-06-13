@@ -186,7 +186,9 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
     public void close() throws IOException {
         if (consumer != null) {
             this.service.removeConsumer(this);
-            consumer.close();
+            consumer.closeAsync().thenAccept(x ->
+                log.debug("[{}] Closed consumer asynchronously", consumer.getTopic())
+            );
         }
     }
 
