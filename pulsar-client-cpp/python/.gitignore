@@ -1,4 +1,4 @@
 MANIFEST
 build
 dist
-pulsar.egg-info
+*.egg-info
