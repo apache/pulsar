@@ -98,7 +98,7 @@ NAME           STATUS                     AGE       VERSION
 172.17.8.104   Ready                      5m        v1.6.4
 ```
 
-The use the proxy to access the web interface :
+To use the proxy to access the web interface :
 
 ```
 $ kubectl proxy
@@ -121,7 +121,7 @@ the generic kubernetes deployment
 kubectl apply -f zookeeper.yaml
 ```
 
-Wait until all 3 ZK server pods are up and running. The first take will take
+Wait until all 3 ZK server pods are up and running. The first time will take
 a bit longer since it will be downloading the Docker image on the VMs.
 
 

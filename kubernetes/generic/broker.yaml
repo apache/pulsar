@@ -28,9 +28,7 @@ data:
     clusterName: us-central
 ---
 ##
-## Run BookKeeper auto-recovery from a different set of containers
-## Auto-Recovery makes sure to replicate data when any bookie crashes
-## and it's not recovering on its own
+## Broker deployment definition
 ##
 apiVersion: apps/v1beta1
 kind: Deployment
@@ -73,7 +71,7 @@ spec:
 ##
 ## Define the Bookie headless service
 ## In practice, in this case, it is only useful to have a view of
-## all the bookie pods that are present
+## all the broker pods that are present
 ##
 apiVersion: v1
 kind: Service
