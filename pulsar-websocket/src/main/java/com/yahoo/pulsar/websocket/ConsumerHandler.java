@@ -137,7 +137,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
                             @Override
                             public void writeSuccess() {
                                 if (log.isDebugEnabled()) {
-                                    log.info("[{}/{}] message is delivered successfully to {} ", consumer.getTopic(),
+                                    log.debug("[{}/{}] message is delivered successfully to {} ", consumer.getTopic(),
                                             subscription, getRemote().getInetSocketAddress().toString());
                                 }
                                 updateDeliverMsgStat(msgSize);
@@ -186,9 +186,14 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
     public void close() throws IOException {
         if (consumer != null) {
             this.service.removeConsumer(this);
-            consumer.closeAsync().thenAccept(x ->
-                log.debug("[{}] Closed consumer asynchronously", consumer.getTopic())
-            );
+            consumer.closeAsync().thenAccept(x -> {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Closed consumer asynchronously", consumer.getTopic());
+                }
+            }).exceptionally(exception -> {
+                log.warn("[{}] Failed to close consumer", consumer.getTopic(), exception);
+                return null;
+            });
         }
     }
 
