@@ -83,9 +83,14 @@ public class ProducerHandler extends AbstractWebSocketHandler {
     public void close() throws IOException {
         if (producer != null) {
             this.service.removeProducer(this);
-            producer.closeAsync().thenAccept(x ->
-                log.debug("[{}] Closed producer asynchronously", producer.getTopic())
-            );
+            producer.closeAsync().thenAccept(x -> {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Closed producer asynchronously", producer.getTopic());
+                }
+            }).exceptionally(exception -> {
+                log.warn("[{}] Failed to close producer", producer.getTopic(), exception);
+                return null;
+            });
         }
     }
 
