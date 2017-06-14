@@ -39,6 +39,8 @@ public class LoadReport implements ServiceLookupData {
     private final String webServiceUrlTls;
     private final String pulsarServiceUrl;
     private final String pulsarServiceUrlTls;
+    private boolean nonPersistentNamespaceAllowed = true;
+    private boolean onlyNonPersistentNamespaceAllowed = false;
     private boolean isUnderLoaded;
     private boolean isOverLoaded;
     private long timestamp;
@@ -118,6 +120,22 @@ public class LoadReport implements ServiceLookupData {
 
     public void setSystemResourceUsage(SystemResourceUsage systemResourceUsage) {
         this.systemResourceUsage = systemResourceUsage;
+    }
+
+    public boolean isNonPersistentNamespaceAllowed() {
+        return nonPersistentNamespaceAllowed;
+    }
+
+    public void setNonPersistentNamespaceAllowed(boolean nonPersistentNamespaceAllowed) {
+        this.nonPersistentNamespaceAllowed = nonPersistentNamespaceAllowed;
+    }
+
+    public boolean isOnlyNonPersistentNamespaceAllowed() {
+        return onlyNonPersistentNamespaceAllowed;
+    }
+
+    public void setOnlyNonPersistentNamespaceAllowed(boolean onlyNonPersistentNamespaceAllowed) {
+        this.onlyNonPersistentNamespaceAllowed = onlyNonPersistentNamespaceAllowed;
     }
 
     public boolean isUnderLoaded() {

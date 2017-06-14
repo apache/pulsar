@@ -15,7 +15,6 @@
  */
 package com.yahoo.pulsar.broker.loadbalance.impl;
 
-import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 
@@ -27,7 +26,6 @@ import com.yahoo.pulsar.broker.loadbalance.ResourceUnit;
 import com.yahoo.pulsar.common.naming.ServiceUnitId;
 import com.yahoo.pulsar.common.policies.data.loadbalancer.LoadReport;
 import com.yahoo.pulsar.common.policies.data.loadbalancer.ServiceLookupData;
-import com.yahoo.pulsar.common.policies.data.loadbalancer.SystemResourceUsage;
 import com.yahoo.pulsar.common.stats.Metrics;
 import com.yahoo.pulsar.zookeeper.ZooKeeperCache.Deserializer;
 
@@ -112,4 +110,5 @@ public class ModularLoadManagerWrapper implements LoadManager {
     public Deserializer<? extends ServiceLookupData> getLoadReportDeserializer() {
         return loadManager.getLoadReportDeserializer();
     }
+
 }

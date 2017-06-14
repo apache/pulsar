@@ -104,6 +104,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int maxConcurrentNonPersistentMessagePerConnection = 1000;
     // Number of worker threads to serve non-persistent topic 
     private int numWorkerThreadsForNonPersistentTopic = 8;
+    // Allow broker to own non-persistent namespaces along with persistent topics
+    private boolean nonPersistentNamespaceAllowed = true;
+    // Broker is only allowed to own non-persistent topic. It helps to isolate broker which only serves non-persistent
+    // topics and does not impact performance of persistent topics
+    private boolean onlyNonPersistentNamespaceAllowed = false;
 
     /***** --- TLS --- ****/
     // Enable TLS
@@ -484,6 +489,22 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public void setNumWorkerThreadsForNonPersistentTopic(int numWorkerThreadsForNonPersistentTopic) {
         this.numWorkerThreadsForNonPersistentTopic = numWorkerThreadsForNonPersistentTopic;
+    }
+
+    public boolean isNonPersistentNamespaceAllowed() {
+        return nonPersistentNamespaceAllowed;
+    }
+
+    public void setNonPersistentNamespaceAllowed(boolean nonPersistentNamespaceAllowed) {
+        this.nonPersistentNamespaceAllowed = nonPersistentNamespaceAllowed;
+    }
+
+    public boolean isOnlyNonPersistentNamespaceAllowed() {
+        return onlyNonPersistentNamespaceAllowed;
+    }
+
+    public void setOnlyNonPersistentNamespaceAllowed(boolean onlyNonPersistentNamespaceAllowed) {
+        this.onlyNonPersistentNamespaceAllowed = onlyNonPersistentNamespaceAllowed;
     }
 
     public boolean isTlsEnabled() {

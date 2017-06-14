@@ -420,4 +420,16 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
             throw getApiException(e);
         }
     }
+
+    @Override
+    public void setNamespaceNonPersistency(String namespace, boolean isNonPersistent) throws PulsarAdminException {
+        try {
+            NamespaceName ns = new NamespaceName(namespace);
+            request(namespaces.path(ns.getProperty()).path(ns.getCluster()).path(ns.getLocalName())
+                    .path("non-persistent").queryParam("nonPersistent", isNonPersistent))
+                            .post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
 }

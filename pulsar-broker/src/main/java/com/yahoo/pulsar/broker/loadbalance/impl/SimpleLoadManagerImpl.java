@@ -59,6 +59,7 @@ import com.yahoo.pulsar.broker.loadbalance.BrokerHostUsage;
 import com.yahoo.pulsar.broker.loadbalance.LoadManager;
 import com.yahoo.pulsar.broker.loadbalance.PlacementStrategy;
 import com.yahoo.pulsar.broker.loadbalance.ResourceUnit;
+import com.yahoo.pulsar.broker.loadbalance.impl.LoadManagerShared.NonPersistentBrokerPredicate;
 import com.yahoo.pulsar.common.naming.NamespaceName;
 import com.yahoo.pulsar.common.naming.ServiceUnitId;
 import com.yahoo.pulsar.common.policies.data.ResourceQuota;
@@ -176,6 +177,9 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
     private boolean forceLoadReportUpdate = false;
     private static final Deserializer<LoadReport> loadReportDeserializer = (key, content) -> jsonMapper()
             .readValue(content, LoadReport.class);
+    
+    // check if given broker support non-persistent namespace
+    private final NonPersistentBrokerPredicate nonPersistentNamespaceSupportedBrokerPredicate;
 
     // Perform initializations which may be done without a PulsarService.
     public SimpleLoadManagerImpl() {
@@ -192,6 +196,22 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
         brokerCandidateCache = new HashSet<>();
         availableBrokersCache = new HashSet<>();
         brokerToNamespaceToBundleRange = new HashMap<>();
+        
+        this.nonPersistentNamespaceSupportedBrokerPredicate = new NonPersistentBrokerPredicate() {
+            @Override
+            public boolean isNonPersistentNamespaceAllowed(String brokerUrl) {
+                ResourceUnit ru = new SimpleResourceUnit(brokerUrl, new PulsarResourceDescription());
+                LoadReport loadReport = currentLoadReports.get(ru);
+                return loadReport != null && loadReport.isNonPersistentNamespaceAllowed();
+            }
+
+            @Override
+            public boolean isOnlyNonPersistentNamespaceAllowed(String brokerUrl) {
+                ResourceUnit ru = new SimpleResourceUnit(brokerUrl, new PulsarResourceDescription());
+                LoadReport loadReport = currentLoadReports.get(ru);
+                return loadReport != null && loadReport.isOnlyNonPersistentNamespaceAllowed();
+            }
+        };
     }
 
     @Override
@@ -204,6 +224,9 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
         this.policies = new SimpleResourceAllocationPolicies(pulsar);
         lastLoadReport = new LoadReport(pulsar.getWebServiceAddress(), pulsar.getWebServiceAddressTls(),
                 pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
+        lastLoadReport.setNonPersistentNamespaceAllowed(pulsar.getConfiguration().isNonPersistentNamespaceAllowed());
+        lastLoadReport
+                .setOnlyNonPersistentNamespaceAllowed(pulsar.getConfiguration().isOnlyNonPersistentNamespaceAllowed());
         loadReportCacheZk = new ZooKeeperDataCache<LoadReport>(pulsar.getLocalZkCache()) {
             @Override
             public LoadReport deserialize(String key, byte[] content) throws Exception {
@@ -888,7 +911,8 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
             }
             brokerCandidateCache.clear();
             try {
-                LoadManagerShared.applyPolicies(serviceUnit, policies, brokerCandidateCache, availableBrokersCache);
+                LoadManagerShared.applyPolicies(serviceUnit, policies, brokerCandidateCache, availableBrokersCache,
+                        nonPersistentNamespaceSupportedBrokerPredicate);
             } catch (Exception e) {
                 log.warn("Error when trying to apply policies: {}", e);
                 for (final Map.Entry<Long, Set<ResourceUnit>> entry : availableBrokers.entrySet()) {
@@ -1075,6 +1099,10 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
             try {
                 LoadReport loadReport = new LoadReport(pulsar.getWebServiceAddress(), pulsar.getWebServiceAddressTls(),
                         pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
+                loadReport
+                        .setNonPersistentNamespaceAllowed(pulsar.getConfiguration().isNonPersistentNamespaceAllowed());
+                loadReport.setOnlyNonPersistentNamespaceAllowed(
+                        pulsar.getConfiguration().isOnlyNonPersistentNamespaceAllowed());
                 loadReport.setName(String.format("%s:%s", pulsar.getAdvertisedAddress(),
                         pulsar.getConfiguration().getWebServicePort()));
                 loadReport.setBrokerVersionString(pulsar.getBrokerVersion());
@@ -1433,4 +1461,5 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
         availableActiveBrokers.close();
         scheduler.shutdown();
     }
+
 }

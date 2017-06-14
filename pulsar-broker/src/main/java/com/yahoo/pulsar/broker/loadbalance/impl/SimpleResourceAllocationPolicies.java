@@ -33,6 +33,7 @@ import com.yahoo.pulsar.zookeeper.ZooKeeperDataCache;
 public class SimpleResourceAllocationPolicies {
     private static final Logger LOG = LoggerFactory.getLogger(SimpleResourceAllocationPolicies.class);
     private final ZooKeeperDataCache<NamespaceIsolationPolicies> namespaceIsolationPolicies;
+
     private final PulsarService pulsar;
 
     SimpleResourceAllocationPolicies(PulsarService pulsar) {
@@ -105,5 +106,9 @@ public class SimpleResourceAllocationPolicies {
     public boolean shouldFailoverToSecondaries(NamespaceName namespace, int totalPrimaryCandidates) {
 		NamespaceIsolationPolicy nsPolicy = getNamespaceIsolationPolicy(namespace);
 		return (nsPolicy != null) ? nsPolicy.shouldFailover(totalPrimaryCandidates) : false;
+    }
+
+    public boolean isNonPersistentNamespace(NamespaceName namespace) {
+        return pulsar.getBrokerService().isNonPersistentNamespace(namespace);
     }
 }

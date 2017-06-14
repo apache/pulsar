@@ -1049,11 +1049,55 @@ public class Namespaces extends AdminResource {
         validateAdminAccessOnProperty(property);
 
         Policies policies = getNamespacePolicies(property, cluster, namespace);
-        if (policies.persistence == null) {
+        if (!policies.nonPersistent && policies.persistence == null) {
             return new PersistencePolicies(config().getManagedLedgerDefaultEnsembleSize(),
                     config().getManagedLedgerDefaultWriteQuorum(), config().getManagedLedgerDefaultAckQuorum(), 0.0d);
         } else {
             return policies.persistence;
+        }
+    }
+
+    @POST
+    @Path("/{property}/{cluster}/{namespace}/non-persistent")
+    @ApiOperation(value = "Set namespace persistency.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist") })
+    public void setNamespaceNonPersistency(@PathParam("property") String property,
+            @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
+            @QueryParam("nonPersistent") @DefaultValue("false") boolean isNonPersistent) {
+        validateAdminAccessOnProperty(property);
+        validatePoliciesReadOnlyAccess();
+
+        Entry<Policies, Stat> policiesNode = null;
+        NamespaceName nsName = new NamespaceName(property, cluster, namespace);
+
+        try {
+            // Force to read the data s.t. the watch to the cache content is setup.
+            policiesNode = policiesCache().getWithStat(path("policies", property, cluster, namespace))
+                    .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Namespace " + nsName + " does not exist"));
+            policiesNode.getKey().nonPersistent = isNonPersistent;
+
+            // Write back the new policies into zookeeper
+            globalZk().setData(path("policies", property, cluster, namespace),
+                    jsonMapper().writeValueAsBytes(policiesNode.getKey()), policiesNode.getValue().getVersion());
+            policiesCache().invalidate(path("policies", property, cluster, namespace));
+
+            log.info("[{}] Successfully updated namespace persistency {}/{}/{}", clientAppId(), property, cluster,
+                    namespace);
+        } catch (KeeperException.NoNodeException e) {
+            log.warn("[{}] Failed to update namespace persistency, namespace {}/{}/{}: does not exist", clientAppId(),
+                    property, cluster, namespace);
+            throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
+        } catch (KeeperException.BadVersionException e) {
+            log.warn(
+                    "[{}] Failed to update namespace persistency {}/{}/{} expected policy node version={} : concurrent modification",
+                    clientAppId(), property, cluster, namespace, policiesNode.getValue().getVersion());
+
+            throw new RestException(Status.CONFLICT, "Concurrent modification");
+        } catch (Exception e) {
+            log.error("[{}] Failed to update namespace persistency {}/{}/{}", clientAppId(), property, cluster,
+                    namespace, e);
+            throw new RestException(e);
         }
     }
 

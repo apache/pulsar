@@ -17,10 +17,13 @@ package com.yahoo.pulsar.client.api;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.fail;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.assertFalse;
 
+import java.lang.reflect.Field;
 import java.net.URL;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
@@ -30,6 +33,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.bookkeeper.test.PortManager;
 import org.slf4j.Logger;
@@ -43,12 +47,17 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.yahoo.pulsar.broker.PulsarService;
 import com.yahoo.pulsar.broker.ServiceConfiguration;
+import com.yahoo.pulsar.broker.loadbalance.LoadManager;
+import com.yahoo.pulsar.broker.loadbalance.ResourceUnit;
+import com.yahoo.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
+import com.yahoo.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import com.yahoo.pulsar.broker.service.BrokerService;
 import com.yahoo.pulsar.broker.service.nonpersistent.NonPersistentReplicator;
 import com.yahoo.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import com.yahoo.pulsar.client.admin.PulsarAdmin;
 import com.yahoo.pulsar.client.impl.ConsumerImpl;
 import com.yahoo.pulsar.common.naming.DestinationName;
+import com.yahoo.pulsar.common.naming.NamespaceBundle;
 import com.yahoo.pulsar.common.policies.data.ClusterData;
 import com.yahoo.pulsar.common.policies.data.PersistentSubscriptionStats;
 import com.yahoo.pulsar.common.policies.data.PersistentTopicStats;
@@ -56,12 +65,19 @@ import com.yahoo.pulsar.common.policies.data.PropertyAdmin;
 import com.yahoo.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import com.yahoo.pulsar.zookeeper.ZookeeperServerTest;
 
+
 public class NonPersistentTopicTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(NonPersistentTopicTest.class);
 
     @DataProvider(name = "subscriptionType")
     public Object[][] getSubscriptionType() {
         return new Object[][] { { SubscriptionType.Shared }, { SubscriptionType.Exclusive } };
+    }
+    
+    @DataProvider(name = "loadManager")
+    public Object[][] getLoadManager() {
+        return new Object[][] { { SimpleLoadManagerImpl.class.getCanonicalName() },
+                { ModularLoadManagerImpl.class.getCanonicalName() } };
     }
 
     @BeforeMethod
@@ -81,7 +97,10 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
     public void testNonPersistentTopic(SubscriptionType type) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        final String topic = "non-persistent://my-property/use/my-ns/unacked-topic";
+        final String namespace = "my-property/use/my-ns";
+        final String topic = "non-persistent://" + namespace + "/nonPersistent";
+        admin.namespaces().setNamespaceNonPersistency(namespace, true);
+        
         ConsumerConfiguration conf = new ConsumerConfiguration();
         conf.setSubscriptionType(type);
 
@@ -124,7 +143,9 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
     public void testPartitionedNonPersistentTopic(SubscriptionType type) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        final String topic = "non-persistent://my-property/use/my-ns/unacked-topic";
+        final String namespace = "my-property/use/my-ns";
+        final String topic = "non-persistent://" + namespace + "/nonPersistent";
+        admin.namespaces().setNamespaceNonPersistency(namespace, true);
         admin.nonPersistentTopics().createPartitionedTopic(topic, 5);
         ConsumerConfiguration conf = new ConsumerConfiguration();
         conf.setSubscriptionType(type);
@@ -172,7 +193,9 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
     public void testConsumerInternalQueueMaxOut(SubscriptionType type) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        final String topic = "non-persistent://my-property/use/my-ns/unacked-topic";
+        final String namespace = "my-property/use/my-ns";
+        final String topic = "non-persistent://" + namespace + "/nonPersistent";
+        admin.namespaces().setNamespaceNonPersistency(namespace, true);
         final int queueSize = 10;
         ConsumerConfiguration conf = new ConsumerConfiguration();
         conf.setSubscriptionType(type);
@@ -221,7 +244,9 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
 
         int defaultNonPersistentMessageRate = conf.getMaxConcurrentNonPersistentMessagePerConnection();
         try {
-            final String topic = "non-persistent://my-property/use/my-ns/unacked-topic";
+            final String namespace = "my-property/use/my-ns";
+            final String topic = "non-persistent://" + namespace + "/nonPersistent";
+            admin.namespaces().setNamespaceNonPersistency(namespace, true);
             // restart broker with lower publish rate limit
             conf.setMaxConcurrentNonPersistentMessagePerConnection(1);
             stopBroker();
@@ -280,7 +305,9 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
     public void testMultipleSubscription() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        final String topic = "non-persistent://my-property/use/my-ns/unacked-topic";
+        final String namespace = "my-property/use/my-ns";
+        final String topic = "non-persistent://" + namespace + "/nonPersistent";
+        admin.namespaces().setNamespaceNonPersistency(namespace, true);
         ConsumerConfiguration sharedConf = new ConsumerConfiguration();
         sharedConf.setSubscriptionType(SubscriptionType.Shared);
         ConsumerConfiguration excConf = new ConsumerConfiguration();
@@ -358,7 +385,9 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
     @Test
     public void testTopicStats() throws Exception {
 
-        final String topicName = "non-persistent://my-property/use/my-ns/unacked-topic";
+        final String namespace = "my-property/use/my-ns";
+        final String topicName = "non-persistent://" + namespace + "/nonPersistent";
+        admin.namespaces().setNamespaceNonPersistency(namespace, true);
         final String subName = "non-persistent";
         final int timeWaitToSync = 100;
 
@@ -417,7 +446,9 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
         ReplicationClusterManager replication = new ReplicationClusterManager();
         replication.setupReplicationCluster();
         try {
-            final String globalTopicName = "non-persistent://pulsar/global/ns/nonPersistentTopic";
+            final String namespace = "pulsar/global/ns";
+            final String globalTopicName = "non-persistent://" + namespace + "/nonPersistentTopic";
+            replication.admin1.namespaces().setNamespaceNonPersistency(namespace, true);
             final int timeWaitToSync = 100;
 
             PersistentTopicStats stats;
@@ -546,6 +577,145 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
 
         } finally {
             replication.shutdownReplicationCluster();
+        }
+
+    }
+
+    /**
+     * verifies load manager assigns topic only if broker started in non-persistent mode
+     * <pre>
+     * 1. Start broker with disable non-persistent topic mode
+     * 2. Create namespace with non-persistency set
+     * 3. Create non-persistent topic
+     * 4. Load-manager should not be able to find broker
+     * 5. Create producer on that topic should fail
+     * </pre>
+     */
+    @Test(dataProvider = "loadManager")
+    public void testLoadManagerAssignmentForNonPersistentNamespaceAssignment(String loadManagerName) throws Exception {
+
+        final String namespace = "my-property/use/my-ns";
+        final String topicName = "non-persistent://" + namespace + "/loadManager";
+        final String defaultLoadManagerName = conf.getLoadManagerClassName();
+        final boolean defaultIsNonPersistentNsAllowed = conf.isNonPersistentNamespaceAllowed();
+        try {
+            // start broker to not own non-persistent namespace and create non-persistent namespace
+            stopBroker();
+            conf.setNonPersistentNamespaceAllowed(false);
+            conf.setLoadManagerClassName(loadManagerName);
+            startBroker();
+            admin.namespaces().setNamespaceNonPersistency(namespace, true);
+
+            Field field = PulsarService.class.getDeclaredField("loadManager");
+            field.setAccessible(true);
+            AtomicReference<LoadManager> loadManagerRef = (AtomicReference<LoadManager>) field.get(pulsar);
+            LoadManager manager = LoadManager.create(pulsar);
+            manager.start();
+            loadManagerRef.set(manager);
+
+            NamespaceBundle fdqn = pulsar.getNamespaceService().getBundle(DestinationName.get(topicName));
+            LoadManager loadManager = pulsar.getLoadManager().get();
+            ResourceUnit broker = null;
+            try {
+                broker = loadManager.getLeastLoaded(fdqn);
+            } catch (Exception e) {
+                // Ok. (ModulearLoadManagerImpl throws RuntimeException incase don't find broker)
+            }
+            assertNull(broker);
+
+            ProducerConfiguration producerConf = new ProducerConfiguration();
+            try {
+                Producer producer = pulsarClient.createProducerAsync(topicName, producerConf).get(1, TimeUnit.SECONDS);
+                producer.close();
+                fail("topic loading should have failed");
+            } catch (Exception e) {
+                // Ok
+            }
+            NonPersistentTopic topicRef = (NonPersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);
+            assertNull(topicRef);
+
+        } finally {
+            conf.setNonPersistentNamespaceAllowed(defaultIsNonPersistentNsAllowed);
+            conf.setLoadManagerClassName(defaultLoadManagerName);
+        }
+
+    }
+
+    /**
+     * verifies: broker should reject non-persistent topic loading under namespace that doesn't have non-persistency.
+     * 
+     * @param loadManagerName
+     * @throws Exception
+     */
+    @Test
+    public void testNonPersistentTopicUnderPersistentNamespace() throws Exception {
+
+        final String namespace = "my-property/use/my-ns";
+        final String topicName = "non-persistent://" + namespace + "/persitentNamespace";
+
+        ProducerConfiguration producerConf = new ProducerConfiguration();
+        try {
+            Producer producer = pulsarClient.createProducerAsync(topicName, producerConf).get(1, TimeUnit.SECONDS);
+            producer.close();
+            fail("topic loading should have failed");
+        } catch (Exception e) {
+            // Ok
+        }
+        NonPersistentTopic topicRef = (NonPersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);
+        assertNull(topicRef);
+    }
+
+    /**
+     * verifies that broker started with onlyNonPersistent mode doesn't own persistent-topic
+     * 
+     * @param loadManagerName
+     * @throws Exception
+     */
+    @Test(dataProvider = "loadManager")
+    public void testNonPersistentBrokerModeRejectPersistentTopic(String loadManagerName) throws Exception {
+
+        final String namespace = "my-property/use/my-ns";
+        final String topicName = "persistent://" + namespace + "/loadManager";
+        final String defaultLoadManagerName = conf.getLoadManagerClassName();
+        final boolean defaultOnlySupportNonPersistentTopic = conf.isOnlyNonPersistentNamespaceAllowed();
+        try {
+            // start broker to not own non-persistent namespace and create non-persistent namespace
+            stopBroker();
+            conf.setOnlyNonPersistentNamespaceAllowed(true);
+            conf.setLoadManagerClassName(loadManagerName);
+            startBroker();
+
+            Field field = PulsarService.class.getDeclaredField("loadManager");
+            field.setAccessible(true);
+            AtomicReference<LoadManager> loadManagerRef = (AtomicReference<LoadManager>) field.get(pulsar);
+            LoadManager manager = LoadManager.create(pulsar);
+            manager.start();
+            loadManagerRef.set(manager);
+
+            NamespaceBundle fdqn = pulsar.getNamespaceService().getBundle(DestinationName.get(topicName));
+            LoadManager loadManager = pulsar.getLoadManager().get();
+            ResourceUnit broker = null;
+            try {
+                broker = loadManager.getLeastLoaded(fdqn);
+            } catch (Exception e) {
+                // Ok. (ModulearLoadManagerImpl throws RuntimeException incase don't find broker)
+            }
+            assertNull(broker);
+
+            ProducerConfiguration producerConf = new ProducerConfiguration();
+            try {
+                Producer producer = pulsarClient.createProducerAsync(topicName, producerConf).get(1, TimeUnit.SECONDS);
+                producer.close();
+                fail("topic loading should have failed");
+            } catch (Exception e) {
+                // Ok
+            }
+            NonPersistentTopic topicRef = (NonPersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);
+            assertNull(topicRef);
+
+        } finally {
+            conf.setOnlyNonPersistentNamespaceAllowed(defaultOnlySupportNonPersistentTopic);
+            conf.setLoadManagerClassName(defaultLoadManagerName);
         }
 
     }

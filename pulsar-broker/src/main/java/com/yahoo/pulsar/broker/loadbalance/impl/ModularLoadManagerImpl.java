@@ -29,8 +29,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Predicate;
 
-import com.yahoo.pulsar.broker.loadbalance.*;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.SystemUtils;
@@ -50,6 +50,15 @@ import com.yahoo.pulsar.broker.PulsarService;
 import com.yahoo.pulsar.broker.ServiceConfiguration;
 import com.yahoo.pulsar.broker.TimeAverageBrokerData;
 import com.yahoo.pulsar.broker.TimeAverageMessageData;
+import com.yahoo.pulsar.broker.loadbalance.BrokerFilter;
+import com.yahoo.pulsar.broker.loadbalance.BrokerFilterException;
+import com.yahoo.pulsar.broker.loadbalance.BrokerHostUsage;
+import com.yahoo.pulsar.broker.loadbalance.LoadData;
+import com.yahoo.pulsar.broker.loadbalance.LoadManager;
+import com.yahoo.pulsar.broker.loadbalance.LoadSheddingStrategy;
+import com.yahoo.pulsar.broker.loadbalance.ModularLoadManager;
+import com.yahoo.pulsar.broker.loadbalance.ModularLoadManagerStrategy;
+import com.yahoo.pulsar.broker.loadbalance.impl.LoadManagerShared.NonPersistentBrokerPredicate;
 import com.yahoo.pulsar.common.naming.ServiceUnitId;
 import com.yahoo.pulsar.common.policies.data.ResourceQuota;
 import com.yahoo.pulsar.common.policies.data.loadbalancer.NamespaceBundleStats;
@@ -147,6 +156,9 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
 
     // ZooKeeper belonging to the pulsar service.
     private ZooKeeper zkClient;
+    
+    // check if given broker support non-persistent namespace
+    private final NonPersistentBrokerPredicate nonPersistentNamespaceSupportedBrokerPredicate;
 
     private static final Deserializer<LocalBrokerData> loadReportDeserializer = (key, content) -> jsonMapper()
             .readValue(content, LocalBrokerData.class);
@@ -164,6 +176,22 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
         loadSheddingPipeline.add(new OverloadShedder(conf));
         preallocatedBundleToBroker = new ConcurrentHashMap<>();
         scheduler = Executors.newScheduledThreadPool(1);
+        
+        this.nonPersistentNamespaceSupportedBrokerPredicate = new NonPersistentBrokerPredicate() {
+            @Override
+            public boolean isNonPersistentNamespaceAllowed(String brokerUrl) {
+                final BrokerData brokerData = loadData.getBrokerData().get(brokerUrl.replace("http://", ""));
+                return brokerData != null && brokerData.getLocalData() != null
+                        && brokerData.getLocalData().isNonPersistentNamespaceAllowed();
+            }
+
+            @Override
+            public boolean isOnlyNonPersistentNamespaceAllowed(String brokerUrl) {
+                final BrokerData brokerData = loadData.getBrokerData().get(brokerUrl.replace("http://", ""));
+                return brokerData != null && brokerData.getLocalData() != null
+                        && brokerData.getLocalData().isOnlyNonPersistentNamespaceAllowed();
+            }
+        };
     }
 
     /**
@@ -211,8 +239,12 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
 
         lastData = new LocalBrokerData(pulsar.getWebServiceAddress(), pulsar.getWebServiceAddressTls(),
                 pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
+        lastData.setNonPersistentNamespaceAllowed(pulsar.getConfiguration().isNonPersistentNamespaceAllowed());
+        lastData.setOnlyNonPersistentNamespaceAllowed(pulsar.getConfiguration().isOnlyNonPersistentNamespaceAllowed());
         localData = new LocalBrokerData(pulsar.getWebServiceAddress(), pulsar.getWebServiceAddressTls(),
                 pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
+        localData.setNonPersistentNamespaceAllowed(pulsar.getConfiguration().isNonPersistentNamespaceAllowed());
+        localData.setOnlyNonPersistentNamespaceAllowed(pulsar.getConfiguration().isOnlyNonPersistentNamespaceAllowed());
         localData.setBrokerVersionString(pulsar.getBrokerVersion());
         placementStrategy = ModularLoadManagerStrategy.create(conf);
         policies = new SimpleResourceAllocationPolicies(pulsar);
@@ -529,7 +561,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
             final BundleData data = loadData.getBundleData().computeIfAbsent(bundle,
                     key -> getBundleDataOrDefault(bundle));
             brokerCandidateCache.clear();
-            LoadManagerShared.applyPolicies(serviceUnit, policies, brokerCandidateCache, getAvailableBrokers());
+            LoadManagerShared.applyPolicies(serviceUnit, policies, brokerCandidateCache, getAvailableBrokers(),
+                    nonPersistentNamespaceSupportedBrokerPredicate);
             LoadManagerShared.removeMostServicingBrokersForNamespace(serviceUnit.toString(), brokerCandidateCache,
                     brokerToNamespaceToBundleRange);
             log.info("{} brokers being considered for assignment of {}", brokerCandidateCache.size(), bundle);
@@ -541,12 +574,14 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
                 }
             } catch ( BrokerFilterException x ) {
                 // restore the list of brokers to the full set
-                LoadManagerShared.applyPolicies(serviceUnit, policies, brokerCandidateCache, getAvailableBrokers());
+                LoadManagerShared.applyPolicies(serviceUnit, policies, brokerCandidateCache, getAvailableBrokers(),
+                        nonPersistentNamespaceSupportedBrokerPredicate);
             }
 
             if ( brokerCandidateCache.isEmpty() ) {
                 // restore the list of brokers to the full set
-                LoadManagerShared.applyPolicies(serviceUnit, policies, brokerCandidateCache, getAvailableBrokers());
+                LoadManagerShared.applyPolicies(serviceUnit, policies, brokerCandidateCache, getAvailableBrokers(),
+                        nonPersistentNamespaceSupportedBrokerPredicate);
             }
 
             // Choose a broker among the potentially smaller filtered list, when possible
@@ -556,7 +591,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
             final double maxUsage = loadData.getBrokerData().get(broker).getLocalData().getMaxResourceUsage();
             if (maxUsage > overloadThreshold) {
                 // All brokers that were in the filtered list were overloaded, so check if there is a better broker
-                LoadManagerShared.applyPolicies(serviceUnit, policies, brokerCandidateCache, getAvailableBrokers());
+                LoadManagerShared.applyPolicies(serviceUnit, policies, brokerCandidateCache, getAvailableBrokers(),
+                        nonPersistentNamespaceSupportedBrokerPredicate);
                 broker = placementStrategy.selectBroker(brokerCandidateCache, data, loadData, conf);
             }
 
@@ -695,4 +731,5 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
             }
         }
     }
+
 }

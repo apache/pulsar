@@ -385,6 +385,22 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Set the namespace non-persistent to create non-persistent topics under the namespace")
+    private class SetNonPersistency extends CliCommand {
+        @Parameter(description = "property/cluster/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-np", "--non-persistent" }, description = "Whether namespace allow to create non-persistent topic")
+        private boolean nonPersistent;
+       
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            admin.namespaces().setNamespaceNonPersistency(namespace, nonPersistent);
+        }
+    }
+
     @Parameters(commandDescription = "Clear backlog for a namespace")
     private class ClearBacklog extends CliCommand {
         @Parameter(description = "property/cluster/namespace", required = true)
@@ -512,6 +528,7 @@ public class CmdNamespaces extends CmdBase {
 
         jcommander.addCommand("get-persistence", new GetPersistence());
         jcommander.addCommand("set-persistence", new SetPersistence());
+        jcommander.addCommand("set-non-persistency", new SetNonPersistency());
 
         jcommander.addCommand("get-message-ttl", new GetMessageTTL());
         jcommander.addCommand("set-message-ttl", new SetMessageTTL());

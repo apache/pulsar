@@ -36,6 +36,8 @@ public class LocalBrokerData extends JSONWritable implements ServiceLookupData {
     private final String webServiceUrlTls;
     private final String pulsarServiceUrl;
     private final String pulsarServiceUrlTls;
+    private boolean nonPersistentNamespaceAllowed = true;
+    private boolean onlyNonPersistentNamespaceAllowed = false;
 
     // Most recently available system resource usage.
     private ResourceUsage cpu;
@@ -202,6 +204,22 @@ public class LocalBrokerData extends JSONWritable implements ServiceLookupData {
 
     public void setCpu(ResourceUsage cpu) {
         this.cpu = cpu;
+    }
+
+    public boolean isNonPersistentNamespaceAllowed() {
+        return nonPersistentNamespaceAllowed;
+    }
+
+    public void setNonPersistentNamespaceAllowed(boolean nonPersistentNamespaceAllowed) {
+        this.nonPersistentNamespaceAllowed = nonPersistentNamespaceAllowed;
+    }
+
+    public boolean isOnlyNonPersistentNamespaceAllowed() {
+        return onlyNonPersistentNamespaceAllowed;
+    }
+
+    public void setOnlyNonPersistentNamespaceAllowed(boolean onlyNonPersistentNamespaceAllowed) {
+        this.onlyNonPersistentNamespaceAllowed = onlyNonPersistentNamespaceAllowed;
     }
 
     public ResourceUsage getMemory() {

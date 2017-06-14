@@ -23,6 +23,7 @@ import java.net.URL;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Predicate;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,6 +31,7 @@ import org.slf4j.LoggerFactory;
 import com.yahoo.pulsar.broker.PulsarService;
 import com.yahoo.pulsar.broker.admin.AdminResource;
 import com.yahoo.pulsar.broker.loadbalance.BrokerHostUsage;
+import com.yahoo.pulsar.broker.loadbalance.LoadManager;
 import com.yahoo.pulsar.broker.stats.metrics.JvmMetrics;
 import com.yahoo.pulsar.common.naming.NamespaceName;
 import com.yahoo.pulsar.common.naming.ServiceUnitId;
@@ -58,11 +60,12 @@ public class LoadManagerShared {
     // The brokers are put into brokerCandidateCache.
     public static synchronized void applyPolicies(final ServiceUnitId serviceUnit,
             final SimpleResourceAllocationPolicies policies, final Set<String> brokerCandidateCache,
-            final Set<String> availableBrokers) {
+            final Set<String> availableBrokers, final NonPersistentBrokerPredicate nonPersistentSupportedBrokerPredicate) {
         primariesCache.clear();
         sharedCache.clear();
         NamespaceName namespace = serviceUnit.getNamespaceObject();
         boolean isIsolationPoliciesPresent = policies.IsIsolationPoliciesPresent(namespace);
+        boolean isNamespaceNonPersistent = policies.isNonPersistentNamespace(namespace);
         if (isIsolationPoliciesPresent) {
             log.debug("Isolation Policies Present for namespace - [{}]", namespace.toString());
         }
@@ -102,10 +105,26 @@ public class LoadManagerShared {
 
                 }
             } else {
-                if (policies.isSharedBroker(brokerUrl.getHost())) {
+                // non-persistent topic can be assigned to only those brokers which can support them
+                if (isNamespaceNonPersistent
+                        && !nonPersistentSupportedBrokerPredicate.isNonPersistentNamespaceAllowed(brokerUrlString)) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("Filter broker- [{}] because it doesn't support non-persistent namespace - [{}]",
+                                brokerUrl.getHost(), namespace.toString());
+                    }
+                } else if (!isNamespaceNonPersistent
+                        && nonPersistentSupportedBrokerPredicate.isOnlyNonPersistentNamespaceAllowed(brokerUrlString)) {
+                    // broker started with non-persistent mode should not own persistent topics
+                    if (log.isDebugEnabled()) {
+                        log.debug("Filter broker- [{}] because broker only supports non-persistent namespace - [{}]",
+                                brokerUrl.getHost(), namespace.toString());
+                    }
+                } else if (policies.isSharedBroker(brokerUrl.getHost())) {
                     sharedCache.add(broker);
-                    log.debug("Added Shared Broker - [{}] as possible Candidates for namespace - [{}]",
-                            brokerUrl.getHost(), namespace.toString());
+                    if (log.isDebugEnabled()) {
+                        log.debug("Added Shared Broker - [{}] as possible Candidates for namespace - [{}]",
+                                brokerUrl.getHost(), namespace.toString());
+                    }
                 }
             }
         }
@@ -245,5 +264,11 @@ public class LoadManagerShared {
             candidates.removeIf(broker -> brokerToNamespaceToBundleRange.get(broker).get(namespaceName)
                     .size() != finalLeastBundles);
         }
+    }
+    
+    interface NonPersistentBrokerPredicate {
+        boolean isNonPersistentNamespaceAllowed(String brokerUrl);
+
+        boolean isOnlyNonPersistentNamespaceAllowed(String brokerUrl);
     }
 }

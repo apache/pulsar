@@ -67,7 +67,9 @@ import com.yahoo.pulsar.broker.ServiceConfiguration;
 import com.yahoo.pulsar.broker.admin.AdminResource;
 import com.yahoo.pulsar.broker.authentication.AuthenticationService;
 import com.yahoo.pulsar.broker.authorization.AuthorizationManager;
+import com.yahoo.pulsar.broker.cache.ConfigurationCacheService;
 import com.yahoo.pulsar.broker.service.BrokerServiceException.PersistenceException;
+import com.yahoo.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import com.yahoo.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import com.yahoo.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import com.yahoo.pulsar.broker.service.nonpersistent.NonPersistentTopic;
@@ -83,6 +85,7 @@ import com.yahoo.pulsar.client.util.FutureUtil;
 import com.yahoo.pulsar.common.configuration.FieldContext;
 import com.yahoo.pulsar.common.naming.DestinationDomain;
 import com.yahoo.pulsar.common.naming.DestinationName;
+import com.yahoo.pulsar.common.naming.DestinationNameTest;
 import com.yahoo.pulsar.common.naming.NamespaceBundle;
 import com.yahoo.pulsar.common.naming.NamespaceBundleFactory;
 import com.yahoo.pulsar.common.naming.NamespaceName;
@@ -163,6 +166,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     
     public static final String BROKER_SERVICE_CONFIGURATION_PATH = "/admin/configuration";
     private final ZooKeeperDataCache<Map<String, String>> dynamicConfigurationCache;
+    private final ConfigurationCacheService configurationCacheService;
 
     public BrokerService(PulsarService pulsar) throws Exception {
         this.pulsar = pulsar;
@@ -178,6 +182,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         this.multiLayerTopicsMap = new ConcurrentOpenHashMap<>();
         this.pulsarStats = new PulsarStats(pulsar);
         this.offlineTopicStatCache = new ConcurrentOpenHashMap<>();
+        this.configurationCacheService = pulsar.getConfigurationCache();
 
         this.topicOrderedExecutor = new OrderedSafeExecutor(pulsar.getConfiguration().getNumWorkerThreadsForNonPersistentTopic(), "broker-np-topic-workers");
         final DefaultThreadFactory acceptorThreadFactory = new DefaultThreadFactory("pulsar-acceptor");
@@ -413,6 +418,29 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     private CompletableFuture<Topic> createNonPersistentTopic(String topic) {
         CompletableFuture<Topic> topicFuture = new CompletableFuture<Topic>();
 
+        // validate namespace for a given topic is configured as non-persistent
+        DestinationName destination = DestinationName.get(topic);
+        if (!isNonPersistentNamespace(destination.getNamespaceObject())) {
+            topicFuture
+                    .completeExceptionally(new NotAllowedException("Namespace is not configured witn non-persistency"));
+            return topicFuture;
+        }
+
+        // check if broker allowed to own non-persistent topic
+        if (!pulsar.getConfiguration().isNonPersistentNamespaceAllowed()) {
+            topicFuture.completeExceptionally(new NotAllowedException("Broker can't own non-persistent topics"));
+            // broker can't own non-persistent namespace so, unload the bundle if broker owns it
+            try {
+                NamespaceBundle bundle = pulsar.getNamespaceService().getBundle(destination);
+                if (pulsar.getNamespaceService().isServiceUnitOwned(bundle)) {
+                    pulsar.getExecutor().submit(() -> unloadServiceUnit(bundle));
+                }
+            } catch (Exception e) {
+                log.warn("Broker doesn't own the bundle {} ", topic, e);
+            }
+            return topicFuture;
+        }
+
         final long topicCreateTimeMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
         NonPersistentTopic nonPersistentTopic = new NonPersistentTopic(topic, this);
         CompletableFuture<Void> replicationFuture = nonPersistentTopic.checkReplication();
@@ -486,6 +514,20 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         checkTopicNsOwnership(topic);
 
         final CompletableFuture<Topic> topicFuture = new CompletableFuture<>();
+
+        if (pulsar.getConfiguration().isOnlyNonPersistentNamespaceAllowed()) {
+            topicFuture.completeExceptionally(new NotAllowedException("Broker can't own persistent topics"));
+            try {
+                // unload namespace bundle which doesn't have non-persistency set
+                NamespaceBundle bundle = pulsar.getNamespaceService().getBundle(DestinationName.get(topic));
+                if (pulsar.getNamespaceService().isServiceUnitOwned(bundle)) {
+                    pulsar.getExecutor().submit(() -> unloadServiceUnit(bundle));
+                }
+            } catch (Exception e) {
+                log.warn("Broker doesn't own the bundle {} ", topic, e);
+            }
+            return topicFuture;
+        }
 
         final Semaphore topicLoadSemaphore = topicLoadRequestSemaphore.get();
 
@@ -1130,5 +1172,14 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     
     public ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, Topic>>> getMultiLayerTopicMap() {
         return multiLayerTopicsMap;
+    }
+    
+    public boolean isNonPersistentNamespace(NamespaceName namespace) {
+        try {
+            return configurationCacheService.policiesCache().get(AdminResource.path("policies", namespace.getProperty(),
+                    namespace.getCluster(), namespace.getLocalName())).orElseGet(() -> new Policies()).nonPersistent;
+        } catch (Exception e) {
+            return false;
+        }
     }
 }

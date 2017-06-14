@@ -33,6 +33,7 @@ public class Policies {
     public int message_ttl_in_seconds;
     public RetentionPolicies retention_policies;
     public boolean deleted;
+    public boolean nonPersistent;
 
     public static final String FIRST_BOUNDARY = "0x00000000";
     public static final String LAST_BOUNDARY = "0xffffffff";
@@ -47,6 +48,7 @@ public class Policies {
         message_ttl_in_seconds = 0;
         retention_policies = null;
         deleted = false;
+        nonPersistent = false;
     }
 
     @Override
@@ -59,7 +61,8 @@ public class Policies {
                     && Objects.equal(persistence, other.persistence) && Objects.equal(bundles, other.bundles)
                     && Objects.equal(latency_stats_sample_rate, other.latency_stats_sample_rate)
                     && message_ttl_in_seconds == other.message_ttl_in_seconds
-                    && Objects.equal(retention_policies, other.retention_policies);
+                    && Objects.equal(retention_policies, other.retention_policies)
+                    && Objects.equal(nonPersistent, other.nonPersistent);
         }
 
         return false;
@@ -81,7 +84,7 @@ public class Policies {
                 .add("backlog_quota_map", backlog_quota_map).add("persistence", persistence)
                 .add("latency_stats_sample_rate", latency_stats_sample_rate)
                 .add("message_ttl_in_seconds", message_ttl_in_seconds).add("retention_policies", retention_policies)
-                .add("deleted", deleted).toString();
+                .add("deleted", deleted).add("nonPersistent", nonPersistent).toString();
     }
     
 }

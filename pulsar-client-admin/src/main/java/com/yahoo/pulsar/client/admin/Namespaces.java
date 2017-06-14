@@ -593,6 +593,15 @@ public interface Namespaces {
     public PersistencePolicies getPersistence(String namespace) throws PulsarAdminException;
 
     /**
+     * Update namespace non-persistency. Non-persistent topic can be only created under non-persistent namespace. 
+     * 
+     * @param namespace
+     * @param isNonPersistent
+     * @throws PulsarAdminException 
+     */
+    public void setNamespaceNonPersistency(String namespace, boolean isNonPersistent) throws PulsarAdminException;
+    
+    /**
      * Set the retention configuration for all the destinations on a namespace.
      * <p/>
      * Set the retention configuration on a namespace. This operation requires Pulsar super-user access.
