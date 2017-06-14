@@ -19,6 +19,43 @@ import _pulsar
 from _pulsar import Result, CompressionType, ConsumerType, PartitionsRoutingMode  # noqa: F401
 
 
+class Message:
+    '''
+    Message class is returned a consumer either by calling receive or through a listener
+    '''
+
+    def data(self):
+        '''
+        Returns a string with the content of the message
+        '''
+        return self._message.data()
+
+    def properties(self):
+        '''
+        Return the properties attached to the message.
+        Properties are application defined key/value pairs that will be attached to the message
+        '''
+        return self._message.properties()
+
+    def partition_key(self):
+        '''
+        Get the partitioning key for the message
+        '''
+        return self._message.partition_key()
+
+    def publish_timestamp(self):
+        '''
+        Get the timestamp in millis with the message publish time
+        '''
+        return self._message.publish_timestamp()
+
+    def message_id(self):
+        '''
+        The message id that can be used to refere to this particular message
+        '''
+        return self._message.message_id()
+
+
 class Authentication:
     '''
     Authentication provider object
@@ -160,6 +197,10 @@ class Client:
         message_listener    -- Sets a message listener for the consumer. When the listener is set,
                                application will receive messages through it. Calls to
                                consumer.receive() will not be allowed.
+                               Listener function needs to accept (consumer, message), eg:
+                               def my_listener(consumer, message):
+                                   # process message
+                                   consumer.acknowledge(message)
         receiver_queue_size -- Sets the size of the consumer receive queue. The consumer receive
                                 ueue controls how many messages can be accumulated by the Consumer
                                 before the application calls receive(). Using a higher value could
