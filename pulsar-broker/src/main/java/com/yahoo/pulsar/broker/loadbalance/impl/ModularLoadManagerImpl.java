@@ -409,6 +409,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
     // management decisions may be made.
     private void updateBundleData() {
         final Map<String, BundleData> bundleData = loadData.getBundleData();
+
         // Iterate over the broker data.
         for (Map.Entry<String, BrokerData> brokerEntry : loadData.getBrokerData().entrySet()) {
             final String broker = brokerEntry.getKey();
@@ -436,14 +437,17 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
 
             // Remove all loaded bundles from the preallocated maps.
             final Map<String, BundleData> preallocatedBundleData = brokerData.getPreallocatedBundleData();
-            if (preallocatedBundleData.containsKey(broker)) {
-                final Iterator<Map.Entry<String, BundleData>> preallocatedIterator = preallocatedBundleData.entrySet()
-                        .iterator();
-                while (preallocatedIterator.hasNext()) {
-                    final String bundle = preallocatedIterator.next().getKey();
-                    if (bundleData.containsKey(bundle)) {
-                        preallocatedIterator.remove();
-                        preallocatedBundleToBroker.remove(bundle);
+            for ( String bundleName : preallocatedBundleData.keySet() ) {
+                if (preallocatedBundleData.containsKey(bundleName)) {
+                    final Iterator<Map.Entry<String, BundleData>> preallocatedIterator = preallocatedBundleData.entrySet()
+                            .iterator();
+                    while (preallocatedIterator.hasNext()) {
+                        final String bundle = preallocatedIterator.next().getKey();
+
+                        if (bundleData.containsKey(bundle)) {
+                            preallocatedIterator.remove();
+                            preallocatedBundleToBroker.remove(bundle);
+                        }
                     }
                 }
             }
