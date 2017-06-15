@@ -390,5 +390,17 @@ public class ConcurrentLongPairSetTest {
         assertFalse(set.contains(t1, t1));
         assertFalse(set.contains(t1_b, t1_b));
     }
+    
+    @Test
+    public void testToString() {
+
+        ConcurrentLongPairSet set = new ConcurrentLongPairSet();
+
+        set.add(0, 0);
+        set.add(1, 1);
+        set.add(3, 3);
+        final String toString = "{[3:3], [0:0], [1:1]}";
+        assertEquals(set.toString(), toString);
+    }
 
 }

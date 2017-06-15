@@ -43,7 +43,6 @@ import com.yahoo.pulsar.client.impl.Backoff;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import com.yahoo.pulsar.common.util.Codec;
 import com.yahoo.pulsar.common.util.collections.ConcurrentLongPairSet;
-import com.yahoo.pulsar.common.util.collections.ConcurrentLongPairSet.LongPair;
 import com.yahoo.pulsar.utils.CopyOnWriteArrayList;
 
 /**
@@ -570,7 +569,7 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
             messagesToReplay.add(ledgerId, entryId);
         });
         if (log.isDebugEnabled()) {
-            log.debug("[{}] Redelivering unacknowledged messages for consumer ", consumer);
+            log.debug("[{}] Redelivering unacknowledged messages for consumer {}", consumer, messagesToReplay);
         }
         readMoreEntries();
     }
@@ -579,7 +578,7 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
     public synchronized void redeliverUnacknowledgedMessages(Consumer consumer, List<PositionImpl> positions) {
         positions.forEach(position -> messagesToReplay.add(position.getLedgerId(), position.getEntryId()));
         if (log.isDebugEnabled()) {
-            log.debug("[{}] Redelivering unacknowledged messages for consumer ", consumer);
+            log.debug("[{}] Redelivering unacknowledged messages for consumer {}", consumer, positions);
         }
         readMoreEntries();
     }
