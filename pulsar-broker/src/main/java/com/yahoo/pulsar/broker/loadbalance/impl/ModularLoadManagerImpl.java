@@ -414,17 +414,27 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
 
             // Remove all loaded bundles from the preallocated maps.
             final Map<String, BundleData> preallocatedBundleData = brokerData.getPreallocatedBundleData();
-            // Should not iterate with more than one thread at a time.
             synchronized (preallocatedBundleData) {
-                final Iterator<Map.Entry<String, BundleData>> preallocatedIterator = preallocatedBundleData.entrySet()
-                        .iterator();
-                while (preallocatedIterator.hasNext()) {
-                    final String bundle = preallocatedIterator.next().getKey();
-                    if (bundleData.containsKey(bundle)) {
-                        preallocatedIterator.remove();
-                        preallocatedBundleToBroker.remove(bundle);
+                for (String bundleName : brokerData.getLocalData().getBundles()) {
+                    if (preallocatedBundleData.containsKey(bundleName)) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("Preallocated bundle {[]} is now loaded on broker [{}]", bundleName, broker);
+                        }
+                        final Iterator<Map.Entry<String, BundleData>> preallocatedIterator = preallocatedBundleData.entrySet()
+                                .iterator();
+                        while (preallocatedIterator.hasNext()) {
+                            final String bundle = preallocatedIterator.next().getKey();
+
+                            if (bundleData.containsKey(bundle)) {
+                                preallocatedIterator.remove();
+                                preallocatedBundleToBroker.remove(bundle);
+                            }
+                        }
                     }
                 }
+            }
+            if (log.isDebugEnabled()) {
+                log.debug("Number of preallocated bundles remaining: {}", preallocatedBundleToBroker.size());
             }
 
             // Using the newest data, update the aggregated time-average data for the current broker.
