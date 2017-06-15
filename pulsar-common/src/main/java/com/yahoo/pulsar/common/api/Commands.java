@@ -742,7 +742,10 @@ public class Commands {
 
     private static ByteBuf serializeCommandMessageWithSize(BaseCommand cmd, ByteBuf metadataAndPayload) {
         // / Wire format
-        // [TOTAL_SIZE] [CMD_SIZE][CMD] [METADATA_SIZE][METADATA] [PAYLOAD]
+        // [TOTAL_SIZE] [CMD_SIZE][CMD] [MAGIC_NUMBER][CHECKSUM] [METADATA_SIZE][METADATA] [PAYLOAD]
+        //
+        // metadataAndPayload contains from magic-number to the payload included
+
 
         int cmdSize = cmd.getSerializedSize();
         int totalSize = 4 + cmdSize + metadataAndPayload.readableBytes();
