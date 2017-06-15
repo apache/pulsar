@@ -257,6 +257,23 @@ public class PersistentTopics extends AdminResource {
         }
     }
 
+    protected void validateAdminAndClientPermission(DestinationName destination) {
+        try {
+            validateAdminAccessOnProperty(destination.getProperty());
+        } catch (Exception ve) {
+            try {
+                checkAuthorization(pulsar(), destination, clientAppId());
+            } catch (RestException re) {
+                throw re;
+            } catch (Exception e) {
+                // unknown error marked as internal server error
+                log.warn("Unexpected error while authorizing request. destination={}, role={}. Error: {}", destination,
+                        clientAppId(), e.getMessage(), e);
+                throw new RestException(e);
+            }
+        }
+    }
+
     protected void validateAdminOperationOnDestination(DestinationName fqdn, boolean authoritative) {
         validateAdminAccessOnProperty(fqdn.getProperty());
         validateDestinationOwnership(fqdn, authoritative);
@@ -605,7 +622,8 @@ public class PersistentTopics extends AdminResource {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         destination = decode(destination);
         DestinationName dn = DestinationName.get(domain(), property, cluster, namespace, destination);
-        validateAdminOperationOnDestination(dn, authoritative);
+        validateAdminAndClientPermission(dn);
+        validateDestinationOwnership(dn, authoritative);
         PersistentTopic topic = getTopicReference(dn);
         return topic.getStats();
     }
@@ -621,7 +639,8 @@ public class PersistentTopics extends AdminResource {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         destination = decode(destination);
         DestinationName dn = DestinationName.get(domain(), property, cluster, namespace, destination);
-        validateAdminOperationOnDestination(dn, authoritative);
+        validateAdminAndClientPermission(dn);
+        validateDestinationOwnership(dn, authoritative);
         PersistentTopic topic = getTopicReference(dn);
         return topic.getInternalStats();
     }
