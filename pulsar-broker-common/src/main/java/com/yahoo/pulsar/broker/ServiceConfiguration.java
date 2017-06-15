@@ -98,11 +98,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // messages to all shared subscription which has higher number of unack messages until subscriptions start
     // acknowledging messages back and unack count reaches to limit/2. Using a value of 0, is disabling
     // unackedMessage-limit check and broker doesn't block dispatchers
-    private int maxUnackedMessagesPerBroker = 30000000;
+    private int maxUnackedMessagesPerBroker = 0;
     // Once broker reaches maxUnackedMessagesPerBroker limit, it blocks subscriptions which has higher unacked messages
     // than this percentage limit and subscription will not receive any new messages until that subscription acks back
     // limit/2 messages 
-    private double unAckMsgSubscriptionPercentageLimitOnBrokerBlocked = 0.16;
+    private double maxUnackedMessagesPerSubscriptionOnBrokerBlocked = 0.16;
     // Max number of concurrent lookup request broker allows to throttle heavy incoming lookup traffic
     @FieldContext(dynamic = true)
     private int maxConcurrentLookupRequest = 10000;
@@ -469,13 +469,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
         this.maxUnackedMessagesPerBroker = maxUnackedMessagesPerBroker;
     }
 
-    public double getUnAckMsgSubscriptionPercentageLimitOnBrokerBlocked() {
-        return unAckMsgSubscriptionPercentageLimitOnBrokerBlocked;
+    public double getMaxUnackedMessagesPerSubscriptionOnBrokerBlocked() {
+        return maxUnackedMessagesPerSubscriptionOnBrokerBlocked;
     }
 
-    public void setUnAckMsgSubscriptionPercentageLimitOnBrokerBlocked(
-            double unAckMsgSubscriptionPercentageLimitOnBrokerBlocked) {
-        this.unAckMsgSubscriptionPercentageLimitOnBrokerBlocked = unAckMsgSubscriptionPercentageLimitOnBrokerBlocked;
+    public void setMaxUnackedMessagesPerSubscriptionOnBrokerBlocked(
+            double maxUnackedMessagesPerSubscriptionOnBrokerBlocked) {
+        this.maxUnackedMessagesPerSubscriptionOnBrokerBlocked = maxUnackedMessagesPerSubscriptionOnBrokerBlocked;
     }
 
     public int getMaxConcurrentLookupRequest() {

@@ -38,8 +38,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.LongAdder;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
@@ -166,7 +166,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     public static final String BROKER_SERVICE_CONFIGURATION_PATH = "/admin/configuration";
     private final ZooKeeperDataCache<Map<String, String>> dynamicConfigurationCache;
     
-    private static final AtomicInteger totalUnackedMessages = new AtomicInteger(0);
+    private static final LongAdder totalUnackedMessages = new LongAdder();
     private final int maxUnackedMessages;
     public final int maxUnackedMsgsPerDispatcher;
     private static final AtomicBoolean blockedDispatcherOnHighUnackedMsgs = new AtomicBoolean(false);
@@ -241,18 +241,21 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 new Semaphore(pulsar.getConfiguration().getMaxConcurrentLookupRequest(), false));
         this.topicLoadRequestSemaphore = new AtomicReference<Semaphore>(
                 new Semaphore(pulsar.getConfiguration().getMaxConcurrentTopicLoadRequest(), false));
-        if (pulsar.getConfiguration().getUnAckMsgSubscriptionPercentageLimitOnBrokerBlocked() > 0.0) {
+        if (pulsar.getConfiguration().getMaxUnackedMessagesPerBroker() > 0
+                && pulsar.getConfiguration().getMaxUnackedMessagesPerSubscriptionOnBrokerBlocked() > 0.0) {
             this.maxUnackedMessages = pulsar.getConfiguration().getMaxUnackedMessagesPerBroker();
             this.maxUnackedMsgsPerDispatcher = (int) ((maxUnackedMessages
-                    * pulsar.getConfiguration().getUnAckMsgSubscriptionPercentageLimitOnBrokerBlocked()) / 100);
+                    * pulsar.getConfiguration().getMaxUnackedMessagesPerSubscriptionOnBrokerBlocked()) / 100);
             log.info("Enabling per-broker unack-message limit {} and dispatcher-limit {} on blocked-broker",
                     maxUnackedMessages, maxUnackedMsgsPerDispatcher);
+            // block misbehaving dispatcher by checking periodically
+            pulsar.getExecutor().scheduleAtFixedRate(() -> checkUnAckMessageDispatching(), 600, 30, TimeUnit.SECONDS);
         } else {
             this.maxUnackedMessages = 0;
             this.maxUnackedMsgsPerDispatcher = 0;
             log.info(
                     "Disabling per broker unack-msg blocking due invalid unAckMsgSubscriptionPercentageLimitOnBrokerBlocked {} ",
-                    pulsar.getConfiguration().getUnAckMsgSubscriptionPercentageLimitOnBrokerBlocked());
+                    pulsar.getConfiguration().getMaxUnackedMessagesPerSubscriptionOnBrokerBlocked());
         }
         
 
@@ -1119,20 +1122,48 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     }
     
     /**
-     * Adds given dispatcher's unackMessage count to broker-unack message count and if it reaches to the
-     * {@link #maxUnackedMessages} then it blocks all the dispatchers which has unack-messages higher than
-     * {@link #maxUnackedMsgsPerDispatcher}. It unblocks all dispatchers once broker-unack message counts decreased to
-     * ({@link #maxUnackedMessages}/2)
+     * If per-broker unack message reached to limit then it blocks dispatcher if its unack message limit has been
+     * reached to {@link #maxUnackedMsgsPerDispatcher}
      * 
      * @param dispatcher
      * @param numberOfMessages
      */
     public void addUnAckedMessages(PersistentDispatcherMultipleConsumers dispatcher, int numberOfMessages) {
         // don't block dispatchers if maxUnackedMessages = 0
+        if (maxUnackedMessages > 0) {
+            totalUnackedMessages.add(numberOfMessages);
+
+            // block dispatcher: if broker is already blocked and dispatcher reaches to max dispatcher limit when broker
+            // is blocked
+            if (blockedDispatcherOnHighUnackedMsgs.get() && !dispatcher.isBlockedDispatcherOnUnackedMsgs()
+                    && dispatcher.getTotalUnackedMessages() > maxUnackedMsgsPerDispatcher) {
+                lock.readLock().lock();
+                try {
+                    log.info("[{}] dispatcher reached to max unack msg limit on blocked-broker {}",
+                            dispatcher.getName(), dispatcher.getTotalUnackedMessages());
+                    dispatcher.blockDispatcherOnUnackedMsgs();
+                    blockedDispatchers.add(dispatcher);
+                } finally {
+                    lock.readLock().unlock();
+                }
+            }
+        }
+    }
+
+    /**
+     * Adds given dispatcher's unackMessage count to broker-unack message count and if it reaches to the
+     * {@link #maxUnackedMessages} then it blocks all the dispatchers which has unack-messages higher than
+     * {@link #maxUnackedMsgsPerDispatcher}. It unblocks all dispatchers once broker-unack message counts decreased to
+     * ({@link #maxUnackedMessages}/2)
+     * 
+     */
+    public void checkUnAckMessageDispatching() {
+
+        // don't block dispatchers if maxUnackedMessages = 0
         if (maxUnackedMessages <= 0) {
             return;
         }
-        int unAckedMessages = totalUnackedMessages.addAndGet(numberOfMessages);
+        long unAckedMessages = totalUnackedMessages.sum();
         if (unAckedMessages >= maxUnackedMessages && blockedDispatcherOnHighUnackedMsgs.compareAndSet(false, true)) {
             // block dispatcher with higher unack-msg when it reaches broker-unack msg limit
             log.info("[{}] Starting blocking dispatchers with unacked msgs {} due to reached max broker limit {}",
@@ -1143,23 +1174,10 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             if (blockedDispatcherOnHighUnackedMsgs.compareAndSet(true, false)) {
                 unblockDispatchersOnUnAckMessages(blockedDispatchers.values());
             }
-        } else if (blockedDispatcherOnHighUnackedMsgs.get() && !dispatcher.isBlockedDispatcherOnUnackedMsgs()
-                && dispatcher.getTotalUnackedMessages() > maxUnackedMsgsPerDispatcher) {
-            // block dispatcher: if broker is already blocked and dispatcher reaches to max dispatcher limit when broker
-            // is blocked
-            lock.readLock().lock();
-            try {
-                log.info("[{}] dispatcher reached to max unack msg limit on blocked-broker {}", dispatcher.getName(),
-                        dispatcher.getTotalUnackedMessages());
-                dispatcher.blockDispatcherOnUnackedMsgs();
-                blockedDispatchers.add(dispatcher);
-            } finally {
-                lock.readLock().unlock();
-            }
-
         }
+     
     }
-
+    
     public boolean isBrokerDispatchingBlocked() {
         return blockedDispatcherOnHighUnackedMsgs.get();
     }
