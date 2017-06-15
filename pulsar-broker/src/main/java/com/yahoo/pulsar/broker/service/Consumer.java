@@ -44,6 +44,7 @@ import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandAck;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.MessageIdData;
+import com.yahoo.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import com.yahoo.pulsar.common.naming.DestinationName;
 import com.yahoo.pulsar.common.policies.data.ConsumerStats;
@@ -185,9 +186,6 @@ public class Consumer {
                     readChecksum(metadataAndPayload);
                 }
 
-                // stats
-                msgOut.recordEvent(metadataAndPayload.readableBytes());
-
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Sending message to consumerId {}, entry id {}", subscription, consumerId,
                             pos.getEntryId());
@@ -238,6 +236,7 @@ public class Consumer {
         int permitsToReduce = 0;
         Iterator<Entry> iter = entries.iterator();
         boolean unsupportedVersion = false;
+        long totalReadableBytes = 0;
         boolean clientSupportBatchMessages = cnx.isBatchMessageCompatibleVersion();
         while (iter.hasNext()) {
             Entry entry = iter.next();
@@ -258,6 +257,7 @@ public class Consumer {
             if (batchSize > 1 && !clientSupportBatchMessages) {
                 unsupportedVersion = true;
             }
+            totalReadableBytes += metadataAndPayload.readableBytes();
             permitsToReduce += batchSize;
         }
         // reduce permit and increment unackedMsg count with total number of messages in batch-msgs
@@ -271,6 +271,8 @@ public class Consumer {
                 log.debug("[{}] [{}] message permits dropped below 0 - {}", subscription, consumerId, permits);
             }
         }
+
+        msgOut.recordMultipleEvents(permitsToReduce, totalReadableBytes);
         return permitsToReduce;
     }
 

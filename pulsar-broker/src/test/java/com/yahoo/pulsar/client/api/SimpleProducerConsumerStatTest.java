@@ -18,6 +18,7 @@ package com.yahoo.pulsar.client.api;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 import java.util.List;
@@ -27,6 +28,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,6 +39,8 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import com.google.common.util.concurrent.RateLimiter;
+import com.yahoo.pulsar.client.admin.PulsarAdminException;
 import com.yahoo.pulsar.client.impl.ConsumerStats;
 import com.yahoo.pulsar.client.impl.ProducerStats;
 
@@ -321,6 +325,39 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         assertEquals(pStat.getTotalSendFailed(), 1);
         assertEquals(cStat.getTotalMsgsReceived(), 0);
         assertEquals(cStat.getTotalMsgsReceived(), cStat.getTotalAcksSent());
+        log.info("-- Exiting {} test --", methodName);
+    }
+    
+    public void testBatchMessagesRateOut() throws PulsarClientException, InterruptedException, PulsarAdminException {
+        log.info("-- Starting {} test --", methodName);
+        String topicName = "persistent://my-property/cluster/my-ns/testBatchMessagesRateOut";
+        double produceRate = 17;
+        int batchSize = 5;
+        ConsumerConfiguration consumerConf = new ConsumerConfiguration();
+        consumerConf.setSubscriptionType(SubscriptionType.Exclusive);
+        Consumer consumer = pulsarClient.subscribe(topicName, "my-subscriber-name", consumerConf);
+        ProducerConfiguration producerConf = new ProducerConfiguration();
+        producerConf.setBatchingMaxMessages(batchSize);
+        producerConf.setBatchingEnabled(true);
+        producerConf.setBatchingMaxPublishDelay(2, TimeUnit.SECONDS);
+
+        Producer producer = pulsarClient.createProducer(topicName, producerConf);
+        AtomicBoolean runTest = new AtomicBoolean(true);
+        Thread t1 = new Thread(() -> {
+            RateLimiter r = RateLimiter.create(produceRate);
+            while (runTest.get()) {
+                r.acquire();
+                producer.sendAsync("Hello World".getBytes());
+                consumer.receiveAsync().thenAccept(message -> consumer.acknowledgeAsync(message));
+            }
+        });
+        t1.start();
+        Thread.sleep(2000); // Two seconds sleep
+        runTest.set(false);
+        pulsar.getBrokerService().updateRates();
+        double actualRate = admin.persistentTopics().getStats(topicName).msgRateOut;
+        assertTrue(actualRate > (produceRate / batchSize));
+        consumer.unsubscribe();
         log.info("-- Exiting {} test --", methodName);
     }
 
