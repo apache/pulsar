@@ -118,5 +118,4 @@ ClientConfiguration& ClientConfiguration::setLogConfFilePath(const std::string& 
 const std::string& ClientConfiguration::getLogConfFilePath() const {
     return impl_->logConfFilePath;
 }
-
 }

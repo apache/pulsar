@@ -27,6 +27,8 @@
 #include "HandlerBase.h"
 #include "SharedBuffer.h"
 #include "CompressionCodec.h"
+#include <lib/PublisherStatsImpl.h>
+#include <lib/PublisherStatsDisabled.h>
 
 using namespace pulsar;
 
@@ -80,6 +82,7 @@ class ProducerImpl : public HandlerBase, public boost::enable_shared_from_this<P
     bool isClosed();
 
  protected:
+    PublisherStatsBasePtr publisherStatsBasePtr;
 
     typedef BlockingQueue<OpSendMsg> MessageQueue;
 
@@ -108,6 +111,8 @@ class ProducerImpl : public HandlerBase, public boost::enable_shared_from_this<P
     void handleCreateProducer(const ClientConnectionPtr& cnx, Result result,
                               const std::string& producerName);
 
+    void statsCallBackHandler(Result , const Message& , SendCallback , timespec );
+
     void handleClose(Result result, ResultCallback callback);
 
     void resendMessages(ClientConnectionPtr cnx);
@@ -134,10 +139,6 @@ class ProducerImpl : public HandlerBase, public boost::enable_shared_from_this<P
     Promise<Result, ProducerImplBaseWeakPtr> producerCreatedPromise_;
 
     void failPendingMessages(Result result);
-
-    unsigned long numOfMsgPublished;
-    unsigned long numOfSendAsyncCalls;
-    unsigned long numOfMsgAckSuccessfully;
 };
 
 struct ProducerImplCmp {

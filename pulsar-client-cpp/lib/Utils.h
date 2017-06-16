@@ -65,6 +65,16 @@ struct WaitForCallbackType {
     }
 };
 
+template<class key_t, class value_t>
+std::ostream& operator<<(std::ostream& os, const std::map<key_t, value_t>& m) {
+    os << "{";
+    for (typename std::map<key_t, value_t>::const_iterator it = m.begin();
+            it != m.end(); it++) {
+        os << "[Key: " << it->first << ", Value: " << it->second <<"], ";
+    }
+    os << "}";
+    return os;
+}
 }
 
 #endif /* UTILS_HPP_ */

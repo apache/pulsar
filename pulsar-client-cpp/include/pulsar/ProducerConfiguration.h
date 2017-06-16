@@ -78,6 +78,18 @@ class ProducerConfiguration {
     ProducerConfiguration& setBatchingMaxPublishDelayMs(
             const unsigned long& batchingMaxPublishDelayMs);
     const unsigned long& getBatchingMaxPublishDelayMs() const;
+
+    /*
+     * Initialize stats interval in seconds. Stats are printed and reset after every 'statsIntervalInSeconds'.
+     * Set to 0 in order to disable stats collection.
+     */
+    ProducerConfiguration& setStatsIntervalInSeconds(const uint64_t&);
+
+    /*
+     * Get the stats interval set in the client.
+     */
+    const uint64_t& getStatsIntervalInSeconds() const;
+
     friend class PulsarWrapper;
 
  private:

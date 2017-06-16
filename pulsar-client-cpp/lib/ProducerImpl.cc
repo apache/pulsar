@@ -58,12 +58,15 @@ ProducerImpl::ProducerImpl(ClientImplPtr client, const std::string& topic,
     LOG_DEBUG(
             "ProducerName - " << producerName_ << " Created producer on topic " << topic_ << " id: " << producerId_);
     // boost::ref is used to drop the constantness constraint of make_shared
-    if(conf_.getBatchingEnabled()) {
+    if (conf_.getBatchingEnabled()) {
         batchMessageContainer = boost::make_shared<BatchMessageContainer>(boost::ref(*this));
     }
-    numOfMsgPublished = 0;
-    numOfSendAsyncCalls = 0;
-    numOfMsgAckSuccessfully = 0;
+    if (conf_.getStatsIntervalInSeconds()) {
+        publisherStatsBasePtr = boost::make_shared<PublisherStatsImpl>(producerStr_, executor_->createDeadlineTimer(),
+                                       conf_.getStatsIntervalInSeconds());
+    } else {
+        publisherStatsBasePtr = boost::make_shared<PublisherStatsDisabled>();
+    }
 }
 
 ProducerImpl::~ProducerImpl() {
@@ -232,7 +235,16 @@ void ProducerImpl::setMessageMetadata(const Message &msg, const uint64_t& sequen
     }
 }
 
+void ProducerImpl::statsCallBackHandler(Result res, const Message& msg, SendCallback callback, timespec publishTime) {
+    publisherStatsBasePtr->messageReceived(res, publishTime);
+    callback(res, msg);
+}
+
 void ProducerImpl::sendAsync(const Message& msg, SendCallback callback) {
+    publisherStatsBasePtr->messageSent(msg);
+    timespec publishTime;
+    clock_gettime(CLOCK_REALTIME, &publishTime);
+    SendCallback cb = boost::bind(&ProducerImpl::statsCallBackHandler, this, _1, _2, callback, publishTime);
     if (msg.getLength() > Commands::MaxMessageSize) {
         callback(ResultMessageTooBig, msg);
         return;
@@ -256,13 +268,12 @@ void ProducerImpl::sendAsync(const Message& msg, SendCallback callback) {
     }
 
     Lock lock(mutex_);
-    numOfSendAsyncCalls++;
     if (state_ != Ready) {
         lock.unlock();
         if (conf_.getBlockIfQueueFull()) {
             pendingMessagesQueue_.release(1);
         }
-        callback(ResultAlreadyClosed, msg);
+        cb(ResultAlreadyClosed, msg);
         return;
     }
 
@@ -272,7 +283,7 @@ void ProducerImpl::sendAsync(const Message& msg, SendCallback callback) {
         if (conf_.getBlockIfQueueFull()) {
             pendingMessagesQueue_.release(1);
         }
-        callback(ResultInvalidMessage, msg);
+        cb(ResultInvalidMessage, msg);
         return;
     }
 
@@ -287,17 +298,17 @@ void ProducerImpl::sendAsync(const Message& msg, SendCallback callback) {
             batchMessageContainer->sendMessage();
         }
         lock.unlock();
-        callback(ResultProducerQueueIsFull, msg);
+        cb(ResultProducerQueueIsFull, msg);
         return;
     }
 
     // If we reach this point then you have a reserved spot on the queue
 
     if (batchMessageContainer) {  // Batching is enabled
-        batchMessageContainer->add(msg, callback);
+        batchMessageContainer->add(msg, cb);
         return;
     }
-    sendMessage(msg, callback);
+    sendMessage(msg, cb);
 }
 
 // Precondition -
@@ -312,7 +323,6 @@ void ProducerImpl::sendMessage(const Message& msg, SendCallback callback) {
 
     LOG_DEBUG("Inserting data to pendingMessagesQueue_");
     pendingMessagesQueue_.push(op, true);
-    numOfMsgPublished++;
     LOG_DEBUG("Completed Inserting data to pendingMessagesQueue_");
 
     ClientConnectionPtr cnx = getCnx().lock();
@@ -338,14 +348,15 @@ void ProducerImpl::batchMessageTimeoutHandler(const boost::system::error_code& e
 
 void ProducerImpl::printStats() {
     if (batchMessageContainer) {
-        LOG_INFO("Producer - " << producerStr_ << ", [numOfMsgPublished = " << numOfMsgPublished
-        << "] [numOfMsgAckSuccessfully = " << numOfMsgAckSuccessfully
-        << "] [numOfSendAsyncCalls =" << numOfSendAsyncCalls << "] [batchMessageContainer = "
-        << *batchMessageContainer << "]");
+        LOG_INFO("Producer - " << producerStr_ <<
+             ", [batchMessageContainer = " << *batchMessageContainer << "]");
     } else {
-        LOG_INFO("Producer - " << producerStr_ << ", [numOfMsgPublished = " << numOfMsgPublished
-        << "] [numOfMsgAckSuccessfully = " << numOfMsgAckSuccessfully
-        << "] [numOfSendAsyncCalls =" << numOfSendAsyncCalls << "] [batching = off]");
+        LOG_INFO("Producer - " << producerStr_ <<
+             ", [batching  = off]");
+    }
+
+    if (conf_.getStatsIntervalInSeconds()) {
+        publisherStatsBasePtr->printStats();
     }
 }
 
@@ -474,7 +485,6 @@ bool ProducerImpl::removeCorruptMessage(uint64_t sequenceId) {
     } else {
         LOG_DEBUG(getName() << "Remove corrupt message from queue " << sequenceId);
         pendingMessagesQueue_.pop();
-        numOfMsgAckSuccessfully++;
         if (op.msg_.impl_->metadata.has_num_messages_in_batch()) {
             // batch message - need to release more spots
             // -1 since the pushing batch message into the queue already released a spot
@@ -518,7 +528,6 @@ bool ProducerImpl::ackReceived(uint64_t sequenceId) {
         // Message was persisted correctly
         LOG_DEBUG(getName() << "Received ack for msg " << sequenceId);
         pendingMessagesQueue_.pop();
-        numOfMsgAckSuccessfully++;
         if (op.msg_.impl_->metadata.has_num_messages_in_batch()) {
             // batch message - need to release more spots
             // -1 since the pushing batch message into the queue already released a spot
