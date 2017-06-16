@@ -15,15 +15,15 @@
 #
 
 """
-Pulsar Python client library is based on the existing C++ client library.
-All the same features are exposed through Python interface.
+The Pulsar Python client library is based on the existing C++ client library.
+All the same features are exposed through the Python interface.
 
 ## Install
 
-First follow the instructions to compile the Pulsar C++ client library.
-That will also build the Python binding for the library.
+Follow the instructions to compile the Pulsar C++ client library. This method
+will also build the Python binding for the library.
 
-Currently the only supported Python version is 2.7.
+Currently, the only supported Python version is 2.7.
 
 To install the Python bindings:
 
