@@ -182,6 +182,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
                 if (log.isDebugEnabled()) {
                     log.debug("Update Received for path {}", path);
                 }
+                reapDeadBrokerPreallocations(data);
                 scheduler.submit(ModularLoadManagerImpl.this::updateAll);
             }
         });
@@ -240,6 +241,30 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
                         CreateMode.PERSISTENT);
             } catch (KeeperException.NodeExistsException e) {
                 // Ignore if already exists.
+            }
+        }
+    }
+
+    // For each broker that we have a recent load report, see if they are still alive
+    private void reapDeadBrokerPreallocations(Set<String> aliveBrokers) {
+        for ( String broker : loadData.getBrokerData().keySet() ) {
+            if ( !aliveBrokers.contains(broker)) {
+                if ( log.isDebugEnabled() ) {
+                    log.debug("Broker {} appears to have stopped; now reclaiming any preallocations", broker);
+                }
+                final Iterator<Map.Entry<String, String>> iterator = preallocatedBundleToBroker.entrySet().iterator();
+                while ( iterator.hasNext() ) {
+                    Map.Entry<String, String> entry = iterator.next();
+                    final String preallocatedBundle = entry.getKey();
+                    final String preallocatedBroker = entry.getValue();
+                    if ( broker.equals(preallocatedBroker) ) {
+                        if ( log.isDebugEnabled() ) {
+                            log.debug("Removing old preallocation on dead broker {} for bundle {}",
+                                    preallocatedBroker, preallocatedBundle);
+                        }
+                        iterator.remove();
+                    }
+                }
             }
         }
     }
@@ -414,15 +439,24 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
 
             // Remove all loaded bundles from the preallocated maps.
             final Map<String, BundleData> preallocatedBundleData = brokerData.getPreallocatedBundleData();
-            // Should not iterate with more than one thread at a time.
             synchronized (preallocatedBundleData) {
-                final Iterator<Map.Entry<String, BundleData>> preallocatedIterator = preallocatedBundleData.entrySet()
-                        .iterator();
-                while (preallocatedIterator.hasNext()) {
-                    final String bundle = preallocatedIterator.next().getKey();
-                    if (bundleData.containsKey(bundle)) {
-                        preallocatedIterator.remove();
-                        preallocatedBundleToBroker.remove(bundle);
+                for (String preallocatedBundleName : brokerData.getPreallocatedBundleData().keySet()) {
+                    if (brokerData.getLocalData().getBundles().contains(preallocatedBundleName)) {
+                        final Iterator<Map.Entry<String, BundleData>> preallocatedIterator = preallocatedBundleData.entrySet()
+                                .iterator();
+                        while (preallocatedIterator.hasNext()) {
+                            final String bundle = preallocatedIterator.next().getKey();
+
+                            if (bundleData.containsKey(bundle)) {
+                                preallocatedIterator.remove();
+                                preallocatedBundleToBroker.remove(bundle);
+                            }
+                        }
+                    }
+
+                    // This is needed too in case a broker which was assigned a bundle dies and comes back up.
+                    if ( preallocatedBundleToBroker.containsKey(preallocatedBundleName) ) {
+                        preallocatedBundleToBroker.remove(preallocatedBundleName);
                     }
                 }
             }
