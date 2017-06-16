@@ -35,7 +35,7 @@ To install the Python bindings:
 
 ### [Producer](#pulsar.Producer) example
 
-    #!/python
+    #!python
     import pulsar
 
     client = pulsar.Client('pulsar://localhost:6650')
