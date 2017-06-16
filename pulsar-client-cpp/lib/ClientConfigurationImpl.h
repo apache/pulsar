@@ -38,7 +38,7 @@ struct ClientConfigurationImpl {
              concurrentLookupRequest(5000),
              logConfFilePath(),
              useTls(false),
-             tlsAllowInsecureConnection(true){}
+             tlsAllowInsecureConnection(true) {}
 };
 }
 

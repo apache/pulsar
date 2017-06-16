@@ -106,29 +106,24 @@ DECLARE_LOG_OBJECT();
         timer_->cancel();
     }
 
-std::ostream& operator<<(std::ostream& os, const PublisherStatsImpl& obj) {
-    os << "Producer " << obj.producerStr_ << ", PublisherStatsImpl (" <<
-            ", numMsgsSent_ = " << obj.numMsgsSent_ <<
-            ", numBytesSent_ = " << obj.numBytesSent_ <<
-            ", numAcksReceived_ = " << obj.numAcksReceived_ <<
-            ", numSendFailedMap_ = " << obj.numSendFailedMap_ <<
-            ", latencyAccumulator_ = " << PublisherStatsImpl::latencyToString(obj.latencyAccumulator_) <<
-            ", totalMsgsSent_ = " << obj.totalMsgsSent_ <<
-            ", totalBytesSent_ = " << obj.totalBytesSent_ <<
-            ", totalAcksReceived_ = " << obj.totalAcksReceived_ <<
-            ", totalSendFailedMap_ = " << obj.totalSendFailedMap_ <<
-            ", totalLatencyAccumulator_ = " << PublisherStatsImpl::latencyToString(obj.totalLatencyAccumulator_) << ")";
-    return os;
-}
-
-template<Result, class value_t>
-std::ostream& operator<<(std::ostream& os, const std::map<Result, value_t>& m) {
-    os << "{";
-    for (typename std::map<Result, value_t>::const_iterator it = m.begin();
-            it != m.end(); it++) {
-        os << "[Key: " << it->first << ", Value: " << it->second <<"], ";
+    std::ostream& operator<<(std::ostream& os, const std::map<Result, uint64_t>& m) {
+        os << "{";
+        for (std::map<Result, uint64_t>::const_iterator it = m.begin(); it != m.end(); it++) {
+            os << "[Key: " << strResult(it->first) << ", Value: " << it->second << "], ";
+        }
+        os << "}";
+        return os;
     }
-    os << "}";
-    return os;
-}
+
+    std::ostream& operator<<(std::ostream& os, const PublisherStatsImpl& obj) {
+        os << "Producer " << obj.producerStr_ << ", PublisherStatsImpl (" << ", numMsgsSent_ = "
+           << obj.numMsgsSent_ << ", numBytesSent_ = " << obj.numBytesSent_ << ", numAcksReceived_ = "
+           << obj.numAcksReceived_ << ", numSendFailedMap_ = " << obj.numSendFailedMap_
+           << ", latencyAccumulator_ = " << PublisherStatsImpl::latencyToString(obj.latencyAccumulator_)
+           << ", totalMsgsSent_ = " << obj.totalMsgsSent_ << ", totalBytesSent_ = "
+           << obj.totalBytesSent_ << ", totalAcksReceived_ = " << obj.totalAcksReceived_
+           << ", totalSendFailedMap_ = " << obj.totalSendFailedMap_ << ", totalLatencyAccumulator_ = "
+           << PublisherStatsImpl::latencyToString(obj.totalLatencyAccumulator_) << ")";
+        return os;
+    }
 }

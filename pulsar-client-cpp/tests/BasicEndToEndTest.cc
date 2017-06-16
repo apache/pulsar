@@ -49,8 +49,7 @@ static void messageListenerFunction(Consumer consumer, const Message& msg) {
 
 static void sendCallBack(Result r, const Message& msg, std::string prefix) {
     ASSERT_EQ(r, ResultOk);
-    std::string messageContent = prefix
-            + boost::lexical_cast<std::string>(globalTestBatchMessagesCounter++);
+    std::string messageContent = prefix + boost::lexical_cast<std::string>(globalTestBatchMessagesCounter++);
     ASSERT_EQ(messageContent, msg.getDataAsString());
     LOG_DEBUG("Received publish acknowledgement for " << msg.getDataAsString());
 }
@@ -62,7 +61,8 @@ static void sendCallBack(Result r, const Message& msg, std::string prefix, doubl
     sendCallBack(r, msg, prefix);
 }
 
-TEST(BasicEndToEndTest, testBatchMessages) {
+TEST(BasicEndToEndTest, testBatchMessages)
+{
     ClientConfiguration config;
     Client client(lookupUrl);
     std::string topicName = "persistent://property/cluster/namespace/test-batch-messages";
@@ -102,10 +102,9 @@ TEST(BasicEndToEndTest, testBatchMessages) {
 
     // Send Asynchronously
     std::string prefix = "msg-batch-";
-    for (int i = 0; i < numOfMessages; i++) {
+    for (int i = 0; i<numOfMessages; i++) {
         std::string messageContent = prefix + boost::lexical_cast<std::string>(i);
-        Message msg = MessageBuilder().setContent(messageContent).setProperty(
-                "msgIndex", boost::lexical_cast<std::string>(i)).build();
+        Message msg = MessageBuilder().setContent(messageContent).setProperty("msgIndex", boost::lexical_cast<std::string>(i)).build();
         producer.sendAsync(msg, boost::bind(&sendCallBack, _1, _2, prefix));
         LOG_INFO("sending message " << messageContent);
     }
@@ -114,8 +113,7 @@ TEST(BasicEndToEndTest, testBatchMessages) {
     int i = 0;
     while (consumer.receive(receivedMsg, 5000) == ResultOk) {
         std::string expectedMessageContent = prefix + boost::lexical_cast<std::string>(i);
-        LOG_INFO(
-                "Received Message with [ content - " << receivedMsg.getDataAsString() << "] [ messageID = " << receivedMsg.getMessageId() << "]");
+        LOG_INFO("Received Message with [ content - " << receivedMsg.getDataAsString() << "] [ messageID = " << receivedMsg.getMessageId() << "]");
         ASSERT_EQ(receivedMsg.getProperty("msgIndex"), boost::lexical_cast<std::string>(i++));
         ASSERT_EQ(expectedMessageContent, receivedMsg.getDataAsString());
         ASSERT_EQ(ResultOk, consumer.acknowledge(receivedMsg));
@@ -129,18 +127,20 @@ TEST(BasicEndToEndTest, testBatchMessages) {
 }
 
 void resendMessage(Result r, const Message msg, Producer producer) {
-    Lock lock(mutex_);
+	Lock lock(mutex_);
     if (r != ResultOk) {
         LOG_DEBUG("globalResendMessageCount" << globalResendMessageCount);
-        if (++globalResendMessageCount >= 3) {
-            return;
-        }
+		if (++globalResendMessageCount >= 3) {
+			return;
+		}
     }
     lock.unlock();
-    producer.sendAsync(MessageBuilder().build(), boost::bind(resendMessage, _1, _2, producer));
+    producer.sendAsync(MessageBuilder().build(),
+                               boost::bind(resendMessage, _1, _2, producer));
 }
 
-TEST(BasicEndToEndTest, testProduceConsume) {
+    TEST(BasicEndToEndTest, testProduceConsume)
+{
     ClientConfiguration config;
     Client client(lookupUrl);
     std::string topicName = "persistent://prop/unit/ns1/my-topic";
@@ -195,7 +195,8 @@ TEST(BasicEndToEndTest, testLookupThrottling) {
 
 }
 
-TEST(BasicEndToEndTest, testNonExistingTopic) {
+    TEST(BasicEndToEndTest, testNonExistingTopic)
+{
     Client client(lookupUrl);
     Producer producer;
     Result result = client.createProducer("persistent://prop/unit/ns1", producer);
@@ -206,7 +207,8 @@ TEST(BasicEndToEndTest, testNonExistingTopic) {
     ASSERT_EQ(ResultInvalidTopicName, result);
 }
 
-TEST(BasicEndToEndTest, testNonPersistentTopic) {
+    TEST(BasicEndToEndTest, testNonPersistentTopic)
+{
     Client client(lookupUrl);
     Producer producer;
     Result result = client.createProducer("non-persistent://prop/unit/ns1/destination", producer);
@@ -218,7 +220,8 @@ TEST(BasicEndToEndTest, testNonPersistentTopic) {
     ASSERT_EQ(ResultInvalidTopicName, result);
 }
 
-TEST(BasicEndToEndTest, testSingleClientMultipleSubscriptions) {
+    TEST(BasicEndToEndTest, testSingleClientMultipleSubscriptions)
+{
     Client client(lookupUrl);
 
     Producer producer;
@@ -235,7 +238,8 @@ TEST(BasicEndToEndTest, testSingleClientMultipleSubscriptions) {
     //at this point connection gets destroyed because this consumer creation fails
 }
 
-TEST(BasicEndToEndTest, testMultipleClientsMultipleSubscriptions) {
+    TEST(BasicEndToEndTest, testMultipleClientsMultipleSubscriptions)
+{
     Client client1(lookupUrl);
     Client client2(lookupUrl);
 
@@ -263,7 +267,8 @@ TEST(BasicEndToEndTest, testMultipleClientsMultipleSubscriptions) {
     ASSERT_EQ(ResultOk, client2.close());
 }
 
-TEST(BasicEndToEndTest, testProduceAndConsumeAfterClientClose) {
+    TEST(BasicEndToEndTest, testProduceAndConsumeAfterClientClose)
+{
     Client client(lookupUrl);
 
     Producer producer;
@@ -280,7 +285,7 @@ TEST(BasicEndToEndTest, testProduceAndConsumeAfterClientClose) {
     int numMsg = 0;
     for (; numMsg < 10; numMsg++) {
         Message msg = MessageBuilder().setContent(msgContent).setProperty(
-                "msgIndex", boost::lexical_cast<std::string>(numMsg)).build();
+                                                                          "msgIndex", boost::lexical_cast<std::string>(numMsg)).build();
         ASSERT_EQ(ResultOk, producer.send(msg));
     }
 
@@ -299,7 +304,7 @@ TEST(BasicEndToEndTest, testProduceAndConsumeAfterClientClose) {
 
     LOG_INFO("Trying to publish a message after closing the client");
     Message msg = MessageBuilder().setContent(msgContent).setProperty(
-            "msgIndex", boost::lexical_cast<std::string>(numMsg)).build();
+                                                                      "msgIndex", boost::lexical_cast<std::string>(numMsg)).build();
 
     ASSERT_EQ(ResultAlreadyClosed, producer.send(msg));
 
@@ -307,20 +312,20 @@ TEST(BasicEndToEndTest, testProduceAndConsumeAfterClientClose) {
     ASSERT_EQ(ResultAlreadyClosed, consumer.receive(msgReceived));
 }
 
-TEST(BasicEndToEndTest, testIamSoFancyCharactersInTopicName) {
+    TEST(BasicEndToEndTest, testIamSoFancyCharactersInTopicName)
+{
     Client client(lookupUrl);
     Producer producer;
-    Result result = client.createProducer("persistent://prop/unit/ns1/topic@%*)(&!%$#@#$><?",
-                                          producer);
+    Result result = client.createProducer("persistent://prop/unit/ns1/topic@%*)(&!%$#@#$><?", producer);
     ASSERT_EQ(ResultOk, result);
 
     Consumer consumer;
-    result = client.subscribe("persistent://prop/unit/ns1/topic@%*)(&!%$#@#$><?", "my-sub-name",
-                              consumer);
+    result = client.subscribe("persistent://prop/unit/ns1/topic@%*)(&!%$#@#$><?", "my-sub-name", consumer);
     ASSERT_EQ(ResultOk, result);
 }
 
-TEST(BasicEndToEndTest, testSubscribeCloseUnsubscribeScenario) {
+    TEST(BasicEndToEndTest, testSubscribeCloseUnsubscribeSherpaScenario)
+{
     ClientConfiguration config;
     Client client(lookupUrl, config);
     std::string topicName = "persistent://prop/unit/ns1/::,::bf11";
@@ -334,7 +339,7 @@ TEST(BasicEndToEndTest, testSubscribeCloseUnsubscribeScenario) {
     ASSERT_EQ(ResultOk, result);
 
     result = consumer.close();
-    ASSERT_EQ(ResultOk, result);
+    ASSERT_EQ(ResultOk,result);
 
     Consumer consumer1;
     result = client.subscribe(topicName, subName, consumer1);
@@ -342,7 +347,8 @@ TEST(BasicEndToEndTest, testSubscribeCloseUnsubscribeScenario) {
     ASSERT_EQ(ResultOk, result);
 }
 
-TEST(BasicEndToEndTest, testInvalidUrlPassed) {
+    TEST(BasicEndToEndTest, testInvalidUrlPassed)
+{
     Client client("localhost:4080");
     std::string topicName = "persistent://prop/unit/ns1/test";
     std::string subName = "test-sub";
@@ -367,7 +373,8 @@ TEST(BasicEndToEndTest, testInvalidUrlPassed) {
     ASSERT_EQ(ResultConnectError, result);
 }
 
-TEST(BasicEndToEndTest, testPartitionedProducerConsumer) {
+TEST(BasicEndToEndTest, testPartitionedProducerConsumer)
+{
     Client client(lookupUrl);
     std::string topicName = "persistent://prop/unit/ns/partition-test";
 
@@ -377,7 +384,7 @@ TEST(BasicEndToEndTest, testPartitionedProducerConsumer) {
 
     LOG_INFO("res = "<<res);
     ASSERT_FALSE(res != 204 && res != 409);
-
+    
     Producer producer;
     Result result = client.createProducer(topicName, producer);
     ASSERT_EQ(ResultOk, result);
@@ -386,7 +393,7 @@ TEST(BasicEndToEndTest, testPartitionedProducerConsumer) {
     result = client.subscribe(topicName, "subscription-A", consumer);
     ASSERT_EQ(ResultOk, result);
 
-    for (int i = 0; i < 10; i++) {
+    for (int i = 0; i < 10; i++ ) {
         boost::posix_time::ptime t(boost::posix_time::microsec_clock::universal_time());
         long nanoSeconds = t.time_of_day().total_nanoseconds();
         std::stringstream ss;
@@ -406,7 +413,8 @@ TEST(BasicEndToEndTest, testPartitionedProducerConsumer) {
     client.shutdown();
 }
 
-TEST(BasicEndToEndTest, testMessageTooBig) {
+TEST(BasicEndToEndTest, testMessageTooBig)
+{
     ClientConfiguration config;
     Client client(lookupUrl);
     std::string topicName = "persistent://prop/unit/ns1/my-topic";
@@ -429,7 +437,8 @@ TEST(BasicEndToEndTest, testMessageTooBig) {
     delete[] content;
 }
 
-TEST(BasicEndToEndTest, testCompressionLZ4) {
+    TEST(BasicEndToEndTest, testCompressionLZ4)
+{
     ClientConfiguration config;
     Client client(lookupUrl);
     std::string topicName = "persistent://prop/unit/namespace1/my-topic-lz4";
@@ -467,7 +476,8 @@ TEST(BasicEndToEndTest, testCompressionLZ4) {
     ASSERT_EQ(ResultOk, client.close());
 }
 
-TEST(BasicEndToEndTest, testCompressionZLib) {
+    TEST(BasicEndToEndTest, testCompressionZLib)
+{
     ClientConfiguration config;
     Client client(lookupUrl);
     std::string topicName = "persistent://prop/unit/ns1/my-topic-zlib";
@@ -505,7 +515,8 @@ TEST(BasicEndToEndTest, testCompressionZLib) {
     ASSERT_EQ(ResultOk, client.close());
 }
 
-TEST(BasicEndToEndTest, testConfigurationFile) {
+    TEST(BasicEndToEndTest, testConfigurationFile)
+{
     ClientConfiguration config1;
     config1.setOperationTimeoutSeconds(100);
     config1.setIOThreads(10);
@@ -522,13 +533,13 @@ TEST(BasicEndToEndTest, testConfigurationFile) {
 
 }
 
-TEST(BasicEndToEndTest, testSinglePartitionRoutingPolicy) {
+TEST(BasicEndToEndTest, testSinglePartitionRoutingPolicy)
+{
     Client client(lookupUrl);
     std::string topicName = "persistent://prop/unit/ns/partition-testSinglePartitionRoutingPolicy";
 
     // call admin api to make it partitioned
-    std::string url = adminUrl
-            + "admin/persistent/prop/unit/ns/partition-testSinglePartitionRoutingPolicy/partitions";
+    std::string url = adminUrl + "admin/persistent/prop/unit/ns/partition-testSinglePartitionRoutingPolicy/partitions";
     int res = makePutRequest(url, "5");
 
     LOG_INFO("res = "<<res);
@@ -544,7 +555,7 @@ TEST(BasicEndToEndTest, testSinglePartitionRoutingPolicy) {
     ASSERT_EQ(ResultOk, result);
 
     ASSERT_EQ(ResultOk, result);
-    for (int i = 0; i < 10; i++) {
+    for (int i = 0; i < 10; i++ ) {
         boost::posix_time::ptime t(boost::posix_time::microsec_clock::universal_time());
         long nanoSeconds = t.time_of_day().total_nanoseconds();
         std::stringstream ss;
@@ -563,15 +574,16 @@ TEST(BasicEndToEndTest, testSinglePartitionRoutingPolicy) {
     client.close();
 }
 
-TEST(BasicEndToEndTest, testNamespaceName) {
-    boost::shared_ptr<NamespaceName> nameSpaceName = NamespaceName::get("property", "bf1",
-                                                                        "nameSpace");
+    TEST(BasicEndToEndTest, testNamespaceName)
+{
+    boost::shared_ptr<NamespaceName> nameSpaceName = NamespaceName::get("property", "bf1", "nameSpace");
     ASSERT_STREQ(nameSpaceName->getCluster().c_str(), "bf1");
     ASSERT_STREQ(nameSpaceName->getLocalName().c_str(), "nameSpace");
     ASSERT_STREQ(nameSpaceName->getProperty().c_str(), "property");
 }
 
-TEST(BasicEndToEndTest, testConsumerClose) {
+    TEST(BasicEndToEndTest, testConsumerClose)
+{
     ClientConfiguration config;
     Client client(lookupUrl);
     std::string topicName = "persistent://prop/unit/ns1/testConsumerClose";
@@ -582,15 +594,13 @@ TEST(BasicEndToEndTest, testConsumerClose) {
     ASSERT_EQ(consumer.close(), ResultAlreadyClosed);
 }
 
-TEST(BasicEndToEndTest, testDuplicateConsumerCreationOnPartitionedTopic) {
+    TEST(BasicEndToEndTest, testDuplicateConsumerCreationOnPartitionedTopic)
+{
     Client client(lookupUrl);
-    std::string topicName =
-            "persistent://prop/unit/ns/partition-testDuplicateConsumerCreationOnPartitionedTopic";
+    std::string topicName = "persistent://prop/unit/ns/partition-testDuplicateConsumerCreationOnPartitionedTopic";
 
     // call admin api to make it partitioned
-    std::string url =
-            adminUrl
-                    + "admin/persistent/prop/unit/ns/testDuplicateConsumerCreationOnPartitionedTopic/partitions";
+    std::string url = adminUrl + "admin/persistent/prop/unit/ns/testDuplicateConsumerCreationOnPartitionedTopic/partitions";
     int res = makePutRequest(url, "5");
 
     LOG_INFO("res = "<<res);
@@ -605,7 +615,7 @@ TEST(BasicEndToEndTest, testDuplicateConsumerCreationOnPartitionedTopic) {
 
     Result result = client.createProducer(topicName, producer);
     ASSERT_EQ(ResultOk, result);
-    for (int i = 0; i < 10; i++) {
+    for (int i = 0; i < 10; i++ ) {
         boost::posix_time::ptime t(boost::posix_time::microsec_clock::universal_time());
         long nanoSeconds = t.time_of_day().total_nanoseconds();
         std::stringstream ss;
@@ -614,6 +624,7 @@ TEST(BasicEndToEndTest, testDuplicateConsumerCreationOnPartitionedTopic) {
         ASSERT_EQ(ResultOk, producer.send(msg));
     }
 
+
     LOG_INFO("Creating Subscriber");
     std::string consumerId = "CONSUMER";
     ConsumerConfiguration tempConsConfig;
@@ -621,24 +632,26 @@ TEST(BasicEndToEndTest, testDuplicateConsumerCreationOnPartitionedTopic) {
     ConsumerConfiguration consConfig = tempConsConfig;
     ASSERT_EQ(consConfig.getConsumerType(), ConsumerExclusive);
     Consumer consumer;
-    Result subscribeResult = client.subscribe(topicName, consumerId, consConfig, consumer);
+    Result subscribeResult = client.subscribe(topicName, consumerId,
+        consConfig, consumer);
     ASSERT_EQ(ResultOk, subscribeResult);
 
     LOG_INFO("Creating Another Subscriber");
     Consumer consumer2;
     ASSERT_EQ(consumer2.getSubscriptionName(), "");
-    subscribeResult = client.subscribe(topicName, consumerId, consConfig, consumer2);
+    subscribeResult = client.subscribe(topicName, consumerId,
+        consConfig, consumer2);
     ASSERT_EQ(ResultConsumerBusy, subscribeResult);
     consumer.close();
     producer.close();
 }
 
-TEST(BasicEndToEndTest, testRoundRobinRoutingPolicy) {
+TEST(BasicEndToEndTest, testRoundRobinRoutingPolicy)
+{
     Client client(lookupUrl);
     std::string topicName = "persistent://prop/unit/ns/partition-testRoundRobinRoutingPolicy";
     // call admin api to make it partitioned
-    std::string url = adminUrl
-            + "admin/persistent/prop/unit/ns/partition-testRoundRobinRoutingPolicy/partitions";
+    std::string url = adminUrl + "admin/persistent/prop/unit/ns/partition-testRoundRobinRoutingPolicy/partitions";
     int res = makePutRequest(url, "5");
 
     LOG_INFO("res = "<<res);
@@ -646,8 +659,7 @@ TEST(BasicEndToEndTest, testRoundRobinRoutingPolicy) {
 
     Producer producer;
     ProducerConfiguration tempProducerConfiguration;
-    tempProducerConfiguration.setPartitionsRoutingMode(
-            ProducerConfiguration::RoundRobinDistribution);
+    tempProducerConfiguration.setPartitionsRoutingMode(ProducerConfiguration::RoundRobinDistribution);
     ProducerConfiguration producerConfiguration = tempProducerConfiguration;
     Result result = client.createProducer(topicName, producerConfiguration, producer);
     ASSERT_EQ(ResultOk, result);
@@ -668,14 +680,13 @@ TEST(BasicEndToEndTest, testRoundRobinRoutingPolicy) {
 
         std::stringstream partitionedConsumerId;
         partitionedConsumerId << consumerId << i;
-        subscribeResult = client.subscribe(partitionedTopicName.str(), partitionedConsumerId.str(),
-                                           consConfig, consumer[i]);
+        subscribeResult = client.subscribe(partitionedTopicName.str(), partitionedConsumerId.str(), consConfig, consumer[i]);
 
         ASSERT_EQ(ResultOk, subscribeResult);
         ASSERT_EQ(consumer[i].getTopic(), partitionedTopicName.str());
     }
 
-    for (int i = 0; i < 10; i++) {
+    for (int i = 0; i < 10; i++ ) {
         boost::posix_time::ptime t(boost::posix_time::microsec_clock::universal_time());
         long nanoSeconds = t.time_of_day().total_nanoseconds();
         std::stringstream ss;
@@ -697,14 +708,15 @@ TEST(BasicEndToEndTest, testRoundRobinRoutingPolicy) {
     }
     producer.close();
     client.shutdown();
+
 }
 
-TEST(BasicEndToEndTest, testMessageListener) {
+TEST(BasicEndToEndTest, testMessageListener)
+{
     Client client(lookupUrl);
     std::string topicName = "persistent://prop/unit/ns/partition-testMessageListener";
     // call admin api to make it partitioned
-    std::string url = adminUrl
-            + "admin/persistent/prop/unit/ns/partition-testMessageListener/partitions";
+    std::string url = adminUrl + "admin/persistent/prop/unit/ns/partition-testMessageListener/partitions";
     int res = makePutRequest(url, "5");
 
     LOG_INFO("res = "<<res);
@@ -724,7 +736,7 @@ TEST(BasicEndToEndTest, testMessageListener) {
     result = client.subscribe(topicName, "subscription-A", consumerConfig, consumer);
 
     ASSERT_EQ(ResultOk, result);
-    for (int i = 0; i < 10; i++) {
+    for (int i = 0; i < 10; i++ ) {
         boost::posix_time::ptime t(boost::posix_time::microsec_clock::universal_time());
         long nanoSeconds = t.time_of_day().total_nanoseconds();
         std::stringstream ss;
@@ -741,19 +753,18 @@ TEST(BasicEndToEndTest, testMessageListener) {
     client.close();
 }
 
-TEST(BasicEndToEndTest, testMessageListenerPause) {
+TEST(BasicEndToEndTest, testMessageListenerPause)
+{
     Client client(lookupUrl);
-    std::string topicName =
-            "persistent://property/cluster/namespace/partition-testMessageListener-pauses";
+    std::string topicName = "persistent://property/cluster/namespace/partition-testMessageListener-pauses";
 
     // call admin api to make it partitioned
-    std::string url =
-            adminUrl
-                    + "admin/persistent/property/cluster/namespace/partition-testMessageListener-pauses/partitions";
+    std::string url = adminUrl + "admin/persistent/property/cluster/namespace/partition-testMessageListener-pauses/partitions";
     int res = makePutRequest(url, "5");
 
     LOG_INFO("res = "<<res);
     ASSERT_FALSE(res != 204 && res != 409);
+
 
     Producer producer;
     ProducerConfiguration producerConfiguration;
@@ -773,8 +784,8 @@ TEST(BasicEndToEndTest, testMessageListenerPause) {
     result = client.subscribe(topicName, "subscription-name", consumerConfig, consumer);
     ASSERT_EQ(ResultOk, result);
     int temp = 1000;
-    for (int i = 0; i < 10000; i++) {
-        if (i && i % 1000 == 0) {
+    for (int i = 0; i < 10000; i++ ) {
+        if(i && i%1000 == 0) {
             usleep(2 * 1000 * 1000);
             ASSERT_EQ(globalCount, temp);
             consumer.resumeMessageListener();
@@ -797,7 +808,8 @@ TEST(BasicEndToEndTest, testMessageListenerPause) {
     client.close();
 }
 
-TEST(BasicEndToEndTest, testResendViaSendCallback) {
+    TEST(BasicEndToEndTest, testResendViaSendCallback)
+{
     ClientConfiguration clientConfiguration;
     clientConfiguration.setIOThreads(1);
     Client client(lookupUrl, clientConfiguration);
@@ -810,8 +822,7 @@ TEST(BasicEndToEndTest, testResendViaSendCallback) {
 
     // Setting timeout of 1 ms
     producerConfiguration.setSendTimeout(1);
-    client.createProducerAsync(topicName, producerConfiguration,
-                               WaitForCallbackValue<Producer>(producerPromise));
+    client.createProducerAsync(topicName, producerConfiguration, WaitForCallbackValue<Producer>(producerPromise));
     Future<Result, Producer> producerFuture = producerPromise.getFuture();
     Result result = producerFuture.get(producer);
     ASSERT_EQ(ResultOk, result);
@@ -819,7 +830,7 @@ TEST(BasicEndToEndTest, testResendViaSendCallback) {
     // Send asynchronously for 3 seconds
     // Expect timeouts since we have set timeout to 1 ms
     // On receiving timeout send the message using the CMS client IO thread via cb function.
-    for (int i = 0; i < 10000; i++) {
+    for (int i = 0; i<10000; i++) {
         producer.sendAsync(MessageBuilder().build(), boost::bind(resendMessage, _1, _2, producer));
     }
     // 3 seconds
@@ -829,9 +840,11 @@ TEST(BasicEndToEndTest, testResendViaSendCallback) {
     producer.close();
 }
 
-TEST(BasicEndToEndTest, testStatsLatencies) {
+    TEST(BasicEndToEndTest, testStatsLatencies)
+{
     ClientConfiguration config;
     config.setIOThreads(1);
+    config.setMessageListenerThreads(1);
     Client client(lookupUrl, config);
     std::string topicName = "persistent://property/cluster/namespace/testStatsLatencies";
     std::string subName = "subscription-name";
@@ -840,7 +853,7 @@ TEST(BasicEndToEndTest, testStatsLatencies) {
     // Start Producer and Consumer
     int numOfMessages = 1000;
     ProducerConfiguration conf;
-    conf.setStatsIntervalInSeconds(4);
+    conf.setStatsIntervalInSeconds(5);
 
     Promise<Result, Producer> producerPromise;
     client.createProducerAsync(topicName, conf, WaitForCallbackValue<Producer>(producerPromise));
@@ -907,7 +920,11 @@ TEST(BasicEndToEndTest, testStatsLatencies) {
     ASSERT_GE((uint64_t )totalLatencies[2], 20 * 1000);
     ASSERT_GE((uint64_t )totalLatencies[3], 20 * 1000);
 
-    usleep(3000);  // 3 seconds
+    while (publisherStatsImplPtr->getNumMsgsSent() != 0) {
+        // wait till stats flush
+    }
+
+    usleep(1 * 1e6); // 1 second
 
     latencyAccumulator = publisherStatsImplPtr->getLatencyAccumulator();
     latencies = boost::accumulators::extended_p_square(latencyAccumulator);
