@@ -56,10 +56,11 @@ private:
     std::string producerStr_;
     DeadlineTimerPtr timer_;
     boost::mutex mutex_;
-    uint64_t statsInterval_;
+    uint64_t statsIntervalInSeconds_;
 
     friend std::ostream& operator<<(std::ostream&, const PublisherStatsImpl&);
     friend std::ostream& operator<<(std::ostream&, const std::map<Result, uint64_t>&);
+    friend class PulsarFriend;
 
     static std::string latencyToString(const LatencyAccumulator&);
     double differenceInMicros(timespec&, timespec&);
@@ -74,6 +75,48 @@ public:
     void messageReceived(Result&, timespec&);
 
     void printStats();
+
+     ~PublisherStatsImpl();
+
+     inline uint64_t  getNumMsgsSent() {
+         return numMsgsSent_;
+     }
+
+     inline uint64_t  getNumBytesSent() {
+         return numBytesSent_;
+     }
+
+     inline uint64_t getNumAcksReceived() {
+         return numAcksReceived_;
+     }
+
+     inline std::map<Result, uint64_t> getSendFailMap() {
+         return numSendFailedMap_;
+     }
+
+     inline uint64_t  getTotalMsgsSent() {
+         return totalMsgsSent_;
+     }
+
+     inline uint64_t  getTotalBytesSent() {
+         return totalBytesSent_;
+     }
+
+     inline uint64_t getTotalAcksReceived() {
+         return totalAcksReceived_;
+     }
+
+     inline std::map<Result, uint64_t> getTotalSendFailMap() {
+         return totalSendFailedMap_;
+     }
+
+     inline LatencyAccumulator getLatencyAccumulator() {
+         return latencyAccumulator_;
+     }
+
+     inline LatencyAccumulator getTotalLatencyAccumulator() {
+         return totalLatencyAccumulator_;
+     }
 };
 }
 

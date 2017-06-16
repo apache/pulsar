@@ -15,6 +15,7 @@
  */
 
 #include <pulsar/BatchMessageId.h>
+#include <lib/ProducerImpl.h>
 #include <string>
 
 using std::string;
@@ -24,6 +25,11 @@ class PulsarFriend {
     public:
     static int getBatchIndex(const BatchMessageId& mId) {
         return mId.batchIndex_;
+    }
+
+    static PublisherStatsBasePtr getPublisherStatsPtr(Producer producer) {
+        ProducerImpl* producerImpl = dynamic_cast<ProducerImpl*>(producer.impl_.get());
+        return producerImpl->publisherStatsBasePtr_;     
     }
 };
 }

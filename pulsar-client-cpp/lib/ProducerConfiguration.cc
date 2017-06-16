@@ -131,11 +131,11 @@ const unsigned long& ProducerConfiguration::getBatchingMaxPublishDelayMs() const
 }
 
 ProducerConfiguration& ProducerConfiguration::setStatsIntervalInSeconds(const uint64_t& statsIntervalSeconds) {
-    impl_->statsIntervalSeconds = statsIntervalSeconds;
+    impl_->statsIntervalInSeconds = statsIntervalSeconds;
     return *this;
 }
 
 const uint64_t& ProducerConfiguration::getStatsIntervalInSeconds() const {
-    return impl_->statsIntervalSeconds;
+    return impl_->statsIntervalInSeconds;
 }
 }

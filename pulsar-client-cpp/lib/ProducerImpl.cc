@@ -62,10 +62,10 @@ ProducerImpl::ProducerImpl(ClientImplPtr client, const std::string& topic,
         batchMessageContainer = boost::make_shared<BatchMessageContainer>(boost::ref(*this));
     }
     if (conf_.getStatsIntervalInSeconds()) {
-        publisherStatsBasePtr = boost::make_shared<PublisherStatsImpl>(producerStr_, executor_->createDeadlineTimer(),
+        publisherStatsBasePtr_ = boost::make_shared<PublisherStatsImpl>(producerStr_, executor_->createDeadlineTimer(),
                                        conf_.getStatsIntervalInSeconds());
     } else {
-        publisherStatsBasePtr = boost::make_shared<PublisherStatsDisabled>();
+        publisherStatsBasePtr_ = boost::make_shared<PublisherStatsDisabled>();
     }
 }
 
@@ -236,12 +236,12 @@ void ProducerImpl::setMessageMetadata(const Message &msg, const uint64_t& sequen
 }
 
 void ProducerImpl::statsCallBackHandler(Result res, const Message& msg, SendCallback callback, timespec publishTime) {
-    publisherStatsBasePtr->messageReceived(res, publishTime);
+    publisherStatsBasePtr_->messageReceived(res, publishTime);
     callback(res, msg);
 }
 
 void ProducerImpl::sendAsync(const Message& msg, SendCallback callback) {
-    publisherStatsBasePtr->messageSent(msg);
+    publisherStatsBasePtr_->messageSent(msg);
     timespec publishTime;
     clock_gettime(CLOCK_REALTIME, &publishTime);
     SendCallback cb = boost::bind(&ProducerImpl::statsCallBackHandler, this, _1, _2, callback, publishTime);
@@ -356,7 +356,7 @@ void ProducerImpl::printStats() {
     }
 
     if (conf_.getStatsIntervalInSeconds()) {
-        publisherStatsBasePtr->printStats();
+        publisherStatsBasePtr_->printStats();
     }
 }
 

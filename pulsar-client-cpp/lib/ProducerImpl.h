@@ -82,7 +82,7 @@ class ProducerImpl : public HandlerBase, public boost::enable_shared_from_this<P
     bool isClosed();
 
  protected:
-    PublisherStatsBasePtr publisherStatsBasePtr;
+    PublisherStatsBasePtr publisherStatsBasePtr_;
 
     typedef BlockingQueue<OpSendMsg> MessageQueue;
 

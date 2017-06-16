@@ -25,6 +25,8 @@ class PublisherStatsBase {
     virtual void messageSent(const Message& msg) = 0;
     virtual void messageReceived(Result& res, timespec& publishTime) = 0;
     virtual void printStats() = 0;
+
+    virtual ~PublisherStatsBase() {};
 };
 
 typedef boost::shared_ptr<PublisherStatsBase> PublisherStatsBasePtr;

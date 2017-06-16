@@ -86,6 +86,7 @@ TEST(BatchMessageTest, testProducerTimeout) {
     int numOfMessages = 4;
     int timeout = 4000;
     ProducerConfiguration conf;
+    conf.setStatsIntervalInSeconds(1);
     conf.setCompressionType(CompressionLZ4);
     conf.setBatchingMaxMessages(batchSize);
     conf.setBatchingMaxPublishDelayMs(timeout);
@@ -114,6 +115,9 @@ TEST(BatchMessageTest, testProducerTimeout) {
     ASSERT_EQ(temp, topicName);
     ASSERT_EQ(consumer.getSubscriptionName(), subName);
 
+
+    PublisherStatsBasePtr ptr = PulsarFriend::getPublisherStatsPtr(producer);
+    PublisherStatsImpl *publisherStatsImplPtr = static_cast<PublisherStatsImpl*>(ptr.get());
     // Send Asynchronously
     std::string prefix = "msg-batch-test-produce-timeout-";
     for (int i = 0; i<numOfMessages; i++) {
@@ -130,6 +134,8 @@ TEST(BatchMessageTest, testProducerTimeout) {
         LOG_INFO("end = "<<end);
         // Greater than or equal to since there may be delay in sending messaging
         ASSERT_GE((double)(end - start), timeout/1000.0);
+        ASSERT_EQ(publisherStatsImplPtr->getTotalMsgsSent(), i+1);
+        ASSERT_EQ(publisherStatsImplPtr->getTotalAcksReceived(), i+1);
     }
 
     Message receivedMsg;
@@ -188,12 +194,18 @@ TEST(BatchMessageTest, testBatchSizeInBytes) {
     ASSERT_EQ(temp, topicName);
     ASSERT_EQ(consumer.getSubscriptionName(), subName);
 
+    PublisherStatsBasePtr ptr = PulsarFriend::getPublisherStatsPtr(producer);
+    PublisherStatsImpl *publisherStatsImplPtr = static_cast<PublisherStatsImpl*>(ptr.get());
     // Send Asynchronously
     std::string prefix = "12345678";
     for (int i = 0; i<numOfMessages; i++) {
         std::string messageContent = prefix + boost::lexical_cast<std::string>(i);
         Message msg = MessageBuilder().setContent(messageContent).setProperty("msgIndex", boost::lexical_cast<std::string>(i)).build();
         producer.sendAsync(msg, &sendCallBack);
+        ASSERT_EQ(publisherStatsImplPtr->getNumMsgsSent(), i+1);
+        ASSERT_LT(publisherStatsImplPtr->getNumAcksReceived(), i+1);
+        ASSERT_EQ(publisherStatsImplPtr->getTotalMsgsSent(), i+1);
+        ASSERT_LT(publisherStatsImplPtr->getTotalAcksReceived(), i+1);
         LOG_INFO("sending message " << messageContent);
     }
 
@@ -207,6 +219,11 @@ TEST(BatchMessageTest, testBatchSizeInBytes) {
         ASSERT_EQ(expectedMessageContent, receivedMsg.getDataAsString());
         ASSERT_EQ(ResultOk, consumer.acknowledge(receivedMsg));
     }
+
+    // Check stats
+    ASSERT_EQ(publisherStatsImplPtr->getNumAcksReceived(),numOfMessages);
+    ASSERT_EQ(publisherStatsImplPtr->getTotalAcksReceived(),numOfMessages);
+
     // Number of messages produced
     ASSERT_EQ(globalTestBatchMessagesCounter, numOfMessages);
 
@@ -228,6 +245,7 @@ TEST(BatchMessageTest, testSmallReceiverQueueSize) {
     int batchSize = 1000;
     int numOfMessages = 100000;
     ProducerConfiguration conf;
+    conf.setStatsIntervalInSeconds(1);
     conf.setCompressionType(CompressionLZ4);
     conf.setBatchingMaxMessages(batchSize);
     conf.setBatchingMaxPublishDelayMs(1);
@@ -259,12 +277,16 @@ TEST(BatchMessageTest, testSmallReceiverQueueSize) {
     ASSERT_EQ(temp, topicName);
     ASSERT_EQ(consumer.getSubscriptionName(), subName);
 
+    PublisherStatsBasePtr ptr = PulsarFriend::getPublisherStatsPtr(producer);
+    PublisherStatsImpl *publisherStatsImplPtr = static_cast<PublisherStatsImpl*>(ptr.get());
     // Send Asynchronously
     std::string prefix = testName;
     for (int i = 0; i<numOfMessages; i++) {
         std::string messageContent = prefix + boost::lexical_cast<std::string>(i);
         Message msg = MessageBuilder().setContent(messageContent).setProperty("msgIndex", boost::lexical_cast<std::string>(i)).build();
         producer.sendAsync(msg, &sendCallBack);
+        ASSERT_EQ(publisherStatsImplPtr->getTotalMsgsSent(), i+1);
+        ASSERT_LT(publisherStatsImplPtr->getTotalAcksReceived(), i+1);
         LOG_DEBUG("sending message " << messageContent);
     }
 
@@ -298,6 +320,7 @@ TEST(BatchMessageTest, testIndividualAck) {
     int batchSize = 5;
     int numOfMessages = 10;
     ProducerConfiguration conf;
+    conf.setStatsIntervalInSeconds(1);
     conf.setBatchingMaxMessages(batchSize);
     conf.setBatchingEnabled(true);
 
@@ -447,6 +470,7 @@ TEST(BatchMessageTest, testCumulativeAck) {
     int batchSize = 5;
     int numOfMessages = 15;
     ProducerConfiguration conf;
+    conf.setStatsIntervalInSeconds(1);
     conf.setBatchingMaxMessages(batchSize);
     conf.setBatchingEnabled(true);
 
@@ -835,5 +859,4 @@ TEST(BatchMessageTest, testPartitionedTopics) {
 
     // Number of messages consumed
     ASSERT_EQ(i, numOfMessages - globalPublishCountQueueFull);
-
 }
