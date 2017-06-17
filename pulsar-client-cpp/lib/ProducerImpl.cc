@@ -235,16 +235,14 @@ void ProducerImpl::setMessageMetadata(const Message &msg, const uint64_t& sequen
     }
 }
 
-void ProducerImpl::statsCallBackHandler(Result res, const Message& msg, SendCallback callback, timespec publishTime) {
+void ProducerImpl::statsCallBackHandler(Result res, const Message& msg, SendCallback callback, boost::posix_time::ptime publishTime) {
     publisherStatsBasePtr_->messageReceived(res, publishTime);
     callback(res, msg);
 }
 
 void ProducerImpl::sendAsync(const Message& msg, SendCallback callback) {
     publisherStatsBasePtr_->messageSent(msg);
-    timespec publishTime;
-    clock_gettime(CLOCK_REALTIME, &publishTime);
-    SendCallback cb = boost::bind(&ProducerImpl::statsCallBackHandler, this, _1, _2, callback, publishTime);
+    SendCallback cb = boost::bind(&ProducerImpl::statsCallBackHandler, this, _1, _2, callback, boost::posix_time::microsec_clock::universal_time());
     if (msg.getLength() > Commands::MaxMessageSize) {
         callback(ResultMessageTooBig, msg);
         return;
@@ -353,10 +351,6 @@ void ProducerImpl::printStats() {
     } else {
         LOG_INFO("Producer - " << producerStr_ <<
              ", [batching  = off]");
-    }
-
-    if (conf_.getStatsIntervalInSeconds()) {
-        publisherStatsBasePtr_->printStats();
     }
 }
 

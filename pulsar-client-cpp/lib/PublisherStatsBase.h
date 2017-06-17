@@ -18,14 +18,13 @@
 #define PULSAR_PUBLISHER_STATS_BASE_HEADER
 #include <pulsar/Message.h>
 #include <pulsar/Result.h>
-#include <time.h>
+#include <boost/date_time/posix_time/posix_time.hpp>
+
 namespace pulsar {
 class PublisherStatsBase {
  public:
     virtual void messageSent(const Message& msg) = 0;
-    virtual void messageReceived(Result& res, timespec& publishTime) = 0;
-    virtual void printStats() = 0;
-
+    virtual void messageReceived(Result&, boost::posix_time::ptime&) = 0;
     virtual ~PublisherStatsBase() {};
 };
 

@@ -20,7 +20,7 @@
 namespace pulsar {
 DECLARE_LOG_OBJECT();
 
-    boost::array<double, 4> PublisherStatsImpl::probs = {0.5, 0.9,0.99,0.999};
+    static const boost::array<double, 4> probs = {0.5, 0.9,0.99,0.999};
 
     std::string PublisherStatsImpl::latencyToString(const LatencyAccumulator& obj) {
         boost::accumulators::detail::extractor_result<LatencyAccumulator, boost::accumulators::tag::extended_p_square>::type latencies = boost::accumulators::extended_p_square(obj);
@@ -31,10 +31,6 @@ DECLARE_LOG_OBJECT();
                 ", 99.9pct: " << latencies[3] / 1e3 << "ms" <<
                 "]";
         return os.str();
-    }
-
-    double PublisherStatsImpl::differenceInMicros(timespec& start, timespec& end) {
-        return (end.tv_sec - start.tv_sec) * 1e6 + (end.tv_nsec - start.tv_nsec) / 1e3;
     }
 
     PublisherStatsImpl::PublisherStatsImpl(std::string producerStr, DeadlineTimerPtr timer, uint64_t statsIntervalInSeconds)
@@ -56,8 +52,19 @@ DECLARE_LOG_OBJECT();
                         boost::asio::placeholders::error));
     }
 
-    void PublisherStatsImpl::printStats() {
-        LOG_INFO(*this);
+    PublisherStatsImpl::PublisherStatsImpl(const PublisherStatsImpl& stats)
+    : numMsgsSent_(stats.numMsgsSent_),
+      numBytesSent_(stats.numBytesSent_),
+      numAcksReceived_(stats.numAcksReceived_),
+      totalMsgsSent_(stats.totalMsgsSent_),
+      totalBytesSent_(stats.totalBytesSent_),
+      totalAcksReceived_(stats.totalAcksReceived_),
+      timer_(stats.timer_),
+      producerStr_(stats.producerStr_),
+      statsIntervalInSeconds_(stats.statsIntervalInSeconds_),
+      mutex_(),
+      latencyAccumulator_(stats.latencyAccumulator_),
+      totalLatencyAccumulator_(stats.totalLatencyAccumulator_){
     }
 
     void PublisherStatsImpl::flushAndReset(const boost::system::error_code& ec) {
@@ -65,19 +72,22 @@ DECLARE_LOG_OBJECT();
             LOG_DEBUG("Ignoring timer cancelled event, code[" << ec <<"]");
             return;
         }
-        {
-            Lock lock(mutex_);
-            printStats();
-            numMsgsSent_ = 0;
-            numBytesSent_ = 0;
-            numAcksReceived_ = 0;
-            numSendFailedMap_.clear();
-            latencyAccumulator_ = LatencyAccumulator(boost::accumulators::tag::extended_p_square::probabilities = probs);
-        }
+
+        Lock lock(mutex_);
+        PublisherStatsImpl tmp = *this;
+        numMsgsSent_ = 0;
+        numBytesSent_ = 0;
+        numAcksReceived_ = 0;
+        sendMap_.clear();
+        latencyAccumulator_ = LatencyAccumulator(
+                boost::accumulators::tag::extended_p_square::probabilities = probs);
+        lock.unlock();
+
         timer_->expires_from_now(boost::posix_time::seconds(statsIntervalInSeconds_));
         timer_->async_wait(
                 boost::bind(&pulsar::PublisherStatsImpl::flushAndReset, this,
-                        boost::asio::placeholders::error));
+                            boost::asio::placeholders::error));
+        LOG_INFO(tmp);
     }
 
     void PublisherStatsImpl::messageSent(const Message& msg) {
@@ -88,18 +98,16 @@ DECLARE_LOG_OBJECT();
         totalBytesSent_ += msg.getLength();
     }
 
-    void PublisherStatsImpl::messageReceived(Result& res, timespec& publishTime) {
-        timespec currentTime;
-        clock_gettime(CLOCK_REALTIME, &currentTime);
-        double diffInMicros = differenceInMicros(publishTime, currentTime);
-
+    void PublisherStatsImpl::messageReceived(Result& res, boost::posix_time::ptime& publishTime) {
+        boost::posix_time::ptime currentTime = boost::posix_time::microsec_clock::universal_time();
+        double diffInMicros = (currentTime - publishTime).total_microseconds();
         Lock lock(mutex_);
         totalLatencyAccumulator_(diffInMicros);
         latencyAccumulator_(diffInMicros);
         numAcksReceived_++;
         totalAcksReceived_++;
-        numSendFailedMap_[res] += 1; // Value will automatically be initialized to 0 in the constructor
-        totalSendFailedMap_[res] += 1; // Value will automatically be initialized to 0 in the constructor
+        sendMap_[res] += 1; // Value will automatically be initialized to 0 in the constructor
+        totalSendMap_[res] += 1; // Value will automatically be initialized to 0 in the constructor
     }
 
     PublisherStatsImpl::~PublisherStatsImpl() {
@@ -118,11 +126,11 @@ DECLARE_LOG_OBJECT();
     std::ostream& operator<<(std::ostream& os, const PublisherStatsImpl& obj) {
         os << "Producer " << obj.producerStr_ << ", PublisherStatsImpl (" << ", numMsgsSent_ = "
            << obj.numMsgsSent_ << ", numBytesSent_ = " << obj.numBytesSent_ << ", numAcksReceived_ = "
-           << obj.numAcksReceived_ << ", numSendFailedMap_ = " << obj.numSendFailedMap_
+           << obj.numAcksReceived_ << ", sendMap_ = " << obj.sendMap_
            << ", latencyAccumulator_ = " << PublisherStatsImpl::latencyToString(obj.latencyAccumulator_)
            << ", totalMsgsSent_ = " << obj.totalMsgsSent_ << ", totalBytesSent_ = "
            << obj.totalBytesSent_ << ", totalAcksReceived_ = " << obj.totalAcksReceived_
-           << ", totalSendFailedMap_ = " << obj.totalSendFailedMap_ << ", totalLatencyAccumulator_ = "
+           << ", totalSendMap_ = " << obj.totalSendMap_ << ", totalLatencyAccumulator_ = "
            << PublisherStatsImpl::latencyToString(obj.totalLatencyAccumulator_) << ")";
         return os;
     }

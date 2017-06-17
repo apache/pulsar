@@ -111,7 +111,7 @@ class ProducerImpl : public HandlerBase, public boost::enable_shared_from_this<P
     void handleCreateProducer(const ClientConnectionPtr& cnx, Result result,
                               const std::string& producerName);
 
-    void statsCallBackHandler(Result , const Message& , SendCallback , timespec );
+    void statsCallBackHandler(Result , const Message& , SendCallback , boost::posix_time::ptime );
 
     void handleClose(Result result, ResultCallback callback);
 

@@ -43,13 +43,13 @@ class PublisherStatsImpl : public boost::enable_shared_from_this<PublisherStatsI
 private:
     uint64_t numMsgsSent_;
     uint64_t numBytesSent_;
-    std::map<Result, uint64_t> numSendFailedMap_;
+    std::map<Result, uint64_t> sendMap_;
     uint64_t numAcksReceived_;
     LatencyAccumulator latencyAccumulator_;
 
     uint64_t totalMsgsSent_;
     uint64_t totalBytesSent_;
-    std::map<Result, uint64_t> totalSendFailedMap_;
+    std::map<Result, uint64_t> totalSendMap_;
     uint64_t totalAcksReceived_;
     LatencyAccumulator totalLatencyAccumulator_;
 
@@ -63,18 +63,16 @@ private:
     friend class PulsarFriend;
 
     static std::string latencyToString(const LatencyAccumulator&);
-    double differenceInMicros(timespec&, timespec&);
-    static boost::array<double, 4> probs;
 public:
     PublisherStatsImpl(std::string, DeadlineTimerPtr, uint64_t);
+
+    PublisherStatsImpl(const PublisherStatsImpl& stats);
 
     void flushAndReset(const boost::system::error_code&);
 
     void messageSent(const Message&);
 
-    void messageReceived(Result&, timespec&);
-
-    void printStats();
+    void messageReceived(Result&, boost::posix_time::ptime&);
 
      ~PublisherStatsImpl();
 
@@ -90,8 +88,8 @@ public:
          return numAcksReceived_;
      }
 
-     inline std::map<Result, uint64_t> getSendFailMap() {
-         return numSendFailedMap_;
+     inline std::map<Result, uint64_t> getSendMap() {
+         return sendMap_;
      }
 
      inline uint64_t  getTotalMsgsSent() {
@@ -106,8 +104,8 @@ public:
          return totalAcksReceived_;
      }
 
-     inline std::map<Result, uint64_t> getTotalSendFailMap() {
-         return totalSendFailedMap_;
+     inline std::map<Result, uint64_t> getTotalSendMap() {
+         return totalSendMap_;
      }
 
      inline LatencyAccumulator getLatencyAccumulator() {

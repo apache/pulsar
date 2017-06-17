@@ -277,9 +277,14 @@ TEST(BasicEndToEndTest, testLookupThrottling) {
 
     Consumer consumer;
     result = client.subscribe("persistent://prop/unit/ns1/my-topic-3", "my-sub-name", consumer);
+
+    // Clean dangling subscription
+    consumer.unsubscribe();
+    result = client.subscribe("persistent://prop/unit/ns1/my-topic-3", "my-sub-name", consumer);
+
     ASSERT_EQ(ResultOk, result);
 
-    // Send 10 messages synchronosly
+    // Send 10 messages synchronously
     std::string msgContent = "msg-content";
     LOG_INFO("Publishing 10 messages synchronously");
     int numMsg = 0;
@@ -835,9 +840,9 @@ TEST(BasicEndToEndTest, testMessageListenerPause)
     }
     // 3 seconds
     usleep(3 * 1000 * 1000);
+    producer.close();
     Lock lock(mutex_);
     ASSERT_GE(globalResendMessageCount, 3);
-    producer.close();
 }
 
     TEST(BasicEndToEndTest, testStatsLatencies)

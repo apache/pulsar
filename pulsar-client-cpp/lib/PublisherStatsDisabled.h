@@ -22,8 +22,7 @@ namespace pulsar {
 class PublisherStatsDisabled : public PublisherStatsBase {
  public:
     virtual void messageSent(const Message& msg) {};
-    virtual void messageReceived(Result& res, timespec& publishTime) {};
-    virtual void printStats() {};
+    virtual void messageReceived(Result&, boost::posix_time::ptime&) {};
 };
 
 }
