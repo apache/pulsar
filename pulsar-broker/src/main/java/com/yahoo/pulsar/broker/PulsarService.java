@@ -94,7 +94,7 @@ public class PulsarService implements AutoCloseable {
     private final ScheduledExecutorService cacheExecutor = Executors.newScheduledThreadPool(10,
             new DefaultThreadFactory("zk-cache-callback"));
     private final OrderedSafeExecutor orderedExecutor = new OrderedSafeExecutor(8, "pulsar-ordered");
-    private ScheduledExecutorService loadManagerExecutor = null;
+    private final ScheduledExecutorService loadManagerExecutor;
     private ScheduledFuture<?> loadReportTask = null;
     private ScheduledFuture<?> loadSheddingTask = null;
     private ScheduledFuture<?> loadResourceQuotaTask = null;
@@ -133,7 +133,8 @@ public class PulsarService implements AutoCloseable {
         this.brokerVersion = PulsarBrokerVersionStringUtils.getNormalizedVersionString();
         this.config = config;
         this.shutdownService = new MessagingServiceShutdownHook(this);
-        loadManagerExecutor = Executors.newSingleThreadScheduledExecutor();
+        this.loadManagerExecutor = Executors
+                .newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-load-manager"));
     }
 
     /**
@@ -174,10 +175,7 @@ public class PulsarService implements AutoCloseable {
                 this.leaderElectionService = null;
             }
 
-            if (loadManagerExecutor != null) {
-                loadManagerExecutor.shutdownNow();
-            }
-            loadManager = null;
+            loadManagerExecutor.shutdown();
 
             if (globalZkCache != null) {
                 globalZkCache.close();
@@ -205,6 +203,12 @@ public class PulsarService implements AutoCloseable {
 
             orderedExecutor.shutdown();
             cacheExecutor.shutdown();
+
+            LoadManager loadManager = this.loadManager.get();
+            if (loadManager != null) {
+                loadManager.stop();
+            }
+
             state = State.Closed;
 
         } catch (Exception e) {
