@@ -204,6 +204,7 @@ public class PulsarService implements AutoCloseable {
             }
 
             orderedExecutor.shutdown();
+            cacheExecutor.shutdown();
             state = State.Closed;
 
         } catch (Exception e) {
