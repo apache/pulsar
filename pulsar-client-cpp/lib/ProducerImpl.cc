@@ -70,7 +70,7 @@ ProducerImpl::ProducerImpl(ClientImplPtr client, const std::string& topic,
 }
 
 ProducerImpl::~ProducerImpl() {
-    LOG_DEBUG(getName() << "~ProducerImpl");
+    LOG_INFO(getName() << "~ProducerImpl");
     closeAsync(ResultCallback());
     printStats();
 }

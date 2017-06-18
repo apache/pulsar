@@ -893,7 +893,7 @@ TEST(BasicEndToEndTest, testMessageListenerPause)
         Message msg = MessageBuilder().setContent(messageContent).setProperty(
                 "msgIndex", boost::lexical_cast<std::string>(i)).build();
         producer.sendAsync(msg, boost::bind(&sendCallBack, _1, _2, prefix, 15, 20 * 1e3));
-        LOG_INFO("sending message " << messageContent);
+        LOG_DEBUG("sending message " << messageContent);
     }
 
     // Wait for all messages to be acked by broker
@@ -953,7 +953,7 @@ TEST(BasicEndToEndTest, testMessageListenerPause)
     int i = 0;
     while (consumer.receive(receivedMsg, 5000) == ResultOk) {
         std::string expectedMessageContent = prefix + boost::lexical_cast<std::string>(i);
-        LOG_INFO(
+        LOG_DEBUG(
                 "Received Message with [ content - " << receivedMsg.getDataAsString() << "] [ messageID = " << receivedMsg.getMessageId() << "]");
         ASSERT_EQ(receivedMsg.getProperty("msgIndex"), boost::lexical_cast<std::string>(i++));
         ASSERT_EQ(expectedMessageContent, receivedMsg.getDataAsString());

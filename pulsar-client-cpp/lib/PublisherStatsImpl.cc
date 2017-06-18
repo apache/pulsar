@@ -59,7 +59,7 @@ DECLARE_LOG_OBJECT();
       totalMsgsSent_(stats.totalMsgsSent_),
       totalBytesSent_(stats.totalBytesSent_),
       totalAcksReceived_(stats.totalAcksReceived_),
-      timer_(stats.timer_),
+      timer_(),
       producerStr_(stats.producerStr_),
       statsIntervalInSeconds_(stats.statsIntervalInSeconds_),
       mutex_(),
@@ -111,7 +111,9 @@ DECLARE_LOG_OBJECT();
     }
 
     PublisherStatsImpl::~PublisherStatsImpl() {
-        timer_->cancel();
+        if (timer_) {
+            timer_->cancel();
+        }
     }
 
     std::ostream& operator<<(std::ostream& os, const std::map<Result, uint64_t>& m) {

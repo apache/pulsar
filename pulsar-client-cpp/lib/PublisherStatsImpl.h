@@ -74,47 +74,47 @@ public:
 
     void messageReceived(Result&, boost::posix_time::ptime&);
 
-     ~PublisherStatsImpl();
+    ~PublisherStatsImpl();
 
-     inline uint64_t  getNumMsgsSent() {
-         return numMsgsSent_;
-     }
+    inline uint64_t getNumMsgsSent() {
+        return numMsgsSent_;
+    }
 
-     inline uint64_t  getNumBytesSent() {
-         return numBytesSent_;
-     }
+    inline uint64_t getNumBytesSent() {
+        return numBytesSent_;
+    }
 
-     inline uint64_t getNumAcksReceived() {
-         return numAcksReceived_;
-     }
+    inline uint64_t getNumAcksReceived() {
+        return numAcksReceived_;
+    }
 
-     inline std::map<Result, uint64_t> getSendMap() {
-         return sendMap_;
-     }
+    inline std::map<Result, uint64_t> getSendMap() {
+        return sendMap_;
+    }
 
-     inline uint64_t  getTotalMsgsSent() {
-         return totalMsgsSent_;
-     }
+    inline uint64_t getTotalMsgsSent() {
+        return totalMsgsSent_;
+    }
 
-     inline uint64_t  getTotalBytesSent() {
-         return totalBytesSent_;
-     }
+    inline uint64_t getTotalBytesSent() {
+        return totalBytesSent_;
+    }
 
-     inline uint64_t getTotalAcksReceived() {
-         return totalAcksReceived_;
-     }
+    inline uint64_t getTotalAcksReceived() {
+        return totalAcksReceived_;
+    }
 
-     inline std::map<Result, uint64_t> getTotalSendMap() {
-         return totalSendMap_;
-     }
+    inline std::map<Result, uint64_t> getTotalSendMap() {
+        return totalSendMap_;
+    }
 
-     inline LatencyAccumulator getLatencyAccumulator() {
-         return latencyAccumulator_;
-     }
+    inline LatencyAccumulator getLatencyAccumulator() {
+        return latencyAccumulator_;
+    }
 
-     inline LatencyAccumulator getTotalLatencyAccumulator() {
-         return totalLatencyAccumulator_;
-     }
+    inline LatencyAccumulator getTotalLatencyAccumulator() {
+        return totalLatencyAccumulator_;
+    }
 };
 }
 
