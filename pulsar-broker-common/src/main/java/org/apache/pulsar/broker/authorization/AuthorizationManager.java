@@ -56,7 +56,7 @@ public class AuthorizationManager {
     public CompletableFuture<Boolean> canProduceAsync(DestinationName destination, String role) {
         return checkAuthorization(destination, role, AuthAction.produce);
     }
-    
+
     public boolean canProduce(DestinationName destination, String role) throws Exception {
         try {
             return canProduceAsync(destination, role).get(cacheTimeOutInSec, SECONDS);
@@ -82,7 +82,7 @@ public class AuthorizationManager {
     public CompletableFuture<Boolean> canConsumeAsync(DestinationName destination, String role) {
         return checkAuthorization(destination, role, AuthAction.consume);
     }
-    
+
     public boolean canConsume(DestinationName destination, String role) throws Exception {
         try {
             return canConsumeAsync(destination, role).get(cacheTimeOutInSec, SECONDS);
@@ -104,7 +104,7 @@ public class AuthorizationManager {
      * @param destination
      * @param role
      * @return
-     * @throws Exception 
+     * @throws Exception
      */
     public boolean canLookup(DestinationName destination, String role) throws Exception {
         return canProduce(destination, role) || canConsume(destination, role);
@@ -132,8 +132,7 @@ public class AuthorizationManager {
         }
     }
 
-    public CompletableFuture<Boolean> checkPermission(DestinationName destination, String role,
-            AuthAction action) {
+    public CompletableFuture<Boolean> checkPermission(DestinationName destination, String role, AuthAction action) {
         CompletableFuture<Boolean> permissionFuture = new CompletableFuture<>();
         try {
             configCache.policiesCache().getAsync(POLICY_ROOT + destination.getNamespace()).thenAccept(policies -> {
@@ -141,29 +140,43 @@ public class AuthorizationManager {
                     if (log.isDebugEnabled()) {
                         log.debug("Policies node couldn't be found for destination : {}", destination);
                     }
-                    permissionFuture.complete(false);
                 } else {
-                    Set<AuthAction> namespaceActions = policies.get().auth_policies.namespace_auth.get(role);
+                    Map<String, Set<AuthAction>> namespaceRoles = policies.get().auth_policies.namespace_auth;
+                    Set<AuthAction> namespaceActions = namespaceRoles.get(role);
                     if (namespaceActions != null && namespaceActions.contains(action)) {
                         // The role has namespace level permission
                         permissionFuture.complete(true);
-                    } else {
-                        Map<String, Set<AuthAction>> roles = policies.get().auth_policies.destination_auth
-                                .get(destination.toString());
-                        if (roles == null) {
-                            // Destination has no custom policy
-                            permissionFuture.complete(false);
-                        } else {
-                            Set<AuthAction> resourceActions = roles.get(role);
-                            if (resourceActions != null && resourceActions.contains(action)) {
-                                // The role has destination level permission
-                                permissionFuture.complete(true);
-                            } else {
-                                permissionFuture.complete(false);
-                            }
+                        return;
+                    }
+
+                    Map<String, Set<AuthAction>> destinationRoles = policies.get().auth_policies.destination_auth
+                            .get(destination.toString());
+                    if (destinationRoles != null) {
+                        // Destination has custom policy
+                        Set<AuthAction> destinationActions = destinationRoles.get(role);
+                        if (destinationActions != null && destinationActions.contains(action)) {
+                            // The role has destination level permission
+                            permissionFuture.complete(true);
+                            return;
+                        }
+                    }
+
+                    // Using wildcard
+                    if (conf.getWildcardRoleNamePermittedActions().contains(action)) {
+                        if (checkWildcardPermission(role, action, namespaceRoles)) {
+                            // The role has namespace level permission by wildcard match
+                            permissionFuture.complete(true);
+                            return;
+                        }
+
+                        if (destinationRoles != null && checkWildcardPermission(role, action, destinationRoles)) {
+                            // The role has destination level permission by wildcard match
+                            permissionFuture.complete(true);
+                            return;
                         }
                     }
                 }
+                permissionFuture.complete(false);
             }).exceptionally(ex -> {
                 log.warn("Client  with Role - {} failed to get permissions for destination - {}", role, destination,
                         ex);
@@ -175,6 +188,29 @@ public class AuthorizationManager {
             permissionFuture.completeExceptionally(e);
         }
         return permissionFuture;
+    }
+
+    private Boolean checkWildcardPermission(String checkedRole, AuthAction checkedAction,
+            Map<String, Set<AuthAction>> permissionMap) {
+        for (Map.Entry<String, Set<AuthAction>> permissionData : permissionMap.entrySet()) {
+            String permittedRole = permissionData.getKey();
+            Set<AuthAction> permittedActions = permissionData.getValue();
+
+            // Prefix match
+            if (permittedRole.charAt(permittedRole.length() - 1) == '*'
+                    && checkedRole.startsWith(permittedRole.substring(0, permittedRole.length() - 1))
+                    && permittedActions.contains(checkedAction)) {
+                return true;
+            }
+
+            // Suffix match
+            if (permittedRole.charAt(0) == '*'
+                    && checkedRole.endsWith(permittedRole.substring(1))
+                    && permittedActions.contains(checkedAction)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
