@@ -98,7 +98,7 @@ public class PulsarService implements AutoCloseable {
     private ScheduledFuture<?> loadReportTask = null;
     private ScheduledFuture<?> loadSheddingTask = null;
     private ScheduledFuture<?> loadResourceQuotaTask = null;
-    private AtomicReference<LoadManager> loadManager = null;
+    private final AtomicReference<LoadManager> loadManager = new AtomicReference<>();
     private PulsarAdmin adminClient = null;
     private ZooKeeperClientFactory zkClientFactory = null;
     private final String bindAddress;
@@ -252,7 +252,7 @@ public class PulsarService implements AutoCloseable {
             this.brokerService = new BrokerService(this);
 
             // Start load management service (even if load balancing is disabled)
-            this.loadManager = new AtomicReference<>(LoadManager.create(this));
+            this.loadManager.set(LoadManager.create(this));
 
             this.startLoadManagementService();
 
