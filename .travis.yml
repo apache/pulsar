@@ -25,8 +25,7 @@ install:
 
 script:
     # Build Java and C++
-    - mvn license:check test && \
-      sudo bash -x $TRAVIS_BUILD_DIR/pulsar-client-cpp/travis-build.sh $HOME/pulsar-dep $TRAVIS_BUILD_DIR compile
+    - mvn license:check test && sudo bash -x $TRAVIS_BUILD_DIR/pulsar-client-cpp/travis-build.sh $HOME/pulsar-dep $TRAVIS_BUILD_DIR compile
 
 deploy:
   -
