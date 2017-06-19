@@ -15,6 +15,8 @@
  */
 package com.yahoo.pulsar.common.util;
 
+import com.yahoo.pulsar.common.policies.data.AuthAction;
+
 import static com.google.common.base.Preconditions.checkNotNull;
 import static java.lang.String.format;
 
@@ -30,19 +32,19 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * 
+ *
  * Generic value converter.
  * <p>
  * <h3>Use examples</h3>
- * 
+ *
  * <pre>
  * String o1 = String.valueOf(1);
  * ;
  * Integer i = FieldParser.convert(o1, Integer.class);
  * System.out.println(i); // 1
- * 
+ *
  * </pre>
- * 
+ *
  */
 public final class FieldParser {
 
@@ -57,7 +59,7 @@ public final class FieldParser {
 
     /**
      * Convert the given object value to the given class.
-     * 
+     *
      * @param from
      *            The object value to be converted.
      * @param to
@@ -103,7 +105,7 @@ public final class FieldParser {
 
     /**
      * Update given Object attribute by reading it from provided map properties.
-     * 
+     *
      * @param properties
      *            which key-value pair of properties to assign those values to given object
      * @param obj
@@ -128,7 +130,7 @@ public final class FieldParser {
 
     /**
      * Converts value as per appropriate DataType of the field.
-     * 
+     *
      * @param strValue
      *            : string value of the object
      * @param field
@@ -182,7 +184,7 @@ public final class FieldParser {
 
     /**
      * Converts String to Integer.
-     * 
+     *
      * @param value
      *            The String to be converted.
      * @return The converted Integer value.
@@ -193,7 +195,7 @@ public final class FieldParser {
 
     /**
      * Converts String to Long.
-     * 
+     *
      * @param value
      *            The String to be converted.
      * @return The converted Long value.
@@ -204,7 +206,7 @@ public final class FieldParser {
 
     /**
      * Converts String to Double.
-     * 
+     *
      * @param value
      *            The String to be converted.
      * @return The converted Double value.
@@ -215,7 +217,7 @@ public final class FieldParser {
 
     /**
      * Converts String to float.
-     * 
+     *
      * @param value
      *            The String to be converted.
      * @return The converted Double value.
@@ -226,7 +228,7 @@ public final class FieldParser {
 
     /**
      * Converts comma separated string to List
-     * 
+     *
      * @param <T>
      *            type of list
      * @param value
@@ -242,7 +244,7 @@ public final class FieldParser {
 
     /**
      * Converts comma separated string to Set
-     * 
+     *
      * @param <T>
      *            type of set
      * @param value
@@ -263,7 +265,7 @@ public final class FieldParser {
 
     /**
      * Converts Integer to String.
-     * 
+     *
      * @param value
      *            The Integer to be converted.
      * @return The converted String value.
@@ -274,7 +276,7 @@ public final class FieldParser {
 
     /**
      * Converts Boolean to String.
-     * 
+     *
      * @param value
      *            The Boolean to be converted.
      * @return The converted String value.
@@ -286,13 +288,24 @@ public final class FieldParser {
 
     /**
      * Converts String to Boolean.
-     * 
+     *
      * @param value
      *            The String to be converted.
      * @return The converted Boolean value.
      */
     public static Boolean stringToBoolean(String value) {
         return Boolean.valueOf(value);
+    }
+
+    /**
+     * Converts String to AuthAction.
+     *
+     * @param value
+     *            The String to be converted.
+     * @return The converted AuthAction value.
+     */
+    public static AuthAction stringToAuthAction(String value) {
+        return AuthAction.valueOf(value);
     }
 
     // implement more converter methods here.
