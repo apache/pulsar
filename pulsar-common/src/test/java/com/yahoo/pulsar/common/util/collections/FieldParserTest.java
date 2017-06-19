@@ -15,6 +15,8 @@
  */
 package com.yahoo.pulsar.common.util.collections;
 
+import com.yahoo.pulsar.common.policies.data.AuthAction;
+
 import static com.yahoo.pulsar.common.util.FieldParser.booleanToString;
 import static com.yahoo.pulsar.common.util.FieldParser.convert;
 import static com.yahoo.pulsar.common.util.FieldParser.integerToString;
@@ -23,6 +25,7 @@ import static com.yahoo.pulsar.common.util.FieldParser.stringToDouble;
 import static com.yahoo.pulsar.common.util.FieldParser.stringToList;
 import static com.yahoo.pulsar.common.util.FieldParser.stringToLong;
 import static com.yahoo.pulsar.common.util.FieldParser.stringToSet;
+import static com.yahoo.pulsar.common.util.FieldParser.stringToAuthAction;
 import static com.yahoo.pulsar.common.util.FieldParser.update;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
@@ -39,7 +42,7 @@ public class FieldParserTest {
 
     /**
      * test all conversion scenarios.
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -56,6 +59,7 @@ public class FieldParserTest {
         assertEquals(stringToDouble("2.2"), Double.valueOf(2.2));
         assertEquals(stringToLong("2"), Long.valueOf(2));
         assertEquals(booleanToString(Boolean.TRUE), String.valueOf(true));
+        assertEquals(stringToAuthAction("produce"), AuthAction.produce);
 
         // test invalid value type
         try {
