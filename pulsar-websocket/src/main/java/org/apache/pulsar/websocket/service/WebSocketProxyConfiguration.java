@@ -23,6 +23,7 @@ import java.util.Set;
 
 import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
+import org.apache.pulsar.common.policies.data.AuthAction;
 
 import com.google.common.collect.Sets;
 
@@ -66,6 +67,9 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     // Role names that are treated as "super-user", meaning they will be able to
     // do all admin operations and publish/consume from all topics
     private Set<String> superUserRoles = Sets.newTreeSet();
+
+    // Actions that can be authorized by using permitted role name which contains wildcard
+    private Set<AuthAction> wildcardRoleNamePermittedActions = Sets.newTreeSet();
 
     // Authentication settings of the proxy itself. Used to connect to brokers
     private String brokerClientAuthenticationPlugin;
@@ -192,6 +196,14 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
 
     public void setAuthorizationEnabled(boolean authorizationEnabled) {
         this.authorizationEnabled = authorizationEnabled;
+    }
+
+    public Set<AuthAction> getWildcardRoleNamePermittedActions() {
+        return wildcardRoleNamePermittedActions;
+    }
+
+    public void setWildcardRoleNamePermittedActions(Set<AuthAction> wildcardRoleNamePermittedActions) {
+        this.wildcardRoleNamePermittedActions = wildcardRoleNamePermittedActions;
     }
 
     public Set<String> getSuperUserRoles() {
