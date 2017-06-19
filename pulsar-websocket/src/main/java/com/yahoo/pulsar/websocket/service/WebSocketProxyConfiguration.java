@@ -32,6 +32,8 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     public static final int GLOBAL_ZK_THREADS = 8;
     // Number of IO threads in Pulsar Client
     public static final int PULSAR_CLIENT_IO_THREADS = Runtime.getRuntime().availableProcessors();
+    // Number of connections per Broker in Pulsar Client
+    public static final int PULSAR_CLIENT_CONNECTIONS_PER_BROKER = Runtime.getRuntime().availableProcessors();
 
     // Name of the cluster to which this broker belongs to
     @FieldContext(required = true)
