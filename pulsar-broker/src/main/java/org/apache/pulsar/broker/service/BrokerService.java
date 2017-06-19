@@ -71,6 +71,7 @@ import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.web.PulsarWebResource;
+import org.apache.pulsar.broker.zookeeper.aspectj.ClientCnxnAspect;
 import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -189,6 +190,10 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
         this.multiLayerTopicsMap = new ConcurrentOpenHashMap<>();
         this.pulsarStats = new PulsarStats(pulsar);
+        // register listener to capture zk-latency
+        ClientCnxnAspect.addListner((eventType, latencyMs) -> {
+            this.pulsarStats.recordZkLatencyTimeValue(eventType, latencyMs);
+        });
         this.offlineTopicStatCache = new ConcurrentOpenHashMap<>();
 
         final DefaultThreadFactory acceptorThreadFactory = new DefaultThreadFactory("pulsar-acceptor");

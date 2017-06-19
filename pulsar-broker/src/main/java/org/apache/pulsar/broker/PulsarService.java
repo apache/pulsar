@@ -33,18 +33,15 @@ import java.util.function.Supplier;
 
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.util.OrderedSafeExecutor;
-import org.apache.pulsar.broker.PulsarServerException;
-import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.ServiceConfigurationUtils;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
 import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
+import org.apache.pulsar.broker.loadbalance.LeaderElectionService.LeaderListener;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.loadbalance.LoadReportUpdaterTask;
 import org.apache.pulsar.broker.loadbalance.LoadResourceQuotaUpdaterTask;
 import org.apache.pulsar.broker.loadbalance.LoadSheddingTask;
-import org.apache.pulsar.broker.loadbalance.LeaderElectionService.LeaderListener;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerService;
@@ -67,7 +64,7 @@ import org.apache.pulsar.zookeeper.LocalZooKeeperCache;
 import org.apache.pulsar.zookeeper.LocalZooKeeperConnectionService;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
-import org.apache.pulsar.zookeeper.ZookeeperClientFactoryImpl;
+import org.apache.pulsar.zookeeper.ZookeeperBkClientFactoryImpl;
 import org.apache.zookeeper.ZooKeeper;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.slf4j.Logger;
@@ -564,7 +561,7 @@ public class PulsarService implements AutoCloseable {
 
     public ZooKeeperClientFactory getZooKeeperClientFactory() {
         if (zkClientFactory == null) {
-            zkClientFactory = new ZookeeperClientFactoryImpl();
+            zkClientFactory = new ZookeeperBkClientFactoryImpl();
         }
         // Return default factory
         return zkClientFactory;

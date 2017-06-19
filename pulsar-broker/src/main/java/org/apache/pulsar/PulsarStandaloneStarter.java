@@ -21,7 +21,6 @@ package org.apache.pulsar;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
 import java.io.FileInputStream;
-import java.net.URI;
 import java.net.URL;
 
 import org.apache.pulsar.broker.PulsarService;
@@ -33,11 +32,13 @@ import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PropertyAdmin;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
+import org.aspectj.weaver.loadtime.Agent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
+import com.ea.agentloader.AgentLoader;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
@@ -155,6 +156,9 @@ public class PulsarStandaloneStarter {
             return;
         }
 
+        // load aspectj-weaver agent for instrumentation
+        AgentLoader.loadAgentClass(Agent.class.getName(), null);
+        
         // Start Broker
         broker = new PulsarService(config);
         broker.start();
