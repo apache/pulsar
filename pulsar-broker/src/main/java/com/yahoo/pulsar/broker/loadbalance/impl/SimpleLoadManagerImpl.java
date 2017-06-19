@@ -434,6 +434,10 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
     private PulsarResourceDescription fromLoadReport(LoadReport report) {
         SystemResourceUsage sru = report.getSystemResourceUsage();
         PulsarResourceDescription resourceDescription = new PulsarResourceDescription();
+        if (sru == null) {
+            return resourceDescription;
+        }
+
         if (sru.bandwidthIn != null)
             resourceDescription.put("bandwidthIn", sru.bandwidthIn);
         if (sru.bandwidthOut != null)

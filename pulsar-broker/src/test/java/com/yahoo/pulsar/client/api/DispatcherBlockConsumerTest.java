@@ -65,7 +65,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
     protected void cleanup() throws Exception {
         super.internalCleanup();
     }
-    
+
     @DataProvider(name = "gracefulUnload")
     public Object[][] bundleUnloading() {
         return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
@@ -74,7 +74,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
     /**
      * Verifies broker blocks dispatching after unack-msgs reaches to max-limit and start dispatching back once client
      * ack messages.
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -171,10 +171,10 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
     }
 
     /**
-     * 
+     *
      * Verifies: broker blocks dispatching once unack-msg reaches to max-limit. However, on redelivery it redelivers
      * those already delivered-unacked messages again
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -183,8 +183,6 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
 
         int unAckedMessages = pulsar.getConfiguration().getMaxUnackedMessagesPerSubscription();
         try {
-            stopBroker();
-            startBroker();
             final int unackMsgAllowed = 100;
             final int totalProducedMsgs = 200;
             final int receiverQueueSize = 10;
@@ -305,7 +303,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
     /**
      * It verifies that consumer1 attached to dispatcher will be blocked after reaching limit. But consumer2 connects
      * and consumer1 will be closed: makes broker to dispatch all those consumer1's unack messages back to consumer2.
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -385,7 +383,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
     /**
      * Verifies: old-client which does redelivery of all messages makes broker to redeliver all unacked messages for
      * redelivery.
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -518,7 +516,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             pulsar.getConfiguration().setMaxUnackedMessagesPerConsumer(unAckedMessages);
         }
     }
-    
+
     @Test
     public void testBlockDispatcherStats() throws Exception {
 
@@ -586,12 +584,12 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
 
     /**
      * <pre>
-     * It verifies that cursor-recovery 
+     * It verifies that cursor-recovery
      * 1. recovers individualDeletedMessages
      * 2. sets readPosition with last acked-message
-     * 3. replay all unack messages 
+     * 3. replay all unack messages
      * </pre>
-     * 
+     *
      * @throws Exception
      */
     @Test(dataProvider = "gracefulUnload")
@@ -656,7 +654,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
         receivedMsgs.removeAll(unackMsgs);
         assertTrue(receivedMsgs.isEmpty());
     }
-    
+
     private void rolloverPerIntervalStats() {
         try {
             pulsar.getExecutor().submit(() -> pulsar.getBrokerService().updateRates()).get();
