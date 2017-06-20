@@ -19,6 +19,9 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -196,7 +199,8 @@ public class ModularLoadManagerImplTest {
         return String.format("%d/%d/%d/0x00000000_0xffffffff", i, i, i);
     }
 
-    @Test
+    // Test disabled since it's depending on CPU usage in the machine
+    @Test(enabled = false)
     public void testCandidateConsistency() throws Exception {
         boolean foundFirst = false;
         boolean foundSecond = false;
@@ -210,7 +214,9 @@ public class ModularLoadManagerImplTest {
                 foundSecond = true;
             }
         }
-        assert (foundFirst && foundSecond);
+
+        assertTrue(foundFirst);
+        assertTrue(foundSecond);
 
         // Now disable the secondary broker.
         secondaryLoadManager.disableBroker();
@@ -221,17 +227,19 @@ public class ModularLoadManagerImplTest {
         Thread.sleep(500);
 
         // Make sure the second broker is not in the internal map.
-        assert (!loadData.getBrokerData().containsKey(secondaryHost));
+        assertFalse(loadData.getBrokerData().containsKey(secondaryHost));
 
         // Try 5 more selections, ensure they all go to the first broker.
         for (int i = 2; i < 7; ++i) {
             final ServiceUnitId serviceUnit = makeBundle(Integer.toString(i));
-            assert (primaryLoadManager.selectBrokerForAssignment(serviceUnit).equals(primaryHost));
+            assertEquals(primaryLoadManager.selectBrokerForAssignment(serviceUnit), primaryHost);
         }
     }
 
     // Test that bundles belonging to the same namespace are distributed evenly among brokers.
-    @Test
+
+    // Test disabled since it's depending on CPU usage in the machine
+    @Test(enabled = false)
     public void testEvenBundleDistribution() throws Exception {
         final NamespaceBundle[] bundles = LoadBalancerTestingUtils.makeBundles(nsFactory, "test", "test", "test", 16);
         int numAssignedToPrimary = 0;
@@ -255,7 +263,7 @@ public class ModularLoadManagerImplTest {
             if ((numAssignedToPrimary + numAssignedToSecondary) % 2 == 0) {
                 // On even number of assignments, assert that an equal number of bundles have been assigned between
                 // them.
-                assert (numAssignedToPrimary == numAssignedToSecondary);
+                assertEquals(numAssignedToPrimary, numAssignedToSecondary);
             }
         }
     }
@@ -298,13 +306,13 @@ public class ModularLoadManagerImplTest {
         primaryLoadManager.doLoadShedding();
         // Most expensive bundle will be unloaded.
         verify(namespacesSpy1, Mockito.times(1)).unloadNamespaceBundle(Mockito.anyString(), Mockito.anyString());
-        assert (bundleReference.get().equals(mockBundleName(2)));
+        assertEquals(bundleReference.get(), mockBundleName(2));
 
         primaryLoadManager.doLoadShedding();
         // Now less expensive bundle will be unloaded (normally other bundle would move off and nothing would be
         // unloaded, but this is not the case due to the spy's behavior).
         verify(namespacesSpy1, Mockito.times(2)).unloadNamespaceBundle(Mockito.anyString(), Mockito.anyString());
-        assert (bundleReference.get().equals(mockBundleName(1)));
+        assertEquals(bundleReference.get(), mockBundleName(1));
 
         primaryLoadManager.doLoadShedding();
         // Now both are in grace period: neither should be unloaded.
