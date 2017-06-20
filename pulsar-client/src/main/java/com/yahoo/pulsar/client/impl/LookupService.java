@@ -30,31 +30,31 @@ import com.yahoo.pulsar.common.partition.PartitionedTopicMetadata;
  * <li><b>Partitioned-topic-Metadata-lookup:</b> lookup to find
  * PartitionedMetadata for a given topic</li>
  * </ul>
- * 
+ *
  */
-interface LookupService {
+interface LookupService extends AutoCloseable {
 
 	/**
 	 * Calls broker lookup-api to get broker {@link InetSocketAddress} which serves namespacebundle that
 	 * contains given topic.
-	 * 
+	 *
 	 * @param destination:
 	 *            topic-name
 	 * @return broker-socket-address that serves given topic
 	 */
 	public CompletableFuture<InetSocketAddress> getBroker(DestinationName topic);
-    
+
 	/**
 	 * Returns {@link PartitionedTopicMetadata} for a given topic.
-	 * 
+	 *
 	 * @param destination : topic-name
 	 * @return
 	 */
 	public CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(DestinationName destination);
-	
+
 	/**
 	 * Returns broker-service lookup api url.
-	 * 
+	 *
 	 * @return
 	 */
 	public String getServiceUrl();
