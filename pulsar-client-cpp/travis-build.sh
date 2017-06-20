@@ -73,14 +73,30 @@ fi
 if [ "$3" = "all" -o "$3" = "compile" ]; then
   export PATH=$PATH:$1/
   # Compile and run unit tests
-  exec_cmd "pushd $2/pulsar-client-cpp && CC=gcc-4.4 CXX=g++-4.4 cmake . && make && popd";
+  pushd $2/pulsar-client-cpp
+  CC=gcc-4.4 CXX=g++-4.4 cmake . && make
+  if [ $? -ne 0 ]; then
+    echo "Failed to compile CPP client library"
+    exit 1
+  fi
+  popd
+
   PULSAR_STANDALONE_CONF=$2/pulsar-client-cpp/tests/standalone.conf $2/bin/pulsar standalone &
   standalone_pid=$!;
   PULSAR_STANDALONE_CONF=$2/pulsar-client-cpp/tests/authentication.conf $2/bin/pulsar standalone --zookeeper-port 2191 --bookkeeper-port 3191 --zookeeper-dir data2/standalone/zookeeper --bookkeeper-dir data2/standalone/zookeeper &
   auth_pid=$!;
   sleep 10
   PULSAR_CLIENT_CONF=$2/pulsar-client-cpp/tests/client.conf $2/bin/pulsar-admin clusters create --url http://localhost:9765/ --url-secure https://localhost:9766/ --broker-url pulsar://localhost:9885/ --broker-url-secure pulsar+ssl://localhost:9886/ cluster
-  exec_cmd "sleep 5 && pushd $2/pulsar-client-cpp/tests && ./main && popd";
+  sleep 5
+  pushd $2/pulsar-client-cpp/tests
+  ./main
+  RES=$?
+  popd
   exec_cmd "kill -SIGTERM $standalone_pid";
   exec_cmd "kill -SIGTERM $auth_pid";
+
+  if [ $RES -ne 0 ]; then
+    echo "Unit tests failed"
+    exit 1
+  fi
 fi
