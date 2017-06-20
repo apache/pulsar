@@ -14,72 +14,150 @@
 # limitations under the License.
 #
 
+"""
+The Pulsar Python client library is based on the existing C++ client library.
+All the same features are exposed through the Python interface.
+
+## Install
+
+Follow the instructions to compile the Pulsar C++ client library. This method
+will also build the Python binding for the library.
+
+Currently, the only supported Python version is 2.7.
+
+To install the Python bindings:
+
+    #!shell
+    $ cd pulsar-client-cpp/python
+    $ sudo python setup.py install
+
+## Examples
+
+### [Producer](#pulsar.Producer) example
+
+    #!python
+    import pulsar
+
+    client = pulsar.Client('pulsar://localhost:6650')
+
+    producer = client.create_producer(
+                    'persistent://sample/standalone/ns/my-topic')
+
+    for i in range(10):
+        producer.send('Hello-%d' % i)
+
+    client.close()
+
+#### [Consumer](#pulsar.Consumer) Example
+
+    #!python
+    import pulsar
+
+    client = pulsar.Client('pulsar://localhost:6650')
+    consumer = client.subscribe(
+            'persistent://sample/standalone/ns/my-topic',
+            'my-sub')
+
+    while True:
+        msg = consumer.receive()
+        print("Received message '%s' id='%s'", msg.data(), msg.message_id())
+        consumer.acknowledge(msg)
+
+    client.close()
+
+### [Async producer](#pulsar.Producer.send_async) example
+
+    #!python
+    import pulsar
+
+    client = pulsar.Client('pulsar://localhost:6650')
+
+    producer = client.create_producer(
+                    'persistent://sample/standalone/ns/my-topic',
+                    block_if_queue_full=True,
+                    batching_enabled=True,
+                    batching_max_publish_delay_ms=10
+                )
+
+    def send_callback(res, msg):
+        print('Message published res=%s', res)
+
+    while True:
+        producer.send_async('Hello-%d' % i, send_callback)
+
+    client.close()
+"""
+
 import _pulsar
 
 from _pulsar import Result, CompressionType, ConsumerType, PartitionsRoutingMode  # noqa: F401
 
 
 class Message:
-    '''
-    Message class is returned a consumer either by calling receive or through a listener
-    '''
+    """
+    Message objects are returned by a consumer, either by calling `receive` or
+    through a listener.
+    """
 
     def data(self):
-        '''
-        Returns a string with the content of the message
-        '''
+        """
+        Returns a string with the content of the message.
+        """
         return self._message.data()
 
     def properties(self):
-        '''
-        Return the properties attached to the message.
-        Properties are application defined key/value pairs that will be attached to the message
-        '''
+        """
+        Return the properties attached to the message. Properties are
+        application-defined key/value pairs that will be attached to the
+        message.
+        """
         return self._message.properties()
 
     def partition_key(self):
-        '''
-        Get the partitioning key for the message
-        '''
+        """
+        Get the partitioning key for the message.
+        """
         return self._message.partition_key()
 
     def publish_timestamp(self):
-        '''
-        Get the timestamp in millis with the message publish time
-        '''
+        """
+        Get the timestamp in milliseconds with the message publish time.
+        """
         return self._message.publish_timestamp()
 
     def message_id(self):
-        '''
-        The message id that can be used to refere to this particular message
-        '''
+        """
+        The message ID that can be used to refere to this particular message.
+        """
         return self._message.message_id()
 
 
 class Authentication:
-    '''
-    Authentication provider object
-    '''
+    """
+    Authentication provider object.
+    """
     def __init__(self, dynamicLibPath, authParamsString):
-        '''
-        Create the authentication provider instance
+        """
+        Create the authentication provider instance.
 
-        -- Args --
-        dynamicLibPath   -- Path to the authentication provider shared library (eg: 'tls.so')
-        authParamsString -- comma separated list of provider specific configuration params
-        '''
+        **Args**
+
+        * `dynamicLibPath`: Path to the authentication provider shared library
+          (such as `tls.so`)
+        * `authParamsString`: Comma-separated list of provider-specific
+          configuration params
+        """
         self._auth = _pulsar.Authentication(dynamicLibPath, authParamsString)
 
 
 class Client:
-    '''Pulsar client.
+    """
+    The Pulsar client. A single client instance can be used to create producers
+    and consumers on multiple topics.
 
-    A single client instance can be used to create producers and consumers on
-    multiple topics.
-
-    The client will share the same connection pool and threads across all the
+    The client will share the same connection pool and threads across all
     producers and consumers.
-    '''
+    """
 
     def __init__(self, service_url,
                  authentication=None,
@@ -92,32 +170,41 @@ class Client:
                  tls_trust_certs_file_path=None,
                  tls_allow_insecure_connection=False
                  ):
-        '''
-        Create a new Pulsar client instance
+        """
+        Create a new Pulsar client instance.
 
-        -- Args --
-        service_url  -- The Pulsar service url eg: pulsar://my-broker.com:6650/
+        **Args**
 
-        -- Options --
-        authentication                -- Set the authentication provider to be used with the broker
-        operation_timeout_seconds     -- Set timeout on client operations (subscribe, create
-                                         producer, close, unsubscribe)
-        io_threads                    -- Set the number of IO threads to be used by the Pulsar client.
-        message_listener_threads      -- Set the number of threads to be used by the Pulsar client
-                                         when delivering messages through message listener. Default
-                                         is 1 thread per Pulsar client.
-                                         If using more than 1 thread, messages for distinct
-                                         message_listener will be delivered in different threads,
-                                         however a single MessageListener will always be assigned to
-                                         the same thread.
-        concurrent_lookup_requests    -- Number of concurrent lookup-requests allowed on each
-                                         broker-connection to prevent overload on broker.
-        log_conf_file_path            -- Initialize log4cxx from a conf file
-        use_tls                       -- configure whether to use TLS encryption on the connection
-        tls_trust_certs_file_path     -- Set the path to the trusted TLS certificate file
-        tls_allow_insecure_connection -- Configure whether the Pulsar client accept untrusted TLS
-                                         certificate from broker
-        '''
+        * `service_url`: The Pulsar service url eg: pulsar://my-broker.com:6650/
+
+        **Options**
+
+        * `authentication`:
+          Set the authentication provider to be used with the broker.
+        * `operation_timeout_seconds`:
+          Set timeout on client operations (subscribe, create producer, close,
+          unsubscribe).
+        * `io_threads`:
+          Set the number of IO threads to be used by the Pulsar client.
+        * `message_listener_threads`:
+          Set the number of threads to be used by the Pulsar client when
+          delivering messages through message listener. The default is 1 thread
+          per Pulsar client. If using more than 1 thread, messages for distinct
+          `message_listener`s will be delivered in different threads, however a
+          single `MessageListener` will always be assigned to the same thread.
+        * `concurrent_lookup_requests`:
+          Number of concurrent lookup-requests allowed on each broker connection
+          to prevent overload on the broker.
+        * `log_conf_file_path`:
+          Initialize log4cxx from a configuration file.
+        * `use_tls`:
+          Configure whether to use TLS encryption on the connection.
+        * `tls_trust_certs_file_path`:
+          Set the path to the trusted TLS certificate file.
+        * `tls_allow_insecure_connection`:
+          Configure whether the Pulsar client accepts untrusted TLS certificates
+          from the broker.
+        """
         conf = _pulsar.ClientConfiguration()
         if authentication:
             conf.authentication(authentication.auth)
@@ -144,26 +231,31 @@ class Client:
                         batching_max_allowed_size_in_bytes=128*1024,
                         batching_max_publish_delay_ms=10
                         ):
-        '''
-        Create a new producer on a given topic
+        """
+        Create a new producer on a given topic.
 
-        -- Args --
-        topic                -- the topic name
+        **Args**
 
-        -- Options --
-        send_timeout_seconds -- If a message is not acknowledged by the server before the
-                                send_timeout expires, an error will be reported
-        compression_type     -- Set the compression type for the producer. By default, message
-                                payloads are not compressed. Supported compression types are:
-                                CompressionType.LZ4 and CompressionType.ZLib
-        max_pending_messages -- Set the max size of the queue holding the messages pending to
-                                receive an acknowledgment from the broker.
-        block_if_queue_full  -- Set whether send_async} operations should block when the outgoing
-                                message queue is full.
-        message_routing_mode -- Set the message routing mode for the partitioned producer
+        * `topic`:
+          The topic name
 
-        return a new Producer object
-        '''
+        **Options**
+
+        * `send_timeout_seconds`:
+          If a message is not acknowledged by the server before the
+          `send_timeout` expires, an error will be reported.
+        * `compression_type`:
+          Set the compression type for the producer. By default, message
+          payloads are not compressed. Supported compression types are
+          `CompressionType.LZ4` and `CompressionType.ZLib`.
+        * `max_pending_messages`:
+          Set the max size of the queue holding the messages pending to receive
+          an acknowledgment from the broker.
+        * `block_if_queue_full`: Set whether `send_async` operations should
+          block when the outgoing message queue is full.
+        * `message_routing_mode`:
+          Set the message routing mode for the partitioned producer.
+        """
         conf = _pulsar.ProducerConfiguration()
         conf.send_timeout_millis(send_timeout_millis)
         conf.compression_type(compression_type)
@@ -185,47 +277,55 @@ class Client:
                   unacked_messages_timeout_ms=None,
                   broker_consumer_stats_cache_time_ms=30000
                   ):
-        '''
-        Subscribe to the given topic and subscription combination
+        """
+        Subscribe to the given topic and subscription combination.
 
-        -- Args --
-        topic        -- The name of the topic
-        subscription -- The name of the subscription
+        **Args**
 
-        -- Options --
-        consumer_type       -- Select the subscription type to be used when subscribing to the topic.
-        message_listener    -- Sets a message listener for the consumer. When the listener is set,
-                               application will receive messages through it. Calls to
-                               consumer.receive() will not be allowed.
-                               Listener function needs to accept (consumer, message), eg:
-                               def my_listener(consumer, message):
-                                   # process message
-                                   consumer.acknowledge(message)
-        receiver_queue_size -- Sets the size of the consumer receive queue. The consumer receive
-                                ueue controls how many messages can be accumulated by the Consumer
-                                before the application calls receive(). Using a higher value could
-                                potentially increase the consumer throughput at the expense of bigger
-                                memory utilization.
+        * `topic`: The name of the topic.
+        * `subscription`: The name of the subscription.
 
-                                Setting the consumer queue size as zero decreases the throughput of
-                                the consumer, by disabling pre-fetching of messages. This approach
-                                improves the message distribution on shared subscription, by pushing
-                                messages only to the consumers that are ready to process them.
-                                Neither receive with timeout nor Partitioned Topics can be used if
-                                the consumer queue size is zero. The receive() function call should
-                                not be interrupted when the consumer queue size is zero. Default
-                                value is 1000 messages and should be good for most use cases.
-        consumer_name        -- Sets the consumer name
-        unacked_messages_timeout_ms  -- Set the timeout in milliseconds for unacknowledged messages,
-                                        the timeout needs to be greater than 10 seconds. An
-                                        Exception is thrown if the given value is less than 10 seconds
-                                        If a successful acknowledgement is not sent within the
-                                        timeout all the unacknowledged messages are redelivered.
-        broker_consumer_stats_cache_time_ms -- Set the time duration for which the broker side
-                                               consumer stats will be cached in the client.
+        **Options**
 
-        return a new Consumer object
-        '''
+        * `consumer_type`:
+          Select the subscription type to be used when subscribing to the topic.
+        * `message_listener`:
+          Sets a message listener for the consumer. When the listener is set,
+          the application will receive messages through it. Calls to
+          `consumer.receive()` will not be allowed. The listener function needs
+          to accept (consumer, message), for example:
+
+                #!python
+                def my_listener(consumer, message):
+                    # process message
+                    consumer.acknowledge(message)
+
+        * `receiver_queue_size`:
+          Sets the size of the consumer receive queue. The consumer receive
+          queue controls how many messages can be accumulated by the consumer
+          before the application calls `receive()`. Using a higher value could
+          potentially increase the consumer throughput at the expense of higher
+          memory utilization. Setting the consumer queue size to zero decreases
+          the throughput of the consumer by disabling pre-fetching of messages.
+          This approach improves the message distribution on shared subscription
+          by pushing messages only to those consumers that are ready to process
+          them. Neither receive with timeout nor partitioned topics can be used
+          if the consumer queue size is zero. The `receive()` function call
+          should not be interrupted when the consumer queue size is zero. The
+          default value is 1000 messages and should work well for most use
+          cases.
+        * `consumer_name`:
+          Sets the consumer name.
+        * `unacked_messages_timeout_ms`:
+          Sets the timeout in milliseconds for unacknowledged messages. The
+          timeout needs to be greater than 10 seconds. An exception is thrown if
+          the given value is less than 10 seconds. If a successful
+          acknowledgement is not sent within the timeout, all the unacknowledged
+          messages are redelivered.
+        * `broker_consumer_stats_cache_time_ms`:
+          Sets the time duration for which the broker-side consumer stats will
+          be cached in the client.
+        """
         conf = _pulsar.ConsumerConfiguration()
         conf.consumer_type(consumer_type)
         if message_listener:
@@ -243,18 +343,16 @@ class Client:
         return c
 
     def close(self):
-        '''
+        """
         Close the client and all the associated producers and consumers
-        '''
+        """
         self._client.close()
 
 
 class Producer:
-    '''
-    Producer object
-
-    The producer is used to publish messages on a topic
-    '''
+    """
+    The Pulsar message producer, used to publish messages on a topic.
+    """
 
     def send(self, content,
              properties=None,
@@ -262,23 +360,29 @@ class Producer:
              replication_clusters=None,
              disable_replication=False
              ):
-        '''
+        """
         Publish a message on the topic. Blocks until the message is acknowledged
 
-        -- Args --
-        content -- A string with the message payload
+        **Args**
 
-        -- Options --
-        properties           -- dict of application defined string properties
-        partition_key        -- set partition key for the message routing. Hash of this key is used to
-                                determine message's destination partition
-        replication_clusters -- override namespace replication clusters.  note that it is the
-                                caller's responsibility to provide valid cluster names, and that
-                                all clusters have been previously configured as destinations.
-                                Given an empty list, the message will replicate per the namespace
-                                configuration.
-        disable_replication  -- Do not replicate this message
-        '''
+        * `content`:
+          A string with the message payload
+
+        **Options**
+
+        * `properties`:
+          A dict of application-defined string properties.
+        * `partition_key`:
+          Sets the partition key for message routing. A hash of this key is used
+          to determine the message's destination partition.
+        * `replication_clusters`:
+          Override namespace replication clusters. Note that it is the caller's
+          responsibility to provide valid cluster names and that all clusters
+          have been previously configured as destinations. Given an empty list,
+          the message will replicate according to the namespace configuration.
+        * `disable_replication`:
+          Do not replicate this message.
+        """
         msg = self._build_msg(content, properties, partition_key,
                               replication_clusters, disable_replication)
         return self._producer.send(msg)
@@ -289,43 +393,51 @@ class Producer:
                    replication_clusters=None,
                    disable_replication=False
                    ):
-        '''
-        Send a message asynchronously
+        """
+        Send a message asynchronously.
 
         The `callback` will be invoked once the message has been acknowledged
         by the broker.
 
         Example:
-        def callback(res, msg):
-            print 'Message published:', res
 
-        producer.send_async(msg, callback)
+            #!python
+            def callback(res, msg):
+                print 'Message published:', res
+
+            producer.send_async(msg, callback)
 
         When the producer queue is full, by default the message will be rejected
         and the callback invoked with an error code.
 
-        -- Args --
-        content -- A string with the message payload
+        **Args**
 
-        -- Options --
-        properties           -- dict of application defined string properties
-        partition_key        -- set partition key for the message routing. Hash of this key is used to
-                                determine message's destination partition
-        replication_clusters -- override namespace replication clusters.  note that it is the
-                                caller's responsibility to provide valid cluster names, and that
-                                all clusters have been previously configured as destinations.
-                                Given an empty list, the message will replicate per the namespace
-                                configuration.
-        disable_replication  -- Do not replicate this message
-        '''
+        * `content`:
+          A string with the message payload.
+
+        **Options**
+
+        * `properties`:
+          A dict of application0-defined string properties.
+        * `partition_key`:
+          Sets the partition key for the message routing. A hash of this key is
+          used to determine the message's destination partition.
+        * `replication_clusters`: Override namespace replication clusters. Note
+          that it is the caller's responsibility to provide valid cluster names
+          and that all clusters have been previously configured as destinations.
+          Given an empty list, the message will replicate per the namespace
+          configuration.
+        * `disable_replication`:
+          Do not replicate this message.
+        """
         msg = self._build_msg(content, properties, partition_key,
                               replication_clusters, disable_replication)
         self._producer.send_async(msg, callback)
 
     def close(self):
-        '''
-        Close the producer
-        '''
+        """
+        Close the producer.
+        """
 
     def _build_msg(self, content, properties, partition_key,
                    replication_clusters, disable_replication):
@@ -344,101 +456,110 @@ class Producer:
 
 
 class Consumer:
-    '''
-    Pulsar consumer
-    '''
+    """
+    Pulsar consumer.
+    """
 
     def topic(self):
-        '''
-        return the topic this consumer is subscribed to
-        '''
+        """
+        Return the topic this consumer is subscribed to.
+        """
         return self._consumer.topic()
 
     def subscription_name(self):
-        '''
-        return the subscription name
-        '''
+        """
+        Return the subscription name.
+        """
         return self._consumer.subscription_name()
 
     def unsubscribe(self):
-        '''
+        """
         Unsubscribe the current consumer from the topic.
 
-        This method will block until the operation is completed. Once the consumer
-        is unsubscribed, no more messages will be received and subsequent new
-        messages will not be retained for this consumer.
+        This method will block until the operation is completed. Once the
+        consumer is unsubscribed, no more messages will be received and
+        subsequent new messages will not be retained for this consumer.
 
         This consumer object cannot be reused.
-        '''
+        """
         return self._consumer.unsubcribe()
 
     def receive(self, timeout_millis=None):
-        '''
+        """
         Receive a single message.
 
         If a message is not immediately available, this method will block until
         a new message is available.
 
-        timeout_millis -- If specified, the receive will raise an exception if
-                          a message is not availble withing the timeout
-        '''
+        **Options**
+
+        * `timeout_millis`:
+          If specified, the receive will raise an exception if a message is not
+          availble within the timeout.
+        """
         if timeout_millis is None:
             return self._consumer.receive()
         else:
             return self._consumer.receive(timeout_millis)
 
     def acknowledge(self, message):
-        '''
+        """
         Acknowledge the reception of a single message.
 
         This method will block until an acknowledgement is sent to the broker.
         After that, the message will not be re-delivered to this consumer.
 
-        message -- The received message or message id
-        '''
+        **Args**
+
+        * `message`:
+          The received message or message id.
+        """
         self._consumer.acknowledge(message)
 
     def acknowledge_cumulative(self, message):
-        '''
+        """
         Acknowledge the reception of all the messages in the stream up to (and
         including) the provided message.
 
         This method will block until an acknowledgement is sent to the broker.
         After that, the messages will not be re-delivered to this consumer.
 
-        message -- The received message or message id
-        '''
+        **Args**
+
+        * `message`:
+          The received message or message id.
+        """
         self._consumer.acknowledge_cumulative(message)
 
     def pause_message_listener(self):
-        '''
-        Pause receiving messages via the message_listener, until
-        resume_message_listener() is called.
-        '''
+        """
+        Pause receiving messages via the `message_listener` until
+        `resume_message_listener()` is called.
+        """
         self._consumer.pause_message_listener()
 
     def resume_message_listener(self):
-        '''
-        Resume receiving the messages via the messageListener.
-        Asynchronously receive all the messages enqueued from time
-        pause_message_listener() was called.
-        '''
+        """
+        Resume receiving the messages via the message listener.
+        Asynchronously receive all the messages enqueued from the time
+        `pause_message_listener()` was called.
+        """
         self._consumer.resume_message_listener()
 
     def redeliver_unacknowledged_messages(self):
-        '''
-        Redelivers all the unacknowledged messages. In Failover mode, the request
-        is ignored if the consumer is not active for the given topic. In Shared
-        mode, the consumers messages to be redelivered are distributed across all
-        the connected consumers. This is a non blocking call and doesn't throw an
-        exception. In case the connection breaks, the messages are redelivered
-        after reconnect.
-        '''
+        """
+        Redelivers all the unacknowledged messages. In failover mode, the
+        request is ignored if the consumer is not active for the given topic. In
+        shared mode, the consumer's messages to be redelivered are distributed
+        across all the connected consumers. This is a non-blocking call and
+        doesn't throw an exception. In case the connection breaks, the messages
+        are redelivered after reconnect.
+        """
         self._consumer.redeliver_unacknowledged_messages()
 
     def close(self):
-        '''
-        Close the consumer
-        '''
+        """
+        Close the consumer.
+        """
         self._consumer.close()
         self._client._consumers.remove(self)
