@@ -22,10 +22,14 @@ import java.util.concurrent.CompletableFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.yahoo.pulsar.client.api.ClientConfiguration;
+import com.yahoo.pulsar.client.api.PulsarClientException;
 import com.yahoo.pulsar.client.util.FutureUtil;
 import com.yahoo.pulsar.common.lookup.data.LookupData;
 import com.yahoo.pulsar.common.naming.DestinationName;
 import com.yahoo.pulsar.common.partition.PartitionedTopicMetadata;
+
+import io.netty.channel.EventLoopGroup;
 
 class HttpLookupService implements LookupService {
 
@@ -33,16 +37,18 @@ class HttpLookupService implements LookupService {
     private final boolean useTls;
     private static final String BasePath = "lookup/v2/destination/";
 
-	public HttpLookupService(HttpClient httpClient, boolean useTls) {
-		this.httpClient = httpClient;
-		this.useTls = useTls;
-	}
+    public HttpLookupService(String serviceUrl, ClientConfiguration conf, EventLoopGroup eventLoopGroup)
+            throws PulsarClientException {
+        this.httpClient = new HttpClient(serviceUrl, conf.getAuthentication(), eventLoopGroup,
+                conf.isTlsAllowInsecureConnection(), conf.getTlsTrustCertsFilePath());
+        this.useTls = conf.isUseTls();
+    }
 
     /**
-     * Calls http-lookup api to find broker-service address which can serve a given topic. 
-     * 
+     * Calls http-lookup api to find broker-service address which can serve a given topic.
+     *
      * @param destination: topic-name
-     * @return broker-socket-address that serves given topic 
+     * @return broker-socket-address that serves given topic
      */
     @SuppressWarnings("deprecation")
     public CompletableFuture<InetSocketAddress> getBroker(DestinationName destination) {
@@ -67,15 +73,20 @@ class HttpLookupService implements LookupService {
             }
         });
     }
-    
+
     public CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(DestinationName destination) {
     	return httpClient.get(String.format("admin/%s/partitions", destination.getLookupName()),
                 PartitionedTopicMetadata.class);
     }
-    
+
     public String getServiceUrl() {
     	return httpClient.url.toString();
     }
-    
+
+    @Override
+    public void close() throws Exception {
+        httpClient.close();
+    }
+
     private static final Logger log = LoggerFactory.getLogger(HttpLookupService.class);
 }
