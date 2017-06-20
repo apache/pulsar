@@ -41,30 +41,30 @@ typedef boost::accumulators::accumulator_set<double, boost::accumulators::stats<
 
 class PublisherStatsImpl : public boost::enable_shared_from_this<PublisherStatsImpl>, public PublisherStatsBase {
 private:
-    uint64_t numMsgsSent_;
-    uint64_t numBytesSent_;
-    std::map<Result, uint64_t> sendMap_;
-    uint64_t numAcksReceived_;
+    unsigned long numMsgsSent_;
+    unsigned long numBytesSent_;
+    std::map<Result, unsigned long> sendMap_;
+    unsigned long numAcksReceived_;
     LatencyAccumulator latencyAccumulator_;
 
-    uint64_t totalMsgsSent_;
-    uint64_t totalBytesSent_;
-    std::map<Result, uint64_t> totalSendMap_;
-    uint64_t totalAcksReceived_;
+    unsigned long totalMsgsSent_;
+    unsigned long totalBytesSent_;
+    std::map<Result, unsigned long> totalSendMap_;
+    unsigned long totalAcksReceived_;
     LatencyAccumulator totalLatencyAccumulator_;
 
     std::string producerStr_;
     DeadlineTimerPtr timer_;
     boost::mutex mutex_;
-    uint64_t statsIntervalInSeconds_;
+    unsigned int statsIntervalInSeconds_;
 
     friend std::ostream& operator<<(std::ostream&, const PublisherStatsImpl&);
-    friend std::ostream& operator<<(std::ostream&, const std::map<Result, uint64_t>&);
+    friend std::ostream& operator<<(std::ostream&, const std::map<Result, unsigned long>&);
     friend class PulsarFriend;
 
     static std::string latencyToString(const LatencyAccumulator&);
 public:
-    PublisherStatsImpl(std::string, DeadlineTimerPtr, uint64_t);
+    PublisherStatsImpl(std::string, DeadlineTimerPtr, unsigned int);
 
     PublisherStatsImpl(const PublisherStatsImpl& stats);
 
@@ -76,35 +76,35 @@ public:
 
     ~PublisherStatsImpl();
 
-    inline uint64_t getNumMsgsSent() {
+    inline unsigned long getNumMsgsSent() {
         return numMsgsSent_;
     }
 
-    inline uint64_t getNumBytesSent() {
+    inline unsigned long getNumBytesSent() {
         return numBytesSent_;
     }
 
-    inline uint64_t getNumAcksReceived() {
+    inline unsigned long getNumAcksReceived() {
         return numAcksReceived_;
     }
 
-    inline std::map<Result, uint64_t> getSendMap() {
+    inline std::map<Result, unsigned long> getSendMap() {
         return sendMap_;
     }
 
-    inline uint64_t getTotalMsgsSent() {
+    inline unsigned long getTotalMsgsSent() {
         return totalMsgsSent_;
     }
 
-    inline uint64_t getTotalBytesSent() {
+    inline unsigned long getTotalBytesSent() {
         return totalBytesSent_;
     }
 
-    inline uint64_t getTotalAcksReceived() {
+    inline unsigned long getTotalAcksReceived() {
         return totalAcksReceived_;
     }
 
-    inline std::map<Result, uint64_t> getTotalSendMap() {
+    inline std::map<Result, unsigned long> getTotalSendMap() {
         return totalSendMap_;
     }
 

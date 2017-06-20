@@ -28,7 +28,7 @@ class PulsarFriend {
     }
 
     static PublisherStatsBasePtr getPublisherStatsPtr(Producer producer) {
-        ProducerImpl* producerImpl = dynamic_cast<ProducerImpl*>(producer.impl_.get());
+        ProducerImpl* producerImpl = static_cast<ProducerImpl*>(producer.impl_.get());
         return producerImpl->publisherStatsBasePtr_;     
     }
 };

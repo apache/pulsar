@@ -366,4 +366,8 @@ namespace pulsar {
         return requestIdGenerator_++;
     }
 
+    const ClientConfiguration& ClientImpl::getClientConfig() const {
+        return clientConfiguration_;
+    }
+
 } /* namespace pulsar */

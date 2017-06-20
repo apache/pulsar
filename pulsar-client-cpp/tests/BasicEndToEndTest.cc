@@ -850,6 +850,7 @@ TEST(BasicEndToEndTest, testMessageListenerPause)
     ClientConfiguration config;
     config.setIOThreads(1);
     config.setMessageListenerThreads(1);
+    config.setStatsIntervalInSeconds(5);
     Client client(lookupUrl, config);
     std::string topicName = "persistent://property/cluster/namespace/testStatsLatencies";
     std::string subName = "subscription-name";
@@ -857,11 +858,9 @@ TEST(BasicEndToEndTest, testMessageListenerPause)
 
     // Start Producer and Consumer
     int numOfMessages = 1000;
-    ProducerConfiguration conf;
-    conf.setStatsIntervalInSeconds(5);
 
     Promise<Result, Producer> producerPromise;
-    client.createProducerAsync(topicName, conf, WaitForCallbackValue<Producer>(producerPromise));
+    client.createProducerAsync(topicName, WaitForCallbackValue<Producer>(producerPromise));
     Future<Result, Producer> producerFuture = producerPromise.getFuture();
     Result result = producerFuture.get(producer);
     ASSERT_EQ(ResultOk, result);

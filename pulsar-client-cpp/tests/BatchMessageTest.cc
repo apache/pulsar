@@ -76,7 +76,11 @@ TEST(BatchMessageTest, testProducerConfig) {
 TEST(BatchMessageTest, testProducerTimeout) {
     std::string testName=boost::lexical_cast<std::string>(epochTime) + "testProducerTimeout";
 
-    Client client(lookupUrl);
+    ClientConfiguration clientConf;
+    clientConf.setStatsIntervalInSeconds(1);
+
+
+    Client client(lookupUrl, clientConf);
     std::string topicName = "persistent://property/cluster/namespace/" + testName;
     std::string subName = "subscription-name";
     Producer producer;
@@ -86,7 +90,6 @@ TEST(BatchMessageTest, testProducerTimeout) {
     int numOfMessages = 4;
     int timeout = 4000;
     ProducerConfiguration conf;
-    conf.setStatsIntervalInSeconds(1);
     conf.setCompressionType(CompressionLZ4);
     conf.setBatchingMaxMessages(batchSize);
     conf.setBatchingMaxPublishDelayMs(timeout);
@@ -235,8 +238,10 @@ TEST(BatchMessageTest, testSmallReceiverQueueSize) {
     std::string testName=boost::lexical_cast<std::string>(epochTime) + "testSmallReceiverQueueSize";
     globalTestBatchMessagesCounter=0;
 
+    ClientConfiguration clientConf;
+    clientConf.setStatsIntervalInSeconds(1);
 
-    Client client(lookupUrl);
+    Client client(lookupUrl, clientConf);
     std::string topicName = "persistent://property/cluster/namespace/" + testName;
     std::string subName = "subscription-name";
     Producer producer;
@@ -245,7 +250,6 @@ TEST(BatchMessageTest, testSmallReceiverQueueSize) {
     int batchSize = 1000;
     int numOfMessages = 100000;
     ProducerConfiguration conf;
-    conf.setStatsIntervalInSeconds(1);
     conf.setCompressionType(CompressionLZ4);
     conf.setBatchingMaxMessages(batchSize);
     conf.setBatchingMaxPublishDelayMs(1);
@@ -310,8 +314,10 @@ TEST(BatchMessageTest, testSmallReceiverQueueSize) {
 TEST(BatchMessageTest, testIndividualAck) {
     std::string testName = boost::lexical_cast<std::string>(epochTime) + "testIndividualAck";
 
+    ClientConfiguration clientConfig;
+    clientConfig.setStatsIntervalInSeconds(1);
 
-    Client client(lookupUrl);
+    Client client(lookupUrl, clientConfig);
     std::string topicName = "persistent://property/cluster/namespace/" + testName;
     std::string subName = "subscription-name";
     Producer producer;
@@ -320,7 +326,6 @@ TEST(BatchMessageTest, testIndividualAck) {
     int batchSize = 5;
     int numOfMessages = 10;
     ProducerConfiguration conf;
-    conf.setStatsIntervalInSeconds(1);
     conf.setBatchingMaxMessages(batchSize);
     conf.setBatchingEnabled(true);
 
@@ -458,8 +463,10 @@ TEST(BatchMessageTest, testIndividualAck) {
 TEST(BatchMessageTest, testCumulativeAck) {
     std::string testName = boost::lexical_cast<std::string>(epochTime) + "testCumulativeAck";
 
+    ClientConfiguration clientConfig;
+    clientConfig.setStatsIntervalInSeconds(1);
 
-    Client client(lookupUrl);
+    Client client(lookupUrl, clientConfig);
     std::string topicName = "persistent://property/cluster/namespace/" + testName;
     std::string subName = "subscription-name";
     Producer producer;
@@ -470,7 +477,6 @@ TEST(BatchMessageTest, testCumulativeAck) {
     int batchSize = 5;
     int numOfMessages = 15;
     ProducerConfiguration conf;
-    conf.setStatsIntervalInSeconds(1);
     conf.setBatchingMaxMessages(batchSize);
     conf.setBatchingEnabled(true);
 

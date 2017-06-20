@@ -61,9 +61,11 @@ ProducerImpl::ProducerImpl(ClientImplPtr client, const std::string& topic,
     if (conf_.getBatchingEnabled()) {
         batchMessageContainer = boost::make_shared<BatchMessageContainer>(boost::ref(*this));
     }
-    if (conf_.getStatsIntervalInSeconds()) {
+
+    unsigned int statsIntervalInSeconds = client->getClientConfig().getStatsIntervalInSeconds();
+    if (statsIntervalInSeconds) {
         publisherStatsBasePtr_ = boost::make_shared<PublisherStatsImpl>(producerStr_, executor_->createDeadlineTimer(),
-                                       conf_.getStatsIntervalInSeconds());
+                                                                        statsIntervalInSeconds);
     } else {
         publisherStatsBasePtr_ = boost::make_shared<PublisherStatsDisabled>();
     }

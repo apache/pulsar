@@ -33,7 +33,7 @@ DECLARE_LOG_OBJECT();
         return os.str();
     }
 
-    PublisherStatsImpl::PublisherStatsImpl(std::string producerStr, DeadlineTimerPtr timer, uint64_t statsIntervalInSeconds)
+    PublisherStatsImpl::PublisherStatsImpl(std::string producerStr, DeadlineTimerPtr timer, unsigned int statsIntervalInSeconds)
     : numMsgsSent_(0),
     numBytesSent_(0),
     numAcksReceived_(0),
@@ -116,9 +116,9 @@ DECLARE_LOG_OBJECT();
         }
     }
 
-    std::ostream& operator<<(std::ostream& os, const std::map<Result, uint64_t>& m) {
+    std::ostream& operator<<(std::ostream& os, const std::map<Result, unsigned long>& m) {
         os << "{";
-        for (std::map<Result, uint64_t>::const_iterator it = m.begin(); it != m.end(); it++) {
+        for (std::map<Result, unsigned long>::const_iterator it = m.begin(); it != m.end(); it++) {
             os << "[Key: " << strResult(it->first) << ", Value: " << it->second << "], ";
         }
         os << "}";

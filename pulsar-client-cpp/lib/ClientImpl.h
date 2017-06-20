@@ -62,6 +62,8 @@ class ClientImpl : public boost::enable_shared_from_this<ClientImpl> {
     uint64_t newConsumerId();
     uint64_t newRequestId();
 
+    const ClientConfiguration& getClientConfig() const;
+
     const ClientConfiguration& conf() const;
     ExecutorServiceProviderPtr getIOExecutorProvider();
     ExecutorServiceProviderPtr getListenerExecutorProvider();

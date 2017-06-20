@@ -119,6 +119,18 @@ class ClientConfiguration {
 
     ClientConfiguration& setTlsAllowInsecureConnection(bool allowInsecure);
     bool isTlsAllowInsecureConnection() const;
+
+    /*
+     * Initialize stats interval in seconds. Stats are printed and reset after every 'statsIntervalInSeconds'.
+     * Set to 0 in order to disable stats collection.
+     */
+    ClientConfiguration& setStatsIntervalInSeconds(const unsigned int&);
+
+    /*
+     * Get the stats interval set in the client.
+     */
+    const unsigned int& getStatsIntervalInSeconds() const;
+
     friend class ClientImpl;
     friend class PulsarWrapper;
 
