@@ -50,26 +50,26 @@ class BinaryProtoLookupService implements LookupService {
             throw new PulsarClientException.InvalidServiceURL(e);
         }
     }
-    
+
     /**
      * Calls broker binaryProto-lookup api to find broker-service address which can serve a given topic.
-     * 
+     *
      * @param destination: topic-name
      * @return broker-socket-address that serves given topic
      */
     public CompletableFuture<InetSocketAddress> getBroker(DestinationName destination) {
         return findBroker(serviceAddress, false, destination);
     }
-    
+
     /**
      * calls broker binaryProto-lookup api to get metadata of partitioned-topic.
-     * 
+     *
      */
     public CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(DestinationName destination) {
         return getPartitionedTopicMetadata(serviceAddress, destination);
     }
-    
-    
+
+
     private CompletableFuture<InetSocketAddress> findBroker(InetSocketAddress socketAddress, boolean authoritative,
             DestinationName destination) {
         CompletableFuture<InetSocketAddress> addressFuture = new CompletableFuture<InetSocketAddress>();
@@ -125,8 +125,8 @@ class BinaryProtoLookupService implements LookupService {
         });
         return addressFuture;
     }
-    
-    
+
+
     private CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(InetSocketAddress socketAddress,
             DestinationName destination) {
 
@@ -156,9 +156,14 @@ class BinaryProtoLookupService implements LookupService {
 
         return partitionFuture;
     }
-    
+
     public String getServiceUrl() {
     	return serviceAddress.toString();
+    }
+
+    @Override
+    public void close() throws Exception {
+        // no-op
     }
 
     static class LookupDataResult {
@@ -176,7 +181,7 @@ class BinaryProtoLookupService implements LookupService {
             this.authoritative = authoritative;
             this.redirect = redirect;
         }
-        
+
         public LookupDataResult(int partitions) {
             super();
             this.partitions = partitions;
