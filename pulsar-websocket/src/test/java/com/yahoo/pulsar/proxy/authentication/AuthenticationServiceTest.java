@@ -37,7 +37,7 @@ import com.yahoo.pulsar.broker.authentication.AuthenticationService;
 public class AuthenticationServiceTest {
     private static final String s_authentication_success = "authenticated";
 
-    @Test
+    @Test(timeOut = 10000)
     public void testAuthentication() throws Exception {
         ServiceConfiguration config = new ServiceConfiguration();
         Set<String> providersClassNames = Sets.newHashSet(MockAuthenticationProvider.class.getName());
@@ -49,7 +49,7 @@ public class AuthenticationServiceTest {
         service.close();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testAuthenticationHttp() throws Exception {
         ServiceConfiguration config = new ServiceConfiguration();
         Set<String> providersClassNames = Sets.newHashSet(MockAuthenticationProvider.class.getName());
