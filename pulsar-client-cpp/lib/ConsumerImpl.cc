@@ -78,7 +78,7 @@ ConsumerImpl::ConsumerImpl(const ClientImplPtr client, const std::string& topic,
 }
 
 ConsumerImpl::~ConsumerImpl() {
-    LOG_INFO(getName() << "~ConsumerImpl");
+    LOG_DEBUG(getName() << "~ConsumerImpl");
     incomingMessages_.clear();
     if (state_ == Ready) {
         LOG_WARN(getName() << "Destroyed consumer which was not properly closed");

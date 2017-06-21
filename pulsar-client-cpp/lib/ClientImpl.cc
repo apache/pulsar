@@ -81,7 +81,7 @@ namespace pulsar {
     }
 
     ClientImpl::~ClientImpl() {
-        LOG_INFO("~ClientImpl");
+        LOG_DEBUG("~ClientImpl");
         shutdown();
     }
 
