@@ -81,9 +81,12 @@ if [ "$3" = "all" -o "$3" = "compile" ]; then
   fi
   popd
 
-  PULSAR_STANDALONE_CONF=$2/pulsar-client-cpp/tests/standalone.conf $2/bin/pulsar standalone &
+  PULSAR_STANDALONE_CONF=$2/pulsar-client-cpp/tests/standalone.conf $2/bin/pulsar standalone > broker.log &
   standalone_pid=$!;
-  PULSAR_STANDALONE_CONF=$2/pulsar-client-cpp/tests/authentication.conf $2/bin/pulsar standalone --zookeeper-port 2191 --bookkeeper-port 3191 --zookeeper-dir data2/standalone/zookeeper --bookkeeper-dir data2/standalone/zookeeper &
+  PULSAR_STANDALONE_CONF=$2/pulsar-client-cpp/tests/authentication.conf $2/bin/pulsar standalone \
+              --zookeeper-port 2191 --bookkeeper-port 3191 \
+              --zookeeper-dir data2/standalone/zookeeper --bookkeeper-dir \
+              data2/standalone/zookeeper > broker-tls.log &
   auth_pid=$!;
   sleep 10
   PULSAR_CLIENT_CONF=$2/pulsar-client-cpp/tests/client.conf $2/bin/pulsar-admin clusters create --url http://localhost:9765/ --url-secure https://localhost:9766/ --broker-url pulsar://localhost:9885/ --broker-url-secure pulsar+ssl://localhost:9886/ cluster
