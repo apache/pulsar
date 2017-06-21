@@ -184,7 +184,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test
+    @Test(invocationCount=50)
     public void testConsumerBlockingWithUnAckedMessagesAndRedelivery() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -258,9 +258,9 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
                 }
             }
 
-            // check all unacked messages have been redelivered
+            // check all unacked messages have been redelivered: we have 3 consumers with receiverQueueSize=10
             Set<MessageId> result = Sets.newHashSet(messages.values());
-            assertEquals(totalConsumedMsgs, result.size(), 2 * receiverQueueSize);
+            assertEquals(totalConsumedMsgs, result.size(), 3 * receiverQueueSize);
 
             // start acknowledging messages
             messages.asMap().forEach((c, msgs) -> {
