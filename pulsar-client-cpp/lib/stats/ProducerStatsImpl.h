@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef PULSAR_PUBLISHER_STATS_IMPL_HEADER
-#define PULSAR_PUBLISHER_STATS_IMPL_HEADER
+#ifndef PULSAR_PRODUCER_STATS_IMPL_HEADER
+#define PULSAR_PRODUCER_STATS_IMPL_HEADER
 
 #include <pulsar/Message.h>
 #include <map>
@@ -32,25 +32,26 @@
 #include <boost/array.hpp>
 #include <iostream>
 #include <vector>
-#include <lib/PublisherStatsBase.h>
 #include <lib/Utils.h>
 #include <boost/bind.hpp>
+#include <lib/stats/ProducerStatsBase.h>
 
 namespace pulsar {
-typedef boost::accumulators::accumulator_set<double, boost::accumulators::stats<boost::accumulators::tag::mean, boost::accumulators::tag::extended_p_square> > LatencyAccumulator;
+typedef boost::accumulators::accumulator_set<double,
+        boost::accumulators::stats<boost::accumulators::tag::mean,
+                boost::accumulators::tag::extended_p_square> > LatencyAccumulator;
 
-class PublisherStatsImpl : public boost::enable_shared_from_this<PublisherStatsImpl>, public PublisherStatsBase {
-private:
+class ProducerStatsImpl : public boost::enable_shared_from_this<ProducerStatsImpl>,
+        public ProducerStatsBase {
+ private:
     unsigned long numMsgsSent_;
     unsigned long numBytesSent_;
     std::map<Result, unsigned long> sendMap_;
-    unsigned long numAcksReceived_;
     LatencyAccumulator latencyAccumulator_;
 
     unsigned long totalMsgsSent_;
     unsigned long totalBytesSent_;
     std::map<Result, unsigned long> totalSendMap_;
-    unsigned long totalAcksReceived_;
     LatencyAccumulator totalLatencyAccumulator_;
 
     std::string producerStr_;
@@ -58,15 +59,15 @@ private:
     boost::mutex mutex_;
     unsigned int statsIntervalInSeconds_;
 
-    friend std::ostream& operator<<(std::ostream&, const PublisherStatsImpl&);
+    friend std::ostream& operator<<(std::ostream&, const ProducerStatsImpl&);
     friend std::ostream& operator<<(std::ostream&, const std::map<Result, unsigned long>&);
     friend class PulsarFriend;
 
     static std::string latencyToString(const LatencyAccumulator&);
-public:
-    PublisherStatsImpl(std::string, DeadlineTimerPtr, unsigned int);
+ public:
+    ProducerStatsImpl(std::string, DeadlineTimerPtr, unsigned int);
 
-    PublisherStatsImpl(const PublisherStatsImpl& stats);
+    ProducerStatsImpl(const ProducerStatsImpl& stats);
 
     void flushAndReset(const boost::system::error_code&);
 
@@ -74,7 +75,7 @@ public:
 
     void messageReceived(Result&, boost::posix_time::ptime&);
 
-    ~PublisherStatsImpl();
+    ~ProducerStatsImpl();
 
     inline unsigned long getNumMsgsSent() {
         return numMsgsSent_;
@@ -82,10 +83,6 @@ public:
 
     inline unsigned long getNumBytesSent() {
         return numBytesSent_;
-    }
-
-    inline unsigned long getNumAcksReceived() {
-        return numAcksReceived_;
     }
 
     inline std::map<Result, unsigned long> getSendMap() {
@@ -100,10 +97,6 @@ public:
         return totalBytesSent_;
     }
 
-    inline unsigned long getTotalAcksReceived() {
-        return totalAcksReceived_;
-    }
-
     inline std::map<Result, unsigned long> getTotalSendMap() {
         return totalSendMap_;
     }
@@ -116,6 +109,7 @@ public:
         return totalLatencyAccumulator_;
     }
 };
+typedef boost::shared_ptr<ProducerStatsImpl> ProducerStatsImplPtr;
 }
 
-#endif // PULSAR_PUBLISHER_STATS_IMPL_HEADER
+#endif // PULSAR_PRODUCER_STATS_IMPL_HEADER

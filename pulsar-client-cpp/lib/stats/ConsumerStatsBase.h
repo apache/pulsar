@@ -14,21 +14,22 @@
  * limitations under the License.
  */
 
-#ifndef PULSAR_PUBLISHER_STATS_BASE_HEADER
-#define PULSAR_PUBLISHER_STATS_BASE_HEADER
+#ifndef PULSAR_CONSUMER_STATS_BASE_HEADER
+#define PULSAR_CONSUMER_STATS_BASE_HEADER
 #include <pulsar/Message.h>
+#include <lib/PulsarApi.pb.h>
 #include <pulsar/Result.h>
 #include <boost/date_time/posix_time/posix_time.hpp>
 
 namespace pulsar {
-class PublisherStatsBase {
+class ConsumerStatsBase {
  public:
-    virtual void messageSent(const Message& msg) = 0;
-    virtual void messageReceived(Result&, boost::posix_time::ptime&) = 0;
-    virtual ~PublisherStatsBase() {};
+    virtual void receivedMessage(Message&, Result) = 0;
+    virtual void messageAcknowledged(Result, proto::CommandAck_AckType) = 0;
+    virtual ~ConsumerStatsBase() {}
 };
 
-typedef boost::shared_ptr<PublisherStatsBase> PublisherStatsBasePtr;
+typedef boost::shared_ptr<ConsumerStatsBase> ConsumerStatsBasePtr;
 }
 
-#endif // PULSAR_PUBLISHER_STATS_BASE_HEADER
+#endif // PULSAR_CONSUMER_STATS_BASE_HEADER

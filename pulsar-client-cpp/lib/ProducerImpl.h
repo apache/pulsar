@@ -27,8 +27,8 @@
 #include "HandlerBase.h"
 #include "SharedBuffer.h"
 #include "CompressionCodec.h"
-#include <lib/PublisherStatsImpl.h>
-#include <lib/PublisherStatsDisabled.h>
+#include "stats/ProducerStatsDisabled.h"
+#include "stats/ProducerStatsImpl.h"
 
 using namespace pulsar;
 
@@ -82,7 +82,7 @@ class ProducerImpl : public HandlerBase, public boost::enable_shared_from_this<P
     bool isClosed();
 
  protected:
-    PublisherStatsBasePtr publisherStatsBasePtr_;
+    ProducerStatsBasePtr producerStatsBasePtr_;
 
     typedef BlockingQueue<OpSendMsg> MessageQueue;
 

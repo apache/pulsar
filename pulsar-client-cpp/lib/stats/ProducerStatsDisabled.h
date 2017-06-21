@@ -14,16 +14,16 @@
  * limitations under the License.
  */
 
-#ifndef PULSAR_PUBLISHER_STATS_DISABLED_HEADER
-#define PULSAR_PUBLISHER_STATS_DISABLED_HEADER
-#include<lib/PublisherStatsBase.h>
+#ifndef PULSAR_PRODUCER_STATS_DISABLED_HEADER
+#define PULSAR_PRODUCER_STATS_DISABLED_HEADER
+#include <lib/stats/ProducerStatsBase.h>
 
 namespace pulsar {
-class PublisherStatsDisabled : public PublisherStatsBase {
+class ProducerStatsDisabled : public ProducerStatsBase {
  public:
     virtual void messageSent(const Message& msg) {};
     virtual void messageReceived(Result&, boost::posix_time::ptime&) {};
 };
 
 }
-#endif // PULSAR_PUBLISHER_STATS_DISABLED_HEADER
+#endif // PULSAR_PRODUCER_STATS_DISABLED_HEADER

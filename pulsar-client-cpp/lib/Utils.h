@@ -64,6 +64,16 @@ struct WaitForCallbackType {
         m_promise.setValue(result);
     }
 };
+
+
+static std::ostream& operator<<(std::ostream& os, const std::map<Result, unsigned long>& m) {
+    os << "{";
+    for (std::map<Result, unsigned long>::const_iterator it = m.begin(); it != m.end(); it++) {
+        os << "[Key: " << strResult(it->first) << ", Value: " << it->second << "], ";
+    }
+    os << "}";
+    return os;
+}
 }
 
 #endif /* UTILS_HPP_ */

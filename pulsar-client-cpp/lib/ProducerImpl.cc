@@ -64,10 +64,10 @@ ProducerImpl::ProducerImpl(ClientImplPtr client, const std::string& topic,
 
     unsigned int statsIntervalInSeconds = client->getClientConfig().getStatsIntervalInSeconds();
     if (statsIntervalInSeconds) {
-        publisherStatsBasePtr_ = boost::make_shared<PublisherStatsImpl>(producerStr_, executor_->createDeadlineTimer(),
+        producerStatsBasePtr_ = boost::make_shared<ProducerStatsImpl>(producerStr_, executor_->createDeadlineTimer(),
                                                                         statsIntervalInSeconds);
     } else {
-        publisherStatsBasePtr_ = boost::make_shared<PublisherStatsDisabled>();
+        producerStatsBasePtr_ = boost::make_shared<ProducerStatsDisabled>();
     }
 }
 
@@ -238,12 +238,12 @@ void ProducerImpl::setMessageMetadata(const Message &msg, const uint64_t& sequen
 }
 
 void ProducerImpl::statsCallBackHandler(Result res, const Message& msg, SendCallback callback, boost::posix_time::ptime publishTime) {
-    publisherStatsBasePtr_->messageReceived(res, publishTime);
+    producerStatsBasePtr_->messageReceived(res, publishTime);
     callback(res, msg);
 }
 
 void ProducerImpl::sendAsync(const Message& msg, SendCallback callback) {
-    publisherStatsBasePtr_->messageSent(msg);
+    producerStatsBasePtr_->messageSent(msg);
     SendCallback cb = boost::bind(&ProducerImpl::statsCallBackHandler, this, _1, _2, callback, boost::posix_time::microsec_clock::universal_time());
     if (msg.getLength() > Commands::MaxMessageSize) {
         callback(ResultMessageTooBig, msg);

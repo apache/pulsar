@@ -106,14 +106,14 @@ TEST(BasicEndToEndTest, testBatchMessages)
         std::string messageContent = prefix + boost::lexical_cast<std::string>(i);
         Message msg = MessageBuilder().setContent(messageContent).setProperty("msgIndex", boost::lexical_cast<std::string>(i)).build();
         producer.sendAsync(msg, boost::bind(&sendCallBack, _1, _2, prefix));
-        LOG_INFO("sending message " << messageContent);
+        LOG_DEBUG("sending message " << messageContent);
     }
 
     Message receivedMsg;
     int i = 0;
     while (consumer.receive(receivedMsg, 5000) == ResultOk) {
         std::string expectedMessageContent = prefix + boost::lexical_cast<std::string>(i);
-        LOG_INFO("Received Message with [ content - " << receivedMsg.getDataAsString() << "] [ messageID = " << receivedMsg.getMessageId() << "]");
+        LOG_DEBUG("Received Message with [ content - " << receivedMsg.getDataAsString() << "] [ messageID = " << receivedMsg.getMessageId() << "]");
         ASSERT_EQ(receivedMsg.getProperty("msgIndex"), boost::lexical_cast<std::string>(i++));
         ASSERT_EQ(expectedMessageContent, receivedMsg.getDataAsString());
         ASSERT_EQ(ResultOk, consumer.acknowledge(receivedMsg));
@@ -298,7 +298,7 @@ TEST(BasicEndToEndTest, testLookupThrottling) {
     Message msgReceived;
     for (int i = 0; i < 10; i++) {
         consumer.receive(msgReceived, 1000);
-        LOG_INFO("Received message :" << msgReceived.getMessageId());
+        LOG_DEBUG("Received message :" << msgReceived.getMessageId());
         ASSERT_EQ(msgContent, msgReceived.getDataAsString());
         ASSERT_EQ(boost::lexical_cast<std::string>(i), msgReceived.getProperty("msgIndex"));
         ASSERT_EQ(ResultOk, consumer.acknowledgeCumulative(msgReceived));
@@ -405,8 +405,8 @@ TEST(BasicEndToEndTest, testPartitionedProducerConsumer)
         ss << nanoSeconds;
         Message msg = MessageBuilder().setContent(ss.str()).setPartitionKey(ss.str()).build();
         ASSERT_EQ(ResultOk, producer.send(msg));
-        LOG_INFO("Message Timestamp is " << msg.getPublishTimestamp());
-        LOG_INFO("Message is " << msg);
+        LOG_DEBUG("Message Timestamp is " << msg.getPublishTimestamp());
+        LOG_DEBUG("Message is " << msg);
     }
 
     ASSERT_EQ(consumer.getSubscriptionName(), "subscription-A");
@@ -882,8 +882,7 @@ TEST(BasicEndToEndTest, testMessageListenerPause)
     ASSERT_EQ(temp, topicName);
     ASSERT_EQ(consumer.getSubscriptionName(), subName);
 
-    PublisherStatsBasePtr ptr = PulsarFriend::getPublisherStatsPtr(producer);
-    PublisherStatsImpl *publisherStatsImplPtr = static_cast<PublisherStatsImpl*>(ptr.get());
+    ProducerStatsImplPtr producerStatsImplPtr = PulsarFriend::getProducerStatsPtr(producer);
 
     // Send Asynchronously
     std::string prefix = "msg-stats-";
@@ -896,17 +895,18 @@ TEST(BasicEndToEndTest, testMessageListenerPause)
     }
 
     // Wait for all messages to be acked by broker
-    while (publisherStatsImplPtr->getTotalAcksReceived() < numOfMessages) {
+    while (PulsarFriend::sum(producerStatsImplPtr->getTotalSendMap()) < numOfMessages) {
+        usleep(1000);  // 1 ms
     }
 
     // Get latencies
     LatencyAccumulator totalLatencyAccumulator =
-            publisherStatsImplPtr->getTotalLatencyAccumulator();
+            producerStatsImplPtr->getTotalLatencyAccumulator();
     boost::accumulators::detail::extractor_result<LatencyAccumulator,
             boost::accumulators::tag::extended_p_square>::type totalLatencies =
             boost::accumulators::extended_p_square(totalLatencyAccumulator);
 
-    LatencyAccumulator latencyAccumulator = publisherStatsImplPtr->getLatencyAccumulator();
+    LatencyAccumulator latencyAccumulator = producerStatsImplPtr->getLatencyAccumulator();
     boost::accumulators::detail::extractor_result<LatencyAccumulator,
             boost::accumulators::tag::extended_p_square>::type latencies =
             boost::accumulators::extended_p_square(latencyAccumulator);
@@ -924,16 +924,16 @@ TEST(BasicEndToEndTest, testMessageListenerPause)
     ASSERT_GE((uint64_t )totalLatencies[2], 20 * 1000);
     ASSERT_GE((uint64_t )totalLatencies[3], 20 * 1000);
 
-    while (publisherStatsImplPtr->getNumMsgsSent() != 0) {
+    while (producerStatsImplPtr->getNumMsgsSent() != 0) {
         // wait till stats flush
     }
 
     usleep(1 * 1e6); // 1 second
 
-    latencyAccumulator = publisherStatsImplPtr->getLatencyAccumulator();
+    latencyAccumulator = producerStatsImplPtr->getLatencyAccumulator();
     latencies = boost::accumulators::extended_p_square(latencyAccumulator);
 
-    totalLatencyAccumulator = publisherStatsImplPtr->getTotalLatencyAccumulator();
+    totalLatencyAccumulator = producerStatsImplPtr->getTotalLatencyAccumulator();
     totalLatencies = boost::accumulators::extended_p_square(totalLatencyAccumulator);
 
     ASSERT_NE((uint64_t )latencies[1], (uint64_t )totalLatencies[1]);
@@ -950,13 +950,18 @@ TEST(BasicEndToEndTest, testMessageListenerPause)
 
     Message receivedMsg;
     int i = 0;
+    ConsumerStatsImplPtr consumerStatsImplPtr = PulsarFriend::getConsumerStatsPtr(consumer);
+
     while (consumer.receive(receivedMsg, 5000) == ResultOk) {
         std::string expectedMessageContent = prefix + boost::lexical_cast<std::string>(i);
         LOG_DEBUG(
                 "Received Message with [ content - " << receivedMsg.getDataAsString() << "] [ messageID = " << receivedMsg.getMessageId() << "]");
         ASSERT_EQ(receivedMsg.getProperty("msgIndex"), boost::lexical_cast<std::string>(i++));
+        ASSERT_EQ(PulsarFriend::sum(consumerStatsImplPtr->getTotalReceivedMsgMap()), i);
         ASSERT_EQ(expectedMessageContent, receivedMsg.getDataAsString());
+        ASSERT_EQ(PulsarFriend::sum(consumerStatsImplPtr->getTotalAckedMsgMap()), i - 1);
         ASSERT_EQ(ResultOk, consumer.acknowledge(receivedMsg));
+        ASSERT_EQ(PulsarFriend::sum(consumerStatsImplPtr->getTotalAckedMsgMap()), i);
     }
     // Number of messages consumed
     ASSERT_EQ(i, numOfMessages);

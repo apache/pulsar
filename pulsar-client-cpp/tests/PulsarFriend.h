@@ -16,6 +16,7 @@
 
 #include <pulsar/BatchMessageId.h>
 #include <lib/ProducerImpl.h>
+#include <lib/ConsumerImpl.h>
 #include <string>
 
 using std::string;
@@ -27,9 +28,23 @@ class PulsarFriend {
         return mId.batchIndex_;
     }
 
-    static PublisherStatsBasePtr getPublisherStatsPtr(Producer producer) {
+    static ProducerStatsImplPtr getProducerStatsPtr(Producer producer) {
         ProducerImpl* producerImpl = static_cast<ProducerImpl*>(producer.impl_.get());
-        return producerImpl->publisherStatsBasePtr_;     
+        return boost::static_pointer_cast<ProducerStatsImpl>(producerImpl->producerStatsBasePtr_);
+    }
+
+    template<typename T>
+    static unsigned long sum(std::map<T, unsigned long> m) {
+        unsigned long sum = 0;
+        for (typename std::map<T, unsigned long>::iterator iter = m.begin(); iter != m.end(); iter++) {
+            sum += iter->second;
+        }
+        return sum;
+    }
+
+    static ConsumerStatsImplPtr getConsumerStatsPtr(Consumer consumer) {
+        ConsumerImpl* consumerImpl = static_cast<ConsumerImpl*>(consumer.impl_.get());
+        return boost::static_pointer_cast<ConsumerStatsImpl>(consumerImpl->consumerStatsBasePtr_);
     }
 };
 }
