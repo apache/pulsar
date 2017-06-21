@@ -25,9 +25,10 @@ void export_enums();
 void export_authentication();
 
 
-inline void translateException(const PulsarException& ex) {
+static void translateException(const PulsarException& ex) {
     std::string err = "Pulsar error: ";
     err += strResult(ex._result);
+
     PyErr_SetString(PyExc_Exception, err.c_str());
 }
 
