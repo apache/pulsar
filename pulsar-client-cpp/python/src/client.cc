@@ -18,19 +18,37 @@
 
 Producer Client_createProducer(Client& client, const std::string& topic, const ProducerConfiguration& conf) {
     Producer producer;
-    CHECK_RESULT(client.createProducer(topic, conf, producer));
+    Result res;
+
+    Py_BEGIN_ALLOW_THREADS
+    res = client.createProducer(topic, conf, producer);
+    Py_END_ALLOW_THREADS
+
+    CHECK_RESULT(res);
     return producer;
 }
 
 Consumer Client_subscribe(Client& client, const std::string& topic, const std::string& subscriptionName,
                           const ConsumerConfiguration& conf) {
     Consumer consumer;
-    CHECK_RESULT(client.subscribe(topic, subscriptionName, conf, consumer));
+    Result res;
+
+    Py_BEGIN_ALLOW_THREADS
+    res = client.subscribe(topic, subscriptionName, conf, consumer);
+    Py_END_ALLOW_THREADS
+
+    CHECK_RESULT(res);
     return consumer;
 }
 
 void Client_close(Client& client) {
-    CHECK_RESULT(client.close());
+    Result res;
+
+    Py_BEGIN_ALLOW_THREADS
+    res = client.close();
+    Py_END_ALLOW_THREADS
+
+    CHECK_RESULT(res);
 }
 
 void export_client() {
