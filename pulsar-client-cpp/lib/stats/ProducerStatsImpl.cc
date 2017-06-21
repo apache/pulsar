@@ -116,7 +116,7 @@ ProducerStatsImpl::~ProducerStatsImpl() {
 }
 
 std::ostream& operator<<(std::ostream& os, const ProducerStatsImpl& obj) {
-    os << "Producer " << obj.producerStr_ << ", ProducerStatsImpl (" << ", numMsgsSent_ = "
+    os << "Producer " << obj.producerStr_ << ", ProducerStatsImpl (" << "numMsgsSent_ = "
        << obj.numMsgsSent_ << ", numBytesSent_ = " << obj.numBytesSent_ << ", sendMap_ = "
        << obj.sendMap_ << ", latencyAccumulator_ = "
        << ProducerStatsImpl::latencyToString(obj.latencyAccumulator_) << ", totalMsgsSent_ = "

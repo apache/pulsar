@@ -92,7 +92,7 @@ std::ostream& operator<<(
         const std::map<std::pair<Result, proto::CommandAck_AckType>, unsigned long>& m) {
     os << "{";
     for (std::map<std::pair<Result, proto::CommandAck_AckType>, unsigned long>::const_iterator it = m.begin(); it != m.end(); it++) {
-        os << "[Key: {" << "Result: " << strResult((it->first).first) << ", ackType"
+        os << "[Key: {" << "Result: " << strResult((it->first).first) << ", ackType: "
                 << (it->first).second << "}, Value: " << it->second << "], ";
     }
     os << "}";
@@ -100,7 +100,7 @@ std::ostream& operator<<(
 }
 
 std::ostream& operator<<(std::ostream& os, const ConsumerStatsImpl& obj) {
-    os << "Consumer " << obj.consumerStr_ << ", ConsumerStatsImpl (" << ", numBytesRecieved_ = "
+    os << "Consumer " << obj.consumerStr_ << ", ConsumerStatsImpl (" << "numBytesRecieved_ = "
        << obj.numBytesRecieved_ << ", totalNumBytesRecieved_ = " << obj.totalNumBytesRecieved_
        << ", receivedMsgMap_ = " << obj.receivedMsgMap_ << ", ackedMsgMap_ = " << obj.ackedMsgMap_
        << ", totalReceivedMsgMap_ = " << obj.totalReceivedMsgMap_ << ", totalAckedMsgMap_ = "
