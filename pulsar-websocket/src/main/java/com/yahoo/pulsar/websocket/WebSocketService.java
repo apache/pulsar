@@ -176,7 +176,9 @@ public class WebSocketService implements Closeable {
         clientConf.setUseTls(config.isTlsEnabled());
         clientConf.setTlsAllowInsecureConnection(config.isTlsAllowInsecureConnection());
         clientConf.setTlsTrustCertsFilePath(config.getTlsTrustCertsFilePath());
-        clientConf.setIoThreads(WebSocketProxyConfiguration.PULSAR_CLIENT_IO_THREADS);
+        clientConf.setIoThreads(config.getWebSocketNumIoThreads());
+        clientConf.setConnectionsPerBroker(config.getWebSocketConnectionsPerBroker());
+
         if (config.isAuthenticationEnabled()) {
             clientConf.setAuthentication(config.getBrokerClientAuthenticationPlugin(),
                     config.getBrokerClientAuthenticationParameters());
@@ -223,6 +225,8 @@ public class WebSocketService implements Closeable {
         serviceConfig.setTlsCertificateFilePath(config.getTlsCertificateFilePath());
         serviceConfig.setTlsKeyFilePath(config.getTlsKeyFilePath());
         serviceConfig.setTlsAllowInsecureConnection(config.isTlsAllowInsecureConnection());
+        serviceConfig.setWebSocketNumIoThreads(config.getNumIoThreads());
+        serviceConfig.setWebSocketConnectionsPerBroker(config.getConnectionsPerBroker());
         return serviceConfig;
     }
 

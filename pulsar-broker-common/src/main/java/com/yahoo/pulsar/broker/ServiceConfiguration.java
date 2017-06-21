@@ -280,6 +280,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(dynamic = true)
     private boolean preferLaterVersions = false;
 
+    /**** --- WebSocket --- ****/
+    // Number of IO threads in Pulsar Client used in WebSocket proxy
+    private int webSocketNumIoThreads = Runtime.getRuntime().availableProcessors();
+    // Number of connections per Broker in Pulsar Client used in WebSocket proxy
+    private int webSocketConnectionsPerBroker = Runtime.getRuntime().availableProcessors();
+
     public String getZookeeperServers() {
         return zookeeperServers;
     }
@@ -1019,4 +1025,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     public void setPreferLaterVersions(boolean preferLaterVersions) {
         this.preferLaterVersions = preferLaterVersions;
     }
+
+    public int getWebSocketNumIoThreads() { return webSocketNumIoThreads; }
+
+    public void setWebSocketNumIoThreads(int webSocketNumIoThreads) { this.webSocketNumIoThreads = webSocketNumIoThreads; }
+
+    public int getWebSocketConnectionsPerBroker() { return webSocketConnectionsPerBroker; }
+
+    public void setWebSocketConnectionsPerBroker(int webSocketConnectionsPerBroker) { this.webSocketConnectionsPerBroker = webSocketConnectionsPerBroker; }
 }
