@@ -39,6 +39,4 @@ Pulsarは、非常に柔軟なメッセージングモデルと直感的なク�
 
 ## ライセンス
 
-Copyright 2016 Yahoo Inc.
-
 Apache License Version 2.0に基づいて使用許諾されます: http://www.apache.org/licenses/LICENSE-2.0
