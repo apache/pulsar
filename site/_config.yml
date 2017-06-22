@@ -3,7 +3,7 @@ description: Distributed pub-sub messaging system
 encoding: utf-8
 permalink: pretty
 pulsar_repo: https://github.com/yahoo/pulsar/tree/master
-baseurl: /pulsar
+baseurl: /incubator-pulsar
 destination: ../docs
 
 versions:
