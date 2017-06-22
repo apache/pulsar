@@ -1,0 +1,62 @@
+description: The `pulsar-client` tool
+commands:
+- name: produce
+  description: Send a message or messages to a specific broker and topic
+  options:
+  - flags:
+    - -f
+    - --files
+    description: Comma-separated file paths to send; either `-m` or `-f` must be specified
+    default: '[]'
+  - flags:
+    - -m
+    - --messages
+    description: Comma-separated string of messages to send; either `-m` or `-f` must be specified
+    default: '[]'
+  - flags:
+    - -n
+    - --num-produce
+    description: The number of times to send the message(s); the count of `messages`/`files` * `num-produce` should below than 1000
+    default: 1
+  - flags:
+    - -r
+    - --rate
+    description: Rate (in messages per second) at which to produce; a value 0 means to produce messages as fast as possible
+    default: '0.0'
+- name: consume
+  description: Consume messages from a specific broker and topic
+  options:
+  - flags:
+    - --hex
+    description: Display binary messages in hexadecimal format.
+    default: 'false'
+  - flags:
+    - -n
+    - --num-messages
+    description: Number of messages to consume, 0 means to consume forever.
+    default: 0
+  - flags:
+    - -r
+    - --rate
+    description: Rate (in messages per second) at which to produce; a value 0 means to produce messages as fast as possible
+    default: '0.0'
+  - flags:
+    - -s
+    - --subscription-name
+    description: Subscription name
+  - flags:
+    - -t
+    - --subscription-type
+    description: "The type of the subscription. Possible values: `Exclusive`, `Shared`, `Failover`."
+    default: exclusive
+options:
+- flags:
+  - --auth-params
+  description: Authentication parameters, for example `key1:val1,key2:val2`
+- flags:
+  - --auth-plugin
+  description: Authentication plugin class name
+- flags:
+  - --url
+  description: Broker URL to which to connect
+  default: pulsar://localhost:6650/

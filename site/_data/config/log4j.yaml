@@ -1,0 +1,38 @@
+no_descriptions: true
+configs:
+- name: pulsar.root.logger
+  default: WARN,CONSOLE
+- name: pulsar.log.dir
+  default: logs
+- name: pulsar.log.file
+  default: pulsar.log
+- name: log4j.rootLogger
+  default: "${pulsar.root.logger}"
+- name: log4j.appender.CONSOLE
+  default: org.apache.log4j.ConsoleAppender
+- name: log4j.appender.CONSOLE.Threshold
+  default: DEBUG
+- name: log4j.appender.CONSOLE.layout
+  default: org.apache.log4j.PatternLayout
+- name: log4j.appender.CONSOLE.layout.ConversionPattern
+  default: "%d{ISO8601} - %-5p - [%t:%C{1}@%L] - %m%n"
+- name: log4j.appender.ROLLINGFILE
+  default: org.apache.log4j.DailyRollingFileAppender
+- name: log4j.appender.ROLLINGFILE.Threshold
+  default: DEBUG
+- name: log4j.appender.ROLLINGFILE.File
+  default: "${pulsar.log.dir}/${pulsar.log.file}"
+- name: log4j.appender.ROLLINGFILE.layout
+  default: org.apache.log4j.PatternLayout
+- name: log4j.appender.ROLLINGFILE.layout.ConversionPattern
+  default: "%d{ISO8601} - %-5p [%t:%C{1}@%L] - %m%n"
+- name: log4j.appender.TRACEFILE
+  default: org.apache.log4j.FileAppender
+- name: log4j.appender.TRACEFILE.Threshold
+  default: TRACE
+- name: log4j.appender.TRACEFILE.File
+  default: pulsar-trace.log
+- name: log4j.appender.TRACEFILE.layout
+  default: org.apache.log4j.PatternLayout
+- name: log4j.appender.TRACEFILE.layout.ConversionPattern
+  default: "%d{ISO8601} - %-5p [%t:%C{1}@%L][%x] - %m%n"

@@ -1,0 +1,264 @@
+configs:
+- name: zookeeperServers
+  default: ''
+  description: Zookeeper quorum connection string
+- name: globalZookeeperServers
+  default: ''
+  description: Global Zookeeper quorum connection string
+- name: brokerServicePort
+  default: '6650'
+  description: Broker data port
+- name: brokerServicePortTls
+  default: '6651'
+  description: Broker data port for TLS
+- name: webServicePort
+  default: '8080'
+  description: Port to use to server HTTP request
+- name: webServicePortTls
+  default: '8443'
+  description: Port to use to server HTTPS request
+- name: webSocketServiceEnabled
+  default: 'false'
+  description: Enable the WebSocket API service in broker
+- name: bindAddress
+  default: 0.0.0.0
+  description: Hostname or IP address the service binds on, default is 0.0.0.0.
+- name: advertisedAddress
+  default: ''
+  description: Hostname or IP address the service advertises to the outside world. If not set, the value of InetAddress.getLocalHost().getHostName() is used.
+- name: clusterName
+  default: ''
+  description: Name of the cluster to which this broker belongs to
+- name: zooKeeperSessionTimeoutMillis
+  default: '30000'
+  description: Zookeeper session timeout in milliseconds
+- name: brokerShutdownTimeoutMs
+  default: '3000'
+  description: Time to wait for broker graceful shutdown. After this time elapses, the process will be killed
+- name: backlogQuotaCheckEnabled
+  default: 'true'
+  description: Enable backlog quota check. Enforces action on topic when the quota is reached
+- name: backlogQuotaCheckIntervalInSeconds
+  default: '60'
+  description: How often to check for topics that have reached the quota
+- name: backlogQuotaDefaultLimitGB
+  default: '10'
+  description: Default per-topic backlog quota limit
+- name: brokerDeleteInactiveTopicsEnabled
+  default: 'true'
+  description: Enable the deletion of inactive topics
+- name: brokerDeleteInactiveTopicsFrequencySeconds
+  default: '60'
+  description: How often to check for inactive topics
+- name: messageExpiryCheckIntervalInMinutes
+  default: '5'
+  description: How frequently to proactively check and purge expired messages
+- name: clientLibraryVersionCheckEnabled
+  default: 'false'
+  description: Enable check for minimum allowed client library version
+- name: clientLibraryVersionCheckAllowUnversioned
+  default: 'true'
+  description: Allow client libraries with no version information
+- name: statusFilePath
+  default: ''
+  description: Path for the file used to determine the rotation status for the broker when responding to service discovery health checks
+- name: preferLaterVersions
+  default: 'false'
+  description: If true, (and ModularLoadManagerImpl is being used), the load manager will attempt to use only brokers running the latest software version (to minimize impact to bundles)
+- name: tlsEnabled
+  default: 'false'
+  description: Enable TLS
+- name: tlsCertificateFilePath
+  default: ''
+  description: Path for the TLS certificate file
+- name: tlsKeyFilePath
+  default: ''
+  description: Path for the TLS private key file
+- name: tlsTrustCertsFilePath
+  default: ''
+  description: Path for the trusted TLS certificate file
+- name: tlsAllowInsecureConnection
+  default: 'false'
+  description: Accept untrusted TLS certificate from client
+- name: maxUnackedMessagesPerConsumer
+  default: '50000'
+  description: |
+    Max number of unacknowledged messages allowed to receive messages by a consumer on a shared subscription. Broker will stop sending messages to consumer once, this limit reaches until consumer starts acknowledging messages back. Using a value of 0, is disabling unackeMessage limit check and consumer can receive messages without any restriction
+- name: maxUnackedMessagesPerSubscription
+  default: '200000'
+  description: |
+    Max number of unacknowledged messages allowed per shared subscription. Broker will stop dispatching messages to all consumers of the subscription once this limit reaches until consumer starts acknowledging messages back and unack count reaches to limit/2. Using a value of 0, is disabling unackedMessage-limit check and dispatcher can dispatch messages without any restriction
+- name: maxConcurrentLookupRequest
+  default: '10000'
+  description: Max number of concurrent lookup request broker allows to throttle heavy incoming lookup traffic
+- name: maxConcurrentTopicLoadRequest
+  default: '5000'
+  description: Max number of concurrent topic loading request broker allows to control number of zk-operations
+- name: authenticationEnabled
+  default: 'false'
+  description: Enable authentication
+- name: authenticationProviders
+  default: ''
+  description: Autentication provider name list, which is comma separated list of class names
+- name: authorizationEnabled
+  default: 'false'
+  description: Enforce authorization
+- name: superUserRoles
+  default: ''
+  description: Role names that are treated as "super-user", meaning they will be able to do all admin operations and publish/consume from all topics
+- name: brokerClientAuthenticationPlugin
+  default: ''
+  description: Authentication settings of the broker itself. Used when the broker connects to other brokers, either in same or other clusters
+- name: brokerClientAuthenticationParameters
+  default: ''
+- name: athenzDomainNames
+  default: ''
+  description: Supported Athenz provider domain names(comma separated) for authentication
+- name: bookkeeperClientAuthenticationPlugin
+  default: ''
+  description: Authentication plugin to use when connecting to bookies
+- name: bookkeeperClientAuthenticationParametersName
+  default: ''
+  description: BookKeeper auth plugin implementatation specifics parameters name and values
+- name: bookkeeperClientAuthenticationParameters
+  default: ''
+- name: bookkeeperClientTimeoutInSeconds
+  default: '30'
+  description: Timeout for BK add / read operations
+- name: bookkeeperClientSpeculativeReadTimeoutInMillis
+  default: '0'
+  description: Speculative reads are initiated if a read request doesn't complete within a certain time Using a value of 0, is disabling the speculative reads
+- name: bookkeeperClientHealthCheckEnabled
+  default: 'true'
+  description: Enable bookies health check. Bookies that have more than the configured number of failure within the interval will be quarantined for some time. During this period, new ledgers won't be created on these bookies
+- name: bookkeeperClientHealthCheckIntervalSeconds
+  default: '60'
+- name: bookkeeperClientHealthCheckErrorThresholdPerInterval
+  default: '5'
+- name: bookkeeperClientHealthCheckQuarantineTimeInSeconds
+  default: '1800'
+- name: bookkeeperClientRackawarePolicyEnabled
+  default: 'true'
+  description: Enable rack-aware bookie selection policy. BK will chose bookies from different racks when forming a new bookie ensemble
+- name: bookkeeperClientIsolationGroups
+  default: ''
+  description: Enable bookie isolation by specifying a list of bookie groups to choose from. Any bookie outside the specified groups will not be used by the broker
+- name: managedLedgerDefaultEnsembleSize
+  default: '2'
+  description: Number of bookies to use when creating a ledger
+- name: managedLedgerDefaultWriteQuorum
+  default: '2'
+  description: Number of copies to store for each message
+- name: managedLedgerDefaultAckQuorum
+  default: '2'
+  description: Number of guaranteed copies (acks to wait before write is complete)
+  description: Number of guaranteed copies (acks to wait before write is complete)
+- name: managedLedgerCacheSizeMB
+  default: '1024'
+  description: Amount of memory to use for caching data payload in managed ledger. This memory is allocated from JVM direct memory and it's shared across all the topics running  in the same broker
+- name: managedLedgerCacheEvictionWatermark
+  default: '0.9'
+  description: Threshold to which bring down the cache level when eviction is triggered
+- name: managedLedgerDefaultMarkDeleteRateLimit
+  default: '1.0'
+  description: Rate limit the amount of writes per second generated by consumer acking the messages
+- name: managedLedgerMaxEntriesPerLedger
+  default: '50000'
+  description: |
+    Max number of entries to append to a ledger before triggering a rollover. A ledger rollover is triggered on these conditions:
+    * Either the max rollover time has been reached
+    * or max entries have been written to the ledged and at least min-time has passed
+- name: managedLedgerMinLedgerRolloverTimeMinutes
+  default: '10'
+  description: Minimum time between ledger rollover for a topic
+- name: managedLedgerMaxLedgerRolloverTimeMinutes
+  default: '240'
+  description: Maximum time before forcing a ledger rollover for a topic
+- name: managedLedgerCursorMaxEntriesPerLedger
+  default: '50000'
+  description: Max number of entries to append to a cursor ledger
+- name: managedLedgerCursorRolloverTimeInSeconds
+  default: '14400'
+  description: Max time before triggering a rollover on a cursor ledger
+- name: managedLedgerMaxUnackedRangesToPersist
+  default: '1000'
+  description: |
+    Max number of "acknowledgment holes" that are going to be persistently stored. When acknowledging out of order, a consumer will leave holes that are supposed to be quickly filled by acking all the messages. The information of which messages are acknowledged is persisted by compressing in "ranges" of messages that were acknowledged. After the max number of ranges is reached, the information will only be tracked in memory and messages will be redelivered in case of crashes.
+- name: loadBalancerEnabled
+  default: 'true'
+  description: Enable load balancer
+- name: loadBalancerPlacementStrategy
+  default: weightedRandomSelection
+  description: Strategy to assign a new bundle
+- name: loadBalancerReportUpdateThresholdPercentage
+  default: '10'
+  description: Percentage of change to trigger load report update
+- name: loadBalancerReportUpdateMaxIntervalMinutes
+  default: '15'
+  description: maximum interval to update load report
+- name: loadBalancerHostUsageCheckIntervalMinutes
+  default: '1'
+  description: Frequency of report to collect
+- name: loadBalancerSheddingIntervalMinutes
+  default: '30'
+  description: Load shedding interval. Broker periodically checks whether some traffic should be offload from some over-loaded broker to other under-loaded brokers
+- name: loadBalancerSheddingGracePeriodMinutes
+  default: '30'
+  description: Prevent the same topics to be shed and moved to other broker more that once within this timeframe
+- name: loadBalancerBrokerUnderloadedThresholdPercentage
+  default: '1'
+  description: Usage threshold to determine a broker as under-loaded
+- name: loadBalancerBrokerOverloadedThresholdPercentage
+  default: '85'
+  description: Usage threshold to determine a broker as over-loaded
+- name: loadBalancerResourceQuotaUpdateIntervalMinutes
+  default: '15'
+  description: Interval to update namespace bundle resource quotat
+- name: loadBalancerBrokerComfortLoadLevelPercentage
+  default: '65'
+  description: Usage threshold to determine a broker is having just right level of load
+- name: loadBalancerAutoBundleSplitEnabled
+  default: 'false'
+  description: enable/disable namespace bundle auto split
+- name: loadBalancerNamespaceBundleMaxTopics
+  default: '1000'
+  description: maximum topics in a bundle, otherwise bundle split will be triggered
+- name: loadBalancerNamespaceBundleMaxSessions
+  default: '1000'
+  description: maximum sessions (producers + consumers) in a bundle, otherwise bundle split will be triggered
+- name: loadBalancerNamespaceBundleMaxMsgRate
+  default: '1000'
+  description: maximum msgRate (in + out) in a bundle, otherwise bundle split will be triggered
+- name: loadBalancerNamespaceBundleMaxBandwidthMbytes
+  default: '100'
+  description: maximum bandwidth (in + out) in a bundle, otherwise bundle split will be triggered
+- name: loadBalancerNamespaceMaximumBundles
+  default: '128'
+  description: maximum number of bundles in a namespace
+- name: replicationMetricsEnabled
+  default: 'true'
+  description: Enable replication metrics
+- name: replicationConnectionsPerBroker
+  default: '16'
+  description: Max number of connections to open for each broker in a remote cluster More connections host-to-host lead to better throughput over high-latency links.
+- name: replicationProducerQueueSize
+  default: '1000'
+  description: Replicator producer queue size
+- name: replicatorPrefix
+  default: pulsar.repl
+  description: Replicator prefix used for replicator producer name and cursor name
+- name: defaultRetentionTimeInMinutes
+  default: '0'
+  description: Default message retention time
+- name: defaultRetentionSizeInMB
+  default: '0'
+  description: Default retention size
+- name: keepAliveIntervalSeconds
+  default: '30'
+  description: How often to check cms connection is still alive
+- name: brokerServicePurgeInactiveFrequencyInSeconds
+  default: '60'
+  description: How often broker checks for inactive topics to be deleted (topics with no subscriptions and no one connected)
+- name: loadManagerClassName
+  default: com.yahoo.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl
+  description: Name of load manager to use

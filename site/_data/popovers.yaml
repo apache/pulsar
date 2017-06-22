@@ -1,0 +1,90 @@
+ack:
+  q: What is an acknowledgement (ack)?
+  def: A message sent to a Pulsar broker by a consumer that a message has been successfully processed. An acknowledgement (ack) is Pulsar's way of knowing that the message can be deleted from the system; if no acknowledgement, then the message will be retained until it's processed.
+bookie:
+  q: What is a bookie?
+  def: Bookie is just a nickname for an individual BookKeeper server.
+bookkeeper:
+  q: What is BookKeeper?
+  def: Apache BookKeeper is a persistent log storage system that Pulsar uses to store message data.
+broker:
+  q: What is a broker?
+  def:
+    "A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers."
+cluster:
+  q: What is a cluster?
+  def: A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication.
+consumer:
+  q: What is a consumer?
+  def: A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers.
+cursor:
+  q: What is a cursor?
+  def: The subscription position for a consumer.
+discovery:
+  q: What is discovery in Pulsar?
+  def: TODO
+dispatcher:
+  q: What is a dispatcher?
+  def: An asynchronous TCP server used for all data transfers in a Pulsar cluster. The Pulsar dispatcher uses a custom binary protocol for all communications.
+geo-replication:
+  q: What is geo-replication?
+  def: TODO
+global-topic:
+  q: What is a global topic?
+  def: A topic that belongs to a global, instance-wide namespace and thus isn't tied to any specific cluster.
+global-zookeeper:
+  q: What is global ZooKeeper?
+  def: "A ZooKeeper cluster that Pulsar uses for instance-wide, rather than cluster-specific, tasks."
+instance:
+  q: What is a Pulsar instance?
+  def: A group of Pulsar clusters that act together as a single unit.
+ledger:
+  q: What is a ledger?
+  def: TODO
+message:
+  q: What is a message in Pulsar?
+  def: TODO
+multi-tenancy:
+  q: What is multi-tenancy?
+  def: TODO
+namespace:
+  q: What is a namespace?
+  def: TODO
+namespace-bundle:
+  q: What is a namespace bundle?
+  def: |
+    A virtual group of topics that belong to the same namespace. A namespace bundle is defined as a range between two 32-bit hashes, such as 0x00000000 and 0xffffffff.
+partitioned-topic:
+  q: What is a partitioned topic?
+  def: TODO
+producer:
+  q: What is a producer?
+  def: A process that publishes messages to a Pulsar topic.
+property:
+  q: What is a property?
+  def: TODO
+pub-sub:
+  q: What is the publish-subscribe pattern (pub-sub)?
+  def: TODO
+pulsar:
+  q: What is Pulsar?
+  def: Pulsar is a distributed messaging system from Yahoo.
+retention-policy:
+  q: What is a retention policy?
+  def: TODO
+standalone:
+  q: What is a standalone Pulsar broker?
+  def: A lightweight Pulsar broker in which all components run in a single Java Virtual Machine (JVM) process. Standalone clusters can be run on a single machine and are useful for development purposes.
+subscription:
+  q: What is a subscription?
+  def: TODO
+tenant:
+  q: What is a tenant?
+  def: TODO
+topic:
+  q: What is a topic?
+  def: A named channel used to pass messages published by producers to consumers who process those messages.
+zookeeper:
+  q: What is ZooKeeper?
+  def: |
+    ZooKeeper is a service that Pulsar uses for coordination-related tasks.<br /><br />A Pulsar instance relies on both a local ZooKeeper for cluster-specific tasks and a global ZooKeeper for instance-wide tasks.

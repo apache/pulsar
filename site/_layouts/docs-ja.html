@@ -1,0 +1,27 @@
+---
+layout: default
+---
+
+<div class="docs-container container-fluid">
+  <div class="row">
+    <nav class="sidebar-nav col-sm-3 col-lg-3">
+      {% include sidebar-ja.html %}
+    </nav>
+
+    <article class="col-sm-7 col-lg-7">
+      <section class="docs-header">
+        <h1 class="docs-title">{{ page.title }}</h1>
+        {% if page.lead %}<span class="docs-lead">{{ page.lead }}</span>{% endif %}
+        <hr />
+      </section>
+
+      <section class="content">
+        {{ content }}
+      </section>
+    </article>
+
+    <nav class="toc-bar col-sm-2 col-lg-2">
+      <div id="toc"></div>
+    </nav>
+  </div>
+</div>

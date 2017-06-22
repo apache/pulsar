@@ -1,0 +1,10 @@
+configs:
+- name: webServiceUrl
+  default: http://localhost:8080/
+- name: brokerServiceUrl
+  default: pulsar://localhost:6650/
+- name: authPlugin
+- name: authParams
+- name: useTls
+- name: tlsAllowInsecureConnection
+- name: tlsTrustCertsFilePath

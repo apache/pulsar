@@ -1,0 +1,48 @@
+header.top-nav {
+  background-color: white;
+
+  nav.navbar {
+    width: 80%;
+
+    a.navbar-brand {
+      img {
+        height: 50px;
+        padding-bottom: 5px;
+      }
+    }
+
+    img.japan-flag {
+      height: 20px;
+      border: 1px solid #999;
+    }
+
+    li.version {
+      a {
+        padding: 10px;
+        color: white;
+        background-color: $pulsar-blue;
+      }
+    }
+
+    ul li a {
+      color: $pulsar-blue;
+      font-size: 24px;
+
+      &:hover {
+        color: lighten($pulsar-blue, 10%);
+      }
+
+      i.fa {
+        color: white;
+
+        &:hover {
+          color: lighten($pulsar-blue, 10%);
+        }
+      }
+    }
+
+    li + li {
+      margin-left: 50px;
+    }
+  }
+}

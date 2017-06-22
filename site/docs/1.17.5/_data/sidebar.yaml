@@ -1,0 +1,57 @@
+groups:
+- title: Getting started
+  dir: getting-started
+  docs:
+  - title: Run Pulsar locally
+    endpoint: LocalCluster
+  - title: Concepts and architecture
+    endpoint: ConceptsAndArchitecture
+- title: Deployment
+  dir: deployment
+  docs:
+  - title: Setting up a production cluster
+    endpoint: ClusterSetup
+  - title: Pulsar on Kubernetes
+    endpoint: Kubernetes
+- title: Cluster administration
+  dir: admin
+  docs:
+  - title: Pulsar admin interface
+    endpoint: AdminInterface
+  - title: Dashboard
+    endpoint: Dashboard
+  - title: Authentication and authorization
+    endpoint: Authz
+  - title: Geo-replication
+    endpoint: GeoReplication
+  - title: Modular load manager
+    endpoint: ModularLoadManager
+- title: Pulsar applications
+  dir: applications
+  docs:
+  - title: The Pulsar Java client
+    endpoint: JavaClient
+  - title: The Pulsar C++ client
+    endpoint: CppClient
+  - title: WebSocket API
+    endpoint: WebSocket
+  - title: Spark Streaming receiver
+    endpoint: PulsarSpark
+  - title: Apache Storm adaptor
+    endpoint: PulsarStorm
+  - title: Simulation tools
+    endpoint: SimulationTools
+- title: Developing Pulsar
+  dir: project
+  docs:
+  - title: Pulsar binary protocol
+    endpoint: BinaryProtocol
+- title: Reference
+  dir: reference
+  docs:
+  - title: Pulsar admin REST API
+    endpoint: RestApi
+  - title: Command-line tools
+    endpoint: CliTools
+  - title: Configuration
+    endpoint: Configuration

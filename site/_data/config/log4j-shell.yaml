@@ -1,0 +1,20 @@
+no_descriptions: true
+configs:
+- name: bookkeeper.root.logger
+  default: ERROR,CONSOLE
+- name: log4j.rootLogger
+  default: "${bookkeeper.root.logger}"
+- name: log4j.appender.CONSOLE
+  default: org.apache.log4j.ConsoleAppender
+- name: log4j.appender.CONSOLE.Threshold
+  default: DEBUG
+- name: log4j.appender.CONSOLE.layout
+  default: org.apache.log4j.PatternLayout
+- name: log4j.appender.CONSOLE.layout.ConversionPattern
+  default: "%d{ABSOLUTE} %-5p %m%n"
+- name: log4j.logger.org.apache.zookeeper
+  default: ERROR
+- name: log4j.logger.org.apache.bookkeeper
+  default: ERROR
+- name: log4j.logger.org.apache.bookkeeper.bookie.BookieShell
+  default: INFO

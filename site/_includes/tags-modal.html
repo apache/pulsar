@@ -1,0 +1,18 @@
+<div class="modal fade" id="modal-{{ tag | replace: " ", "-" | downcase }}">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Pages with the <strong>{{ tag }}</strong> tag</h5>
+      </div>
+      <div class="modal-body">
+        <ul>
+          {% for entry in site.pages %}
+          {% if entry.tags contains tag %}
+          <li><a href="{{ entry.url }}">{{ entry.title }}</a></li>
+          {% endif %}
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>

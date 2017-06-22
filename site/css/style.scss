@@ -1,0 +1,506 @@
+---
+---
+
+@charset "utf-8";
+
+@import "variables";
+@import "mixins";
+
+@include sticky-footer;
+
+* {
+  margin: 0;
+  padding: 0;
+}
+
+.codebase {
+  h2 {
+    padding: 0;
+    margin: 0;
+  }
+}
+
+.modal-dialog {
+  margin-top: 300px;
+}
+
+button.version-btn {
+  color: white !important;
+  font-weight: bold;
+  background-color: $brand-dark;
+}
+
+hr.hr {
+  margin: 20px 0;
+  height: 2px;
+  background: linear-gradient(to right, $brand-dark, lighten($brand-secondary, 20%));
+}
+
+
+body {
+  font-family: $font-family-sans-serif;
+}
+
+pre, code {
+  font-family: $font-family-monospace;
+}
+
+li:not(.nav-item) {
+  list-style-type: square;
+  margin-left: -18px;
+}
+
+
+li.page-item {
+  list-style-type: none;
+  margin-left: -18px;
+}
+
+a {
+  code.highlighter-rouge {
+    background-color: #f7f7f9;
+  }
+}
+
+.highlighter-rouge.endpoint {
+  .highlight {
+    .get {
+      color: $sx-olive;
+    }
+
+    .post {
+      color: $sx-orange;
+    }
+    .put {
+      color: $sx-magenta;
+    }
+    .delete {
+      color: $sx-purple;
+    }
+
+    .url {
+      color: $sx-dark-gray;
+
+      .endpoint {
+        color: $brand-primary;
+      }
+
+      .arg {
+        color: $brand-secondary;
+      }
+    }
+
+    code + code {
+      margin-left: 5px;
+    }
+  }
+}
+
+.index-container {
+  margin: 100px 0;
+
+  .jumbotron-fluid {
+    margin: 100px 0;
+    background-color: white;
+
+    width: 100%;
+
+
+    p.lead {
+      margin-top: 40px;
+
+      a.btn + a.btn {
+        margin-left: 10px;
+      }
+    }
+  }
+
+  .list-group-container {
+    margin: 100px 0;
+
+    ul.list-group {
+      padding: 20px 0;
+
+      width: 50%;
+      margin: 0 auto;
+    }
+  }
+}
+
+section.docs-cards {
+  margin-top: 40px;
+
+  p.lead {
+    a.btn {
+      background-color: $brand-primary;
+      border: none;
+      color: white;
+
+      & + a.btn {
+        margin-left: 100px;
+      }
+    }
+  }
+}
+
+@mixin btn($color1, $color2) {
+  color: white;
+  background-color: $color1;
+
+  &:hover {
+    color: white;
+    background: $color2;
+  }
+
+  i {
+    margin-left: 15px;
+  }
+}
+
+.btn-pulsar {
+  @include btn($brand-primary, $brand-dark);
+}
+
+.btn-github {
+  @include btn(black, lighten(black, 20%));
+}
+
+.btn-stack-overflow {
+  @include btn($stack-overflow-orange, lighten($stack-overflow-orange, 10%));
+}
+
+.btn-javadoc {
+  @include btn($javadoc-magenta, darken($javadoc-magenta, 20%));
+}
+
+.sidebar {
+  position: fixed;
+  overflow-y: scroll;
+
+  section.sidebar-group {
+    h4 {
+      font-size: 18px;
+      margin-bottom: 10px;
+    }
+
+    ul {
+      overflow: auto;
+      margin-left: 10px;
+
+      li {
+        list-style-type: disc;
+        list-style-position: inside;
+        text-indent: 0;
+        word-wrap: break-word;
+        font-size: 16px;
+        list-style-type: none;
+        margin-left: 0;
+
+        a {
+          color: darken(#999, 30%);
+
+          &.active {
+            color: $brand-secondary;
+          }
+
+          &:hover {
+            color: $brand-dark;
+            text-decoration: none;
+          }
+        }
+
+        i {
+          color: #999;
+          margin-right: 15px;
+
+          &:hover {
+            color: darken(#999, 30%);
+          }
+        }
+
+        & + li {
+          margin-top: 4px;
+        }
+      }
+    }
+
+
+
+    & + section.sidebar-group {
+      margin-top: 15px;
+    }
+  }
+}
+
+header {
+  background-color: black;
+}
+
+.docs-container {
+  width: 90%;
+}
+
+.rest-api-container, .docs-container {
+  margin-top: $top-margin;
+
+  nav.sidebar {
+    display: inline;
+    width: 100%;
+    //border: 1px solid green;
+
+    ul {
+      //border: 1px solid orange;
+      width: 100%;
+
+      li + li {
+        margin-top: 5px;
+      }
+    }
+  }
+
+  article {
+    @include shadow(20px);
+    padding: 2% 3%;
+    margin-bottom: 50px;
+
+    section.docs-header {
+      margin-bottom: 35px;
+      //border: 1px solid blue;
+
+      .tags {
+        margin-top: 20px;
+
+        button {
+          padding: 4px 8px;
+          font-size: 16px;
+        }
+      }
+
+      h1.docs-title {
+        font-size: 40px;
+      }
+
+      span.docs-lead {
+        margin: 20px 0 0 0;
+        font-size: 18px;
+        font-weight: lighter;
+      }
+
+      .tag-group {
+        margin-top: 20px;
+
+        button.tag-btn {
+
+        }
+      }
+    }
+
+    section.content {
+      li {
+        margin-left: 22px;
+        font-size: 1.25rem;
+      }
+
+      h3 + h4 {
+        margin-top: 20px;
+      }
+
+      h2:not(.cli-command-title) {
+        margin-top: 35px;
+      }
+
+      h3:not(.cli-command-title) {
+        margin-top: 35px;
+      }
+
+      a:hover {
+        text-decoration: none;
+      }
+
+      h2, h3, h4, h5, h6 {
+        & + p {
+          margin-top: 15px;
+        }
+      }
+
+      .topic {
+        color: $sx-light-gray;
+        background-color: $black;
+        font-size: $code-font-size;
+        font-family: $font-family-monospace;
+        padding: 10px 0 10px 20px;
+        border-radius: 0;
+
+        .property { color: $sx-olive; }
+        .cluster { color: $sx-red; }
+        .namespace { color: $sx-7; }
+        .t { color: $sx-magenta; }
+
+        & + p {
+          margin-top: 20px;
+        }
+      }
+
+      .highlighter-rouge {
+        font-family: $font-family-monospace;
+
+        & + h2 {
+          margin-top: 40px;
+        }
+
+        .highlight {
+          padding: 15px;
+
+          code {
+            font-size: $code-font-size;
+          }
+        }
+      }
+
+      code.highlighter-rouge {
+        color: $brand-dark;
+      }
+
+      em {
+        margin-right: 2px;
+      }
+
+      img {
+        margin: 20px 0;
+        width: 100%;
+
+        &[alt="Maven Central"] {
+          width: 20%;
+          margin: 0;
+          padding: 0;
+        }
+      }
+
+      p {
+        font-size: $docs-font-size;
+
+        & + .highlighter-rouge {
+          margin-top: 15px;
+        }
+      }
+
+      h2, h3 {
+        & + p {
+          margin-top: 20px;
+        }
+      }
+
+      table {
+        margin: 25px 0;
+        width: 100%;
+
+        thead {
+          font-size: 18px;
+          border-bottom: 1px solid black;
+        }
+
+        tbody {
+          tr {
+            td {
+              padding: 5px 0;
+              overflow-x: scroll;
+
+              em {
+                font-size: 12px;
+                font-style: normal;
+              }
+            }
+
+            & + tr {
+              border-top: 1px solid #ddd;
+              margin-top: 10px;
+            }
+          }
+        }
+
+        &.config {
+          overflow-x: scroll;
+          width: 100%;
+
+          thead {
+            tr {
+              th {
+                &:nth-child(2), &:nth-child(3)  {
+                  padding-left: 10px;
+                }
+              }
+            }
+          }
+
+          td, td p {
+            font-size: 14px;
+          }
+
+          td {
+            padding: 5px 0;
+
+            &:nth-child(1), &:nth-child(2) {
+              max-width: 225px;
+              overflow: auto;
+              white-space: nowrap;
+            }
+
+            &:nth-child(2), &:nth-child(3)  {
+              padding-left: 10px;
+            }
+
+            & + td {
+              border-left: 1px solid #ddd;
+            }
+          }
+        }
+
+        &.env-var {
+          th {
+            &:first-child {
+              min-width: 200px;
+            }
+          }
+        }
+      }
+
+      p + table, table + p, table + h4, h4 + .highlighter-rouge {
+        margin-top: 20px;
+      }
+
+      .highlighter-rouge + table {
+        margin-top: 20px;
+      }
+    }
+  }
+}
+
+a.download-btn {
+  background-color: $brand-primary;
+  color: white;
+
+  &:hover {
+    background-color: $brand-dark;
+    color: white;
+  }
+}
+
+footer.footer {
+  padding: 1%;
+  background-color: black;
+
+  p {
+    color: $brand-primary;
+  }
+}
+
+@import "bootstrap-sass/bootstrap";
+@import "font-awesome/font-awesome";
+@import "navbar";
+@import "popover";
+@import "protobuf";
+@import "tocify";
+@import "syntax";
+@import "cli";
+@import "admonition";
+@import "swagger";

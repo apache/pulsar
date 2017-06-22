@@ -1,0 +1,118 @@
+{% assign proto = site.data.protobuf[0] %}
+{% assign messages = proto.file_messages %}
+{% assign enums = proto.file_enums %}
+{% assign atomic_types = "bool,bytes,double,int32,string,uint32,uint64" | split: "," %}
+
+<div class="protobuf">
+  <div class="container">
+    <div class="row">
+      <div class="col col-sm-6 padding-0">
+        <p class="lead protobuf-title">Messages</p>
+        <ul>
+          {% for message in messages %}
+          <li>
+            <a href="#{{ message.message_full_name }}">
+              {{ message.message_name }}
+            </a>
+          </li>
+          {% endfor %} <!-- for message in messages -->
+        </ul>
+      </div>
+      <div class="col col-sm-6 padding-0">
+        <p class="lead protobuf-title">Enums</p>
+        <ul>
+          {% for enum in enums %}
+          <li>
+            <a href="#{{ enum.enum_full_name }}">
+              {{ enum.enum_name }}
+            </a>
+          </li>
+          {% endfor %} <!-- for enum in enums -->
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <h3>Protobuf messages</h3>
+
+  <div class="card messages">
+    {% for message in messages %}{% assign fields = message.message_fields %}
+    <div class="card-block">
+      <div class="card-title">
+        <h5 class="message-name" id="{{ message.message_full_name }}">
+          {{ message.message_name }}
+        </h5>
+        <p class="message-name">{{ message.message_full_name }}</p>
+        {% if message.message_description %}<p class="lead">{{ message.message_description }}</p>{% endif %}
+      </div>
+      {% if message.message_has_fields %}
+      <div class="card">
+        <h5>Fields</h5>
+        <table class="protobuf-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Type</th>
+              <th>Label</th>
+              <th>Default</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for field in fields %}
+            <tr>
+              <td class="wrap">{{ field.field_name }}</td>
+              {% if atomic_types contains field.field_type %}
+              <td class="wrap">{{ field.field_type }}</td>
+              {% else %}
+              <td class="wrap"><a href="#{{ field.field_full_type }}">{{ field.field_type }}</a></td>
+              {% endif %}
+              <td>{{ field.field_label }}</td>
+              <td>{{ field.field_default_value }}</td>
+              <td>{{ field.field_description }}</td>
+            </tr>
+            {% endfor %} <!-- for field in fields -->
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p>This message has no fields.</p>
+      {% endif %} <!-- if fields -->
+    </div>
+    {% endfor %} <!-- for message in messages -->
+  </div>
+
+  <h3>Protobuf enums</h3>
+
+  <div class="card enums">
+    {% for enum in enums %}{% assign values = enum.enum_values %}
+    <div class="card-block">
+      <div class="card-title">
+        <h5 class="enum-name" id="{{ enum.enum_full_name }}">{{ enum.enum_name }}</h5>
+        {% if enum.enum_description %}<p class="lead">{{ enum.enum_description | markdownify }}</p>{% endif %}
+      </div>
+      <div class="card">
+        <h5>Enum values</h5>
+        <table class="protobuf-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Number</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for value in values %}
+            <tr>
+              <td>{{ value.value_name }}</td>
+              <td>{{ value.value_number }}</td>
+              <td>{{ value.value_description | markdownify }}</td>
+            </tr>
+            {% endfor %} <!-- for value in values -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endfor %} <!-- for enum in enums -->
+  </div>
+</div>

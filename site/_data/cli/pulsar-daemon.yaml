@@ -1,0 +1,1 @@
+description: A wrapper around the [`pulsar`](#pulsar) tool to start the process in the background with [nohup](https://en.wikipedia.org/wiki/Nohup). `pulsar-daemon` has the same command interface as `pulsar`.

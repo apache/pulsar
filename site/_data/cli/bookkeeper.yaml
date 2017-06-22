@@ -1,0 +1,54 @@
+description: |
+  A tool for managing BookKeeper.
+commands:
+- name: auto-recovery
+  description: Runs an auto-recovery service daemon
+  options:
+  - flags: -c, --conf
+    description: Configuration for the auto-recovery daemon
+- name: bookie
+  description: Starts up a BookKeeper server (aka bookie)
+  options:
+  - flags: -c, --conf
+    description: Configuration for the bookie server
+  - flags: -readOnly
+    description: Force start a read-only bookie server
+    default: 'false'
+  - flags: -withAutoRecovery
+    description: Start auto-recovery service bookie server
+    default: 'false'
+- name: localbookie
+  description: Runs a test ensemble of N bookies locally
+  argument: N
+- name: upgrade
+  description: Upgrade the bookie's filesystem
+  options:
+  - flags: -c, --conf
+    description: Configuration for the bookie server
+  - flags: -c, --conf
+    description: Finalize the upgrade
+  - flags: -c, --conf
+    description: Roll the upgrade back
+  - flags: -u, --upgrade
+    description: Upgrade the bookie's directories
+- name: shell
+  description: Run shell for admin commands. To see a full listing of those commands, run `bookkeeper shell` without an argument.
+  example: |
+    $ bookkeeper shell bookiesanity
+env_vars:
+- name: BOOKIE_LOG_CONF
+  description: Log4j configuration file
+  default: conf/log4j.properties
+- name: BOOKIE_CONF
+  description: BookKeeper configuration file
+  default: conf/bk_server.conf
+- name: BOOKIE_EXTRA_OPTS
+  description: Extra options to be passed to the JVM
+- name: BOOKIE_EXTRA_CLASSPATH
+  description: Extra paths for BookKeeper's classpath
+- name: ENTRY_FORMATTER_CLASS
+  description: The Java class used to format entries
+- name: BOOKIE_PID_DIR
+  description: Folder where the BookKeeper server PID file should be stored
+- name: BOOKIE_STOP_TIMEOUT
+  description: Wait time before forcefully killing the Bookie server instance if attempts to stop it are not successful

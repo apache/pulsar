@@ -1,0 +1,25 @@
+configs:
+- name: tickTime
+  default: '2000'
+  description: The number of milliseconds of each tick
+- name: initLimit
+  default: '10'
+  description: The number of ticks that the initial synchronization phase can take
+- name: syncLimit
+  default: '5'
+  description: The number of ticks that can pass between sending a request and getting an acknowledgement
+- name: dataDir
+  default: data/global-zookeeper
+  description: the directory where the snapshot is stored.
+- name: clientPort
+  default: '2184'
+  description: the port at which the clients will connect
+- name: maxClientCnxns
+  default: 60
+  description: the maximum number of client connections. increase this if you need to handle more clients
+- name: autopurge.snapRetainCount
+  default: '3'
+  description: The number of snapshots to retain in dataDir. For more info see [here](http://zookeeper.apache.org/doc/current/zookeeperAdmin.html#sc_maintenance).
+- name: autopurge.purgeInterval
+  default: '1'
+  description: Purge task interval in hours. Set to "0" to disable auto purge feature

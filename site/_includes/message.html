@@ -1,0 +1,7 @@
+{% assign message = site.data.messages[include.id] %}
+<div class="admonition">
+  <div class="{{ message.type }}">
+    {% if message.title %}<span class="admonition-title">{{ message.title | markdownify }}</span>{% endif %}
+    {% if message.content %}{{ message.content | markdownify }}{% endif %}
+  </div>
+</div>

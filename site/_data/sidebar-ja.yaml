@@ -1,0 +1,14 @@
+groups:
+- title: Getting started
+  docs:
+  - title: Pulsar入門
+    endpoint: GettingStarted
+  - title: システム概要
+    endpoint: Architecture
+- title: 運用管理
+  docs:
+  - title: クラスタのセットアップ
+    endpoint: ClusterSetup
+  - title: adminツールとAPI
+    endpoint: AdminInterface
+# TODO

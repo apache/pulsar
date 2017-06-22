@@ -1,0 +1,1981 @@
+[
+    {
+        "file_description": "Copyright 2016 Yahoo Inc.\n\nLicensed under the Apache License, Version 2.0 (the \"License\");\nyou may not use this file except in compliance with the License.\nYou may obtain a copy of the License at\n\n    http://www.apache.org/licenses/LICENSE-2.0\n\nUnless required by applicable law or agreed to in writing, software\ndistributed under the License is distributed on an \"AS IS\" BASIS,\nWITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\nSee the License for the specific language governing permissions and\nlimitations under the License.",
+        "file_enums": [
+            {
+                "enum_description": "",
+                "enum_full_name": "pulsar.proto.AuthMethod",
+                "enum_long_name": "AuthMethod",
+                "enum_name": "AuthMethod",
+                "enum_values": [
+                    {
+                        "value_description": "",
+                        "value_name": "AuthMethodNone",
+                        "value_number": 0
+                    },
+                    {
+                        "value_description": "",
+                        "value_name": "AuthMethodYcaV1",
+                        "value_number": 1
+                    },
+                    {
+                        "value_description": "",
+                        "value_name": "AuthMethodAthens",
+                        "value_number": 2
+                    }
+                ]
+            },
+            {
+                "enum_description": "",
+                "enum_full_name": "pulsar.proto.BaseCommand.Type",
+                "enum_long_name": "BaseCommand.Type",
+                "enum_name": "Type",
+                "enum_values": [
+                    {
+                        "value_description": "",
+                        "value_name": "CONNECT",
+                        "value_number": 2
+                    },
+                    {
+                        "value_description": "",
+                        "value_name": "CONNECTED",
+                        "value_number": 3
+                    },
+                    {
+                        "value_description": "",
+                        "value_name": "SUBSCRIBE",
+                        "value_number": 4
+                    },
+                    {
+                        "value_description": "",
+                        "value_name": "PRODUCER",
+                        "value_number": 5
+                    },
+                    {
+                        "value_description": "",
+                        "value_name": "SEND",
+                        "value_number": 6
+                    },
+                    {
+                        "value_description": "",
+                        "value_name": "SEND_RECEIPT",
+                        "value_number": 7
+                    },
+                    {
+                        "value_description": "",
+                        "value_name": "SEND_ERROR",
+                        "value_number": 8
+                    },
+                    {
+                        "value_description": "",
+                        "value_name": "MESSAGE",
+                        "value_number": 9
+                    },
+                    {
+                        "value_description": "",
+                        "value_name": "ACK",
+                        "value_number": 10
+                    },
+                    {
+                        "value_description": "",
+                        "value_name": "FLOW",
+                        "value_number": 11
+                    },
+                    {
+                        "value_description": "",
+                        "value_name": "UNSUBSCRIBE",
+                        "value_number": 12
+                    },
+                    {
+                        "value_description": "",
+                        "value_name": "SUCCESS",
+                        "value_number": 13
+                    },
+                    {
+                        "value_description": "",
+                        "value_name": "ERROR",
+                        "value_number": 14
+                    },
+                    {
+                        "value_description": "",
+                        "value_name": "CLOSE_PRODUCER",
+                        "value_number": 15
+                    },
+                    {
+                        "value_description": "",
+                        "value_name": "CLOSE_CONSUMER",
+                        "value_number": 16
+                    },
+                    {
+                        "value_description": "",
+                        "value_name": "PRODUCER_SUCCESS",
+                        "value_number": 17
+                    },
+                    {
+                        "value_description": "",
+                        "value_name": "PING",
+                        "value_number": 18
+                    },
+                    {
+                        "value_description": "",
+                        "value_name": "PONG",
+                        "value_number": 19
+                    },
+                    {
+                        "value_description": "",
+                        "value_name": "REDELIVER_UNACKNOWLEDGED_MESSAGES",
+                        "value_number": 20
+                    },
+                    {
+                        "value_description": "",
+                        "value_name": "PARTITIONED_METADATA",
+                        "value_number": 21
+                    },
+                    {
+                        "value_description": "",
+                        "value_name": "PARTITIONED_METADATA_RESPONSE",
+                        "value_number": 22
+                    },
+                    {
+                        "value_description": "",
+                        "value_name": "LOOKUP",
+                        "value_number": 23
+                    },
+                    {
+                        "value_description": "",
+                        "value_name": "LOOKUP_RESPONSE",
+                        "value_number": 24
+                    },
+                    {
+                        "value_description": "",
+                        "value_name": "CONSUMER_STATS",
+                        "value_number": 25
+                    },
+                    {
+                        "value_description": "",
+                        "value_name": "CONSUMER_STATS_RESPONSE",
+                        "value_number": 26
+                    }
+                ]
+            },
+            {
+                "enum_description": "",
+                "enum_full_name": "pulsar.proto.CommandAck.AckType",
+                "enum_long_name": "CommandAck.AckType",
+                "enum_name": "AckType",
+                "enum_values": [
+                    {
+                        "value_description": "",
+                        "value_name": "Individual",
+                        "value_number": 0
+                    },
+                    {
+                        "value_description": "",
+                        "value_name": "Cumulative",
+                        "value_number": 1
+                    }
+                ]
+            },
+            {
+                "enum_description": "",
+                "enum_full_name": "pulsar.proto.CommandAck.ValidationError",
+                "enum_long_name": "CommandAck.ValidationError",
+                "enum_name": "ValidationError",
+                "enum_values": [
+                    {
+                        "value_description": "",
+                        "value_name": "UncompressedSizeCorruption",
+                        "value_number": 0
+                    },
+                    {
+                        "value_description": "",
+                        "value_name": "DecompressionError",
+                        "value_number": 1
+                    },
+                    {
+                        "value_description": "",
+                        "value_name": "ChecksumMismatch",
+                        "value_number": 2
+                    },
+                    {
+                        "value_description": "",
+                        "value_name": "BatchDeSerializeError",
+                        "value_number": 3
+                    }
+                ]
+            },
+            {
+                "enum_description": "",
+                "enum_full_name": "pulsar.proto.CommandLookupTopicResponse.LookupType",
+                "enum_long_name": "CommandLookupTopicResponse.LookupType",
+                "enum_name": "LookupType",
+                "enum_values": [
+                    {
+                        "value_description": "",
+                        "value_name": "Redirect",
+                        "value_number": 0
+                    },
+                    {
+                        "value_description": "",
+                        "value_name": "Connect",
+                        "value_number": 1
+                    },
+                    {
+                        "value_description": "",
+                        "value_name": "Failed",
+                        "value_number": 2
+                    }
+                ]
+            },
+            {
+                "enum_description": "",
+                "enum_full_name": "pulsar.proto.CommandPartitionedTopicMetadataResponse.LookupType",
+                "enum_long_name": "CommandPartitionedTopicMetadataResponse.LookupType",
+                "enum_name": "LookupType",
+                "enum_values": [
+                    {
+                        "value_description": "",
+                        "value_name": "Success",
+                        "value_number": 0
+                    },
+                    {
+                        "value_description": "",
+                        "value_name": "Failed",
+                        "value_number": 1
+                    }
+                ]
+            },
+            {
+                "enum_description": "",
+                "enum_full_name": "pulsar.proto.CommandSubscribe.SubType",
+                "enum_long_name": "CommandSubscribe.SubType",
+                "enum_name": "SubType",
+                "enum_values": [
+                    {
+                        "value_description": "",
+                        "value_name": "Exclusive",
+                        "value_number": 0
+                    },
+                    {
+                        "value_description": "",
+                        "value_name": "Shared",
+                        "value_number": 1
+                    },
+                    {
+                        "value_description": "",
+                        "value_name": "Failover",
+                        "value_number": 2
+                    }
+                ]
+            },
+            {
+                "enum_description": "",
+                "enum_full_name": "pulsar.proto.CompressionType",
+                "enum_long_name": "CompressionType",
+                "enum_name": "CompressionType",
+                "enum_values": [
+                    {
+                        "value_description": "",
+                        "value_name": "NONE",
+                        "value_number": 0
+                    },
+                    {
+                        "value_description": "",
+                        "value_name": "LZ4",
+                        "value_number": 1
+                    },
+                    {
+                        "value_description": "",
+                        "value_name": "ZLIB",
+                        "value_number": 2
+                    }
+                ]
+            },
+            {
+                "enum_description": "Each protocol version identify new features that are\n/ incrementally added to the protocol",
+                "enum_full_name": "pulsar.proto.ProtocolVersion",
+                "enum_long_name": "ProtocolVersion",
+                "enum_name": "ProtocolVersion",
+                "enum_values": [
+                    {
+                        "value_description": "Initial versioning",
+                        "value_name": "v0",
+                        "value_number": 0
+                    },
+                    {
+                        "value_description": "Added application keep-alive",
+                        "value_name": "v1",
+                        "value_number": 1
+                    },
+                    {
+                        "value_description": "Added RedeliverUnacknowledgedMessages Command",
+                        "value_name": "v2",
+                        "value_number": 2
+                    },
+                    {
+                        "value_description": "Added compression with LZ4 and ZLib",
+                        "value_name": "v3",
+                        "value_number": 3
+                    },
+                    {
+                        "value_description": "Added batch message support",
+                        "value_name": "v4",
+                        "value_number": 4
+                    },
+                    {
+                        "value_description": "Added disconnect client w/o closing connection",
+                        "value_name": "v5",
+                        "value_number": 5
+                    },
+                    {
+                        "value_description": "Added checksum computation for metadata + payload",
+                        "value_name": "v6",
+                        "value_number": 6
+                    },
+                    {
+                        "value_description": "Added CommandLookupTopic - Binary Lookup",
+                        "value_name": "v7",
+                        "value_number": 7
+                    },
+                    {
+                        "value_description": "Added CommandConsumerStats - Client fetches broker side consumer stats",
+                        "value_name": "v8",
+                        "value_number": 8
+                    }
+                ]
+            },
+            {
+                "enum_description": "",
+                "enum_full_name": "pulsar.proto.ServerError",
+                "enum_long_name": "ServerError",
+                "enum_name": "ServerError",
+                "enum_values": [
+                    {
+                        "value_description": "Error with ZK/metadata",
+                        "value_name": "UnknownError",
+                        "value_number": 0
+                    },
+                    {
+                        "value_description": "Error writing reading from BK",
+                        "value_name": "MetadataError",
+                        "value_number": 1
+                    },
+                    {
+                        "value_description": "",
+                        "value_name": "PersistenceError",
+                        "value_number": 2
+                    },
+                    {
+                        "value_description": "Non valid authentication",
+                        "value_name": "AuthenticationError",
+                        "value_number": 3
+                    },
+                    {
+                        "value_description": "Not authorized to use resource",
+                        "value_name": "AuthorizationError",
+                        "value_number": 4
+                    },
+                    {
+                        "value_description": "Unable to subscribe/unsubscribe because other consumers are connected",
+                        "value_name": "ConsumerBusy",
+                        "value_number": 5
+                    },
+                    {
+                        "value_description": "Any error that requires client retry operation with a fresh lookup",
+                        "value_name": "ServiceNotReady",
+                        "value_number": 6
+                    },
+                    {
+                        "value_description": "Unable to create producer because backlog quota exceeded",
+                        "value_name": "ProducerBlockedQuotaExceededError",
+                        "value_number": 7
+                    },
+                    {
+                        "value_description": "Exception while creating producer because quota exceeded",
+                        "value_name": "ProducerBlockedQuotaExceededException",
+                        "value_number": 8
+                    },
+                    {
+                        "value_description": "Error while verifying message checksum",
+                        "value_name": "ChecksumError",
+                        "value_number": 9
+                    },
+                    {
+                        "value_description": "Error when an older client/version doesn't support a required feature",
+                        "value_name": "UnsupportedVersionError",
+                        "value_number": 10
+                    },
+                    {
+                        "value_description": "Topic not found",
+                        "value_name": "TopicNotFound",
+                        "value_number": 11
+                    },
+                    {
+                        "value_description": "Subscription not found",
+                        "value_name": "SubscriptionNotFound",
+                        "value_number": 12
+                    },
+                    {
+                        "value_description": "Consumer not found",
+                        "value_name": "ConsumerNotFound",
+                        "value_number": 13
+                    },
+                    {
+                        "value_description": "Error with too many simultaneously request",
+                        "value_name": "TooManyRequests",
+                        "value_number": 14
+                    }
+                ]
+            }
+        ],
+        "file_extensions": [
+        ],
+        "file_has_extensions": false,
+        "file_has_services": false,
+        "file_messages": [
+            {
+                "message_description": "",
+                "message_extensions": [
+                ],
+                "message_fields": [
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "pulsar.proto.BaseCommand.Type",
+                        "field_label": "required",
+                        "field_long_type": "BaseCommand.Type",
+                        "field_name": "type",
+                        "field_type": "Type"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "pulsar.proto.CommandConnect",
+                        "field_label": "optional",
+                        "field_long_type": "CommandConnect",
+                        "field_name": "connect",
+                        "field_type": "CommandConnect"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "pulsar.proto.CommandConnected",
+                        "field_label": "optional",
+                        "field_long_type": "CommandConnected",
+                        "field_name": "connected",
+                        "field_type": "CommandConnected"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "pulsar.proto.CommandSubscribe",
+                        "field_label": "optional",
+                        "field_long_type": "CommandSubscribe",
+                        "field_name": "subscribe",
+                        "field_type": "CommandSubscribe"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "pulsar.proto.CommandProducer",
+                        "field_label": "optional",
+                        "field_long_type": "CommandProducer",
+                        "field_name": "producer",
+                        "field_type": "CommandProducer"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "pulsar.proto.CommandSend",
+                        "field_label": "optional",
+                        "field_long_type": "CommandSend",
+                        "field_name": "send",
+                        "field_type": "CommandSend"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "pulsar.proto.CommandSendReceipt",
+                        "field_label": "optional",
+                        "field_long_type": "CommandSendReceipt",
+                        "field_name": "send_receipt",
+                        "field_type": "CommandSendReceipt"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "pulsar.proto.CommandSendError",
+                        "field_label": "optional",
+                        "field_long_type": "CommandSendError",
+                        "field_name": "send_error",
+                        "field_type": "CommandSendError"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "pulsar.proto.CommandMessage",
+                        "field_label": "optional",
+                        "field_long_type": "CommandMessage",
+                        "field_name": "message",
+                        "field_type": "CommandMessage"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "pulsar.proto.CommandAck",
+                        "field_label": "optional",
+                        "field_long_type": "CommandAck",
+                        "field_name": "ack",
+                        "field_type": "CommandAck"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "pulsar.proto.CommandFlow",
+                        "field_label": "optional",
+                        "field_long_type": "CommandFlow",
+                        "field_name": "flow",
+                        "field_type": "CommandFlow"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "pulsar.proto.CommandUnsubscribe",
+                        "field_label": "optional",
+                        "field_long_type": "CommandUnsubscribe",
+                        "field_name": "unsubscribe",
+                        "field_type": "CommandUnsubscribe"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "pulsar.proto.CommandSuccess",
+                        "field_label": "optional",
+                        "field_long_type": "CommandSuccess",
+                        "field_name": "success",
+                        "field_type": "CommandSuccess"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "pulsar.proto.CommandError",
+                        "field_label": "optional",
+                        "field_long_type": "CommandError",
+                        "field_name": "error",
+                        "field_type": "CommandError"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "pulsar.proto.CommandCloseProducer",
+                        "field_label": "optional",
+                        "field_long_type": "CommandCloseProducer",
+                        "field_name": "close_producer",
+                        "field_type": "CommandCloseProducer"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "pulsar.proto.CommandCloseConsumer",
+                        "field_label": "optional",
+                        "field_long_type": "CommandCloseConsumer",
+                        "field_name": "close_consumer",
+                        "field_type": "CommandCloseConsumer"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "pulsar.proto.CommandProducerSuccess",
+                        "field_label": "optional",
+                        "field_long_type": "CommandProducerSuccess",
+                        "field_name": "producer_success",
+                        "field_type": "CommandProducerSuccess"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "pulsar.proto.CommandPing",
+                        "field_label": "optional",
+                        "field_long_type": "CommandPing",
+                        "field_name": "ping",
+                        "field_type": "CommandPing"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "pulsar.proto.CommandPong",
+                        "field_label": "optional",
+                        "field_long_type": "CommandPong",
+                        "field_name": "pong",
+                        "field_type": "CommandPong"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "pulsar.proto.CommandRedeliverUnacknowledgedMessages",
+                        "field_label": "optional",
+                        "field_long_type": "CommandRedeliverUnacknowledgedMessages",
+                        "field_name": "redeliverUnacknowledgedMessages",
+                        "field_type": "CommandRedeliverUnacknowledgedMessages"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "pulsar.proto.CommandPartitionedTopicMetadata",
+                        "field_label": "optional",
+                        "field_long_type": "CommandPartitionedTopicMetadata",
+                        "field_name": "partitionMetadata",
+                        "field_type": "CommandPartitionedTopicMetadata"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "pulsar.proto.CommandPartitionedTopicMetadataResponse",
+                        "field_label": "optional",
+                        "field_long_type": "CommandPartitionedTopicMetadataResponse",
+                        "field_name": "partitionMetadataResponse",
+                        "field_type": "CommandPartitionedTopicMetadataResponse"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "pulsar.proto.CommandLookupTopic",
+                        "field_label": "optional",
+                        "field_long_type": "CommandLookupTopic",
+                        "field_name": "lookupTopic",
+                        "field_type": "CommandLookupTopic"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "pulsar.proto.CommandLookupTopicResponse",
+                        "field_label": "optional",
+                        "field_long_type": "CommandLookupTopicResponse",
+                        "field_name": "lookupTopicResponse",
+                        "field_type": "CommandLookupTopicResponse"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "pulsar.proto.CommandConsumerStats",
+                        "field_label": "optional",
+                        "field_long_type": "CommandConsumerStats",
+                        "field_name": "consumerStats",
+                        "field_type": "CommandConsumerStats"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "pulsar.proto.CommandConsumerStatsResponse",
+                        "field_label": "optional",
+                        "field_long_type": "CommandConsumerStatsResponse",
+                        "field_name": "consumerStatsResponse",
+                        "field_type": "CommandConsumerStatsResponse"
+                    }
+                ],
+                "message_full_name": "pulsar.proto.BaseCommand",
+                "message_has_extensions": false,
+                "message_has_fields": true,
+                "message_long_name": "BaseCommand",
+                "message_name": "BaseCommand"
+            },
+            {
+                "message_description": "",
+                "message_extensions": [
+                ],
+                "message_fields": [
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "uint64",
+                        "field_label": "required",
+                        "field_long_type": "uint64",
+                        "field_name": "consumer_id",
+                        "field_type": "uint64"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "pulsar.proto.CommandAck.AckType",
+                        "field_label": "required",
+                        "field_long_type": "CommandAck.AckType",
+                        "field_name": "ack_type",
+                        "field_type": "AckType"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "pulsar.proto.MessageIdData",
+                        "field_label": "required",
+                        "field_long_type": "MessageIdData",
+                        "field_name": "message_id",
+                        "field_type": "MessageIdData"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "pulsar.proto.CommandAck.ValidationError",
+                        "field_label": "optional",
+                        "field_long_type": "CommandAck.ValidationError",
+                        "field_name": "validation_error",
+                        "field_type": "ValidationError"
+                    }
+                ],
+                "message_full_name": "pulsar.proto.CommandAck",
+                "message_has_extensions": false,
+                "message_has_fields": true,
+                "message_long_name": "CommandAck",
+                "message_name": "CommandAck"
+            },
+            {
+                "message_description": "",
+                "message_extensions": [
+                ],
+                "message_fields": [
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "uint64",
+                        "field_label": "required",
+                        "field_long_type": "uint64",
+                        "field_name": "consumer_id",
+                        "field_type": "uint64"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "uint64",
+                        "field_label": "required",
+                        "field_long_type": "uint64",
+                        "field_name": "request_id",
+                        "field_type": "uint64"
+                    }
+                ],
+                "message_full_name": "pulsar.proto.CommandCloseConsumer",
+                "message_has_extensions": false,
+                "message_has_fields": true,
+                "message_long_name": "CommandCloseConsumer",
+                "message_name": "CommandCloseConsumer"
+            },
+            {
+                "message_description": "",
+                "message_extensions": [
+                ],
+                "message_fields": [
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "uint64",
+                        "field_label": "required",
+                        "field_long_type": "uint64",
+                        "field_name": "producer_id",
+                        "field_type": "uint64"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "uint64",
+                        "field_label": "required",
+                        "field_long_type": "uint64",
+                        "field_name": "request_id",
+                        "field_type": "uint64"
+                    }
+                ],
+                "message_full_name": "pulsar.proto.CommandCloseProducer",
+                "message_has_extensions": false,
+                "message_has_fields": true,
+                "message_long_name": "CommandCloseProducer",
+                "message_name": "CommandCloseProducer"
+            },
+            {
+                "message_description": "",
+                "message_extensions": [
+                ],
+                "message_fields": [
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "string",
+                        "field_label": "required",
+                        "field_long_type": "string",
+                        "field_name": "client_version",
+                        "field_type": "string"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "Deprecated. Use \"auth_method_name\" instead.",
+                        "field_full_type": "pulsar.proto.AuthMethod",
+                        "field_label": "optional",
+                        "field_long_type": "AuthMethod",
+                        "field_name": "auth_method",
+                        "field_type": "AuthMethod"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "string",
+                        "field_label": "optional",
+                        "field_long_type": "string",
+                        "field_name": "auth_method_name",
+                        "field_type": "string"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "bytes",
+                        "field_label": "optional",
+                        "field_long_type": "bytes",
+                        "field_name": "auth_data",
+                        "field_type": "bytes"
+                    },
+                    {
+                        "field_default_value": "0",
+                        "field_description": "",
+                        "field_full_type": "int32",
+                        "field_label": "optional",
+                        "field_long_type": "int32",
+                        "field_name": "protocol_version",
+                        "field_type": "int32"
+                    }
+                ],
+                "message_full_name": "pulsar.proto.CommandConnect",
+                "message_has_extensions": false,
+                "message_has_fields": true,
+                "message_long_name": "CommandConnect",
+                "message_name": "CommandConnect"
+            },
+            {
+                "message_description": "",
+                "message_extensions": [
+                ],
+                "message_fields": [
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "string",
+                        "field_label": "required",
+                        "field_long_type": "string",
+                        "field_name": "server_version",
+                        "field_type": "string"
+                    },
+                    {
+                        "field_default_value": "0",
+                        "field_description": "",
+                        "field_full_type": "int32",
+                        "field_label": "optional",
+                        "field_long_type": "int32",
+                        "field_name": "protocol_version",
+                        "field_type": "int32"
+                    }
+                ],
+                "message_full_name": "pulsar.proto.CommandConnected",
+                "message_has_extensions": false,
+                "message_has_fields": true,
+                "message_long_name": "CommandConnected",
+                "message_name": "CommandConnected"
+            },
+            {
+                "message_description": "",
+                "message_extensions": [
+                ],
+                "message_fields": [
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "uint64",
+                        "field_label": "required",
+                        "field_long_type": "uint64",
+                        "field_name": "request_id",
+                        "field_type": "uint64"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "uint64",
+                        "field_label": "required",
+                        "field_long_type": "uint64",
+                        "field_name": "consumer_id",
+                        "field_type": "uint64"
+                    }
+                ],
+                "message_full_name": "pulsar.proto.CommandConsumerStats",
+                "message_has_extensions": false,
+                "message_has_fields": true,
+                "message_long_name": "CommandConsumerStats",
+                "message_name": "CommandConsumerStats"
+            },
+            {
+                "message_description": "",
+                "message_extensions": [
+                ],
+                "message_fields": [
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "uint64",
+                        "field_label": "required",
+                        "field_long_type": "uint64",
+                        "field_name": "request_id",
+                        "field_type": "uint64"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "pulsar.proto.ServerError",
+                        "field_label": "optional",
+                        "field_long_type": "ServerError",
+                        "field_name": "error_code",
+                        "field_type": "ServerError"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "string",
+                        "field_label": "optional",
+                        "field_long_type": "string",
+                        "field_name": "error_message",
+                        "field_type": "string"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "Total rate of messages delivered to the consumer. msg/s",
+                        "field_full_type": "double",
+                        "field_label": "optional",
+                        "field_long_type": "double",
+                        "field_name": "msgRateOut",
+                        "field_type": "double"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "Total throughput delivered to the consumer. bytes/s",
+                        "field_full_type": "double",
+                        "field_label": "optional",
+                        "field_long_type": "double",
+                        "field_name": "msgThroughputOut",
+                        "field_type": "double"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "Total rate of messages redelivered by this consumer. msg/s",
+                        "field_full_type": "double",
+                        "field_label": "optional",
+                        "field_long_type": "double",
+                        "field_name": "msgRateRedeliver",
+                        "field_type": "double"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "Name of the consumer",
+                        "field_full_type": "string",
+                        "field_label": "optional",
+                        "field_long_type": "string",
+                        "field_name": "consumerName",
+                        "field_type": "string"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "Number of available message permits for the consumer",
+                        "field_full_type": "uint64",
+                        "field_label": "optional",
+                        "field_long_type": "uint64",
+                        "field_name": "availablePermits",
+                        "field_type": "uint64"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "Number of unacknowledged messages for the consumer",
+                        "field_full_type": "uint64",
+                        "field_label": "optional",
+                        "field_long_type": "uint64",
+                        "field_name": "unackedMessages",
+                        "field_type": "uint64"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "Flag to verify if consumer is blocked due to reaching threshold of unacked messages",
+                        "field_full_type": "bool",
+                        "field_label": "optional",
+                        "field_long_type": "bool",
+                        "field_name": "blockedConsumerOnUnackedMsgs",
+                        "field_type": "bool"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "Address of this consumer",
+                        "field_full_type": "string",
+                        "field_label": "optional",
+                        "field_long_type": "string",
+                        "field_name": "address",
+                        "field_type": "string"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "Timestamp of connection",
+                        "field_full_type": "string",
+                        "field_label": "optional",
+                        "field_long_type": "string",
+                        "field_name": "connectedSince",
+                        "field_type": "string"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "Whether this subscription is Exclusive or Shared or Failover",
+                        "field_full_type": "string",
+                        "field_label": "optional",
+                        "field_long_type": "string",
+                        "field_name": "type",
+                        "field_type": "string"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "Total rate of messages expired on this subscription. msg/s",
+                        "field_full_type": "double",
+                        "field_label": "optional",
+                        "field_long_type": "double",
+                        "field_name": "msgRateExpired",
+                        "field_type": "double"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "Number of messages in the subscription backlog",
+                        "field_full_type": "uint64",
+                        "field_label": "optional",
+                        "field_long_type": "uint64",
+                        "field_name": "msgBacklog",
+                        "field_type": "uint64"
+                    }
+                ],
+                "message_full_name": "pulsar.proto.CommandConsumerStatsResponse",
+                "message_has_extensions": false,
+                "message_has_fields": true,
+                "message_long_name": "CommandConsumerStatsResponse",
+                "message_name": "CommandConsumerStatsResponse"
+            },
+            {
+                "message_description": "",
+                "message_extensions": [
+                ],
+                "message_fields": [
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "uint64",
+                        "field_label": "required",
+                        "field_long_type": "uint64",
+                        "field_name": "request_id",
+                        "field_type": "uint64"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "pulsar.proto.ServerError",
+                        "field_label": "required",
+                        "field_long_type": "ServerError",
+                        "field_name": "error",
+                        "field_type": "ServerError"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "string",
+                        "field_label": "required",
+                        "field_long_type": "string",
+                        "field_name": "message",
+                        "field_type": "string"
+                    }
+                ],
+                "message_full_name": "pulsar.proto.CommandError",
+                "message_has_extensions": false,
+                "message_has_fields": true,
+                "message_long_name": "CommandError",
+                "message_name": "CommandError"
+            },
+            {
+                "message_description": "",
+                "message_extensions": [
+                ],
+                "message_fields": [
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "uint64",
+                        "field_label": "required",
+                        "field_long_type": "uint64",
+                        "field_name": "consumer_id",
+                        "field_type": "uint64"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "uint32",
+                        "field_label": "required",
+                        "field_long_type": "uint32",
+                        "field_name": "messagePermits",
+                        "field_type": "uint32"
+                    }
+                ],
+                "message_full_name": "pulsar.proto.CommandFlow",
+                "message_has_extensions": false,
+                "message_has_fields": true,
+                "message_long_name": "CommandFlow",
+                "message_name": "CommandFlow"
+            },
+            {
+                "message_description": "",
+                "message_extensions": [
+                ],
+                "message_fields": [
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "string",
+                        "field_label": "required",
+                        "field_long_type": "string",
+                        "field_name": "topic",
+                        "field_type": "string"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "uint64",
+                        "field_label": "required",
+                        "field_long_type": "uint64",
+                        "field_name": "request_id",
+                        "field_type": "uint64"
+                    },
+                    {
+                        "field_default_value": "false",
+                        "field_description": "",
+                        "field_full_type": "bool",
+                        "field_label": "optional",
+                        "field_long_type": "bool",
+                        "field_name": "authoritative",
+                        "field_type": "bool"
+                    }
+                ],
+                "message_full_name": "pulsar.proto.CommandLookupTopic",
+                "message_has_extensions": false,
+                "message_has_fields": true,
+                "message_long_name": "CommandLookupTopic",
+                "message_name": "CommandLookupTopic"
+            },
+            {
+                "message_description": "",
+                "message_extensions": [
+                ],
+                "message_fields": [
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "string",
+                        "field_label": "optional",
+                        "field_long_type": "string",
+                        "field_name": "brokerServiceUrl",
+                        "field_type": "string"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "string",
+                        "field_label": "optional",
+                        "field_long_type": "string",
+                        "field_name": "brokerServiceUrlTls",
+                        "field_type": "string"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "pulsar.proto.CommandLookupTopicResponse.LookupType",
+                        "field_label": "optional",
+                        "field_long_type": "CommandLookupTopicResponse.LookupType",
+                        "field_name": "response",
+                        "field_type": "LookupType"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "uint64",
+                        "field_label": "required",
+                        "field_long_type": "uint64",
+                        "field_name": "request_id",
+                        "field_type": "uint64"
+                    },
+                    {
+                        "field_default_value": "false",
+                        "field_description": "",
+                        "field_full_type": "bool",
+                        "field_label": "optional",
+                        "field_long_type": "bool",
+                        "field_name": "authoritative",
+                        "field_type": "bool"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "pulsar.proto.ServerError",
+                        "field_label": "optional",
+                        "field_long_type": "ServerError",
+                        "field_name": "error",
+                        "field_type": "ServerError"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "string",
+                        "field_label": "optional",
+                        "field_long_type": "string",
+                        "field_name": "message",
+                        "field_type": "string"
+                    }
+                ],
+                "message_full_name": "pulsar.proto.CommandLookupTopicResponse",
+                "message_has_extensions": false,
+                "message_has_fields": true,
+                "message_long_name": "CommandLookupTopicResponse",
+                "message_name": "CommandLookupTopicResponse"
+            },
+            {
+                "message_description": "",
+                "message_extensions": [
+                ],
+                "message_fields": [
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "uint64",
+                        "field_label": "required",
+                        "field_long_type": "uint64",
+                        "field_name": "consumer_id",
+                        "field_type": "uint64"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "pulsar.proto.MessageIdData",
+                        "field_label": "required",
+                        "field_long_type": "MessageIdData",
+                        "field_name": "message_id",
+                        "field_type": "MessageIdData"
+                    }
+                ],
+                "message_full_name": "pulsar.proto.CommandMessage",
+                "message_has_extensions": false,
+                "message_has_fields": true,
+                "message_long_name": "CommandMessage",
+                "message_name": "CommandMessage"
+            },
+            {
+                "message_description": "",
+                "message_extensions": [
+                ],
+                "message_fields": [
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "string",
+                        "field_label": "required",
+                        "field_long_type": "string",
+                        "field_name": "topic",
+                        "field_type": "string"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "uint64",
+                        "field_label": "required",
+                        "field_long_type": "uint64",
+                        "field_name": "request_id",
+                        "field_type": "uint64"
+                    }
+                ],
+                "message_full_name": "pulsar.proto.CommandPartitionedTopicMetadata",
+                "message_has_extensions": false,
+                "message_has_fields": true,
+                "message_long_name": "CommandPartitionedTopicMetadata",
+                "message_name": "CommandPartitionedTopicMetadata"
+            },
+            {
+                "message_description": "",
+                "message_extensions": [
+                ],
+                "message_fields": [
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "uint32",
+                        "field_label": "optional",
+                        "field_long_type": "uint32",
+                        "field_name": "partitions",
+                        "field_type": "uint32"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "uint64",
+                        "field_label": "required",
+                        "field_long_type": "uint64",
+                        "field_name": "request_id",
+                        "field_type": "uint64"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "pulsar.proto.CommandPartitionedTopicMetadataResponse.LookupType",
+                        "field_label": "optional",
+                        "field_long_type": "CommandPartitionedTopicMetadataResponse.LookupType",
+                        "field_name": "response",
+                        "field_type": "LookupType"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "pulsar.proto.ServerError",
+                        "field_label": "optional",
+                        "field_long_type": "ServerError",
+                        "field_name": "error",
+                        "field_type": "ServerError"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "string",
+                        "field_label": "optional",
+                        "field_long_type": "string",
+                        "field_name": "message",
+                        "field_type": "string"
+                    }
+                ],
+                "message_full_name": "pulsar.proto.CommandPartitionedTopicMetadataResponse",
+                "message_has_extensions": false,
+                "message_has_fields": true,
+                "message_long_name": "CommandPartitionedTopicMetadataResponse",
+                "message_name": "CommandPartitionedTopicMetadataResponse"
+            },
+            {
+                "message_description": "",
+                "message_extensions": [
+                ],
+                "message_fields": [
+                ],
+                "message_full_name": "pulsar.proto.CommandPing",
+                "message_has_extensions": false,
+                "message_has_fields": false,
+                "message_long_name": "CommandPing",
+                "message_name": "CommandPing"
+            },
+            {
+                "message_description": "",
+                "message_extensions": [
+                ],
+                "message_fields": [
+                ],
+                "message_full_name": "pulsar.proto.CommandPong",
+                "message_has_extensions": false,
+                "message_has_fields": false,
+                "message_long_name": "CommandPong",
+                "message_name": "CommandPong"
+            },
+            {
+                "message_description": "Create a new Producer on a topic, assigning the given producer_id, all messages sent with this producer_id will be persisted on the topic.",
+                "message_extensions": [
+                ],
+                "message_fields": [
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "string",
+                        "field_label": "required",
+                        "field_long_type": "string",
+                        "field_name": "topic",
+                        "field_type": "string"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "uint64",
+                        "field_label": "required",
+                        "field_long_type": "uint64",
+                        "field_name": "producer_id",
+                        "field_type": "uint64"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "uint64",
+                        "field_label": "required",
+                        "field_long_type": "uint64",
+                        "field_name": "request_id",
+                        "field_type": "uint64"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "If a producer name is specified, the name will be used; otherwise the broker will generate a unique name",
+                        "field_full_type": "string",
+                        "field_label": "optional",
+                        "field_long_type": "string",
+                        "field_name": "producer_name",
+                        "field_type": "string"
+                    }
+                ],
+                "message_full_name": "pulsar.proto.CommandProducer",
+                "message_has_extensions": false,
+                "message_has_fields": true,
+                "message_long_name": "CommandProducer",
+                "message_name": "CommandProducer"
+            },
+            {
+                "message_description": "Response from CommandProducer",
+                "message_extensions": [
+                ],
+                "message_fields": [
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "uint64",
+                        "field_label": "required",
+                        "field_long_type": "uint64",
+                        "field_name": "request_id",
+                        "field_type": "uint64"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "string",
+                        "field_label": "required",
+                        "field_long_type": "string",
+                        "field_name": "producer_name",
+                        "field_type": "string"
+                    }
+                ],
+                "message_full_name": "pulsar.proto.CommandProducerSuccess",
+                "message_has_extensions": false,
+                "message_has_fields": true,
+                "message_long_name": "CommandProducerSuccess",
+                "message_name": "CommandProducerSuccess"
+            },
+            {
+                "message_description": "",
+                "message_extensions": [
+                ],
+                "message_fields": [
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "uint64",
+                        "field_label": "required",
+                        "field_long_type": "uint64",
+                        "field_name": "consumer_id",
+                        "field_type": "uint64"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "pulsar.proto.MessageIdData",
+                        "field_label": "repeated",
+                        "field_long_type": "MessageIdData",
+                        "field_name": "message_ids",
+                        "field_type": "MessageIdData"
+                    }
+                ],
+                "message_full_name": "pulsar.proto.CommandRedeliverUnacknowledgedMessages",
+                "message_has_extensions": false,
+                "message_has_fields": true,
+                "message_long_name": "CommandRedeliverUnacknowledgedMessages",
+                "message_name": "CommandRedeliverUnacknowledgedMessages"
+            },
+            {
+                "message_description": "",
+                "message_extensions": [
+                ],
+                "message_fields": [
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "uint64",
+                        "field_label": "required",
+                        "field_long_type": "uint64",
+                        "field_name": "producer_id",
+                        "field_type": "uint64"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "uint64",
+                        "field_label": "required",
+                        "field_long_type": "uint64",
+                        "field_name": "sequence_id",
+                        "field_type": "uint64"
+                    },
+                    {
+                        "field_default_value": "1",
+                        "field_description": "",
+                        "field_full_type": "int32",
+                        "field_label": "optional",
+                        "field_long_type": "int32",
+                        "field_name": "num_messages",
+                        "field_type": "int32"
+                    }
+                ],
+                "message_full_name": "pulsar.proto.CommandSend",
+                "message_has_extensions": false,
+                "message_has_fields": true,
+                "message_long_name": "CommandSend",
+                "message_name": "CommandSend"
+            },
+            {
+                "message_description": "",
+                "message_extensions": [
+                ],
+                "message_fields": [
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "uint64",
+                        "field_label": "required",
+                        "field_long_type": "uint64",
+                        "field_name": "producer_id",
+                        "field_type": "uint64"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "uint64",
+                        "field_label": "required",
+                        "field_long_type": "uint64",
+                        "field_name": "sequence_id",
+                        "field_type": "uint64"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "pulsar.proto.ServerError",
+                        "field_label": "required",
+                        "field_long_type": "ServerError",
+                        "field_name": "error",
+                        "field_type": "ServerError"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "string",
+                        "field_label": "required",
+                        "field_long_type": "string",
+                        "field_name": "message",
+                        "field_type": "string"
+                    }
+                ],
+                "message_full_name": "pulsar.proto.CommandSendError",
+                "message_has_extensions": false,
+                "message_has_fields": true,
+                "message_long_name": "CommandSendError",
+                "message_name": "CommandSendError"
+            },
+            {
+                "message_description": "",
+                "message_extensions": [
+                ],
+                "message_fields": [
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "uint64",
+                        "field_label": "required",
+                        "field_long_type": "uint64",
+                        "field_name": "producer_id",
+                        "field_type": "uint64"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "uint64",
+                        "field_label": "required",
+                        "field_long_type": "uint64",
+                        "field_name": "sequence_id",
+                        "field_type": "uint64"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "pulsar.proto.MessageIdData",
+                        "field_label": "optional",
+                        "field_long_type": "MessageIdData",
+                        "field_name": "message_id",
+                        "field_type": "MessageIdData"
+                    }
+                ],
+                "message_full_name": "pulsar.proto.CommandSendReceipt",
+                "message_has_extensions": false,
+                "message_has_fields": true,
+                "message_long_name": "CommandSendReceipt",
+                "message_name": "CommandSendReceipt"
+            },
+            {
+                "message_description": "",
+                "message_extensions": [
+                ],
+                "message_fields": [
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "string",
+                        "field_label": "required",
+                        "field_long_type": "string",
+                        "field_name": "topic",
+                        "field_type": "string"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "string",
+                        "field_label": "required",
+                        "field_long_type": "string",
+                        "field_name": "subscription",
+                        "field_type": "string"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "pulsar.proto.CommandSubscribe.SubType",
+                        "field_label": "required",
+                        "field_long_type": "CommandSubscribe.SubType",
+                        "field_name": "subType",
+                        "field_type": "SubType"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "uint64",
+                        "field_label": "required",
+                        "field_long_type": "uint64",
+                        "field_name": "consumer_id",
+                        "field_type": "uint64"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "uint64",
+                        "field_label": "required",
+                        "field_long_type": "uint64",
+                        "field_name": "request_id",
+                        "field_type": "uint64"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "string",
+                        "field_label": "optional",
+                        "field_long_type": "string",
+                        "field_name": "consumer_name",
+                        "field_type": "string"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "int32",
+                        "field_label": "optional",
+                        "field_long_type": "int32",
+                        "field_name": "priority_level",
+                        "field_type": "int32"
+                    },
+                    {
+                        "field_default_value": "true",
+                        "field_description": "",
+                        "field_full_type": "bool",
+                        "field_label": "optional",
+                        "field_long_type": "bool",
+                        "field_name": "durable",
+                        "field_type": "bool"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "pulsar.proto.MessageIdData",
+                        "field_label": "optional",
+                        "field_long_type": "MessageIdData",
+                        "field_name": "start_message_id",
+                        "field_type": "MessageIdData"
+                    }
+                ],
+                "message_full_name": "pulsar.proto.CommandSubscribe",
+                "message_has_extensions": false,
+                "message_has_fields": true,
+                "message_long_name": "CommandSubscribe",
+                "message_name": "CommandSubscribe"
+            },
+            {
+                "message_description": "",
+                "message_extensions": [
+                ],
+                "message_fields": [
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "uint64",
+                        "field_label": "required",
+                        "field_long_type": "uint64",
+                        "field_name": "request_id",
+                        "field_type": "uint64"
+                    }
+                ],
+                "message_full_name": "pulsar.proto.CommandSuccess",
+                "message_has_extensions": false,
+                "message_has_fields": true,
+                "message_long_name": "CommandSuccess",
+                "message_name": "CommandSuccess"
+            },
+            {
+                "message_description": "",
+                "message_extensions": [
+                ],
+                "message_fields": [
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "uint64",
+                        "field_label": "required",
+                        "field_long_type": "uint64",
+                        "field_name": "consumer_id",
+                        "field_type": "uint64"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "uint64",
+                        "field_label": "required",
+                        "field_long_type": "uint64",
+                        "field_name": "request_id",
+                        "field_type": "uint64"
+                    }
+                ],
+                "message_full_name": "pulsar.proto.CommandUnsubscribe",
+                "message_has_extensions": false,
+                "message_has_fields": true,
+                "message_long_name": "CommandUnsubscribe",
+                "message_name": "CommandUnsubscribe"
+            },
+            {
+                "message_description": "",
+                "message_extensions": [
+                ],
+                "message_fields": [
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "string",
+                        "field_label": "required",
+                        "field_long_type": "string",
+                        "field_name": "key",
+                        "field_type": "string"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "string",
+                        "field_label": "required",
+                        "field_long_type": "string",
+                        "field_name": "value",
+                        "field_type": "string"
+                    }
+                ],
+                "message_full_name": "pulsar.proto.KeyValue",
+                "message_has_extensions": false,
+                "message_has_fields": true,
+                "message_long_name": "KeyValue",
+                "message_name": "KeyValue"
+            },
+            {
+                "message_description": "",
+                "message_extensions": [
+                ],
+                "message_fields": [
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "uint64",
+                        "field_label": "required",
+                        "field_long_type": "uint64",
+                        "field_name": "ledgerId",
+                        "field_type": "uint64"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "uint64",
+                        "field_label": "required",
+                        "field_long_type": "uint64",
+                        "field_name": "entryId",
+                        "field_type": "uint64"
+                    },
+                    {
+                        "field_default_value": "-1",
+                        "field_description": "",
+                        "field_full_type": "int32",
+                        "field_label": "optional",
+                        "field_long_type": "int32",
+                        "field_name": "partition",
+                        "field_type": "int32"
+                    },
+                    {
+                        "field_default_value": "-1",
+                        "field_description": "",
+                        "field_full_type": "int32",
+                        "field_label": "optional",
+                        "field_long_type": "int32",
+                        "field_name": "batch_index",
+                        "field_type": "int32"
+                    }
+                ],
+                "message_full_name": "pulsar.proto.MessageIdData",
+                "message_has_extensions": false,
+                "message_has_fields": true,
+                "message_long_name": "MessageIdData",
+                "message_name": "MessageIdData"
+            },
+            {
+                "message_description": "",
+                "message_extensions": [
+                ],
+                "message_fields": [
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "string",
+                        "field_label": "required",
+                        "field_long_type": "string",
+                        "field_name": "producer_name",
+                        "field_type": "string"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "uint64",
+                        "field_label": "required",
+                        "field_long_type": "uint64",
+                        "field_name": "sequence_id",
+                        "field_type": "uint64"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "uint64",
+                        "field_label": "required",
+                        "field_long_type": "uint64",
+                        "field_name": "publish_time",
+                        "field_type": "uint64"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "pulsar.proto.KeyValue",
+                        "field_label": "repeated",
+                        "field_long_type": "KeyValue",
+                        "field_name": "properties",
+                        "field_type": "KeyValue"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "Property set on replicated message,\n/ includes the source cluster name",
+                        "field_full_type": "string",
+                        "field_label": "optional",
+                        "field_long_type": "string",
+                        "field_name": "replicated_from",
+                        "field_type": "string"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "key to decide partition for the msg",
+                        "field_full_type": "string",
+                        "field_label": "optional",
+                        "field_long_type": "string",
+                        "field_name": "partition_key",
+                        "field_type": "string"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "Override namespace's replication",
+                        "field_full_type": "string",
+                        "field_label": "repeated",
+                        "field_long_type": "string",
+                        "field_name": "replicate_to",
+                        "field_type": "string"
+                    },
+                    {
+                        "field_default_value": "NONE",
+                        "field_description": "",
+                        "field_full_type": "pulsar.proto.CompressionType",
+                        "field_label": "optional",
+                        "field_long_type": "CompressionType",
+                        "field_name": "compression",
+                        "field_type": "CompressionType"
+                    },
+                    {
+                        "field_default_value": "0",
+                        "field_description": "",
+                        "field_full_type": "uint32",
+                        "field_label": "optional",
+                        "field_long_type": "uint32",
+                        "field_name": "uncompressed_size",
+                        "field_type": "uint32"
+                    },
+                    {
+                        "field_default_value": "1",
+                        "field_description": "Removed below checksum field from Metadata as\n/ it should be part of send-command which keeps checksum of header + payload\n/ optional sfixed64 checksum = 10;\n/ differentiate single and batch message metadata",
+                        "field_full_type": "int32",
+                        "field_label": "optional",
+                        "field_long_type": "int32",
+                        "field_name": "num_messages_in_batch",
+                        "field_type": "int32"
+                    }
+                ],
+                "message_full_name": "pulsar.proto.MessageMetadata",
+                "message_has_extensions": false,
+                "message_has_fields": true,
+                "message_long_name": "MessageMetadata",
+                "message_name": "MessageMetadata"
+            },
+            {
+                "message_description": "",
+                "message_extensions": [
+                ],
+                "message_fields": [
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "pulsar.proto.KeyValue",
+                        "field_label": "repeated",
+                        "field_long_type": "KeyValue",
+                        "field_name": "properties",
+                        "field_type": "KeyValue"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "string",
+                        "field_label": "optional",
+                        "field_long_type": "string",
+                        "field_name": "partition_key",
+                        "field_type": "string"
+                    },
+                    {
+                        "field_default_value": "",
+                        "field_description": "",
+                        "field_full_type": "int32",
+                        "field_label": "required",
+                        "field_long_type": "int32",
+                        "field_name": "payload_size",
+                        "field_type": "int32"
+                    }
+                ],
+                "message_full_name": "pulsar.proto.SingleMessageMetadata",
+                "message_has_extensions": false,
+                "message_has_fields": true,
+                "message_long_name": "SingleMessageMetadata",
+                "message_name": "SingleMessageMetadata"
+            }
+        ],
+        "file_name": "PulsarApi.proto",
+        "file_package": "pulsar.proto",
+        "file_services": [
+        ]
+    }
+]

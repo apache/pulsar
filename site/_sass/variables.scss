@@ -1,0 +1,53 @@
+// Dimensions
+$top-margin: 50px;
+$navbar-height: 77px;
+$toc-border-radius: 2px;
+$docs-font-size: 1.25rem;
+
+@import url('https://fonts.googleapis.com/css?family=Inconsolata|Noto+Sans');
+// Fonts
+/* Regular font */
+$font-family-sans-serif: 'Noto Sans', Helvetica, sans-serif;
+
+/* Monospaced font for syntax highlighting */
+$font-family-monospace: 'Inconsolata', monospace;
+
+/* Enable Font Awesome icons */
+$fa-font-path: "../fonts/font-awesome";
+
+// Colors
+$pulsar-blue: #188fff;
+$pulsar-dark-blue: darken($pulsar-blue, 10%);
+$stack-overflow-orange: #f48024;
+$pulsar-magenta: #d33682;
+$pulsar-purple: #9c27b0;
+$black: rgb(35, 41, 55);
+
+$brand-primary: $pulsar-blue;
+$brand-dark: $pulsar-dark-blue;
+$brand-secondary: $pulsar-magenta;
+$brand-success: lighten(#73DA16, 12%);
+$brand-info: lighten($pulsar-blue, 10%);
+$brand-danger: lighten(#EA122F, 15%);
+$brand-warning: lighten(#FDB220, 10%);
+
+// Syntax highlighting
+$sx-border-radius: 5px;
+$sx-border: none;
+$sx-bg-color: rgb(35, 41, 55);
+$sx-light-gray: lighten(#93a1a1, 15%); // light gray
+$sx-dark-gray: lighten(#657b83, 30%); // dark gray
+$sx-olive: #859900; // olive
+$sx-orange: lighten(#b58900, 5%); // orange
+$sx-purple: lighten(#6c71c4, 8%); // purple
+$sx-magenta: $pulsar-magenta; //lighten(#d33682, 5%); // magenta
+$sx-red: lighten(#cb4b16, 10%); // red
+$sx-7: lighten(#268bd2, 5%);
+$sx-comment: darken($sx-dark-gray, 20%);
+$sx-overflow: scroll;
+$code-font-size: 1.25rem;
+
+$javadoc-magenta: $sx-purple;
+
+$root-font-size: 16px;
+$root-indent: 10px;

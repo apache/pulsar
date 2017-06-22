@@ -1,0 +1,183 @@
+description: |
+  A tool for performance testing a Pulsar broker.
+commands:
+- name: consume
+  description: Run a consumer
+  options:
+  - flags:
+    - --auth_params
+    description: Authentication parameters in the form of `key1:val1,key2:val2`
+  - flags:
+    - --auth_plugin
+    description: Authentication plugin class name
+  - flags:
+    - -b
+    - --batch-time-window
+    description: Batch messages in a window of the specified number of milliseconds
+    default: 1
+  - flags:
+    - -z
+    - --compression
+    description: Compress messages' payload. Possible values are `NONE`, `LZ4`, or `ZLIB`.
+  - flags:
+    - --conf-file
+    description: Configuration file
+  - flags:
+    - -c
+    - --max-connections
+    description: Max number of TCP connections to a single broker
+    default: 0
+  - flags:
+    - -o
+    - --max-outstanding
+    description: Max number of outstanding messages
+    default: 1000
+  - flags:
+    - -m
+    - --num-messages
+    description: Number of messages to publish in total. If set to 0, it will keep publishing.
+    default: 0
+  - flags:
+    - -n
+    - --num-producers
+    description: The number of producers (per topic)
+    default: 1
+  - flags:
+    - -t
+    - --num-topic
+    description: The number of topics
+    default: 1
+  - flags:
+    - -f
+    - --payload-file
+    description: Use payload from a file instead of an empty buffer
+  - flags:
+    - -r
+    - --rate
+    description: Publish rate msg/s across topics
+    default: 100
+  - flags:
+    - -u
+    - --service-url
+    description: Pulsar service URL
+  - flags:
+    - -s
+    - --size
+    description: Message size (in bytes)
+    default: 1024
+  - flags:
+    - -i
+    - --stats-interval-seconds
+    description: Statistics interval seconds. If 0, statistics will be disabled.
+    default: 0
+  - flags:
+    - -time
+    - --test-duration
+    description: Test duration in secs. If set to 0, it will keep publishing.
+    default: 0
+- name: produce
+  description: Run a producer
+  options:
+  - flags:
+    - --auth_params
+    description: Authentication parameters in the form of `key1:val1,key2:val2`
+  - flags:
+    - --auth_plugin
+    description: Authentication plugin class name
+  - flags:
+    - -b
+    - --batch-time-window
+    description: Batch messages in a window of the specified number of milliseconds
+    default: 1
+  - flags:
+    - -z
+    - --compression
+    description: Compress messages' payload. Possible values are `NONE`, `LZ4`, or `ZLIB`.
+  - flags:
+    - --conf-file
+    description: Configuration file
+  - flags:
+    - -c
+    - --max-connections
+    description: Max number of TCP connections to a single broker
+    default: 0
+  - flags:
+    - -o
+    - --max-outstanding
+    description: Max number of outstanding messages
+    default: 1000
+  - flags:
+    - -m
+    - --num-messages
+    description: Number of messages to publish in total. If set to 0, it will keep publishing.
+    default: 0
+  - flags:
+    - -n
+    - --num-producers
+    description: The number of producers (per topic)
+    default: 1
+  - flags:
+    - -t
+    - --num-topic
+    description: The number of topics
+    default: 1
+  - flags:
+    - -f
+    - --payload-file
+    description: Use payload from a file instead of an empty buffer
+  - flags:
+    - -r
+    - --rate
+    description: Publish rate msg/s across topics
+    default: 100
+  - flags:
+    - -u
+    - --service-url
+    description: Pulsar service URL
+  - flags:
+    - -s
+    - --size
+    description: Message size (in bytes)
+    default: 1024
+  - flags:
+    - -i
+    - --stats-interval-seconds
+    description: Statistics interval seconds. If 0, statistics will be disabled.
+    default: 0
+  - flags:
+    - -time
+    - --test-duration
+    description: Test duration in secs. If set to 0, it will keep publishing.
+    default: 0
+- name: monitor-brokers
+  description: Continuously receive broker data and/or load reports
+  options:
+  - flags:
+    - --connect-string
+    description: A connection string for one or more brokers
+- name: simulation-client
+  description: Run a simulation server acting as a Pulsar client. Uses the client configuration specified in `conf/client.conf`.
+- name: simulation-controller
+  description: Run a simulation controller to give commands to servers
+  options:
+  - flags:
+    - --client-port
+    description: The port that the clients are listening on
+    default: 0
+  - flags:
+    - --clients
+    description: Comma-separated list of client hostnames
+  - flags:
+    - --cluster
+    description: The cluster to test on
+env_vars:
+- name: PULSAR_LOG_CONF
+  description: Log4j configuration file
+  default: conf/log4j.properties
+- name: PULSAR_CLIENT_CONF
+  description: Configuration file for the client
+  default: conf/client.conf
+- name: PULSAR_EXTRA_OPTS
+  description: Extra options to be passed to the JVM
+- name: PULSAR_EXTRA_CLASSPATH
+  description: Extra paths for Pulsar's classpath

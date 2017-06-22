@@ -1,0 +1,11 @@
+{% for dir in site.data.codebase.directories %}
+<div class="card">
+  <div class="card-block">
+    <h2 class="card-title">{{ dir.name }}</h2>  <a href="{{ site.pulsar_repo }}/{{ dir.name }}"><i class="fa fa-github fa-lg"></i></a>
+    <p>{{ dir.language }}</p>
+    <div class="card-text">
+      {{ dir.description | markdownify }}
+    </div>
+  </div>
+</div>
+{% endfor %}

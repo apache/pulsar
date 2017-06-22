@@ -1,0 +1,69 @@
+ack:
+  q: What is an acknowledgement (ack)?
+  def: TODO
+bookie:
+  q: What is a bookie?
+  def: TODO
+bookkeeper:
+  q: What is BookKeeper?
+  def: TODO
+broker:
+  q: What is a broker?
+  def: "A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface."
+cluster:
+  q: What is a cluster?
+  def: A set of Pulsar brokers and bookkeepers. Clusters can reside in different geographical regions.
+consumer:
+  q: What is a producer?
+  def: A process that writes to a Pulsar topic.
+discovery:
+  q: What is discovery in Pulsar?
+  def: TODO
+dispatcher:
+  q: What is a dispatcher?
+  def: An asynchronous TCP server used for all data transfers in a Pulsar cluster. The Pulsar dispatcher uses a custom binary protocol for all communications.
+geo-replication:
+  q: What is geo-replication?
+  def: TODO
+instance:
+  q: What is an instance?
+  def: A process that listens on a Pulsar topic and processes incoming messages.
+ledger:
+  q: What is a ledger?
+  def: TODO
+message:
+  q: What is a message in Pulsar?
+  def: TODO
+multi-tenancy:
+  q: What is multi-tenancy?
+  def: TODO
+namespace:
+  q: What is a namespace?
+  def: TODO
+producer:
+  q: What is a producer?
+  def: A process that writes to a Pulsar topic.
+property:
+  q: What is a property?
+  def: TODO
+pub-sub:
+  q: What is the publish-subscribe pattern (pub-sub)?
+  def: TODO
+pulsar:
+  q: What is Pulsar?
+  def: Pulsar is a distributed messaging system from Yahoo.
+standalone:
+  q: What is a standalone Pulsar broker?
+  def: A lightweight Pulsar broker in which all components run in a single Java Virtual Machine (JVM) process. Standalone clusters can be run on a single machine and are useful for development purposes.
+subscription:
+  q: What is a subscription?
+  def: TODO
+tenant:
+  q: What is a tenant?
+  def: TODO
+topic:
+  q: What is a topic?
+  def: TODO
+zookeeper:
+  q: What is ZooKeeper?
+  def: ZooKeeper is an external service that Pulsar uses for coordination-related tasks.

@@ -1,0 +1,20 @@
+{% assign config = site.data.config[include.id] %}
+{% assign configs = config.configs %}
+<table class="config">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Default</th>
+      {% unless config.no_descriptions %}<th>Description</th>{% endunless %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for c in configs %}
+    <tr id="{{ include.id }}-{{ c.name }}">
+      <td>{{ c.name }}</td>
+      <td>{{ c.default }}</td>
+      {% unless config.no_descriptions %}<td>{{ c.description | markdownify }}</td>{% endunless %}
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>

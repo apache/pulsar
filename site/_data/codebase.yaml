@@ -1,0 +1,24 @@
+directories:
+- name: pulsar-broker
+  language: Java
+  description: Code related to the Pulsar broker
+  key_files:
+  - path:
+    purpose:
+- name: pulsar-common
+  language: Java, Protocol Buffers
+  description: Common assets
+- name: dashboard
+  language: python
+- name: kubernetes
+  language: YAML
+  description: Stuff for [Kubernetes deployment](../../deployment/Kubernetes)
+- name: managed-ledger
+  language: Java
+- name: pulsar-broker-auth-athenz
+- name: pulsar-client
+- name: pulsar-spark
+- name: pulsar-storm
+- name: pulsar-testclient
+- name: src
+  language: XML

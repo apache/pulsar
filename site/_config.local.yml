@@ -1,0 +1,6 @@
+destination: generated
+livereload: true
+baseurl: ""
+current_version: 1.17.5
+include:
+- docs/example.md

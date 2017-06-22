@@ -1,0 +1,101 @@
+description: |
+  The `pulsar-admin` tool enables you to manage Pulsar installations, including clusters, brokers, namespaces, properties, and more.
+commands:
+- name: broker-stats
+  description: Operations to collect broker statistics
+  subcommands:
+  - name: allocator-stats
+    description: Dump allocator stats
+    argument: allocator-name
+  - name: destinations
+    description: Dump destination stats
+    options:
+    - flags:
+      - -i
+      - --indent
+      description: Indent JSON output
+      default: 'false'
+  - name: mbeans
+    description: Dump Mbean stats
+    options:
+    - flags:
+      - -i
+      - --indent
+      description: Indent JSON output
+      default: 'false'
+  - name: monitoring-metrics
+    description: dump metrics for Monitoring
+    options:
+    - flags:
+      - -i
+      - --indent
+      description: Indent JSON output
+      default: 'false'
+- name: brokers
+  description: Operations about brokers
+  subcommands:
+  - name: list
+    description: List active brokers of the cluster
+    argument: cluster-name
+  - name: namespaces
+    description: List namespaces owned by the broker
+    argument: cluster-name
+    options:
+    - flags: --url
+      description: The URL for the broker
+  - name: update-dynamic-config
+    description: Update dynamic-serviceConfiguration of broker
+    options:
+    - flags: --config
+      description: service-configuration name
+    - flags: --value
+      description: service-configuration value
+  - name: list-dynamic-config
+    description: Get list of updatable configuration name
+  - name: get-all-dynamic-config
+    description: Get all overridden dynamic-configuration values
+- name: clusters
+  description: Operations about clusters
+  subcommands:
+  - name: get
+    description: Get the configuration data for the specified cluster
+    argument: cluster-name
+  - name: create
+    description: Provisions a new cluster. This operation requires Pulsar super-user privileges.
+    argument: cluster-name
+    options:
+    - flags: --broker-url
+      description: The URL for the broker service.
+    - flags: --broker-url-secure
+      description: The broker service URL for a secure connection
+    - flags: --url
+      description: service-url
+    - flags: --url-secure
+      description: service-url for secure connection
+  - name: update
+    description: Update the configuration for a cluster
+    argument: cluster-name
+    options:
+    - flags: --broker-url
+      description: The URL for the broker service.
+    - flags: --broker-url-secure
+      description: The broker service URL for a secure connection
+    - flags: --url
+      description: service-url
+    - flags: --url-secure
+      description: service-url for secure connection
+  - name: delete
+    description: Deletes an existing cluster
+    argument: cluster-name
+  - name: list
+    description: List the existing clusters
+- name: namespaces
+  description: Operations about namespaces
+- name: ns-isolation-policy
+  description: Operations about namespace isolation policy
+- name: persistent
+  description: Operations on persistent topics
+- name: properties
+  description: Operations about properties
+- name: resource-quotas
+  description: Operations about resource quotas

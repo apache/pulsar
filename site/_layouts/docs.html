@@ -1,0 +1,39 @@
+---
+layout: default
+---
+
+<div class="docs-container container-fluid">
+  <div class="row">
+    <nav class="sidebar-nav hidden-sm-down col-md-3 col-lg-3">
+      {% include sidebar.html %}
+    </nav>
+
+    <article class="col-xs-12 col-sm-12 col-md-7 col-lg-7">
+      <section class="docs-header">
+        <h1 class="docs-title">{{ page.title }}</h1>
+        {% if page.lead %}<span class="docs-lead">{{ page.lead }}</span><br />{% endif %}
+        <section class="tags">
+          {% for tag in page.tags %}
+          <!-- <span class="badge badge-pill badge-primary">{{ tag }}</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-{{ tag | replace: " ", "-" | downcase }}">{{ tag }}</button>
+          {% include tags-modal.html %}
+          {% endfor %}
+        </section>
+
+        <hr class="hr">
+      </section>
+
+      <section class="content">
+        {{ content }}
+      </section>
+    </article>
+
+    <nav class="toc-bar hidden-sm-down col-md-2 col-lg-2">
+      {% unless page.toc_disable %}
+      <div id="toc">
+        <h4>{{ page.title }}</h4>
+      </div>
+      {% endunless %}
+    </nav>
+  </div>
+</div>

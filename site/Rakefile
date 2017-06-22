@@ -1,0 +1,46 @@
+require 'java-properties'
+require 'yaml'
+
+YAML_DIR = '_data/config'
+
+FileUtils.mkdir_p(YAML_DIR)
+
+CONF_FILES = [
+  'bookkeeper.conf',
+  'broker.conf',
+  'client.conf',
+  'discovery.conf',
+  'global_zookeeper.conf',
+  'log4j.properties',
+  'log4j.shell.properties',
+  'standalone.conf',
+  'websocket.conf',
+  'zookeeper.conf'
+]
+
+task :config do
+  CONF_FILES.each do |f|
+    filename = "../conf/#{f}"
+
+    f.slice!(".conf")
+    f.slice!(".properties")
+    f.sub!('.', '_')
+
+    properties = JavaProperties.load(filename)
+
+    configs = Array.new
+
+    properties.each do |prop|
+      c = Hash.new
+      c['name'] = prop[0]
+      c['value'] = prop[1]
+      configs.push(c)
+    end
+
+    h = { "configs" => configs }
+    yaml_file = "#{YAML_DIR}/#{f}.yaml.bak"
+    puts yaml_file
+    y = h.to_yaml
+    File.open(yaml_file, 'w') { |file| file.write(y) }
+  end
+end

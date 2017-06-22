@@ -1,0 +1,6 @@
+<div class="admonition">
+  <div class="{{ include.type }}">
+    {% if include.title %}<span class="admonition-title">{{ include.title | markdownify }}</span>{% endif %}
+    {% if include.content %}{{ include.content | markdownify }}{% endif %}
+  </div>
+</div>

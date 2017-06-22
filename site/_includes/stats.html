@@ -1,0 +1,17 @@
+{% assign stats = site.data.stats[include.id] %}
+<table class="stats">
+  <thead>
+    <tr>
+      <th>Stat</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for stat in stats %}
+    <tr>
+      <td>{{ stat[0] }}</td>
+      <td>{{ stat[1] | markdownify }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
