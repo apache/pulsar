@@ -36,6 +36,7 @@ import org.slf4j.LoggerFactory;
 import com.carrotsearch.hppc.ObjectHashSet;
 import com.carrotsearch.hppc.ObjectSet;
 import com.google.common.collect.ComparisonChain;
+import com.google.common.collect.Lists;
 import com.yahoo.pulsar.broker.service.BrokerServiceException;
 import com.yahoo.pulsar.broker.service.Consumer;
 import com.yahoo.pulsar.broker.service.Dispatcher;
@@ -43,7 +44,6 @@ import com.yahoo.pulsar.client.impl.Backoff;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import com.yahoo.pulsar.common.util.Codec;
 import com.yahoo.pulsar.common.util.collections.ConcurrentLongPairSet;
-import com.yahoo.pulsar.common.util.collections.ConcurrentLongPairSet.LongPair;
 import com.yahoo.pulsar.utils.CopyOnWriteArrayList;
 
 /**
@@ -171,7 +171,7 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
         readMoreEntries();
     }
 
-    private void readMoreEntries() {
+    public void readMoreEntries() {
         if (totalAvailablePermits > 0 && isAtleastOneConsumerAvailable()) {
             int messagesToRead = Math.min(totalAvailablePermits, readBatchSize);
 
@@ -570,7 +570,7 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
             messagesToReplay.add(ledgerId, entryId);
         });
         if (log.isDebugEnabled()) {
-            log.debug("[{}] Redelivering unacknowledged messages for consumer ", consumer);
+            log.debug("[{}] Redelivering unacknowledged messages for consumer {}", consumer, messagesToReplay);
         }
         readMoreEntries();
     }
@@ -579,7 +579,7 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
     public synchronized void redeliverUnacknowledgedMessages(Consumer consumer, List<PositionImpl> positions) {
         positions.forEach(position -> messagesToReplay.add(position.getLedgerId(), position.getEntryId()));
         if (log.isDebugEnabled()) {
-            log.debug("[{}] Redelivering unacknowledged messages for consumer ", consumer);
+            log.debug("[{}] Redelivering unacknowledged messages for consumer {}", consumer, positions);
         }
         readMoreEntries();
     }
@@ -587,30 +587,56 @@ public class PersistentDispatcherMultipleConsumers implements Dispatcher, ReadEn
     @Override
     public void addUnAckedMessages(int numberOfMessages) {
         // don't block dispatching if maxUnackedMessages = 0
-        if(maxUnackedMessages <= 0) {
+        if (maxUnackedMessages <= 0) {
             return;
         }
         int unAckedMessages = TOTAL_UNACKED_MESSAGES_UPDATER.addAndGet(this, numberOfMessages);
         if (unAckedMessages >= maxUnackedMessages
                 && BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.compareAndSet(this, FALSE, TRUE)) {
+            // block dispatcher if it reaches maxUnAckMsg limit
             log.info("[{}] Dispatcher is blocked due to unackMessages {} reached to max {}", name,
                     TOTAL_UNACKED_MESSAGES_UPDATER.get(this), maxUnackedMessages);
+        } else if (topic.getBrokerService().isBrokerDispatchingBlocked()
+                && BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.get(this) == TRUE) {
+            // unblock dispatcher: if dispatcher is blocked due to broker-unackMsg limit and if it ack back enough
+            // messages
+            if (TOTAL_UNACKED_MESSAGES_UPDATER.get(this) < (topic.getBrokerService().maxUnackedMsgsPerDispatcher / 2)) {
+                if (BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.compareAndSet(this, TRUE, FALSE)) {
+                    // it removes dispatcher from blocked list and unblocks dispatcher by scheduling read
+                    topic.getBrokerService().unblockDispatchersOnUnAckMessages(Lists.newArrayList(this));
+                }
+            }
         } else if (BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.get(this) == TRUE
                 && unAckedMessages < maxUnackedMessages / 2) {
+            // unblock dispatcher if it acks back enough messages
             if (BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.compareAndSet(this, TRUE, FALSE)) {
                 log.info("[{}] Dispatcher is unblocked", name);
                 topic.getBrokerService().executor().submit(() -> readMoreEntries());
             }
         }
+        // increment broker-level count
+        topic.getBrokerService().addUnAckedMessages(this, numberOfMessages);
     }
 
     public boolean isBlockedDispatcherOnUnackedMsgs() {
         return BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.get(this) == TRUE;
+    }
+    
+    public void blockDispatcherOnUnackedMsgs() {
+        BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.set(this, TRUE);
+    }
+    
+    public void unBlockDispatcherOnUnackedMsgs() {
+        BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.set(this, FALSE);
     }
 
     public int getTotalUnackedMessages() {
         return TOTAL_UNACKED_MESSAGES_UPDATER.get(this);
     }
 
+    public String getName() {
+        return name;
+    }
+    
     private static final Logger log = LoggerFactory.getLogger(PersistentDispatcherMultipleConsumers.class);
 }

@@ -58,7 +58,6 @@ public class PulsarClientImpl implements PulsarClient {
     private static final Logger log = LoggerFactory.getLogger(PulsarClientImpl.class);
 
     private final ClientConfiguration conf;
-    private HttpClient httpClient;
     private final LookupService lookup;
     private final ConnectionPool cnxPool;
     private final Timer timer;
@@ -92,9 +91,7 @@ public class PulsarClientImpl implements PulsarClient {
         conf.getAuthentication().start();
         cnxPool = new ConnectionPool(this, eventLoopGroup);
         if (serviceUrl.startsWith("http")) {
-            httpClient = new HttpClient(serviceUrl, conf.getAuthentication(), eventLoopGroup,
-                    conf.isTlsAllowInsecureConnection(), conf.getTlsTrustCertsFilePath());
-            lookup = new HttpLookupService(httpClient, conf.isUseTls());
+            lookup = new HttpLookupService(serviceUrl, conf, eventLoopGroup);
         } else {
             lookup = new BinaryProtoLookupService(this, serviceUrl, conf.isUseTls());
         }
@@ -405,9 +402,7 @@ public class PulsarClientImpl implements PulsarClient {
     @Override
     public void shutdown() throws PulsarClientException {
         try {
-            if (httpClient != null) {
-                httpClient.close();
-            }
+            lookup.close();
             cnxPool.close();
             timer.stop();
             externalExecutorProvider.shutdownNow();

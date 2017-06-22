@@ -146,9 +146,6 @@ std::ostream& operator<<(std::ostream& s, const Message& msg) {
       << msg.impl_->metadata.sequence_id() << ", publish_time="
       << msg.impl_->metadata.publish_time() << ", payload_size=" << msg.getLength() << ", msg_id="
       << msg.getMessageId() << ", props=" << msg.getProperties() << ')';
-    if (! msg.impl_->metadata.has_producer_name()) {
-        s << "WARN: Message has no producer name set, this should only happen if batch messaging is enabled";
-    }
     return s;
 }
 

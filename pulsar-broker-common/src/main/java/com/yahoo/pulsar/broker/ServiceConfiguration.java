@@ -94,6 +94,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // unack count reaches to limit/2. Using a value of 0, is disabling unackedMessage-limit
     // check and dispatcher can dispatch messages without any restriction
     private int maxUnackedMessagesPerSubscription = 4 * 50000;
+    // Max number of unacknowledged messages allowed per broker. Once this limit reaches, broker will stop dispatching
+    // messages to all shared subscription which has higher number of unack messages until subscriptions start
+    // acknowledging messages back and unack count reaches to limit/2. Using a value of 0, is disabling
+    // unackedMessage-limit check and broker doesn't block dispatchers
+    private int maxUnackedMessagesPerBroker = 0;
+    // Once broker reaches maxUnackedMessagesPerBroker limit, it blocks subscriptions which has higher unacked messages
+    // than this percentage limit and subscription will not receive any new messages until that subscription acks back
+    // limit/2 messages 
+    private double maxUnackedMessagesPerSubscriptionOnBrokerBlocked = 0.16;
     // Max number of concurrent lookup request broker allows to throttle heavy incoming lookup traffic
     @FieldContext(dynamic = true)
     private int maxConcurrentLookupRequest = 10000;
@@ -270,6 +279,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // use only brokers running the latest software version (to minimize impact to bundles)
     @FieldContext(dynamic = true)
     private boolean preferLaterVersions = false;
+
+    /**** --- WebSocket --- ****/
+    // Number of IO threads in Pulsar Client used in WebSocket proxy
+    private int webSocketNumIoThreads = Runtime.getRuntime().availableProcessors();
+    // Number of connections per Broker in Pulsar Client used in WebSocket proxy
+    private int webSocketConnectionsPerBroker = Runtime.getRuntime().availableProcessors();
 
     public String getZookeeperServers() {
         return zookeeperServers;
@@ -450,6 +465,23 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public void setMaxUnackedMessagesPerSubscription(int maxUnackedMessagesPerSubscription) {
         this.maxUnackedMessagesPerSubscription = maxUnackedMessagesPerSubscription;
+    }
+
+    public int getMaxUnackedMessagesPerBroker() {
+        return maxUnackedMessagesPerBroker;
+    }
+
+    public void setMaxUnackedMessagesPerBroker(int maxUnackedMessagesPerBroker) {
+        this.maxUnackedMessagesPerBroker = maxUnackedMessagesPerBroker;
+    }
+
+    public double getMaxUnackedMessagesPerSubscriptionOnBrokerBlocked() {
+        return maxUnackedMessagesPerSubscriptionOnBrokerBlocked;
+    }
+
+    public void setMaxUnackedMessagesPerSubscriptionOnBrokerBlocked(
+            double maxUnackedMessagesPerSubscriptionOnBrokerBlocked) {
+        this.maxUnackedMessagesPerSubscriptionOnBrokerBlocked = maxUnackedMessagesPerSubscriptionOnBrokerBlocked;
     }
 
     public int getMaxConcurrentLookupRequest() {
@@ -993,4 +1025,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     public void setPreferLaterVersions(boolean preferLaterVersions) {
         this.preferLaterVersions = preferLaterVersions;
     }
+
+    public int getWebSocketNumIoThreads() { return webSocketNumIoThreads; }
+
+    public void setWebSocketNumIoThreads(int webSocketNumIoThreads) { this.webSocketNumIoThreads = webSocketNumIoThreads; }
+
+    public int getWebSocketConnectionsPerBroker() { return webSocketConnectionsPerBroker; }
+
+    public void setWebSocketConnectionsPerBroker(int webSocketConnectionsPerBroker) { this.webSocketConnectionsPerBroker = webSocketConnectionsPerBroker; }
 }

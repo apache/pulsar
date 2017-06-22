@@ -24,7 +24,7 @@
   <groupId>com.yahoo.pulsar</groupId>
   <artifactId>pulsar</artifactId>
 
-  <version>1.18-SNAPSHOT</version>
+  <version>1.19-SNAPSHOT</version>
 
   <name>Pulsar</name>
   <description>Pulsar is a distributed pub-sub messaging platform with a very
@@ -97,7 +97,7 @@ flexible messaging model and an intuitive client API.</description>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
-    <bookkeeper.version>4.3.1.60-yahoo</bookkeeper.version>
+    <bookkeeper.version>4.3.1.69-yahoo</bookkeeper.version>
     <zookeeper.version>3.4.10</zookeeper.version>
     <netty.version>4.0.46.Final</netty.version>
     <storm.version>0.9.5</storm.version>
@@ -194,6 +194,12 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>org.apache.bookkeeper.stats</groupId>
         <artifactId>datasketches-metrics-provider</artifactId>
+        <version>${bookkeeper.version}</version>
+      </dependency>
+      
+      <dependency>
+        <groupId>org.apache.bookkeeper.stats</groupId>
+        <artifactId>prometheus-metrics-provider</artifactId>
         <version>${bookkeeper.version}</version>
       </dependency>
 
@@ -678,6 +684,13 @@ flexible messaging model and an intuitive client API.</description>
         </plugin>
       </plugins>
     </pluginManagement>
+    <extensions>
+      <extension>
+        <groupId>org.apache.maven.wagon</groupId>
+        <artifactId>wagon-ssh-external</artifactId>
+        <version>2.10</version>
+      </extension>
+    </extensions>
   </build>
 
   <profiles>

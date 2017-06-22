@@ -60,6 +60,8 @@ import com.yahoo.pulsar.zookeeper.ZooKeeperCacheListener;
 import com.yahoo.pulsar.zookeeper.ZooKeeperChildrenCache;
 import com.yahoo.pulsar.zookeeper.ZooKeeperDataCache;
 
+import io.netty.util.concurrent.DefaultThreadFactory;
+
 public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCacheListener<LocalBrokerData> {
     private static final Logger log = LoggerFactory.getLogger(ModularLoadManagerImpl.class);
 
@@ -163,13 +165,13 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
         loadSheddingPipeline = new ArrayList<>();
         loadSheddingPipeline.add(new OverloadShedder(conf));
         preallocatedBundleToBroker = new ConcurrentHashMap<>();
-        scheduler = Executors.newScheduledThreadPool(1);
+        scheduler = Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-modular-load-manager"));
     }
 
     /**
      * Initialize this load manager using the given PulsarService. Should be called only once, after invoking the
      * default constructor.
-     * 
+     *
      * @param pulsar
      *            The service to initialize with.
      */
@@ -182,6 +184,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
                 if (log.isDebugEnabled()) {
                     log.debug("Update Received for path {}", path);
                 }
+                reapDeadBrokerPreallocations(data);
                 scheduler.submit(ModularLoadManagerImpl.this::updateAll);
             }
         });
@@ -223,7 +226,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
 
     /**
      * Initialize this load manager.
-     * 
+     *
      * @param pulsar
      *            Client to construct this manager from.
      */
@@ -240,6 +243,30 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
                         CreateMode.PERSISTENT);
             } catch (KeeperException.NodeExistsException e) {
                 // Ignore if already exists.
+            }
+        }
+    }
+
+    // For each broker that we have a recent load report, see if they are still alive
+    private void reapDeadBrokerPreallocations(Set<String> aliveBrokers) {
+        for ( String broker : loadData.getBrokerData().keySet() ) {
+            if ( !aliveBrokers.contains(broker)) {
+                if ( log.isDebugEnabled() ) {
+                    log.debug("Broker {} appears to have stopped; now reclaiming any preallocations", broker);
+                }
+                final Iterator<Map.Entry<String, String>> iterator = preallocatedBundleToBroker.entrySet().iterator();
+                while ( iterator.hasNext() ) {
+                    Map.Entry<String, String> entry = iterator.next();
+                    final String preallocatedBundle = entry.getKey();
+                    final String preallocatedBroker = entry.getValue();
+                    if ( broker.equals(preallocatedBroker) ) {
+                        if ( log.isDebugEnabled() ) {
+                            log.debug("Removing old preallocation on dead broker {} for bundle {}",
+                                    preallocatedBroker, preallocatedBundle);
+                        }
+                        iterator.remove();
+                    }
+                }
             }
         }
     }
@@ -414,15 +441,24 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
 
             // Remove all loaded bundles from the preallocated maps.
             final Map<String, BundleData> preallocatedBundleData = brokerData.getPreallocatedBundleData();
-            // Should not iterate with more than one thread at a time.
             synchronized (preallocatedBundleData) {
-                final Iterator<Map.Entry<String, BundleData>> preallocatedIterator = preallocatedBundleData.entrySet()
-                        .iterator();
-                while (preallocatedIterator.hasNext()) {
-                    final String bundle = preallocatedIterator.next().getKey();
-                    if (bundleData.containsKey(bundle)) {
-                        preallocatedIterator.remove();
-                        preallocatedBundleToBroker.remove(bundle);
+                for (String preallocatedBundleName : brokerData.getPreallocatedBundleData().keySet()) {
+                    if (brokerData.getLocalData().getBundles().contains(preallocatedBundleName)) {
+                        final Iterator<Map.Entry<String, BundleData>> preallocatedIterator = preallocatedBundleData.entrySet()
+                                .iterator();
+                        while (preallocatedIterator.hasNext()) {
+                            final String bundle = preallocatedIterator.next().getKey();
+
+                            if (bundleData.containsKey(bundle)) {
+                                preallocatedIterator.remove();
+                                preallocatedBundleToBroker.remove(bundle);
+                            }
+                        }
+                    }
+
+                    // This is needed too in case a broker which was assigned a bundle dies and comes back up.
+                    if ( preallocatedBundleToBroker.containsKey(preallocatedBundleName) ) {
+                        preallocatedBundleToBroker.remove(preallocatedBundleName);
                     }
                 }
             }
@@ -441,7 +477,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
 
     /**
      * As any broker, disable the broker this manager is running on.
-     * 
+     *
      * @throws PulsarServerException
      *             If ZooKeeper failed to disable the broker.
      */
@@ -514,7 +550,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
 
     /**
      * As the leader broker, find a suitable broker for the assignment of the given bundle.
-     * 
+     *
      * @param serviceUnit
      *            ServiceUnitId for the bundle.
      * @return The name of the selected broker, as it appears on ZooKeeper.
@@ -576,7 +612,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
 
     /**
      * As any broker, start the load manager.
-     * 
+     *
      * @throws PulsarServerException
      *             If an unexpected error prevented the load manager from being started.
      */
@@ -613,15 +649,20 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
 
     /**
      * As any broker, stop the load manager.
-     * 
+     *
      * @throws PulsarServerException
      *             If an unexpected error occurred when attempting to stop the load manager.
      */
     @Override
     public void stop() throws PulsarServerException {
-        availableActiveBrokers.close();
-        brokerDataCache.close();
-        brokerDataCache.clear();
+        if (availableActiveBrokers != null) {
+            availableActiveBrokers.close();
+        }
+
+        if (brokerDataCache != null) {
+            brokerDataCache.close();
+            brokerDataCache.clear();
+        }
         scheduler.shutdown();
     }
 

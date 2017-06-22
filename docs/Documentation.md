@@ -14,6 +14,7 @@
   - [WebSocket API](WebSocket.md)
   - [Apache Storm adaptor](PulsarStorm.md)
   - [Spark Streaming Pulsar Receiver](PulsarSpark.md)
+  - [Python client library](Python.md)
   - [Modular Load Manager](ModularLoadManager.md)
   - [Simulation Tools](Simulation.md)
 * Internal Docs
