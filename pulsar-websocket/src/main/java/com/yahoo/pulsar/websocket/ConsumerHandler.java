@@ -87,9 +87,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
     }
 
     @Override
-    public void onWebSocketConnect(Session session) {
-        super.onWebSocketConnect(session);
-
+    protected void createClient(Session session) {
         try {
             this.consumer = service.getPulsarClient().subscribe(topic, subscription, conf);
             this.service.addConsumer(this);
@@ -137,7 +135,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
                             @Override
                             public void writeSuccess() {
                                 if (log.isDebugEnabled()) {
-                                    log.info("[{}/{}] message is delivered successfully to {} ", consumer.getTopic(),
+                                    log.debug("[{}/{}] message is delivered successfully to {} ", consumer.getTopic(),
                                             subscription, getRemote().getInetSocketAddress().toString());
                                 }
                                 updateDeliverMsgStat(msgSize);
@@ -186,7 +184,14 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
     public void close() throws IOException {
         if (consumer != null) {
             this.service.removeConsumer(this);
-            consumer.close();
+            consumer.closeAsync().thenAccept(x -> {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Closed consumer asynchronously", consumer.getTopic());
+                }
+            }).exceptionally(exception -> {
+                log.warn("[{}] Failed to close consumer", consumer.getTopic(), exception);
+                return null;
+            });
         }
     }
 
@@ -247,8 +252,8 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
     }
 
     @Override
-    protected CompletableFuture<Boolean> isAuthorized(String authRole) {
-        return service.getAuthorizationManager().canConsumeAsync(DestinationName.get(topic), authRole);
+    protected Boolean isAuthorized(String authRole) throws Exception {
+        return service.getAuthorizationManager().canConsume(DestinationName.get(topic), authRole);
     }
 
     private static String extractSubscription(HttpServletRequest request) {

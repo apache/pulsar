@@ -54,4 +54,9 @@ public interface Reader extends Closeable {
      * @return a future that can be used to track the completion of the operation
      */
     CompletableFuture<Void> closeAsync();
+
+    /**
+     * Return true if the topic was terminated and this reader has reached the end of the topic
+     */
+    boolean hasReachedEndOfTopic();
 }

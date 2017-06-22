@@ -27,6 +27,7 @@ import com.yahoo.pulsar.client.api.Consumer;
 import com.yahoo.pulsar.client.api.ConsumerConfiguration;
 import com.yahoo.pulsar.client.api.Message;
 import com.yahoo.pulsar.client.api.MessageId;
+import com.yahoo.pulsar.client.api.MessageListener;
 import com.yahoo.pulsar.client.api.PulsarClientException;
 import com.yahoo.pulsar.client.api.Reader;
 import com.yahoo.pulsar.client.api.ReaderConfiguration;
@@ -53,9 +54,19 @@ public class ReaderImpl implements Reader {
 
         if (readerConfiguration.getReaderListener() != null) {
             ReaderListener readerListener = readerConfiguration.getReaderListener();
-            consumerConfiguration.setMessageListener((consumer, msg) -> {
-                readerListener.received(this, msg);
-                consumer.acknowledgeCumulativeAsync(msg);
+            consumerConfiguration.setMessageListener(new MessageListener() {
+                private static final long serialVersionUID = 1L;
+
+                @Override
+                public void received(Consumer consumer, Message msg) {
+                    readerListener.received(ReaderImpl.this, msg);
+                    consumer.acknowledgeCumulativeAsync(msg);
+                }
+
+                @Override
+                public void reachedEndOfTopic(Consumer consumer) {
+                    readerListener.reachedEndOfTopic(ReaderImpl.this);
+                }
             });
         }
 
@@ -73,6 +84,11 @@ public class ReaderImpl implements Reader {
     }
 
     @Override
+    public boolean hasReachedEndOfTopic() {
+        return consumer.hasReachedEndOfTopic();
+    }
+
+    @Override
     public Message readNext() throws PulsarClientException {
         Message msg = consumer.receive();
 
@@ -84,7 +100,7 @@ public class ReaderImpl implements Reader {
 
     @Override
     public Message readNext(int timeout, TimeUnit unit) throws PulsarClientException {
-        Message msg  = consumer.receive(timeout, unit);
+        Message msg = consumer.receive(timeout, unit);
 
         if (msg != null) {
             consumer.acknowledgeCumulativeAsync(msg);
@@ -95,8 +111,8 @@ public class ReaderImpl implements Reader {
     @Override
     public CompletableFuture<Message> readNextAsync() {
         return consumer.receiveAsync().thenApply(msg -> {
-           consumer.acknowledgeCumulativeAsync(msg);
-           return msg;
+            consumer.acknowledgeCumulativeAsync(msg);
+            return msg;
         });
     }
 

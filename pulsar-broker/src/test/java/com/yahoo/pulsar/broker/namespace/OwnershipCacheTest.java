@@ -201,6 +201,9 @@ public class OwnershipCacheTest {
         } catch (NullPointerException npe) {
             // OK for not owned namespace
         }
+
+        Thread.sleep(500);
+
         // try to acquire, which will load the read-only cache
         NamespaceEphemeralData data1 = cache.tryAcquiringOwnership(testBundle).get();
         assertEquals(data1.getNativeUrl(), "pulsar://otherhost:8881");
@@ -238,6 +241,9 @@ public class OwnershipCacheTest {
                 new NamespaceEphemeralData("pulsar://otherhost:8881", "pulsar://otherhost:8884",
                         "http://otherhost:8080", "https://otherhost:4443", false));
         assertTrue(cache.getOwnedBundles().isEmpty());
+
+        Thread.sleep(500);
+
         // try to acquire, which will load the read-only cache
         NamespaceEphemeralData data1 = cache.tryAcquiringOwnership(testBundle).get();
         assertEquals(data1.getNativeUrl(), "pulsar://otherhost:8881");

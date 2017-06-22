@@ -24,7 +24,7 @@ import com.yahoo.pulsar.websocket.service.WebSocketProxyConfiguration;
 import com.yahoo.pulsar.client.impl.PulsarClientImpl;
 
 public class LookupProtocolTest {
-    @Test
+    @Test(timeOut = 10000)
     public void httpLookupTest() throws Exception{
         WebSocketProxyConfiguration conf = new WebSocketProxyConfiguration();
         conf.setServiceUrl("http://localhost:8080");
@@ -38,7 +38,7 @@ public class LookupProtocolTest {
         service.close();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void httpsLookupTest() throws Exception{
         WebSocketProxyConfiguration conf = new WebSocketProxyConfiguration();
         conf.setServiceUrl("http://localhost:8080");
@@ -54,7 +54,7 @@ public class LookupProtocolTest {
         service.close();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void binaryLookupTest() throws Exception{
         WebSocketProxyConfiguration conf = new WebSocketProxyConfiguration();
         conf.setServiceUrl("http://localhost:8080");
@@ -70,7 +70,7 @@ public class LookupProtocolTest {
         service.close();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void binaryTlsLookupTest() throws Exception{
         WebSocketProxyConfiguration conf = new WebSocketProxyConfiguration();
         conf.setServiceUrl("http://localhost:8080");

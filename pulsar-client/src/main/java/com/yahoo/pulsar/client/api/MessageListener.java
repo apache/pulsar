@@ -25,17 +25,27 @@ import java.io.Serializable;
 public interface MessageListener extends Serializable {
     /**
      * This method is called whenever a new message is received.
-     * 
+     *
      * Messages are guaranteed to be delivered in order and from the same thread for a single consumer
-     * 
+     *
      * This method will only be called once for each message, unless either application or broker crashes.
-     * 
+     *
      * Application is responsible of handling any exception that could be thrown while processing the message.
-     * 
+     *
      * @param consumer
      *            the consumer that received the message
      * @param msg
      *            the message object
      */
     void received(Consumer consumer, Message msg);
+
+    /**
+     * Get the notification when a topic is terminated
+     *
+     * @param consumer
+     *            the Consumer object associated with the terminated topic
+     */
+    default void reachedEndOfTopic(Consumer consumer) {
+        // By default ignore the notification
+    }
 }

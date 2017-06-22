@@ -24,7 +24,7 @@
   <groupId>com.yahoo.pulsar</groupId>
   <artifactId>pulsar</artifactId>
 
-  <version>1.18-SNAPSHOT</version>
+  <version>1.19-SNAPSHOT</version>
 
   <name>Pulsar</name>
   <description>Pulsar is a distributed pub-sub messaging platform with a very
@@ -84,6 +84,7 @@ flexible messaging model and an intuitive client API.</description>
     <module>pulsar-testclient</module>
     <module>pulsar-broker-auth-athenz</module>
     <module>pulsar-client-auth-athenz</module>
+    <module>pulsar-zookeeper</module>
     <module>all</module>
   </modules>
 
@@ -96,13 +97,14 @@ flexible messaging model and an intuitive client API.</description>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
-    <bookkeeper.version>4.3.1.60-yahoo</bookkeeper.version>
-
+    <bookkeeper.version>4.3.1.69-yahoo</bookkeeper.version>
+    <zookeeper.version>3.4.10</zookeeper.version>
     <netty.version>4.0.46.Final</netty.version>
     <storm.version>0.9.5</storm.version>
     <jetty.version>9.3.11.v20160721</jetty.version>
     <athenz.version>1.1.8</athenz.version>
     <prometheus.version>0.0.21</prometheus.version>
+    <aspectj.version>1.8.9</aspectj.version>
   </properties>
 
   <dependencyManagement>
@@ -153,14 +155,14 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>org.apache.zookeeper</groupId>
         <artifactId>zookeeper</artifactId>
-        <version>3.4.8</version>
+        <version>${zookeeper.version}</version>
       </dependency>
 
       <dependency>
         <groupId>org.apache.zookeeper</groupId>
         <artifactId>zookeeper</artifactId>
         <classifier>tests</classifier>
-        <version>3.4.8</version>
+        <version>${zookeeper.version}</version>
       </dependency>
 
       <dependency>
@@ -192,6 +194,12 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>org.apache.bookkeeper.stats</groupId>
         <artifactId>datasketches-metrics-provider</artifactId>
+        <version>${bookkeeper.version}</version>
+      </dependency>
+      
+      <dependency>
+        <groupId>org.apache.bookkeeper.stats</groupId>
+        <artifactId>prometheus-metrics-provider</artifactId>
         <version>${bookkeeper.version}</version>
       </dependency>
 
@@ -424,6 +432,12 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
+        <groupId>io.prometheus</groupId>
+        <artifactId>simpleclient_servlet</artifactId>
+        <version>${prometheus.version}</version>
+      </dependency>
+
+      <dependency>
         <groupId>org.apache.spark</groupId>
         <artifactId>spark-streaming_2.10</artifactId>
         <version>2.1.0</version>
@@ -449,6 +463,18 @@ flexible messaging model and an intuitive client API.</description>
             <artifactId>netty-all</artifactId>
           </exclusion>
         </exclusions>
+      </dependency>
+
+      <dependency>
+        <groupId>org.aspectj</groupId>
+        <artifactId>aspectjrt</artifactId>
+        <version>${aspectj.version}</version>
+      </dependency>
+    
+      <dependency>
+        <groupId>org.aspectj</groupId>
+        <artifactId>aspectjweaver</artifactId>
+        <version>${aspectj.version}</version>
       </dependency>
 
     </dependencies>
@@ -658,6 +684,13 @@ flexible messaging model and an intuitive client API.</description>
         </plugin>
       </plugins>
     </pluginManagement>
+    <extensions>
+      <extension>
+        <groupId>org.apache.maven.wagon</groupId>
+        <artifactId>wagon-ssh-external</artifactId>
+        <version>2.10</version>
+      </extension>
+    </extensions>
   </build>
 
   <profiles>

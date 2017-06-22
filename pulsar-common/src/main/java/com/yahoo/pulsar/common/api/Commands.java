@@ -21,7 +21,7 @@ import java.util.List;
 import com.google.protobuf.ByteString;
 import static com.yahoo.pulsar.checksum.utils.Crc32cChecksum.computeChecksum;
 import static com.yahoo.pulsar.checksum.utils.Crc32cChecksum.resumeChecksum;
-    
+
 import com.yahoo.pulsar.common.api.proto.PulsarApi;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.AuthMethod;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.BaseCommand;
@@ -46,6 +46,7 @@ import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandPing;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandPong;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandProducer;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandProducerSuccess;
+import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandReachedEndOfTopic;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandRedeliverUnacknowledgedMessages;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSend;
 import com.yahoo.pulsar.common.api.proto.PulsarApi.CommandSendError;
@@ -73,10 +74,10 @@ import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 
 public class Commands {
-    
+
     public static final short magicCrc32c = 0x0e01;
     private static final int checksumSize = 4;
-    
+
     public static ByteBuf newConnect(String authMethodName, String authData, String libVersion) {
         return newConnect(authMethodName, authData, getCurrentProtocolVersion(), libVersion);
     }
@@ -85,7 +86,7 @@ public class Commands {
         CommandConnect.Builder connectBuilder = CommandConnect.newBuilder();
         connectBuilder.setClientVersion(libVersion != null ? libVersion : "Pulsar Client");
         connectBuilder.setAuthMethodName(authMethodName);
-        
+
         if ("ycav1".equals(authMethodName)) {
             // Handle the case of a client that gets updated before the broker and starts sending the string auth method
             // name. An example would be in broker-to-broker replication. We need to make sure the clients are still
@@ -200,10 +201,6 @@ public class Commands {
         return res;
     }
 
-    public static ByteBuf newSendError(long producerId, long sequenceId, Throwable t) {
-        return newSendError(producerId, sequenceId, ServerError.PersistenceError, t.getMessage());
-    }
-
     public static ByteBuf newSendError(long producerId, long sequenceId, ServerError error, String errorMsg) {
         CommandSendError.Builder sendErrorBuilder = CommandSendError.newBuilder();
         sendErrorBuilder.setProducerId(producerId);
@@ -216,12 +213,12 @@ public class Commands {
         sendError.recycle();
         return res;
     }
-    
+
 
     public static boolean hasChecksum(ByteBuf buffer) {
         return buffer.getShort(buffer.readerIndex()) == magicCrc32c;
     }
-    
+
     public static Long readChecksum(ByteBuf buffer) {
         if(hasChecksum(buffer)) {
             buffer.skipBytes(2); //skip magic bytes
@@ -284,7 +281,7 @@ public class Commands {
         sendBuilder.recycle();
         return res;
     }
-    
+
     public static ByteBuf newSubscribe(String topic, String subscription, long consumerId, long requestId,
             SubType subType, int priorityLevel, String consumerName) {
         return newSubscribe(topic, subscription, consumerId, requestId, subType, priorityLevel, consumerName,
@@ -335,6 +332,17 @@ public class Commands {
         return res;
     }
 
+    public static ByteBuf newReachedEndOfTopic(long consumerId) {
+        CommandReachedEndOfTopic.Builder reachedEndOfTopicBuilder = CommandReachedEndOfTopic.newBuilder();
+        reachedEndOfTopicBuilder.setConsumerId(consumerId);
+        CommandReachedEndOfTopic reachedEndOfTopic = reachedEndOfTopicBuilder.build();
+        ByteBuf res = serializeWithSize(
+                BaseCommand.newBuilder().setType(Type.REACHED_END_OF_TOPIC).setReachedEndOfTopic(reachedEndOfTopic));
+        reachedEndOfTopicBuilder.recycle();
+        reachedEndOfTopic.recycle();
+        return res;
+    }
+
     public static ByteBuf newCloseProducer(long producerId, long requestId) {
         CommandCloseProducer.Builder closeProducerBuilder = CommandCloseProducer.newBuilder();
         closeProducerBuilder.setProducerId(producerId);
@@ -380,7 +388,7 @@ public class Commands {
         partitionMetadataResponse.recycle();
         return res;
     }
-    
+
     public static ByteBuf newPartitionMetadataRequest(String topic, long requestId) {
         CommandPartitionedTopicMetadata.Builder partitionMetadataBuilder = CommandPartitionedTopicMetadata.newBuilder();
         partitionMetadataBuilder.setTopic(topic);
@@ -408,7 +416,7 @@ public class Commands {
         partitionMetadataResponse.recycle();
         return res;
     }
-    
+
     public static ByteBuf newLookup(String topic, boolean authoritative, long requestId) {
         CommandLookupTopic.Builder lookupTopicBuilder = CommandLookupTopic.newBuilder();
         lookupTopicBuilder.setTopic(topic);
@@ -421,14 +429,14 @@ public class Commands {
         lookupBroker.recycle();
         return res;
     }
-    
-    
+
+
     public static ByteBuf newLookupResponse(String brokerServiceUrl, String brokerServiceUrlTls, boolean authoritative,
             LookupType response, long requestId) {
         CommandLookupTopicResponse.Builder connectionBuilder = CommandLookupTopicResponse.newBuilder();
         connectionBuilder.setBrokerServiceUrl(brokerServiceUrl);
         if (brokerServiceUrlTls != null) {
-            connectionBuilder.setBrokerServiceUrlTls(brokerServiceUrlTls);    
+            connectionBuilder.setBrokerServiceUrlTls(brokerServiceUrlTls);
         }
         connectionBuilder.setResponse(response);
         connectionBuilder.setRequestId(requestId);
@@ -441,7 +449,7 @@ public class Commands {
         connectionLookupResponse.recycle();
         return res;
     }
-   
+
     public static ByteBuf newLookupResponse(ServerError error, String errorMsg, long requestId) {
         CommandLookupTopicResponse.Builder connectionBuilder = CommandLookupTopicResponse.newBuilder();
         connectionBuilder.setRequestId(requestId);
@@ -457,7 +465,7 @@ public class Commands {
         connectionBroker.recycle();
         return res;
     }
-    
+
     public static ByteBuf newAck(long consumerId, long ledgerId, long entryId, AckType ackType,
             ValidationError validationError) {
         CommandAck.Builder ackBuilder = CommandAck.newBuilder();
@@ -524,7 +532,7 @@ public class Commands {
         commandConsumerStatsResponseBuilder.setRequestId(requestId);
         commandConsumerStatsResponseBuilder.setErrorMessage(errMsg);
         commandConsumerStatsResponseBuilder.setErrorCode(serverError);
-        
+
         CommandConsumerStatsResponse commandConsumerStatsResponse = commandConsumerStatsResponseBuilder.build();
         ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.CONSUMER_STATS_RESPONSE)
                 .setConsumerStatsResponse(commandConsumerStatsResponseBuilder));
@@ -620,7 +628,7 @@ public class Commands {
         int totalSize = headerContentSize + payloadSize;
         int headersSize = 4 + headerContentSize; // totalSize + headerLength
         int checksumReaderIndex = -1;
-        
+
         ByteBuf headers = PooledByteBufAllocator.DEFAULT.buffer(headersSize, headersSize);
         headers.writeInt(totalSize); // External frame
 
@@ -632,7 +640,7 @@ public class Commands {
             cmd.writeTo(outStream);
             cmd.recycle();
             cmdBuilder.recycle();
-            
+
             //Create checksum placeholder
             if (includeChecksum) {
                 headers.writeShort(magicCrc32c);
@@ -650,7 +658,7 @@ public class Commands {
         }
 
         ByteBuf command = DoubleByteBuf.get(headers, payload);
-        
+
         // write checksum at created checksum-placeholder
         if (includeChecksum) {
             headers.markReaderIndex();
@@ -734,7 +742,10 @@ public class Commands {
 
     private static ByteBuf serializeCommandMessageWithSize(BaseCommand cmd, ByteBuf metadataAndPayload) {
         // / Wire format
-        // [TOTAL_SIZE] [CMD_SIZE][CMD] [METADATA_SIZE][METADATA] [PAYLOAD]
+        // [TOTAL_SIZE] [CMD_SIZE][CMD] [MAGIC_NUMBER][CHECKSUM] [METADATA_SIZE][METADATA] [PAYLOAD]
+        //
+        // metadataAndPayload contains from magic-number to the payload included
+
 
         int cmdSize = cmd.getSerializedSize();
         int totalSize = 4 + cmdSize + metadataAndPayload.readableBytes();

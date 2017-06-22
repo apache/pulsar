@@ -152,6 +152,7 @@ class Allocator {
     };
 
     static boost::thread_specific_ptr<Impl> implPtr_;
+    typedef T value_type;
     typedef size_t size_type;
     typedef T* pointer;
     typedef const void* const_pointer;

@@ -52,6 +52,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.CursorAlreadyClosedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.NoMoreEntriesToReadException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.PositionBound;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
@@ -112,7 +113,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
 
     private final RateLimiter markDeleteLimiter;
-    
+
     private final ZNodeProtobufFormat protobufFormat;
 
     class PendingMarkDeleteEntry {
@@ -545,6 +546,11 @@ public class ManagedCursorImpl implements ManagedCursor {
                             log.debug("[{}] [{}] notification was already cancelled", ledger.getName(), name);
                         }
                     }
+                } else if (ledger.isTerminated()) {
+                    // At this point we registered for notification and still there were no more available
+                    // entries.
+                    // If the managed ledger was indeed terminated, we need to notify the cursor
+                    callback.readEntriesFailed(new NoMoreEntriesToReadException("Topic was terminated"), ctx);
                 }
             }), 10, TimeUnit.MILLISECONDS);
         }
@@ -861,12 +867,12 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     /**
-     * Async replays given positions: 
-     * a. before reading it filters out already-acked messages 
+     * Async replays given positions:
+     * a. before reading it filters out already-acked messages
      * b. reads remaining entries async and gives it to given ReadEntriesCallback
      * c. returns all already-acked messages which are not replayed so, those messages can be removed by
      * caller(Dispatcher)'s replay-list and it won't try to replay it again
-     * 
+     *
      */
     @Override
     public Set<? extends Position> asyncReplayEntries(final Set<? extends Position> positions, ReadEntriesCallback callback, Object ctx) {
@@ -884,7 +890,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         } finally {
             lock.readLock().unlock();
         }
-        
+
         final int totalValidPositions = positions.size() - alreadyAcknowledgedPositions.size();
         final AtomicReference<ManagedLedgerException> exception = new AtomicReference<>();
         ReadEntryCallback cb = new ReadEntryCallback() {
@@ -923,7 +929,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         positions.stream()
                 .filter(position -> !alreadyAcknowledgedPositions.contains(position))
                 .forEach(p -> ledger.asyncReadEntry((PositionImpl) p, cb, ctx));
-        
+
         return alreadyAcknowledgedPositions;
     }
 
@@ -1595,9 +1601,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             PositionImpl newReadPosition = ledger.getNextValidPosition(markDeletePosition);
             PositionImpl oldReadPosition = readPosition;
 
-            if (log.isDebugEnabled()) {
-                log.debug("Rewind from {} to {}", oldReadPosition, newReadPosition);
-            }
+            log.info("[{}] Rewind from {} to {}", name, oldReadPosition, newReadPosition);
 
             readPosition = newReadPosition;
         } finally {
@@ -2172,6 +2176,22 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
     }
 
+    /**
+     * Checks given position is part of deleted-range and returns next position of upper-end as all the messages are
+     * deleted up to that point
+     * 
+     * @param position
+     * @return next available position
+     */
+    public PositionImpl getNextAvailablePosition(PositionImpl position) {
+        Range<PositionImpl> range = individualDeletedMessages.rangeContaining(position);
+        if (range != null) {
+            PositionImpl nextPosition = range.upperEndpoint().getNext();
+            return (nextPosition != null && nextPosition.compareTo(position) > 0) ? nextPosition : position.getNext();
+        }
+        return position.getNext();
+    }
+    
     public boolean isIndividuallyDeletedEntriesEmpty() {
         lock.readLock().lock();
         try {

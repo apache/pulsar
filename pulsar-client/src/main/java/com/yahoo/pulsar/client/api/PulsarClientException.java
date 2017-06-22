@@ -78,6 +78,12 @@ public class PulsarClientException extends IOException {
         }
     }
 
+    public static class TopicTerminatedException extends PulsarClientException {
+        public TopicTerminatedException(String msg) {
+            super(msg);
+        }
+    }
+
     public static class AuthenticationException extends PulsarClientException {
         public AuthenticationException(String msg) {
             super(msg);
@@ -169,7 +175,7 @@ public class PulsarClientException extends IOException {
             super(msg);
         }
     }
-    
+
     public static class ChecksumException extends PulsarClientException {
         public ChecksumException(String msg) {
             super(msg);

@@ -19,7 +19,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.IOException;
 
-import com.google.common.base.Objects;
 import com.google.common.collect.ComparisonChain;
 import com.google.protobuf.UninitializedMessageException;
 import com.yahoo.pulsar.client.api.MessageId;
@@ -35,6 +34,12 @@ public class MessageIdImpl implements MessageId, Comparable<MessageIdImpl> {
     protected final long ledgerId;
     protected final long entryId;
     protected final int partitionIndex;
+
+    // Private constructor used only for json deserialization
+    @SuppressWarnings("unused")
+    private MessageIdImpl() {
+        this(-1, -1, -1);
+    }
 
     public MessageIdImpl(long ledgerId, long entryId, int partitionIndex) {
         this.ledgerId = ledgerId;

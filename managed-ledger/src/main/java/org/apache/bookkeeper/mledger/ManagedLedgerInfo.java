@@ -25,6 +25,7 @@ public class ManagedLedgerInfo {
     public String modificationDate;
 
     public List<LedgerInfo> ledgers;
+    public PositionInfo terminatedPosition;
 
     public Map<String, CursorInfo> cursors;
 

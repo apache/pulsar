@@ -36,13 +36,13 @@ struct ProducerConfigurationImpl {
     ProducerConfigurationImpl()
             : sendTimeoutMs(30000),
               compressionType(CompressionNone),
-              maxPendingMessages(1000),
+              maxPendingMessages(30000),
               routingMode(ProducerConfiguration::UseSinglePartition),
-              blockIfQueueFull(true),
+              blockIfQueueFull(false),
               batchingEnabled(false),
               batchingMaxMessages(1000),
               batchingMaxAllowedSizeInBytes(128 * 1024), // 128 KB
-              batchingMaxPublishDelayMs(3000) { // 3 seconds
+              batchingMaxPublishDelayMs(10) { // 10 milli seconds
     }
 };
 }

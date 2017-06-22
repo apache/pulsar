@@ -21,6 +21,7 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.StampedLock;
 import java.util.function.Predicate;
 
@@ -527,5 +528,24 @@ public class ConcurrentLongPairSet {
                 return Long.compare(second, o.second);
             }
         }
+    }
+    
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append('{');
+        final AtomicBoolean first = new AtomicBoolean(true);
+        forEach((item1, item2) -> {
+            if (!first.getAndSet(false)) {
+                sb.append(", ");
+            }
+            sb.append('[');
+            sb.append(item1);
+            sb.append(':');
+            sb.append(item2);
+            sb.append(']');
+        });
+        sb.append('}');
+        return sb.toString();
     }
 }
