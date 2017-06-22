@@ -10,42 +10,42 @@
 
 <title>Pulsar binary protocol specification</title>
 
-<link rel="stylesheet" href="/pulsar/css/style.css">
-<link rel="shortcut icon" href="/pulsar/img/favicon.ico">
+<link rel="stylesheet" href="/incubator-pulsar/css/style.css">
+<link rel="shortcut icon" href="/incubator-pulsar/img/favicon.ico">
 
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tether/1.4.0/js/tether.min.js"></script>
 <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
-<script src="/pulsar/js/jquery.tocify.min.js"></script>
+<script src="/incubator-pulsar/js/jquery.tocify.min.js"></script>
 <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/js/bootstrap.min.js" integrity="sha384-vBWWzlZJ8ea9aCX4pEW3rVHjgjt7zpkNpZk+02D9phzyeVkE+jo0ieGizqPLForn" crossorigin="anonymous"></script>
 
-<script async src="/pulsar/js/main.js"></script>
+<script async src="/incubator-pulsar/js/main.js"></script>
 
   </head>
   <body class="body">
     <main class="main">
       <header class="container-fluid sticky-top top-nav">
         <nav class="navbar navbar-default navbar-toggleable-xl container">
-  <a class="navbar-brand" href="/pulsar">
-    <img src="/pulsar/img/pulsar-logo.png">
+  <a class="navbar-brand" href="/incubator-pulsar">
+    <img src="/incubator-pulsar/img/pulsar-logo.png">
   </a>
 
   <div class="collapse navbar-collapse justify-content-end" id="nav-content">
     <ul class="nav navbar-nav">
       <li class="nav-item">
-        <a class="nav-link" href="/pulsar/docs">Docs</a>
+        <a class="nav-link" href="/incubator-pulsar/docs">Docs</a>
       </li>
       <li class="nav-item">
-        <a class="nav-link" href="/pulsar/javadoc">Java</a>
+        <a class="nav-link" href="/incubator-pulsar/javadoc">Java</a>
       </li>
       <li class="nav-item">
-        <a class="nav-link" href="/pulsar/api/cpp">C++</a>
+        <a class="nav-link" href="/incubator-pulsar/api/cpp">C++</a>
       </li>
       <li class="nav-item">
-        <a class="nav-link" href="/pulsar/api/python">Python</a>
+        <a class="nav-link" href="/incubator-pulsar/api/python">Python</a>
       </li>
       <li class="nav-item">
-        <a class="nav-link" href="/pulsar/ja"><img class="japan-flag" src="/pulsar/img/japan-flag.svg"></a>
+        <a class="nav-link" href="/incubator-pulsar/ja"><img class="japan-flag" src="/incubator-pulsar/img/japan-flag.svg"></a>
       </li>
       <li class="nav-item">
         <a class="nav-link" href="https://github.com/yahoo/pulsar"><i class="fa fa-github fa-lg"></i></a>
@@ -73,11 +73,11 @@
       
       
       
-      <li><a href="/pulsar/docs/1.17.5/getting-started/LocalCluster/"><i class="fa fa-file-text-o"></i>Run Pulsar locally</a></li>
+      <li><a href="/incubator-pulsar/docs/1.17.5/getting-started/LocalCluster/"><i class="fa fa-file-text-o"></i>Run Pulsar locally</a></li>
       
       
       
-      <li><a href="/pulsar/docs/1.17.5/getting-started/ConceptsAndArchitecture/"><i class="fa fa-file-text-o"></i>Concepts and architecture</a></li>
+      <li><a href="/incubator-pulsar/docs/1.17.5/getting-started/ConceptsAndArchitecture/"><i class="fa fa-file-text-o"></i>Concepts and architecture</a></li>
       
     </ul>
   </section>
@@ -88,11 +88,11 @@
       
       
       
-      <li><a href="/pulsar/docs/1.17.5/deployment/InstanceSetup/"><i class="fa fa-file-text-o"></i>Setting up a Pulsar instance</a></li>
+      <li><a href="/incubator-pulsar/docs/1.17.5/deployment/InstanceSetup/"><i class="fa fa-file-text-o"></i>Setting up a Pulsar instance</a></li>
       
       
       
-      <li><a href="/pulsar/docs/1.17.5/deployment/Kubernetes/"><i class="fa fa-file-text-o"></i>Pulsar on Kubernetes</a></li>
+      <li><a href="/incubator-pulsar/docs/1.17.5/deployment/Kubernetes/"><i class="fa fa-file-text-o"></i>Pulsar on Kubernetes</a></li>
       
     </ul>
   </section>
@@ -103,11 +103,11 @@
       
       
       
-      <li><a href="/pulsar/docs/1.17.5/concerns/PartitionedTopics/"><i class="fa fa-file-text-o"></i>Partitioned topics</a></li>
+      <li><a href="/incubator-pulsar/docs/1.17.5/concerns/PartitionedTopics/"><i class="fa fa-file-text-o"></i>Partitioned topics</a></li>
       
       
       
-      <li><a href="/pulsar/docs/1.17.5/concerns/RetentionExpiry/"><i class="fa fa-file-text-o"></i>Retention and expiry</a></li>
+      <li><a href="/incubator-pulsar/docs/1.17.5/concerns/RetentionExpiry/"><i class="fa fa-file-text-o"></i>Retention and expiry</a></li>
       
     </ul>
   </section>
@@ -118,39 +118,39 @@
       
       
       
-      <li><a href="/pulsar/docs/1.17.5/admin/AdminInterface/"><i class="fa fa-file-text-o"></i>Pulsar admin interface</a></li>
+      <li><a href="/incubator-pulsar/docs/1.17.5/admin/AdminInterface/"><i class="fa fa-file-text-o"></i>Pulsar admin interface</a></li>
       
       
       
-      <li><a href="/pulsar/docs/1.17.5/admin/ClustersBrokers/"><i class="fa fa-file-text-o"></i>Clusters and brokers</a></li>
+      <li><a href="/incubator-pulsar/docs/1.17.5/admin/ClustersBrokers/"><i class="fa fa-file-text-o"></i>Clusters and brokers</a></li>
       
       
       
-      <li><a href="/pulsar/docs/1.17.5/admin/PropertiesNamespaces/"><i class="fa fa-file-text-o"></i>Properties and namespaces</a></li>
+      <li><a href="/incubator-pulsar/docs/1.17.5/admin/PropertiesNamespaces/"><i class="fa fa-file-text-o"></i>Properties and namespaces</a></li>
       
       
       
-      <li><a href="/pulsar/docs/1.17.5/admin/ZooKeeperBookKeeper/"><i class="fa fa-file-text-o"></i>ZooKeeper and BookKeeper</a></li>
+      <li><a href="/incubator-pulsar/docs/1.17.5/admin/ZooKeeperBookKeeper/"><i class="fa fa-file-text-o"></i>ZooKeeper and BookKeeper</a></li>
       
       
       
-      <li><a href="/pulsar/docs/1.17.5/admin/Dashboard/"><i class="fa fa-file-text-o"></i>Dashboard</a></li>
+      <li><a href="/incubator-pulsar/docs/1.17.5/admin/Dashboard/"><i class="fa fa-file-text-o"></i>Dashboard</a></li>
       
       
       
-      <li><a href="/pulsar/docs/1.17.5/admin/Authz/"><i class="fa fa-file-text-o"></i>Authentication and authorization</a></li>
+      <li><a href="/incubator-pulsar/docs/1.17.5/admin/Authz/"><i class="fa fa-file-text-o"></i>Authentication and authorization</a></li>
       
       
       
-      <li><a href="/pulsar/docs/1.17.5/admin/GeoReplication/"><i class="fa fa-file-text-o"></i>Geo-replication</a></li>
+      <li><a href="/incubator-pulsar/docs/1.17.5/admin/GeoReplication/"><i class="fa fa-file-text-o"></i>Geo-replication</a></li>
       
       
       
-      <li><a href="/pulsar/docs/1.17.5/admin/Stats/"><i class="fa fa-file-text-o"></i>Pulsar statistics</a></li>
+      <li><a href="/incubator-pulsar/docs/1.17.5/admin/Stats/"><i class="fa fa-file-text-o"></i>Pulsar statistics</a></li>
       
       
       
-      <li><a href="/pulsar/docs/1.17.5/admin/ModularLoadManager/"><i class="fa fa-file-text-o"></i>Modular load manager</a></li>
+      <li><a href="/incubator-pulsar/docs/1.17.5/admin/ModularLoadManager/"><i class="fa fa-file-text-o"></i>Modular load manager</a></li>
       
     </ul>
   </section>
@@ -161,31 +161,31 @@
       
       
       
-      <li><a href="/pulsar/docs/1.17.5/applications/JavaClient/"><i class="fa fa-file-text-o"></i>The Pulsar Java client</a></li>
+      <li><a href="/incubator-pulsar/docs/1.17.5/applications/JavaClient/"><i class="fa fa-file-text-o"></i>The Pulsar Java client</a></li>
       
       
       
-      <li><a href="/pulsar/docs/1.17.5/applications/CppClient/"><i class="fa fa-file-text-o"></i>The Pulsar C++ client</a></li>
+      <li><a href="/incubator-pulsar/docs/1.17.5/applications/CppClient/"><i class="fa fa-file-text-o"></i>The Pulsar C++ client</a></li>
       
       
       
-      <li><a href="/pulsar/docs/1.17.5/applications/PythonClient/"><i class="fa fa-file-text-o"></i>The Pulsar Python client</a></li>
+      <li><a href="/incubator-pulsar/docs/1.17.5/applications/PythonClient/"><i class="fa fa-file-text-o"></i>The Pulsar Python client</a></li>
       
       
       
-      <li><a href="/pulsar/docs/1.17.5/applications/WebSocket/"><i class="fa fa-file-text-o"></i>WebSocket API</a></li>
+      <li><a href="/incubator-pulsar/docs/1.17.5/applications/WebSocket/"><i class="fa fa-file-text-o"></i>WebSocket API</a></li>
       
       
       
-      <li><a href="/pulsar/docs/1.17.5/applications/PulsarSpark/"><i class="fa fa-file-text-o"></i>Spark Streaming receiver</a></li>
+      <li><a href="/incubator-pulsar/docs/1.17.5/applications/PulsarSpark/"><i class="fa fa-file-text-o"></i>Spark Streaming receiver</a></li>
       
       
       
-      <li><a href="/pulsar/docs/1.17.5/applications/PulsarStorm/"><i class="fa fa-file-text-o"></i>Apache Storm adaptor</a></li>
+      <li><a href="/incubator-pulsar/docs/1.17.5/applications/PulsarStorm/"><i class="fa fa-file-text-o"></i>Apache Storm adaptor</a></li>
       
       
       
-      <li><a href="/pulsar/docs/1.17.5/applications/SimulationTools/"><i class="fa fa-file-text-o"></i>Simulation tools</a></li>
+      <li><a href="/incubator-pulsar/docs/1.17.5/applications/SimulationTools/"><i class="fa fa-file-text-o"></i>Simulation tools</a></li>
       
     </ul>
   </section>
@@ -196,11 +196,11 @@
       
       
       
-      <li><a  class="active"href="/pulsar/docs/1.17.5/project/BinaryProtocol/"><i class="fa fa-file-text-o"></i>Pulsar binary protocol</a></li>
+      <li><a  class="active"href="/incubator-pulsar/docs/1.17.5/project/BinaryProtocol/"><i class="fa fa-file-text-o"></i>Pulsar binary protocol</a></li>
       
       
       
-      <li><a href="/pulsar/docs/1.17.5/project/Codebase/"><i class="fa fa-file-text-o"></i>Codebase</a></li>
+      <li><a href="/incubator-pulsar/docs/1.17.5/project/Codebase/"><i class="fa fa-file-text-o"></i>Codebase</a></li>
       
     </ul>
   </section>
@@ -211,15 +211,15 @@
       
       
       
-      <li><a href="/pulsar/docs/1.17.5/reference/RestApi/"><i class="fa fa-file-text-o"></i>Pulsar REST API</a></li>
+      <li><a href="/incubator-pulsar/docs/1.17.5/reference/RestApi/"><i class="fa fa-file-text-o"></i>Pulsar REST API</a></li>
       
       
       
-      <li><a href="/pulsar/docs/1.17.5/reference/CliTools/"><i class="fa fa-file-text-o"></i>Command-line tools</a></li>
+      <li><a href="/incubator-pulsar/docs/1.17.5/reference/CliTools/"><i class="fa fa-file-text-o"></i>Command-line tools</a></li>
       
       
       
-      <li><a href="/pulsar/docs/1.17.5/reference/Configuration/"><i class="fa fa-file-text-o"></i>Pulsar configuration</a></li>
+      <li><a href="/incubator-pulsar/docs/1.17.5/reference/Configuration/"><i class="fa fa-file-text-o"></i>Pulsar configuration</a></li>
       
     </ul>
   </section>
@@ -701,7 +701,7 @@ object.</p>
 <p>After opening a TCP connection to a broker, typically on port 6650, the client
 is responsible to initiate the session.</p>
 
-<p><img src="/pulsar/img/Binary%20Protocol%20-%20Connect.png" alt="Connect interaction" /></p>
+<p><img src="/incubator-pulsar/img/Binary%20Protocol%20-%20Connect.png" alt="Connect interaction" /></p>
 
 <p>After receiving a <code class="highlighter-rouge">Connected</code> response from the broker, the client can
 consider the connection ready to use. Alternatively, if the broker doesn’t
@@ -769,7 +769,7 @@ authorized to publish on the topic.</p>
 <p>Once the client gets confirmation of the producer creation, it can publish
 messages to the broker, referring to the producer id negotiated before.</p>
 
-<p><img src="/pulsar/img/Binary%20Protocol%20-%20Producer.png" alt="Producer interaction" /></p>
+<p><img src="/incubator-pulsar/img/Binary%20Protocol%20-%20Producer.png" alt="Producer interaction" /></p>
 
 <h5 id="command-producer">Command Producer</h5>
 
@@ -888,7 +888,7 @@ connection is not being affected.</p>
 After every reconnection, a client needs to subscribe to the topic. If a
 subscription is not already there, a new one will be created.</p>
 
-<p><img src="/pulsar/img/Binary%20Protocol%20-%20Consumer.png" alt="Consumer" /></p>
+<p><img src="/incubator-pulsar/img/Binary%20Protocol%20-%20Consumer.png" alt="Consumer" /></p>
 
 <h4 id="flow-control">Flow control</h4>
 
@@ -1049,7 +1049,7 @@ connect to, or a broker hostname to which retry the lookup.</p>
 <p>The <code class="highlighter-rouge">LookupTopic</code> command has to be used in a connection that has already
 gone through the <code class="highlighter-rouge">Connect</code> / <code class="highlighter-rouge">Connected</code> initial handshake.</p>
 
-<p><img src="/pulsar/img/Binary%20Protocol%20-%20Topic%20lookup.png" alt="Topic lookup" /></p>
+<p><img src="/incubator-pulsar/img/Binary%20Protocol%20-%20Topic%20lookup.png" alt="Topic lookup" /></p>
 
 <div class="language-protobuf highlighter-rouge"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandLookupTopic</span> <span class="p">{</span>
   <span class="s">"topic"</span> <span class="o">:</span> <span class="s">"persistent://my-property/my-cluster/my-namespace/my-topic"</span><span class="p">,</span>
