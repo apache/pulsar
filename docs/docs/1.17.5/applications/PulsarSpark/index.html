@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <script type="text/javascript">
+  var shiftWindow = function() { scrollBy(0, -108) };
+  window.addEventListener("hashchange", shiftWindow);
+  window.addEventListener("pageshow", shiftWindow);
+  function load() { if (window.location.hash) shiftWindow(); }
+</script>
+
+<title>Spark Streaming Pulsar receiver</title>
+
+<link rel="stylesheet" href="/pulsar/css/style.css">
+<link rel="shortcut icon" href="/pulsar/img/favicon.ico">
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tether/1.4.0/js/tether.min.js"></script>
+<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+<script src="/pulsar/js/jquery.tocify.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/js/bootstrap.min.js" integrity="sha384-vBWWzlZJ8ea9aCX4pEW3rVHjgjt7zpkNpZk+02D9phzyeVkE+jo0ieGizqPLForn" crossorigin="anonymous"></script>
+
+<script async src="/pulsar/js/main.js"></script>
+
+  </head>
+  <body class="body">
+    <main class="main">
+      <header class="container-fluid sticky-top top-nav">
+        <nav class="navbar navbar-default navbar-toggleable-xl container">
+  <a class="navbar-brand" href="/pulsar">
+    <img src="/pulsar/img/pulsar-logo.png">
+  </a>
+
+  <div class="collapse navbar-collapse justify-content-end" id="nav-content">
+    <ul class="nav navbar-nav">
+      <li class="nav-item">
+        <a class="nav-link" href="/pulsar/docs">Docs</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="/pulsar/javadoc">Java</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="/pulsar/api/cpp">C++</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="/pulsar/api/python">Python</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="/pulsar/ja"><img class="japan-flag" src="/pulsar/img/japan-flag.svg"></a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="https://github.com/yahoo/pulsar"><i class="fa fa-github fa-lg"></i></a>
+      </li>
+      <li class="nav-item version">
+        <a class="nav-link">Pulsar 1.17.5</a>
+      </li>
+    </ul>
+
+  </div>
+</nav>
+
+      </header>
+
+      <main>
+        <div class="docs-container container-fluid">
+  <div class="row">
+    <nav class="sidebar-nav hidden-sm-down col-md-3 col-lg-3">
+      
+<ul class="sidebar">
+  
+  <section class="sidebar-group">
+    <h4>Getting started</h4>
+    <ul>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/getting-started/LocalCluster/"><i class="fa fa-file-text-o"></i>Run Pulsar locally</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/getting-started/ConceptsAndArchitecture/"><i class="fa fa-file-text-o"></i>Concepts and architecture</a></li>
+      
+    </ul>
+  </section>
+  
+  <section class="sidebar-group">
+    <h4>Deployment</h4>
+    <ul>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/deployment/InstanceSetup/"><i class="fa fa-file-text-o"></i>Setting up a Pulsar instance</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/deployment/Kubernetes/"><i class="fa fa-file-text-o"></i>Pulsar on Kubernetes</a></li>
+      
+    </ul>
+  </section>
+  
+  <section class="sidebar-group">
+    <h4>Concerns</h4>
+    <ul>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/concerns/PartitionedTopics/"><i class="fa fa-file-text-o"></i>Partitioned topics</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/concerns/RetentionExpiry/"><i class="fa fa-file-text-o"></i>Retention and expiry</a></li>
+      
+    </ul>
+  </section>
+  
+  <section class="sidebar-group">
+    <h4>Pulsar administration</h4>
+    <ul>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/admin/AdminInterface/"><i class="fa fa-file-text-o"></i>Pulsar admin interface</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/admin/ClustersBrokers/"><i class="fa fa-file-text-o"></i>Clusters and brokers</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/admin/PropertiesNamespaces/"><i class="fa fa-file-text-o"></i>Properties and namespaces</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/admin/ZooKeeperBookKeeper/"><i class="fa fa-file-text-o"></i>ZooKeeper and BookKeeper</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/admin/Dashboard/"><i class="fa fa-file-text-o"></i>Dashboard</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/admin/Authz/"><i class="fa fa-file-text-o"></i>Authentication and authorization</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/admin/GeoReplication/"><i class="fa fa-file-text-o"></i>Geo-replication</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/admin/Stats/"><i class="fa fa-file-text-o"></i>Pulsar statistics</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/admin/ModularLoadManager/"><i class="fa fa-file-text-o"></i>Modular load manager</a></li>
+      
+    </ul>
+  </section>
+  
+  <section class="sidebar-group">
+    <h4>Pulsar applications</h4>
+    <ul>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/applications/JavaClient/"><i class="fa fa-file-text-o"></i>The Pulsar Java client</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/applications/CppClient/"><i class="fa fa-file-text-o"></i>The Pulsar C++ client</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/applications/PythonClient/"><i class="fa fa-file-text-o"></i>The Pulsar Python client</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/applications/WebSocket/"><i class="fa fa-file-text-o"></i>WebSocket API</a></li>
+      
+      
+      
+      <li><a  class="active"href="/pulsar/docs/1.17.5/applications/PulsarSpark/"><i class="fa fa-file-text-o"></i>Spark Streaming receiver</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/applications/PulsarStorm/"><i class="fa fa-file-text-o"></i>Apache Storm adaptor</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/applications/SimulationTools/"><i class="fa fa-file-text-o"></i>Simulation tools</a></li>
+      
+    </ul>
+  </section>
+  
+  <section class="sidebar-group">
+    <h4>Developing Pulsar</h4>
+    <ul>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/project/BinaryProtocol/"><i class="fa fa-file-text-o"></i>Pulsar binary protocol</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/project/Codebase/"><i class="fa fa-file-text-o"></i>Codebase</a></li>
+      
+    </ul>
+  </section>
+  
+  <section class="sidebar-group">
+    <h4>Reference</h4>
+    <ul>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/reference/RestApi/"><i class="fa fa-file-text-o"></i>Pulsar REST API</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/reference/CliTools/"><i class="fa fa-file-text-o"></i>Command-line tools</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/reference/Configuration/"><i class="fa fa-file-text-o"></i>Pulsar configuration</a></li>
+      
+    </ul>
+  </section>
+  
+</ul>
+
+
+    </nav>
+
+    <article class="col-xs-12 col-sm-12 col-md-7 col-lg-7">
+      <section class="docs-header">
+        <h1 class="docs-title">Spark Streaming Pulsar receiver</h1>
+        
+        <section class="tags">
+          
+          <!-- <span class="badge badge-pill badge-primary">spark</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-spark">spark</button>
+          <div class="modal fade" id="modal-spark">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Pages with the <strong>spark</strong> tag</h5>
+      </div>
+      <div class="modal-body">
+        <ul>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/1.17.5/applications/PulsarSpark/">Spark Streaming Pulsar receiver</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+          
+          <!-- <span class="badge badge-pill badge-primary">streaming</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-streaming">streaming</button>
+          <div class="modal fade" id="modal-streaming">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Pages with the <strong>streaming</strong> tag</h5>
+      </div>
+      <div class="modal-body">
+        <ul>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/1.17.5/applications/PulsarSpark/">Spark Streaming Pulsar receiver</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+          
+          <!-- <span class="badge badge-pill badge-primary">java</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-java">java</button>
+          <div class="modal fade" id="modal-java">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Pages with the <strong>java</strong> tag</h5>
+      </div>
+      <div class="modal-body">
+        <ul>
+          
+          
+          <li><a href="/docs/1.17.5/admin/AdminInterface/">The Pulsar admin interface</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/1.17.5/admin/Authz/">Authentication and authorization in Pulsar</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/1.17.5/applications/JavaClient/">The Pulsar Java client</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/1.17.5/applications/PulsarSpark/">Spark Streaming Pulsar receiver</a></li>
+          
+          
+          
+          
+          
+          <li><a href="/docs/1.17.5/applications/PulsarStorm/">Pulsar adaptor for Apache Storm</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+          
+        </section>
+
+        <hr class="hr">
+      </section>
+
+      <section class="content">
+        <p>The Spark Streaming Pulsar Receiver is a custom receiver that enables Apache <a href="https://spark.apache.org/streaming/">Spark Streaming</a> to receive data from Pulsar.</p>
+
+<p>An application can receive data in <a href="https://spark.apache.org/docs/latest/programming-guide.html#resilient-distributed-datasets-rdds">Resilient Distributed Dataset</a> (RDD) format via the Spark Streaming Pulsar Receiver and can process it in a variety of ways.</p>
+
+<h2 id="prerequisites">Prerequisites</h2>
+
+<p>To use the receiver, include a dependency for the <code class="highlighter-rouge">pulsar-spark</code> library in your Java configuration.</p>
+
+<h3 id="maven">Maven</h3>
+
+<p>If you’re using Maven, add this to your <code class="highlighter-rouge">pom.xml</code>:</p>
+
+<div class="language-xml highlighter-rouge"><pre class="highlight"><code><span class="c">&lt;!-- in your &lt;properties&gt; block --&gt;</span>
+<span class="nt">&lt;pulsar.version&gt;</span>1.17.5<span class="nt">&lt;/pulsar.version&gt;</span>
+
+<span class="c">&lt;!-- in your &lt;dependencies&gt; block --&gt;</span>
+<span class="nt">&lt;dependency&gt;</span>
+  <span class="nt">&lt;groupId&gt;</span>com.yahoo.pulsar<span class="nt">&lt;/groupId&gt;</span>
+  <span class="nt">&lt;artifactId&gt;</span>pulsar-spark<span class="nt">&lt;/artifactId&gt;</span>
+  <span class="nt">&lt;version&gt;</span>${pulsar.version}<span class="nt">&lt;/version&gt;</span>
+<span class="nt">&lt;/dependency&gt;</span>
+</code></pre>
+</div>
+
+<h3 id="gradle">Gradle</h3>
+
+<p>If you’re using Gradle, add this to your <code class="highlighter-rouge">build.gradle</code> file:</p>
+
+<div class="language-groovy highlighter-rouge"><pre class="highlight"><code><span class="kt">def</span> <span class="n">pulsarVersion</span> <span class="o">=</span> <span class="s2">"1.17.5"</span>
+
+<span class="n">dependencies</span> <span class="o">{</span>
+    <span class="n">compile</span> <span class="nl">group:</span> <span class="s1">'com.yahoo.pulsar'</span><span class="o">,</span> <span class="nl">name:</span> <span class="s1">'pulsar-spark'</span><span class="o">,</span> <span class="nl">version:</span> <span class="n">pulsarVersion</span>
+<span class="o">}</span>
+</code></pre>
+</div>
+
+<h2 id="usage">Usage</h2>
+
+<p>Pass an instance of SparkStreamingPulsarReceiver to receiverStream method in JavaStreamingContext:</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">SparkConf</span> <span class="n">conf</span> <span class="o">=</span> <span class="k">new</span> <span class="n">SparkConf</span><span class="o">().</span><span class="na">setMaster</span><span class="o">(</span><span class="s">"local[*]"</span><span class="o">).</span><span class="na">setAppName</span><span class="o">(</span><span class="s">"pulsar-spark"</span><span class="o">);</span>
+<span class="n">JavaStreamingContext</span> <span class="n">jssc</span> <span class="o">=</span> <span class="k">new</span> <span class="n">JavaStreamingContext</span><span class="o">(</span><span class="n">conf</span><span class="o">,</span> <span class="n">Durations</span><span class="o">.</span><span class="na">seconds</span><span class="o">(</span><span class="mi">5</span><span class="o">));</span>
+
+<span class="n">ClientConfiguration</span> <span class="n">clientConf</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ClientConfiguration</span><span class="o">();</span>
+<span class="n">ConsumerConfiguration</span> <span class="n">consConf</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ConsumerConfiguration</span><span class="o">();</span>
+<span class="n">String</span> <span class="n">url</span> <span class="o">=</span> <span class="s">"pulsar://localhost:6650/"</span><span class="o">;</span>
+<span class="n">String</span> <span class="n">topic</span> <span class="o">=</span> <span class="s">"persistent://sample/standalone/ns1/topic1"</span><span class="o">;</span>
+<span class="n">String</span> <span class="n">subs</span> <span class="o">=</span> <span class="s">"sub1"</span><span class="o">;</span>
+
+<span class="n">JavaReceiverInputDStream</span><span class="o">&lt;</span><span class="kt">byte</span><span class="o">[]&gt;</span> <span class="n">msgs</span> <span class="o">=</span> <span class="n">jssc</span>
+        <span class="o">.</span><span class="na">receiverStream</span><span class="o">(</span><span class="k">new</span> <span class="n">SparkStreamingPulsarReceiver</span><span class="o">(</span><span class="n">clientConf</span><span class="o">,</span> <span class="n">consConf</span><span class="o">,</span> <span class="n">url</span><span class="o">,</span> <span class="n">topic</span><span class="o">,</span> <span class="n">subs</span><span class="o">));</span>
+</code></pre>
+</div>
+
+<h2 id="example">Example</h2>
+
+<p>You can find a complete example <a href="https://github.com/yahoo/pulsar/tree/master/tree/master/pulsar-spark/src/test/java/com/yahoo/pulsar/spark/example/SparkStreamingPulsarReceiverExample.java">here</a>.
+In this example, the number of messages which contain “Pulsar” string in received messages is counted.</p>
+
+      </section>
+    </article>
+
+    <nav class="toc-bar hidden-sm-down col-md-2 col-lg-2">
+      
+      <div id="toc">
+        <h4>Spark Streaming Pulsar receiver</h4>
+      </div>
+      
+    </nav>
+  </div>
+</div>
+
+      </main>
+    </main>
+
+    <footer class="footer">
+  <div class="container">
+    <p class="text-center">&copy; Apache Foundation 2017</p>
+  </div>
+</footer>
+
+
+    
+  </body>
+</html>

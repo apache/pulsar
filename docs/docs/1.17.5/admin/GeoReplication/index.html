@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <script type="text/javascript">
+  var shiftWindow = function() { scrollBy(0, -108) };
+  window.addEventListener("hashchange", shiftWindow);
+  window.addEventListener("pageshow", shiftWindow);
+  function load() { if (window.location.hash) shiftWindow(); }
+</script>
+
+<title>Pulsar geo-replication</title>
+
+<link rel="stylesheet" href="/pulsar/css/style.css">
+<link rel="shortcut icon" href="/pulsar/img/favicon.ico">
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tether/1.4.0/js/tether.min.js"></script>
+<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+<script src="/pulsar/js/jquery.tocify.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/js/bootstrap.min.js" integrity="sha384-vBWWzlZJ8ea9aCX4pEW3rVHjgjt7zpkNpZk+02D9phzyeVkE+jo0ieGizqPLForn" crossorigin="anonymous"></script>
+
+<script async src="/pulsar/js/main.js"></script>
+
+  </head>
+  <body class="body">
+    <main class="main">
+      <header class="container-fluid sticky-top top-nav">
+        <nav class="navbar navbar-default navbar-toggleable-xl container">
+  <a class="navbar-brand" href="/pulsar">
+    <img src="/pulsar/img/pulsar-logo.png">
+  </a>
+
+  <div class="collapse navbar-collapse justify-content-end" id="nav-content">
+    <ul class="nav navbar-nav">
+      <li class="nav-item">
+        <a class="nav-link" href="/pulsar/docs">Docs</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="/pulsar/javadoc">Java</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="/pulsar/api/cpp">C++</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="/pulsar/api/python">Python</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="/pulsar/ja"><img class="japan-flag" src="/pulsar/img/japan-flag.svg"></a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="https://github.com/yahoo/pulsar"><i class="fa fa-github fa-lg"></i></a>
+      </li>
+      <li class="nav-item version">
+        <a class="nav-link">Pulsar 1.17.5</a>
+      </li>
+    </ul>
+
+  </div>
+</nav>
+
+      </header>
+
+      <main>
+        <div class="docs-container container-fluid">
+  <div class="row">
+    <nav class="sidebar-nav hidden-sm-down col-md-3 col-lg-3">
+      
+<ul class="sidebar">
+  
+  <section class="sidebar-group">
+    <h4>Getting started</h4>
+    <ul>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/getting-started/LocalCluster/"><i class="fa fa-file-text-o"></i>Run Pulsar locally</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/getting-started/ConceptsAndArchitecture/"><i class="fa fa-file-text-o"></i>Concepts and architecture</a></li>
+      
+    </ul>
+  </section>
+  
+  <section class="sidebar-group">
+    <h4>Deployment</h4>
+    <ul>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/deployment/InstanceSetup/"><i class="fa fa-file-text-o"></i>Setting up a Pulsar instance</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/deployment/Kubernetes/"><i class="fa fa-file-text-o"></i>Pulsar on Kubernetes</a></li>
+      
+    </ul>
+  </section>
+  
+  <section class="sidebar-group">
+    <h4>Concerns</h4>
+    <ul>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/concerns/PartitionedTopics/"><i class="fa fa-file-text-o"></i>Partitioned topics</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/concerns/RetentionExpiry/"><i class="fa fa-file-text-o"></i>Retention and expiry</a></li>
+      
+    </ul>
+  </section>
+  
+  <section class="sidebar-group">
+    <h4>Pulsar administration</h4>
+    <ul>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/admin/AdminInterface/"><i class="fa fa-file-text-o"></i>Pulsar admin interface</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/admin/ClustersBrokers/"><i class="fa fa-file-text-o"></i>Clusters and brokers</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/admin/PropertiesNamespaces/"><i class="fa fa-file-text-o"></i>Properties and namespaces</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/admin/ZooKeeperBookKeeper/"><i class="fa fa-file-text-o"></i>ZooKeeper and BookKeeper</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/admin/Dashboard/"><i class="fa fa-file-text-o"></i>Dashboard</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/admin/Authz/"><i class="fa fa-file-text-o"></i>Authentication and authorization</a></li>
+      
+      
+      
+      <li><a  class="active"href="/pulsar/docs/1.17.5/admin/GeoReplication/"><i class="fa fa-file-text-o"></i>Geo-replication</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/admin/Stats/"><i class="fa fa-file-text-o"></i>Pulsar statistics</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/admin/ModularLoadManager/"><i class="fa fa-file-text-o"></i>Modular load manager</a></li>
+      
+    </ul>
+  </section>
+  
+  <section class="sidebar-group">
+    <h4>Pulsar applications</h4>
+    <ul>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/applications/JavaClient/"><i class="fa fa-file-text-o"></i>The Pulsar Java client</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/applications/CppClient/"><i class="fa fa-file-text-o"></i>The Pulsar C++ client</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/applications/PythonClient/"><i class="fa fa-file-text-o"></i>The Pulsar Python client</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/applications/WebSocket/"><i class="fa fa-file-text-o"></i>WebSocket API</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/applications/PulsarSpark/"><i class="fa fa-file-text-o"></i>Spark Streaming receiver</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/applications/PulsarStorm/"><i class="fa fa-file-text-o"></i>Apache Storm adaptor</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/applications/SimulationTools/"><i class="fa fa-file-text-o"></i>Simulation tools</a></li>
+      
+    </ul>
+  </section>
+  
+  <section class="sidebar-group">
+    <h4>Developing Pulsar</h4>
+    <ul>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/project/BinaryProtocol/"><i class="fa fa-file-text-o"></i>Pulsar binary protocol</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/project/Codebase/"><i class="fa fa-file-text-o"></i>Codebase</a></li>
+      
+    </ul>
+  </section>
+  
+  <section class="sidebar-group">
+    <h4>Reference</h4>
+    <ul>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/reference/RestApi/"><i class="fa fa-file-text-o"></i>Pulsar REST API</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/reference/CliTools/"><i class="fa fa-file-text-o"></i>Command-line tools</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/reference/Configuration/"><i class="fa fa-file-text-o"></i>Pulsar configuration</a></li>
+      
+    </ul>
+  </section>
+  
+</ul>
+
+
+    </nav>
+
+    <article class="col-xs-12 col-sm-12 col-md-7 col-lg-7">
+      <section class="docs-header">
+        <h1 class="docs-title">Pulsar geo-replication</h1>
+        
+        <section class="tags">
+          
+        </section>
+
+        <hr class="hr">
+      </section>
+
+      <section class="content">
+        <p><em>Geo-replication</em> is the replication of persistently stored message data across multiple <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">clusters</span> of a Pulsar <span class="popover-term" tabindex="0" title="What is a Pulsar instance?" data-placement="top" data-content="A group of Pulsar clusters that act together as a single unit." data-toggle="popover" data-trigger="focus">instance</span>.</p>
+
+<p><img src="/pulsar/img/GeoReplication.png" alt="Replication Diagram" /></p>
+
+<h2 id="geo-replication-and-pulsar-properties">Geo-replication and Pulsar properties</h2>
+
+<p>Geo-replication must be enabled on a per-<span class="popover-term" tabindex="0" title="What is a property?" data-placement="top" data-content="TODO" data-toggle="popover" data-trigger="focus">property</span> basis. If a property has been created and allowed access to multiple clusters, then geo-replication can be enabled between those clusters.</p>
+
+<p>Pulsar <span class="popover-term" tabindex="0" title="What is a property?" data-placement="top" data-content="TODO" data-toggle="popover" data-trigger="focus">properties</span> provisioned on more than one cluster can enable <em>geo-replication</em> among those clusters. Replication is managed directly by users, at the <span class="popover-term" tabindex="0" title="What is a namespace?" data-placement="top" data-content="TODO" data-toggle="popover" data-trigger="focus">namespace</span> level.</p>
+
+<p>When geo-replication is enabled between two clusters, you must do the following to enable geo-replication for a namespace:</p>
+
+<ul>
+  <li>Create a global namespace</li>
+  <li>Configure that namespace to replicate between two or more provisioned clusters</li>
+</ul>
+
+<p>Any message published on <em>any</em> topic in that namespace will then be replicated to all clusters in the specified set.</p>
+
+<h2 id="local-persistence-and-forwarding">Local persistence and forwarding</h2>
+
+<p>When messages are produced on a Pulsar topic, they are first persisted in the local cluster and then forwarded asynchronously to the remote clusters.</p>
+
+<p>In normal cases, when there are no connectivity issues, messages are replicated immediately, at the same time as they are dispatched to local consumers. Typically, end-to-end delivery latency is defined by the network <a href="https://en.wikipedia.org/wiki/Round-trip_delay_time">round-trip time</a> (RTT) between the remote regions.</p>
+
+<p>Applications can create producers and consumers in any of the clusters, even when the remote clusters are not reachable (like during a network partition).</p>
+
+<div class="admonition">
+  <div class="warning">
+    <span class="admonition-title"><p>Subscriptions are local to a cluster</p>
+</span>
+    <p>While producers and consumers can publish to and consume from any cluster in a Pulsar instance, subscriptions are local to the clusters in which they are created and cannot be transferred between clusters. If you do need to transfer a subscription, you’ll need to create a new subscription in the desired cluster.</p>
+
+  </div>
+</div>
+
+<p>In the example in the image above, the topic <strong>T1</strong> is being replicated between 3 clusters, <strong>Cluster-A</strong>, <strong>Cluster-B</strong>, and <strong>Cluster-C</strong>.</p>
+
+<p>All messages produced in any cluster will be delivered to all subscriptions in all the other clusters. In this case, consumers <strong>C1</strong> and <strong>C2</strong> will receive all messages published by producers <strong>P1</strong>, <strong>P2</strong>, and <strong>P3</strong>. Ordering is still guaranteed on a per-producer basis.</p>
+
+<h2 id="configuring-replication">Configuring replication</h2>
+
+<p>As stated <a href="#geo-replication-and-pulsar-properties">above</a>, geo-replication in Pulsar is managed at the <span class="popover-term" tabindex="0" title="What is a property?" data-placement="top" data-content="TODO" data-toggle="popover" data-trigger="focus">property</span> level.</p>
+
+<h3 id="granting-permissions-to-properties">Granting permissions to properties</h3>
+
+<p>To establish replication to a cluster, the <span class="popover-term" tabindex="0" title="What is a tenant?" data-placement="top" data-content="TODO" data-toggle="popover" data-trigger="focus">tenant</span> needs permission to use that cluster. This permission can be granted when the property is created or later on.</p>
+
+<p>At creation time, specify all the intended clusters:</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-admin properties create my-property <span class="se">\</span>
+  --admin-roles my-admin-role <span class="se">\</span>
+  --allowed-clusters us-west,us-east,us-cent
+</code></pre>
+</div>
+
+<p>To update permissions of an existing property, use <code class="highlighter-rouge">update</code> instead of <code class="highlighter-rouge">create</code>.</p>
+
+<h3 id="creating-global-namespaces">Creating global namespaces</h3>
+
+<p>Replication must be used with <em>global</em> topics, meaning topics that belong to a global <span class="popover-term" tabindex="0" title="What is a namespace?" data-placement="top" data-content="TODO" data-toggle="popover" data-trigger="focus">namespace</span> and are thus not tied to any particular cluster.</p>
+
+<p>Global namespaces need to be created in the <code class="highlighter-rouge">global</code> virtual cluster. For example:</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-admin namespaces create my-property/global/my-namespace
+</code></pre>
+</div>
+
+<p>Initially, the namespace is not assigned to any cluster. You can assign the namespace to clusters using the <code class="highlighter-rouge">set-clusters</code> subcommand:</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-admin namespaces <span class="nb">set</span>-clusters my-property/global/my-namespace <span class="se">\</span>
+  --clusters us-west,us-east,us-cent
+</code></pre>
+</div>
+
+<p>The replication clusters for a namespace can be changed at any time, with no disruption to ongoing traffic. Replication channels will be immediately set up or stopped in all the clusters as soon as the configuration changes.</p>
+
+<h3 id="using-global-topics">Using global topics</h3>
+
+<p>Once you’ve created a global namespace, any topics that producers or consumers create within that namespace will be global. Typically, each application will use the <code class="highlighter-rouge">serviceUrl</code> for the local cluster.</p>
+
+<h4 id="selective-replication">Selective replication</h4>
+
+<p>By default, messages are replicated to all clusters configured for the namespace. You can restrict replication selectively by specifying a replication list for a message. That message will then be replicated only to the subset in the replication list.</p>
+
+<p>Below is an example for the <a href="../../applications/JavaClient">Java API</a>. Note the use of the <code class="highlighter-rouge">setReplicationClusters</code> method when constructing the <a target="_blank" href="/api/client/com/yahoo/pulsar/client/api/Message.html"><code class="highlighter-rouge">Message</code></a> object:</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">List</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">restrictReplicationTo</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ArrayList</span><span class="o">&lt;&gt;;</span>
+<span class="n">restrictReplicationTo</span><span class="o">.</span><span class="na">add</span><span class="o">(</span><span class="s">"us-west"</span><span class="o">);</span>
+<span class="n">restrictReplicationTo</span><span class="o">.</span><span class="na">add</span><span class="o">(</span><span class="s">"us-east"</span><span class="o">);</span>
+
+<span class="n">Message</span> <span class="n">message</span> <span class="o">=</span> <span class="n">MessageBuilder</span><span class="o">.</span><span class="na">create</span><span class="o">()</span>
+        <span class="o">.</span><span class="na">setContent</span><span class="o">(</span><span class="s">"my-payload"</span><span class="o">.</span><span class="na">getBytes</span><span class="o">())</span>
+        <span class="o">.</span><span class="na">setReplicationClusters</span><span class="o">(</span><span class="n">restrictReplicationTo</span><span class="o">)</span>
+        <span class="o">.</span><span class="na">build</span><span class="o">();</span>
+
+<span class="n">producer</span><span class="o">.</span><span class="na">send</span><span class="o">(</span><span class="n">message</span><span class="o">);</span>
+</code></pre>
+</div>
+
+<h4 id="topic-stats">Topic stats</h4>
+
+<p>Topic-specific statistics for global topics are available via the <a href="../../reference/CliTools#pulsar-admin"><code class="highlighter-rouge">pulsar-admin</code></a> tool and <a href="../../reference/RestApi">REST API</a>:</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-admin persistent stats persistent://my-property/global/my-namespace/my-topic
+</code></pre>
+</div>
+
+<p>Each cluster reports its own local stats, including incoming and outgoing replication rates and backlogs.</p>
+
+<h4 id="deleting-a-global-topic">Deleting a global topic</h4>
+
+<p>Given that global topics exist in multiple regions, it’s not possible to directly delete a global topic. Instead, you should rely on automatic topic garbage collection.</p>
+
+<p>In Pulsar, a topic is automatically deleted when it’s no longer used, that is to say, when no producers or consumers are connected <em>and</em> there are no subscriptions. For global topics, each region will use a fault-tolerant mechanism to decide when it’s safe to delete the topic locally.</p>
+
+<p>To delete a global topic, close all producers and consumers on the topic and delete all its local subscriptions in every replication cluster. When Pulsar determines that no valid subscription for the topic remains across the system, it will garbage collect the topic.</p>
+
+      </section>
+    </article>
+
+    <nav class="toc-bar hidden-sm-down col-md-2 col-lg-2">
+      
+      <div id="toc">
+        <h4>Pulsar geo-replication</h4>
+      </div>
+      
+    </nav>
+  </div>
+</div>
+
+      </main>
+    </main>
+
+    <footer class="footer">
+  <div class="container">
+    <p class="text-center">&copy; Apache Foundation 2017</p>
+  </div>
+</footer>
+
+
+    
+  </body>
+</html>

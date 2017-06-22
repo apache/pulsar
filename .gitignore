@@ -38,6 +38,3 @@ target/
 
 # tmp files
 *.pid
-
-# Generated documentation
-docs/

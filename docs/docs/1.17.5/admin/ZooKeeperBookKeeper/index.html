@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <script type="text/javascript">
+  var shiftWindow = function() { scrollBy(0, -108) };
+  window.addEventListener("hashchange", shiftWindow);
+  window.addEventListener("pageshow", shiftWindow);
+  function load() { if (window.location.hash) shiftWindow(); }
+</script>
+
+<title>ZooKeeper and BookKeeper administration</title>
+
+<link rel="stylesheet" href="/pulsar/css/style.css">
+<link rel="shortcut icon" href="/pulsar/img/favicon.ico">
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tether/1.4.0/js/tether.min.js"></script>
+<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+<script src="/pulsar/js/jquery.tocify.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/js/bootstrap.min.js" integrity="sha384-vBWWzlZJ8ea9aCX4pEW3rVHjgjt7zpkNpZk+02D9phzyeVkE+jo0ieGizqPLForn" crossorigin="anonymous"></script>
+
+<script async src="/pulsar/js/main.js"></script>
+
+  </head>
+  <body class="body">
+    <main class="main">
+      <header class="container-fluid sticky-top top-nav">
+        <nav class="navbar navbar-default navbar-toggleable-xl container">
+  <a class="navbar-brand" href="/pulsar">
+    <img src="/pulsar/img/pulsar-logo.png">
+  </a>
+
+  <div class="collapse navbar-collapse justify-content-end" id="nav-content">
+    <ul class="nav navbar-nav">
+      <li class="nav-item">
+        <a class="nav-link" href="/pulsar/docs">Docs</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="/pulsar/javadoc">Java</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="/pulsar/api/cpp">C++</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="/pulsar/api/python">Python</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="/pulsar/ja"><img class="japan-flag" src="/pulsar/img/japan-flag.svg"></a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="https://github.com/yahoo/pulsar"><i class="fa fa-github fa-lg"></i></a>
+      </li>
+      <li class="nav-item version">
+        <a class="nav-link">Pulsar 1.17.5</a>
+      </li>
+    </ul>
+
+  </div>
+</nav>
+
+      </header>
+
+      <main>
+        <div class="docs-container container-fluid">
+  <div class="row">
+    <nav class="sidebar-nav hidden-sm-down col-md-3 col-lg-3">
+      
+<ul class="sidebar">
+  
+  <section class="sidebar-group">
+    <h4>Getting started</h4>
+    <ul>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/getting-started/LocalCluster/"><i class="fa fa-file-text-o"></i>Run Pulsar locally</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/getting-started/ConceptsAndArchitecture/"><i class="fa fa-file-text-o"></i>Concepts and architecture</a></li>
+      
+    </ul>
+  </section>
+  
+  <section class="sidebar-group">
+    <h4>Deployment</h4>
+    <ul>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/deployment/InstanceSetup/"><i class="fa fa-file-text-o"></i>Setting up a Pulsar instance</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/deployment/Kubernetes/"><i class="fa fa-file-text-o"></i>Pulsar on Kubernetes</a></li>
+      
+    </ul>
+  </section>
+  
+  <section class="sidebar-group">
+    <h4>Concerns</h4>
+    <ul>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/concerns/PartitionedTopics/"><i class="fa fa-file-text-o"></i>Partitioned topics</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/concerns/RetentionExpiry/"><i class="fa fa-file-text-o"></i>Retention and expiry</a></li>
+      
+    </ul>
+  </section>
+  
+  <section class="sidebar-group">
+    <h4>Pulsar administration</h4>
+    <ul>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/admin/AdminInterface/"><i class="fa fa-file-text-o"></i>Pulsar admin interface</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/admin/ClustersBrokers/"><i class="fa fa-file-text-o"></i>Clusters and brokers</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/admin/PropertiesNamespaces/"><i class="fa fa-file-text-o"></i>Properties and namespaces</a></li>
+      
+      
+      
+      <li><a  class="active"href="/pulsar/docs/1.17.5/admin/ZooKeeperBookKeeper/"><i class="fa fa-file-text-o"></i>ZooKeeper and BookKeeper</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/admin/Dashboard/"><i class="fa fa-file-text-o"></i>Dashboard</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/admin/Authz/"><i class="fa fa-file-text-o"></i>Authentication and authorization</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/admin/GeoReplication/"><i class="fa fa-file-text-o"></i>Geo-replication</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/admin/Stats/"><i class="fa fa-file-text-o"></i>Pulsar statistics</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/admin/ModularLoadManager/"><i class="fa fa-file-text-o"></i>Modular load manager</a></li>
+      
+    </ul>
+  </section>
+  
+  <section class="sidebar-group">
+    <h4>Pulsar applications</h4>
+    <ul>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/applications/JavaClient/"><i class="fa fa-file-text-o"></i>The Pulsar Java client</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/applications/CppClient/"><i class="fa fa-file-text-o"></i>The Pulsar C++ client</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/applications/PythonClient/"><i class="fa fa-file-text-o"></i>The Pulsar Python client</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/applications/WebSocket/"><i class="fa fa-file-text-o"></i>WebSocket API</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/applications/PulsarSpark/"><i class="fa fa-file-text-o"></i>Spark Streaming receiver</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/applications/PulsarStorm/"><i class="fa fa-file-text-o"></i>Apache Storm adaptor</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/applications/SimulationTools/"><i class="fa fa-file-text-o"></i>Simulation tools</a></li>
+      
+    </ul>
+  </section>
+  
+  <section class="sidebar-group">
+    <h4>Developing Pulsar</h4>
+    <ul>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/project/BinaryProtocol/"><i class="fa fa-file-text-o"></i>Pulsar binary protocol</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/project/Codebase/"><i class="fa fa-file-text-o"></i>Codebase</a></li>
+      
+    </ul>
+  </section>
+  
+  <section class="sidebar-group">
+    <h4>Reference</h4>
+    <ul>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/reference/RestApi/"><i class="fa fa-file-text-o"></i>Pulsar REST API</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/reference/CliTools/"><i class="fa fa-file-text-o"></i>Command-line tools</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/reference/Configuration/"><i class="fa fa-file-text-o"></i>Pulsar configuration</a></li>
+      
+    </ul>
+  </section>
+  
+</ul>
+
+
+    </nav>
+
+    <article class="col-xs-12 col-sm-12 col-md-7 col-lg-7">
+      <section class="docs-header">
+        <h1 class="docs-title">ZooKeeper and BookKeeper administration</h1>
+        
+        <section class="tags">
+          
+        </section>
+
+        <hr class="hr">
+      </section>
+
+      <section class="content">
+        <p>Pulsar relies on two external systems for a variety of essential tasks:</p>
+
+<ul>
+  <li><a href="https://zookeeper.apache.org/">ZooKeeper</a> is responsible for a wide variety of configuration- and coordination-related tasks.</li>
+  <li><a href="http://bookkeeper.apache.org/">BookKeeper</a> is responsible for <a href="../../getting-started/ConceptsAndArchitecture#persistent-storage">persistent storage</a> of message data.</li>
+</ul>
+
+<p>ZooKeeper and BookKeeper are both open-source <a href="https://www.apache.org/">Apache</a> projects.</p>
+
+<h2 id="zookeeper">ZooKeeper</h2>
+
+<p>Each Pulsar <span class="popover-term" tabindex="0" title="What is a Pulsar instance?" data-placement="top" data-content="A group of Pulsar clusters that act together as a single unit." data-toggle="popover" data-trigger="focus">instance</span> relies on two separate ZooKeeper quorums.</p>
+
+<ul>
+  <li><a href="#deploying-local-zookeeper">Local ZooKeeper</a> operates at the <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">cluster</span> level and provides cluster-specific configuration management and coordination. Each Pulsar cluster should have its own ZooKeeper cluster associated with it.</li>
+  <li><a href="#deploying-global-zookeeper">Global ZooKeeper</a> operates at the <span class="popover-term" tabindex="0" title="What is a Pulsar instance?" data-placement="top" data-content="A group of Pulsar clusters that act together as a single unit." data-toggle="popover" data-trigger="focus">instance</span> level and provides configuration management that applies to the entire Pulsar system. The global ZooKeeper quorum can be provided by an independent cluster of machines</li>
+</ul>
+
+<h3 id="deploying-local-zookeeper">Deploying local ZooKeeper</h3>
+
+<p>Deploying a Pulsar instance requires you to stand up one local <span class="popover-term" tabindex="0" title="What is ZooKeeper?" data-placement="top" data-content="ZooKeeper is a service that Pulsar uses for coordination-related tasks.&lt;br /&gt;&lt;br /&gt;A Pulsar instance relies on both a local ZooKeeper for cluster-specific tasks and a global ZooKeeper for instance-wide tasks." data-toggle="popover" data-trigger="focus">ZooKeeper</span> cluster <em>per Pulsar <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">cluster</span></em>. ZooKeeper manages a variety of essential coordination- and configuration-related tasks for Pulsar.</p>
+
+<p>To begin, add all ZooKeeper servers to the quorum configuration specified in the <a href="../../reference/Configuration#zookeeper"><code class="highlighter-rouge">conf/zookeeper.conf</code></a> file. Add a <code class="highlighter-rouge">server.N</code> line for each node in the cluster to the configuration, where <code class="highlighter-rouge">N</code> is the number of the ZooKeeper node. Here’s an example for a three-node cluster:</p>
+
+<div class="language-properties highlighter-rouge"><pre class="highlight"><code><span class="py">server.1</span><span class="p">=</span><span class="s">zk1.us-west.example.com:2888:3888</span>
+<span class="py">server.2</span><span class="p">=</span><span class="s">zk2.us-west.example.com:2888:3888</span>
+<span class="py">server.3</span><span class="p">=</span><span class="s">zk3.us-west.example.com:2888:3888</span>
+</code></pre>
+</div>
+
+<p>On each host, you need to specify the ID of the node in each node’s <code class="highlighter-rouge">myid</code> file, which is in each server’s <code class="highlighter-rouge">data/zookeeper</code> folder by default (this can be changed via the <a href="../../reference/Configuration#zookeeper-dataDir"><code class="highlighter-rouge">dataDir</code></a> parameter).</p>
+
+<div class="admonition">
+  <div class="info">
+    
+    
+<p>See the <a href="https://zookeeper.apache.org/doc/r3.4.10/zookeeperAdmin.html#sc_zkMulitServerSetup">Multi-server setup guide</a> in the ZooKeeper documentation for detailed info on <code class="highlighter-rouge">myid</code> and more.</p>
+
+  </div>
+</div>
+
+<p>On a ZooKeeper server at <code class="highlighter-rouge">zk1.us-west.example.com</code>, for example, you could set the <code class="highlighter-rouge">myid</code> value like this:</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>mkdir -p data/zookeeper
+<span class="gp">$ </span><span class="nb">echo </span>1 &gt; data/zookeeper/myid
+</code></pre>
+</div>
+
+<p>On <code class="highlighter-rouge">zk2.us-west.example.com</code> the command would be <code class="highlighter-rouge">echo 2 &gt; data/zookeeper/myid</code> and so on.</p>
+
+<p>Once each server has been added to the <code class="highlighter-rouge">zookeeper.conf</code> configuration and has the appropriate <code class="highlighter-rouge">myid</code> entry, you can start ZooKeeper on all hosts:</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-daemon start zookeeper
+</code></pre>
+</div>
+
+<h3 id="deploying-global-zookeeper">Deploying global ZooKeeper</h3>
+
+<p>The ZooKeeper cluster configured and started up in the section above is a <em>local</em> ZooKeeper cluster used to manage a single Pulsar <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">cluster</span>. In addition to a local cluster, however, a full Pulsar <span class="popover-term" tabindex="0" title="What is a Pulsar instance?" data-placement="top" data-content="A group of Pulsar clusters that act together as a single unit." data-toggle="popover" data-trigger="focus">instance</span> also requires a <em>global</em> ZooKeeper quorum for handling some instance-level configuration and coordination tasks.</p>
+
+<p>If you’re deploying a <a href="#single-cluster-pulsar-instance">single-cluster</a> instance, then you will not need a separate cluster for global ZooKeeper. If, however, you’re deploying a <a href="#multi-cluster-pulsar-instance">multi-cluster</a> instance, then you should stand up a separate ZooKeeper cluster for instance-level tasks.</p>
+
+<div class="admonition">
+  <div class="">
+    
+    
+  </div>
+</div>
+
+<h4 id="single-cluster-pulsar-instance">Single-cluster pulsar instance</h4>
+
+<p>If your Pulsar <span class="popover-term" tabindex="0" title="What is a Pulsar instance?" data-placement="top" data-content="A group of Pulsar clusters that act together as a single unit." data-toggle="popover" data-trigger="focus">instance</span> will consist of just one cluster, then you can deploy <span class="popover-term" tabindex="0" title="What is global ZooKeeper?" data-placement="top" data-content="A ZooKeeper cluster that Pulsar uses for instance-wide, rather than cluster-specific, tasks." data-toggle="popover" data-trigger="focus">global ZooKeeper</span> on the same machines as the local ZooKeeper quorum but running on different TCP ports.</p>
+
+<p>To deploy global ZooKeeper in a single-cluster instance, add the same ZooKeeper servers used by the local quorom to the configuration file in <a href="../../reference/Configuration#global-zookeeper"><code class="highlighter-rouge">conf/global_zookeeper.conf</code></a> using the same method for <a href="#local-zookeeper">local ZooKeeper</a>, but make sure to use a different port (2181 is the default for ZooKeeper). Here’s an example that uses port 2184 for a three-node ZooKeeper cluster:</p>
+
+<div class="language-properties highlighter-rouge"><pre class="highlight"><code><span class="py">clientPort</span><span class="p">=</span><span class="s">2184</span>
+<span class="py">server.1</span><span class="p">=</span><span class="s">zk1.us-west.example.com:2185:2186</span>
+<span class="py">server.2</span><span class="p">=</span><span class="s">zk2.us-west.example.com:2185:2186</span>
+<span class="py">server.3</span><span class="p">=</span><span class="s">zk3.us-west.example.com:2185:2186</span>
+</code></pre>
+</div>
+
+<p>As before, create the <code class="highlighter-rouge">myid</code> files for each server on <code class="highlighter-rouge">data/global-zookeeper/myid</code>.</p>
+
+<h4 id="multi-cluster-pulsar-instance">Multi-cluster Pulsar instance</h4>
+
+<p>When deploying a global Pulsar instance, with clusters distributed across different geographical regions, the global ZooKeeper serves as a highly available and strongly consistent metadata store that can tolerate failures and partitions spanning whole regions.</p>
+
+<p>The key here is to make sure the ZK quorum members are spread across at least 3
+regions and that other regions are running as observers.</p>
+
+<p>Again, given the very low expected load on the global ZooKeeper servers, we can
+share the same hosts used for the local ZooKeeper quorum.</p>
+
+<p>For example, let’s assume a Pulsar instance with the following clusters <code class="highlighter-rouge">us-west</code>,
+<code class="highlighter-rouge">us-east</code>, <code class="highlighter-rouge">us-central</code>, <code class="highlighter-rouge">eu-central</code>, <code class="highlighter-rouge">ap-south</code>. Also let’s assume, each cluster
+will have its own local ZK servers named such as</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>zk[1-3].${CLUSTER}.example.com
+</code></pre>
+</div>
+
+<p>In this scenario we want to pick the quorum participants from few clusters and
+let all the others be ZK observers. For example, to form a 7 servers quorum, we
+can pick 3 servers from <code class="highlighter-rouge">us-west</code>, 2 from <code class="highlighter-rouge">us-central</code> and 2 from <code class="highlighter-rouge">us-east</code>.</p>
+
+<p>This will guarantee that writes to global ZooKeeper will be possible even if one
+of these regions is unreachable.</p>
+
+<p>The ZK configuration in all the servers will look like:</p>
+
+<div class="language-properties highlighter-rouge"><pre class="highlight"><code><span class="py">clientPort</span><span class="p">=</span><span class="s">2184</span>
+<span class="py">server.1</span><span class="p">=</span><span class="s">zk1.us-west.example.com:2185:2186</span>
+<span class="py">server.2</span><span class="p">=</span><span class="s">zk2.us-west.example.com:2185:2186</span>
+<span class="py">server.3</span><span class="p">=</span><span class="s">zk3.us-west.example.com:2185:2186</span>
+<span class="py">server.4</span><span class="p">=</span><span class="s">zk1.us-central.example.com:2185:2186</span>
+<span class="py">server.5</span><span class="p">=</span><span class="s">zk2.us-central.example.com:2185:2186</span>
+<span class="py">server.6</span><span class="p">=</span><span class="s">zk3.us-central.example.com:2185:2186:observer</span>
+<span class="py">server.7</span><span class="p">=</span><span class="s">zk1.us-east.example.com:2185:2186</span>
+<span class="py">server.8</span><span class="p">=</span><span class="s">zk2.us-east.example.com:2185:2186</span>
+<span class="py">server.9</span><span class="p">=</span><span class="s">zk3.us-east.example.com:2185:2186:observer</span>
+<span class="py">server.10</span><span class="p">=</span><span class="s">zk1.eu-central.example.com:2185:2186:observer</span>
+<span class="py">server.11</span><span class="p">=</span><span class="s">zk2.eu-central.example.com:2185:2186:observer</span>
+<span class="py">server.12</span><span class="p">=</span><span class="s">zk3.eu-central.example.com:2185:2186:observer</span>
+<span class="py">server.13</span><span class="p">=</span><span class="s">zk1.ap-south.example.com:2185:2186:observer</span>
+<span class="py">server.14</span><span class="p">=</span><span class="s">zk2.ap-south.example.com:2185:2186:observer</span>
+<span class="py">server.15</span><span class="p">=</span><span class="s">zk3.ap-south.example.com:2185:2186:observer</span>
+</code></pre>
+</div>
+
+<p>Additionally, ZK observers will need to have:</p>
+
+<div class="language-properties highlighter-rouge"><pre class="highlight"><code><span class="py">peerType</span><span class="p">=</span><span class="s">observer</span>
+</code></pre>
+</div>
+
+<h5 id="starting-the-service">Starting the service</h5>
+
+<p>Once your global ZooKeeper configuration is in place, you can start up the service using <a href="../../reference/CliTools#pulsar-daemon"><code class="highlighter-rouge">pulsar-daemon</code></a></p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-daemon start global-zookeeper
+</code></pre>
+</div>
+
+<h3 id="zookeeper-configuration">ZooKeeper configuration</h3>
+
+<p>In Pulsar, ZooKeeper configuration is handled by two separate configuration files found in the <code class="highlighter-rouge">conf</code> directory of your Pulsar installation.</p>
+
+<h4 id="local-zookeeper">Local ZooKeeper</h4>
+
+<p>Configuration for local ZooKeeper is handled by the <a href="../../reference/Configuration#zookeeper"><code class="highlighter-rouge">conf/zookeeper.conf</code></a> file. The table below shows the available parameters</p>
+
+<table class="config">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Default</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    
+    <tr id="zookeeper-tickTime">
+      <td>tickTime</td>
+      <td>2000</td>
+      <td><p>The <em>tick</em> is the basic unit of time in ZooKeeper, measured in milliseconds and used to regulate things like <a href="https://www.tutorialspoint.com/zookeeper/zookeeper_quick_guide.htm">heartbeats and timeouts</a>. <code class="highlighter-rouge">tickTime</code> is the length of a single tick.</p>
+</td>
+    </tr>
+    
+    <tr id="zookeeper-initLimit">
+      <td>initLimit</td>
+      <td>10</td>
+      <td><p>The maximum time, in ticks, that the leader ZooKeeper server allows follower ZooKeeper servers to successfully connect and sync. The tick time is set in milliseconds using the <a href="#zookeeper-tickTime"><code class="highlighter-rouge">tickTime</code></a> parameter.</p>
+</td>
+    </tr>
+    
+    <tr id="zookeeper-syncLimit">
+      <td>syncLimit</td>
+      <td>5</td>
+      <td><p>The maximum time, in ticks, that a follower ZooKeeper server is allowed to sync with other ZooKeeper servers. The tick time is set in milliseconds using the <a href="#zookeeper-tickTime"><code class="highlighter-rouge">tickTime</code></a> parameter.</p>
+</td>
+    </tr>
+    
+    <tr id="zookeeper-dataDir">
+      <td>dataDir</td>
+      <td>data/zookeeper</td>
+      <td><p>The location where ZooKeeper will store in-memory database snapshots as well as the transaction log of updates to the database.</p>
+</td>
+    </tr>
+    
+    <tr id="zookeeper-clientPort">
+      <td>clientPort</td>
+      <td>2181</td>
+      <td><p>The port on which the ZooKeeper server will listen for connections.</p>
+</td>
+    </tr>
+    
+    <tr id="zookeeper-autopurge.snapRetainCount">
+      <td>autopurge.snapRetainCount</td>
+      <td>3</td>
+      <td><p>In ZooKeeper, auto purge determines how many recent snapshots of the database stored in <a href="#zookeeper-dataDir"><code class="highlighter-rouge">dataDir</code></a> to retain within the time interval specified by <a href="#zookeeper-autopurge.purgeInterval"><code class="highlighter-rouge">autopurge.purgeInterval</code></a> (while deleting the rest).</p>
+</td>
+    </tr>
+    
+    <tr id="zookeeper-autopurge.purgeInterval">
+      <td>autopurge.purgeInterval</td>
+      <td>1</td>
+      <td><p>The time interval, in hours, by which the ZooKeeper database purge task is triggered. Setting to a non-zero number will enable auto purge; setting to 0 will disable. Read <a href="http://zookeeper.apache.org/doc/current/zookeeperAdmin.html#sc_maintenance">this guide</a> before enabling auto purge.</p>
+</td>
+    </tr>
+    
+    <tr id="zookeeper-maxClientCnxns">
+      <td>maxClientCnxns</td>
+      <td>60</td>
+      <td><p>The maximum number of client connections. Increase this if you need to handle more ZooKeeper clients.</p>
+</td>
+    </tr>
+    
+  </tbody>
+</table>
+
+<h4 id="global-zookeeper">Global ZooKeeper</h4>
+
+<table class="config">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Default</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    
+    <tr id="global-zookeeper-tickTime">
+      <td>tickTime</td>
+      <td>2000</td>
+      <td><p>The number of milliseconds of each tick</p>
+</td>
+    </tr>
+    
+    <tr id="global-zookeeper-initLimit">
+      <td>initLimit</td>
+      <td>10</td>
+      <td><p>The number of ticks that the initial synchronization phase can take</p>
+</td>
+    </tr>
+    
+    <tr id="global-zookeeper-syncLimit">
+      <td>syncLimit</td>
+      <td>5</td>
+      <td><p>The number of ticks that can pass between sending a request and getting an acknowledgement</p>
+</td>
+    </tr>
+    
+    <tr id="global-zookeeper-dataDir">
+      <td>dataDir</td>
+      <td>data/global-zookeeper</td>
+      <td><p>the directory where the snapshot is stored.</p>
+</td>
+    </tr>
+    
+    <tr id="global-zookeeper-clientPort">
+      <td>clientPort</td>
+      <td>2184</td>
+      <td><p>the port at which the clients will connect</p>
+</td>
+    </tr>
+    
+    <tr id="global-zookeeper-maxClientCnxns">
+      <td>maxClientCnxns</td>
+      <td>60</td>
+      <td><p>the maximum number of client connections. increase this if you need to handle more clients</p>
+</td>
+    </tr>
+    
+    <tr id="global-zookeeper-autopurge.snapRetainCount">
+      <td>autopurge.snapRetainCount</td>
+      <td>3</td>
+      <td><p>The number of snapshots to retain in dataDir. For more info see <a href="http://zookeeper.apache.org/doc/current/zookeeperAdmin.html#sc_maintenance">here</a>.</p>
+</td>
+    </tr>
+    
+    <tr id="global-zookeeper-autopurge.purgeInterval">
+      <td>autopurge.purgeInterval</td>
+      <td>1</td>
+      <td><p>Purge task interval in hours. Set to “0” to disable auto purge feature</p>
+</td>
+    </tr>
+    
+  </tbody>
+</table>
+
+<h2 id="bookkeeper">BookKeeper</h2>
+
+<p><span class="popover-term" tabindex="0" title="What is BookKeeper?" data-placement="top" data-content="Apache BookKeeper is a persistent log storage system that Pulsar uses to store message data." data-toggle="popover" data-trigger="focus">BookKeeper</span> is responsible for all durable message storage in Pulsar. BookKeeper is a distributed <a href="https://en.wikipedia.org/wiki/Write-ahead_logging">write-ahead log</a> WAL system that guarantees read consistency of independent message logs called <span class="popover-term" tabindex="0" title="What is a ledger?" data-placement="top" data-content="TODO" data-toggle="popover" data-trigger="focus">ledgers</span>. Individual BookKeeper servers are also called <em>bookies</em>.</p>
+
+<div class="admonition">
+  <div class="info">
+    
+    
+<p>For a guide to managing message persistence, retention, and expiry in Pulsar, see <a href="../../concerns/RetentionExpiry">this guide</a>.</p>
+
+  </div>
+</div>
+
+<h3 id="deploying-bookkeeper">Deploying BookKeeper</h3>
+
+<h3 id="starting-up-bookies">Starting up bookies</h3>
+
+<p>You can start up a bookie in two ways: in the foreground or as a background daemon.</p>
+
+<p>To start up a bookie in the foreground, use the <a href="../../reference/CliTools#bookkeeper"><code class="highlighter-rouge">bookeeper</code></a></p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-daemon start bookie
+</code></pre>
+</div>
+
+<p>You can verify that the bookie is working properly:</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/bookkeeper shell bookiesanity
+</code></pre>
+</div>
+
+<p>This will create a new ledger on the local bookie, write a few entries, read them back and finally delete the ledger.</p>
+
+<h3 id="hardware-considerations">Hardware considerations</h3>
+
+<p><span class="popover-term" tabindex="0" title="What is a bookie?" data-placement="top" data-content="Bookie is just a nickname for an individual BookKeeper server." data-toggle="popover" data-trigger="focus">Bookie</span> hosts are responsible for storing message data on disk. In order for bookies to provide optimal performance, it’s essential that they have a suitable hardware configuration. There are two key dimensions to bookie hardware capacity:</p>
+
+<ul>
+  <li>Disk I/O capacity read/write</li>
+  <li>Storage capacity</li>
+</ul>
+
+<p>Message entries written to bookies are always synced to disk before returning an <span class="popover-term" tabindex="0" title="What is an acknowledgement (ack)?" data-placement="top" data-content="A message sent to a Pulsar broker by a consumer that a message has been successfully processed. An acknowledgement (ack) is Pulsar's way of knowing that the message can be deleted from the system; if no acknowledgement, then the message will be retained until it's processed." data-toggle="popover" data-trigger="focus">acknowledgement</span> to the Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">broker</span>. To ensure low write latency, BookKeeper is
+designed to use multiple devices:</p>
+
+<ul>
+  <li>A <strong>journal</strong> to ensure durability. For sequential writes, it’s critical to have fast <a href="https://linux.die.net/man/2/fsync">fsync</a> operations on bookie hosts. Typically, small and fast <a href="https://en.wikipedia.org/wiki/Solid-state_drive">solid-state drives</a> (SSDs) should suffice, or <a href="https://en.wikipedia.org/wiki/Hard_disk_drive">hard disk drives</a> (HDDs) with a <a href="https://en.wikipedia.org/wiki/RAID">RAID</a>s controller and a battery-backed write cache. Both solutions can reach fsync latency of ~0.4 ms.</li>
+  <li>A <strong>ledger storage device</strong> is where data is stored until all <span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumers</span> have <span class="popover-term" tabindex="0" title="What is an acknowledgement (ack)?" data-placement="top" data-content="A message sent to a Pulsar broker by a consumer that a message has been successfully processed. An acknowledgement (ack) is Pulsar's way of knowing that the message can be deleted from the system; if no acknowledgement, then the message will be retained until it's processed." data-toggle="popover" data-trigger="focus">acknowledged</span> the message. Writes will happen in the background, so write I/O is not a big concern. Reads will happen sequentially most of the time and the backlog is drained only in case of consumer drain. To store large amounts of data, a typical configuration will involve multiple HDDs with a RAID controller.</li>
+</ul>
+
+<h3 id="configuring-bookkeeper">Configuring BookKeeper</h3>
+
+<p>Configurable parameters for BookKeeper bookies can be found in the <a href="../../reference/Configuration#bookkeeper"><code class="highlighter-rouge">conf/bookkeeper.conf</code></a> file.</p>
+
+<p>Minimum configuration changes required  in <code class="highlighter-rouge">conf/bookkeeper.conf</code> are:</p>
+
+<div class="language-properties highlighter-rouge"><pre class="highlight"><code><span class="c"># Change to point to journal disk mount point
+</span><span class="py">journalDirectory</span><span class="p">=</span><span class="s">data/bookkeeper/journal</span>
+
+<span class="c"># Point to ledger storage disk mount point
+</span><span class="py">ledgerDirectories</span><span class="p">=</span><span class="s">data/bookkeeper/ledgers</span>
+
+<span class="c"># Point to local ZK quorum
+</span><span class="py">zkServers</span><span class="p">=</span><span class="s">zk1.example.com:2181,zk2.example.com:2181,zk3.example.com:2181</span>
+
+<span class="c"># Change the ledger manager type
+</span><span class="py">ledgerManagerType</span><span class="p">=</span><span class="s">hierarchical</span>
+</code></pre>
+</div>
+
+<p>Consult the official <a href="http://bookkeeper.apache.org">BookKeeper docs</a> for more information about BookKeeper.</p>
+
+<h2 id="bookkeeper-persistence-policies">BookKeeper persistence policies</h2>
+
+<p>In Pulsar, you can set <em>persistence policies</em>, at the <span class="popover-term" tabindex="0" title="What is a namespace?" data-placement="top" data-content="TODO" data-toggle="popover" data-trigger="focus">namespace</span> level, that determine how persistent storage of messages is handled by <span class="popover-term" tabindex="0" title="What is BookKeeper?" data-placement="top" data-content="Apache BookKeeper is a persistent log storage system that Pulsar uses to store message data." data-toggle="popover" data-trigger="focus">BookKeeper</span>. Policies determine four things:</p>
+
+<ul>
+  <li>The number of <span class="popover-term" tabindex="0" title="What is an acknowledgement (ack)?" data-placement="top" data-content="A message sent to a Pulsar broker by a consumer that a message has been successfully processed. An acknowledgement (ack) is Pulsar's way of knowing that the message can be deleted from the system; if no acknowledgement, then the message will be retained until it's processed." data-toggle="popover" data-trigger="focus">acks</span> (guaranteed copies) to wait for for each entry.</li>
+  <li>The number of <span class="popover-term" tabindex="0" title="What is a bookie?" data-placement="top" data-content="Bookie is just a nickname for an individual BookKeeper server." data-toggle="popover" data-trigger="focus">bookies</span> to use for a topic</li>
+  <li>How many writes to make for each entry</li>
+  <li>The throttling rate of mark-delete operations</li>
+</ul>
+
+<p>By default, messages are not persistently stored, which means that default values for all of the above are 0.</p>
+
+<h3 id="set-persistence-policies">Set persistence policies</h3>
+
+<h4 id="pulsar-admin">pulsar-admin</h4>
+
+<p>Use the <a href="../../reference/CliTools#pulsar-admin-namespaces-set-persistence"><code class="highlighter-rouge">set-persistence</code></a> subcommand and specify a namespace as well as any policies that you want to apply. The available flags are:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">Flag</th>
+      <th style="text-align: left">Description</th>
+      <th style="text-align: left">Default</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">-a</code>, <code class="highlighter-rouge">--bookkeeper-ack-quorom</code></td>
+      <td style="text-align: left">The number of acks (guaranteed copies) to wait on for each entry</td>
+      <td style="text-align: left">0</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">-e</code>, <code class="highlighter-rouge">--bookkeeper-ensemble</code></td>
+      <td style="text-align: left">The number of <span class="popover-term" tabindex="0" title="What is a bookie?" data-placement="top" data-content="Bookie is just a nickname for an individual BookKeeper server." data-toggle="popover" data-trigger="focus">bookies</span> to use for topics in the namespace</td>
+      <td style="text-align: left">0</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">-w</code>, <code class="highlighter-rouge">--bookkeeper-write-quorum</code></td>
+      <td style="text-align: left">How many writes to make for each entry</td>
+      <td style="text-align: left">0</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">-r</code>, <code class="highlighter-rouge">--ml-mark-delete-max-rate</code></td>
+      <td style="text-align: left">Throttling rate for mark-delete operations (0 means no throttle)</td>
+      <td style="text-align: left">0</td>
+    </tr>
+  </tbody>
+</table>
+
+<h5 id="example">Example</h5>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin namespaces <span class="nb">set</span>-persistence my-prop/my-cluster/my-ns <span class="se">\</span>
+  --bookkeeper-ack-quorom 3 <span class="se">\</span>
+  --bookeeper-ensemble 2
+</code></pre>
+</div>
+
+<h4 id="rest-api">REST API</h4>
+
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method post">POST</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/persistence</code></pre></div>
+
+<p><a href="../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/persistence">More info</a></p>
+
+<h4 id="java">Java</h4>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kt">int</span> <span class="n">bkEnsemble</span> <span class="o">=</span> <span class="mi">2</span><span class="o">;</span>
+<span class="kt">int</span> <span class="n">bkQuorum</span> <span class="o">=</span> <span class="mi">3</span><span class="o">;</span>
+<span class="kt">int</span> <span class="n">bkAckQuorum</span> <span class="o">=</span> <span class="mi">2</span><span class="o">;</span>
+<span class="kt">double</span> <span class="n">markDeleteRate</span> <span class="o">=</span> <span class="mf">0.7</span><span class="o">;</span>
+<span class="n">PersistencePolicies</span> <span class="n">policies</span> <span class="o">=</span>
+  <span class="k">new</span> <span class="nf">PersistencePolicies</span><span class="o">(</span><span class="n">ensemble</span><span class="o">,</span> <span class="n">quorum</span><span class="o">,</span> <span class="n">ackQuorum</span><span class="o">,</span> <span class="n">markDeleteRate</span><span class="o">);</span>
+<span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">setPersistence</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">policies</span><span class="o">);</span>
+</code></pre>
+</div>
+
+<h3 id="list-persistence-policies">List persistence policies</h3>
+
+<h4 id="pulsar-admin-1">pulsar-admin</h4>
+
+<p>Use the <a href="../../reference/CliTools#pulsar-admin-namespaces-get-persistence"><code class="highlighter-rouge">get-persistence</code></a> and specify the namespace.</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin namespaces get-persistence my-prop/my-cluster/my-ns
+<span class="o">{</span>
+  <span class="s2">"bookkeeperEnsemble"</span>: 1,
+  <span class="s2">"bookkeeperWriteQuorum"</span>: 1,
+  <span class="s2">"bookkeeperAckQuorum"</span>, 1,
+  <span class="s2">"managedLedgerMaxMarkDeleteRate"</span>: 0
+<span class="o">}</span>
+</code></pre>
+</div>
+
+<h4 id="rest-api-1">REST API</h4>
+
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/persistence</code></pre></div>
+
+<p><a href="../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/persistence">More info</a></p>
+
+      </section>
+    </article>
+
+    <nav class="toc-bar hidden-sm-down col-md-2 col-lg-2">
+      
+      <div id="toc">
+        <h4>ZooKeeper and BookKeeper administration</h4>
+      </div>
+      
+    </nav>
+  </div>
+</div>
+
+      </main>
+    </main>
+
+    <footer class="footer">
+  <div class="container">
+    <p class="text-center">&copy; Apache Foundation 2017</p>
+  </div>
+</footer>
+
+
+    
+  </body>
+</html>

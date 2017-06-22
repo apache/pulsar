@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <script type="text/javascript">
+  var shiftWindow = function() { scrollBy(0, -108) };
+  window.addEventListener("hashchange", shiftWindow);
+  window.addEventListener("pageshow", shiftWindow);
+  function load() { if (window.location.hash) shiftWindow(); }
+</script>
+
+<title>Deploying Pulsar on Kubernetes</title>
+
+<link rel="stylesheet" href="/pulsar/css/style.css">
+<link rel="shortcut icon" href="/pulsar/img/favicon.ico">
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tether/1.4.0/js/tether.min.js"></script>
+<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+<script src="/pulsar/js/jquery.tocify.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/js/bootstrap.min.js" integrity="sha384-vBWWzlZJ8ea9aCX4pEW3rVHjgjt7zpkNpZk+02D9phzyeVkE+jo0ieGizqPLForn" crossorigin="anonymous"></script>
+
+<script async src="/pulsar/js/main.js"></script>
+
+  </head>
+  <body class="body">
+    <main class="main">
+      <header class="container-fluid sticky-top top-nav">
+        <nav class="navbar navbar-default navbar-toggleable-xl container">
+  <a class="navbar-brand" href="/pulsar">
+    <img src="/pulsar/img/pulsar-logo.png">
+  </a>
+
+  <div class="collapse navbar-collapse justify-content-end" id="nav-content">
+    <ul class="nav navbar-nav">
+      <li class="nav-item">
+        <a class="nav-link" href="/pulsar/docs">Docs</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="/pulsar/javadoc">Java</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="/pulsar/api/cpp">C++</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="/pulsar/api/python">Python</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="/pulsar/ja"><img class="japan-flag" src="/pulsar/img/japan-flag.svg"></a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="https://github.com/yahoo/pulsar"><i class="fa fa-github fa-lg"></i></a>
+      </li>
+      <li class="nav-item version">
+        <a class="nav-link">Pulsar 1.17.5</a>
+      </li>
+    </ul>
+
+  </div>
+</nav>
+
+      </header>
+
+      <main>
+        <div class="docs-container container-fluid">
+  <div class="row">
+    <nav class="sidebar-nav hidden-sm-down col-md-3 col-lg-3">
+      
+<ul class="sidebar">
+  
+  <section class="sidebar-group">
+    <h4>Getting started</h4>
+    <ul>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/getting-started/LocalCluster/"><i class="fa fa-file-text-o"></i>Run Pulsar locally</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/getting-started/ConceptsAndArchitecture/"><i class="fa fa-file-text-o"></i>Concepts and architecture</a></li>
+      
+    </ul>
+  </section>
+  
+  <section class="sidebar-group">
+    <h4>Deployment</h4>
+    <ul>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/deployment/InstanceSetup/"><i class="fa fa-file-text-o"></i>Setting up a Pulsar instance</a></li>
+      
+      
+      
+      <li><a  class="active"href="/pulsar/docs/1.17.5/deployment/Kubernetes/"><i class="fa fa-file-text-o"></i>Pulsar on Kubernetes</a></li>
+      
+    </ul>
+  </section>
+  
+  <section class="sidebar-group">
+    <h4>Concerns</h4>
+    <ul>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/concerns/PartitionedTopics/"><i class="fa fa-file-text-o"></i>Partitioned topics</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/concerns/RetentionExpiry/"><i class="fa fa-file-text-o"></i>Retention and expiry</a></li>
+      
+    </ul>
+  </section>
+  
+  <section class="sidebar-group">
+    <h4>Pulsar administration</h4>
+    <ul>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/admin/AdminInterface/"><i class="fa fa-file-text-o"></i>Pulsar admin interface</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/admin/ClustersBrokers/"><i class="fa fa-file-text-o"></i>Clusters and brokers</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/admin/PropertiesNamespaces/"><i class="fa fa-file-text-o"></i>Properties and namespaces</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/admin/ZooKeeperBookKeeper/"><i class="fa fa-file-text-o"></i>ZooKeeper and BookKeeper</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/admin/Dashboard/"><i class="fa fa-file-text-o"></i>Dashboard</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/admin/Authz/"><i class="fa fa-file-text-o"></i>Authentication and authorization</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/admin/GeoReplication/"><i class="fa fa-file-text-o"></i>Geo-replication</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/admin/Stats/"><i class="fa fa-file-text-o"></i>Pulsar statistics</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/admin/ModularLoadManager/"><i class="fa fa-file-text-o"></i>Modular load manager</a></li>
+      
+    </ul>
+  </section>
+  
+  <section class="sidebar-group">
+    <h4>Pulsar applications</h4>
+    <ul>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/applications/JavaClient/"><i class="fa fa-file-text-o"></i>The Pulsar Java client</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/applications/CppClient/"><i class="fa fa-file-text-o"></i>The Pulsar C++ client</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/applications/PythonClient/"><i class="fa fa-file-text-o"></i>The Pulsar Python client</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/applications/WebSocket/"><i class="fa fa-file-text-o"></i>WebSocket API</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/applications/PulsarSpark/"><i class="fa fa-file-text-o"></i>Spark Streaming receiver</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/applications/PulsarStorm/"><i class="fa fa-file-text-o"></i>Apache Storm adaptor</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/applications/SimulationTools/"><i class="fa fa-file-text-o"></i>Simulation tools</a></li>
+      
+    </ul>
+  </section>
+  
+  <section class="sidebar-group">
+    <h4>Developing Pulsar</h4>
+    <ul>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/project/BinaryProtocol/"><i class="fa fa-file-text-o"></i>Pulsar binary protocol</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/project/Codebase/"><i class="fa fa-file-text-o"></i>Codebase</a></li>
+      
+    </ul>
+  </section>
+  
+  <section class="sidebar-group">
+    <h4>Reference</h4>
+    <ul>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/reference/RestApi/"><i class="fa fa-file-text-o"></i>Pulsar REST API</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/reference/CliTools/"><i class="fa fa-file-text-o"></i>Command-line tools</a></li>
+      
+      
+      
+      <li><a href="/pulsar/docs/1.17.5/reference/Configuration/"><i class="fa fa-file-text-o"></i>Pulsar configuration</a></li>
+      
+    </ul>
+  </section>
+  
+</ul>
+
+
+    </nav>
+
+    <article class="col-xs-12 col-sm-12 col-md-7 col-lg-7">
+      <section class="docs-header">
+        <h1 class="docs-title">Deploying Pulsar on Kubernetes</h1>
+        
+        <section class="tags">
+          
+          <!-- <span class="badge badge-pill badge-primary">kubernetes</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-kubernetes">kubernetes</button>
+          <div class="modal fade" id="modal-kubernetes">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Pages with the <strong>kubernetes</strong> tag</h5>
+      </div>
+      <div class="modal-body">
+        <ul>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/1.17.5/deployment/Kubernetes/">Deploying Pulsar on Kubernetes</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+          
+          <!-- <span class="badge badge-pill badge-primary">google container engine</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-google-container-engine">google container engine</button>
+          <div class="modal fade" id="modal-google-container-engine">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Pages with the <strong>google container engine</strong> tag</h5>
+      </div>
+      <div class="modal-body">
+        <ul>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/1.17.5/deployment/Kubernetes/">Deploying Pulsar on Kubernetes</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+          
+        </section>
+
+        <hr class="hr">
+      </section>
+
+      <section class="content">
+        <p>Pulsar can be easily deployed in a <a href="https://kubernetes.io/">Kubernetes</a> cluster, either in managed cluster on <a href="#pulsar-on-google-container-engine">Google Container Engine</a> or in a <a href="#pulsar-on-a-custom-kubernetes-cluster">custom Kubernetes cluster</a>.</p>
+
+<p>The installation method shown relies on <a href="http://yaml.org/">YAML</a> definitions for Kubernetes resources. You can see those definitions in the <a href="https://github.com/yahoo/pulsar/tree/master/kubernetes"><code class="highlighter-rouge">kubernetes</code></a> subdirectory of the <a href="https://github.com/yahoo/pulsar/tree/master">Pulsar repo</a>.</p>
+
+<h2 id="pulsar-on-google-container-engine">Pulsar on Google Container Engine</h2>
+
+<p><a href="https://cloud.google.com/container-engine">Google Container Engine</a> (GKE) automates the creation of Kubernetes clusters in the <a href="https://cloud.google.com/compute/">Google Compute Engine</a> (GCE) environment.</p>
+
+<h3 id="prerequisites">Prerequisites</h3>
+
+<p>To get started, go to <a href="https://cloud.google.com">cloud.google.com</a>, create a new project, and install the <a href="https://cloud.google.com/sdk/downloads">Google Cloud SDK</a> (you’ll need to use the <code class="highlighter-rouge">gcloud</code> tool).</p>
+
+<h3 id="create-a-new-kubernetes-cluster">Create a new Kubernetes cluster</h3>
+
+<p>You can create a new GKE cluster using the <a href="https://cloud.google.com/sdk/gcloud/reference/container/clusters/create"><code class="highlighter-rouge">container clusters create</code></a> command.</p>
+
+<p>As an example, we’ll create a new GKE cluster with 3 VMs, each using 2 locally attached SSDs. These SSDs will be used by <span class="popover-term" tabindex="0" title="What is a bookie?" data-placement="top" data-content="Bookie is just a nickname for an individual BookKeeper server." data-toggle="popover" data-trigger="focus">bookie</span> instances, one for the journal and the other for storing the data.</p>
+
+<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>gcloud container clusters create pulsar-us-cent <span class="se">\</span>
+  --zone<span class="o">=</span>us-central1-a <span class="se">\</span>
+  --machine-type<span class="o">=</span>n1-standard-8 <span class="se">\</span>
+  --num-nodes<span class="o">=</span>3 <span class="se">\</span>
+  --local-ssd-count<span class="o">=</span>2 <span class="se">\</span>
+  --cluster-version<span class="o">=</span>1.6.4
+</code></pre>
+</div>
+
+<p>By default, the Bookies will be running on all the machines that have locally attached SSD disks. In this example, all the machines will have 2 SSDs, but different kind of machines can be added later to the cluster and by using labels, you can control on which machines to start the bookie processes.</p>
+
+<p>Follow the “Connect to the cluster” instructions to open the Kubernetes dashboard in the browser.</p>
+
+<h2 id="pulsar-on-a-custom-kubernetes-cluster">Pulsar on a custom Kubernetes cluster</h2>
+
+<p>Pulsar can be deployed on a local Kubernetes cluster as well. You can find detailed documentation on how to choose a method to install Kubernetes at https://kubernetes.io/docs/setup/pick-right-solution/.</p>
+
+<p>To install a mini local cluster, for testing purposes, running in VMs in the local machines you can either:</p>
+
+<ol>
+  <li>Use minikube to have a single-node Kubernetes cluster</li>
+  <li>Create a local cluster running on multiple VMs on the same machine</li>
+</ol>
+
+<p>For the 2nd option, follow the instructions at https://github.com/pires/kubernetes-vagrant-coreos-cluster.</p>
+
+<p>In short, make sure you have Vagrant and VirtualBox installed, and then:</p>
+
+<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>git clone https://github.com/pires/kubernetes-vagrant-coreos-cluster
+<span class="gp">$ </span><span class="nb">cd </span>kubernetes-vagrant-coreos-cluster
+
+<span class="c"># Start a 3 VMs cluster</span>
+<span class="gp">$ </span><span class="nv">NODES</span><span class="o">=</span>3 <span class="nv">USE_KUBE_UI</span><span class="o">=</span><span class="nb">true </span>vagrant up
+</code></pre>
+</div>
+
+<p>Create the SSD disks mount points on the VMs. Bookies expect to have 2 logical devices to mount for journal and storage. In this VM exercise, we will just create 2 directories on each VM:</p>
+
+<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span><span class="k">for </span>vm <span class="k">in </span>node-01 node-02 node-03; <span class="k">do
+    </span><span class="nv">NODES</span><span class="o">=</span>3 vagrant ssh <span class="nv">$vm</span> -c <span class="s2">"sudo mkdir -p /mnt/disks/ssd0"</span>
+    <span class="nv">NODES</span><span class="o">=</span>3 vagrant ssh <span class="nv">$vm</span> -c <span class="s2">"sudo mkdir -p /mnt/disks/ssd1"</span>
+  <span class="k">done</span>
+</code></pre>
+</div>
+
+<p>Once the cluster is up, you can verify that <code class="highlighter-rouge">kubectl</code> can access it:</p>
+
+<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>kubectl get nodes
+NAME           STATUS                     AGE       VERSION
+172.17.8.101   Ready,SchedulingDisabled   10m       v1.6.4
+172.17.8.102   Ready                      8m        v1.6.4
+172.17.8.103   Ready                      6m        v1.6.4
+172.17.8.104   Ready                      5m        v1.6.4
+</code></pre>
+</div>
+
+<p>Then use the proxy to access the web interface:</p>
+
+<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>kubectl proxy
+</code></pre>
+</div>
+
+<p>and open <a href="http://localhost:8001/ui">http://localhost:8001/ui</a>.</p>
+
+<h2 id="deploying-pulsar-components">Deploying Pulsar components</h2>
+
+<p>The YAML resource definitions for Pulsar components can be found in the <code class="highlighter-rouge">kubernetes</code> folder of the <a href="https://github.com/yahoo/pulsar">Pulsar repository</a>.</p>
+
+<p>There are 2 versions, one for Google Container Engine (GKE) and the other for the generic Kubernetes deployment.</p>
+
+<h3 id="zookeeper">ZooKeeper</h3>
+
+<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>kubectl apply -f zookeeper.yaml
+</code></pre>
+</div>
+
+<p>Wait until all 3 ZooKeeper server pods are up and running. The first take will take a bit longer since it will be downloading the Docker image on the VMs.</p>
+
+<h4 id="initialize-cluster-metadata">Initialize cluster metadata</h4>
+
+<p>This step is needed to initialize the Pulsar and BookKeeper metadata within ZooKeeper.</p>
+
+<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>kubectl <span class="nb">exec</span> -it zk-0 -- <span class="se">\</span>
+    bin/pulsar initialize-cluster-metadata <span class="se">\</span>
+      --cluster us-central <span class="se">\</span>
+      --zookeeper zookeeper <span class="se">\</span>
+      --global-zookeeper zookeeper <span class="se">\</span>
+      --web-service-url http://broker.default.svc.cluster.local:8080/ <span class="se">\</span>
+      --broker-service-url pulsar://broker.default.svc.cluster.local:6650/
+</code></pre>
+</div>
+
+<h4 id="deploy-the-rest-of-the-components">Deploy the rest of the components</h4>
+
+<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>kubectl apply -f bookie.yaml
+<span class="gp">$ </span>kubectl apply -f broker.yaml
+<span class="gp">$ </span>kubectl apply -f monitoring.yaml
+</code></pre>
+</div>
+
+<p>These command will deploy 3 brokers and 3 bookies (one bookie per VM), plus the monitoring infrastructure (Prometheus, Grafana and Pulsar-Dashboard).</p>
+
+<h4 id="set-up-property-and-namespaces">Set up property and namespaces</h4>
+
+<p>This step is not strictly required if Pulsar authentication and authorization is turned on, though it allows later to change the policies for each of the namespaces.</p>
+
+<p>Connect to the <code class="highlighter-rouge">pulsar-admin</code> pod that is already configured to act as a client in the newly created cluster.</p>
+
+<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>kubectl <span class="nb">exec </span>pulsar-admin -it -- bash
+</code></pre>
+</div>
+
+<p>From there we can issue all admin commands:</p>
+
+<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="nb">export </span><span class="nv">MY_PROPERTY</span><span class="o">=</span>prop
+<span class="nb">export </span><span class="nv">MY_NAMESPACE</span><span class="o">=</span>prop/us-central/ns
+
+<span class="c"># Provision a new Pulsar property (as in "tenant")</span>
+<span class="gp">$ </span>bin/pulsar-admin properties create <span class="nv">$MY_PROPERTY</span> <span class="se">\</span>
+  --admin-roles admin <span class="se">\</span>
+  --allowed-clusters us-central
+
+<span class="c"># Create a namespace can be spread on up to 16 brokers (initially)</span>
+<span class="gp">$ </span>bin/pulsar-admin namespaces create <span class="nv">$MY_NAMESPACE</span> --bundles 16
+</code></pre>
+</div>
+
+<h4 id="from-cli-tools-to-test">From CLI tools to test</h4>
+
+<p>From the same <code class="highlighter-rouge">pulsar-admin</code> pod, we can start a test producer to send 10K messages/s:</p>
+
+<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-perf produce persistent://prop/us-central/ns/my-topic <span class="se">\</span>
+  --rate 10000
+</code></pre>
+</div>
+
+<p>Similarly, we can start a consumer to subscribe and receive all the messages.</p>
+
+<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-perf consume persistent://prop/us-central/ns/my-topic <span class="se">\</span>
+  --subscriber-name my-subscription-name
+</code></pre>
+</div>
+
+<p>To get the stats for the topic on the CLI:</p>
+
+<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-admin persistent stats persistent://prop/us-central/ns/my-topic
+</code></pre>
+</div>
+
+<h3 id="monitoring">Monitoring</h3>
+
+<h4 id="prometheus">Prometheus</h4>
+
+<p>All the metrics are being collected by a Prometheus instance running inside the Kubernetes cluster. Typically there is no need to access directly Prometheus, but rather just use the Grafana interface that is exposing the data stored in Prometheus.</p>
+
+<h4 id="grafana-dashboards">Grafana dashboards</h4>
+
+<p>There are dashboards for Pulsar namespaces (rates/latency/storage), JVM stats, ZooKeeper and BookKeeper.</p>
+
+<p>Get access to the pod serving Grafana:</p>
+
+<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>kubectl port-forward <span class="k">$(</span>kubectl get pods | grep grafana | awk <span class="s1">'{print $1}'</span><span class="k">)</span> 3000
+</code></pre>
+</div>
+
+<p>Then open the browser at <a href="http://localhost:3000">http://localhost:3000</a>.</p>
+
+<h4 id="pulsar-dashboard">Pulsar dashboard</h4>
+
+<p>While Grafana and Prometheus are used to provide graphs with historical data, Pulsar dashboard reports more detailed current data for the single topics.</p>
+
+<p>For example, you can have sortable tables with all namespaces, topics and broker stats, with details on the IP address for consumers, since when they were connected and much more.</p>
+
+<p>Get access to the pod serving the Pulsar dashboard:</p>
+
+<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>kubectl port-forward <span class="k">$(</span>kubectl get pods | grep pulsar-dashboard | awk <span class="s1">'{print $1}'</span><span class="k">)</span> 8080:80
+</code></pre>
+</div>
+
+<p>Then open the browser at <a href="http://localhost:8080">http://localhost:8080</a>.</p>
+
+      </section>
+    </article>
+
+    <nav class="toc-bar hidden-sm-down col-md-2 col-lg-2">
+      
+      <div id="toc">
+        <h4>Deploying Pulsar on Kubernetes</h4>
+      </div>
+      
+    </nav>
+  </div>
+</div>
+
+      </main>
+    </main>
+
+    <footer class="footer">
+  <div class="container">
+    <p class="text-center">&copy; Apache Foundation 2017</p>
+  </div>
+</footer>
+
+
+    
+  </body>
+</html>
