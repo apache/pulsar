@@ -111,11 +111,11 @@
               <relocations>
                 <relocation>
                   <pattern>com.google</pattern>
-                  <shadedPattern>com.yahoo.pulsar.shade.com.google</shadedPattern>
+                  <shadedPattern>org.apache.pulsar.shade.com.google</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>io.netty</pattern>
-                  <shadedPattern>com.yahoo.pulsar.shade.io.netty</shadedPattern>
+                  <shadedPattern>org.apache.pulsar.shade.io.netty</shadedPattern>
                 </relocation>
               </relocations>
             </configuration>

@@ -3,7 +3,7 @@
 	<logger name="org" level="INFO" />
 	<logger name="com" level="INFO" />
 	<logger name="io" level="INFO" />
-	<logger name="com.yahoo.pulsar.client.api" level="INFO" />
+	<logger name="org.apache.pulsar.client.api" level="INFO" />
 
 	<appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
 		<encoder>

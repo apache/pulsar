@@ -113,7 +113,7 @@
                 </relocation>
                 <relocation>
                   <pattern>org.asynchttpclient</pattern>
-                  <shadedPattern>com.yahoo.pulsar.shade.org.asynchttpclient</shadedPattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.asynchttpclient</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>com.google</pattern>

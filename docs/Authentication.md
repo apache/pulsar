@@ -115,7 +115,7 @@ tlsTrustCertsFilePath=/path/to/cacert.pem
 # Add TLS auth provider
 authenticationEnabled=true
 authorizationEnabled=true
-authenticationProviders=com.yahoo.pulsar.broker.authentication.AuthenticationProviderTls
+authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationProviderTls
 ```
 
 #### Configure discovery service
@@ -171,7 +171,7 @@ add there the authentication parameters:
 
 ```shell
 serviceUrl=https://broker.example.com:8443/
-authPlugin=com.yahoo.pulsar.client.impl.auth.AuthenticationTls
+authPlugin=org.apache.pulsar.client.impl.auth.AuthenticationTls
 authParams=tlsCertFile:/path/to/client-cert.pem,tlsKeyFile:/path/to/client-key.pem
 useTls=true
 tlsAllowInsecureConnection=false
@@ -223,7 +223,7 @@ The class name of the Athenz authentication provider and comma separated provide
 # Add Athenz auth provider
 authenticationEnabled=true
 authorizationEnabled=true
-authenticationProviders=com.yahoo.pulsar.broker.authentication.AuthenticationProviderAthenz
+authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationProviderAthenz
 athenzDomainNames=pulsar
 
 # Enable TLS
@@ -265,7 +265,7 @@ add there the authentication parameters:
 serviceUrl=https://broker.example.com:8443/
 
 # Set Athenz auth plugin and its parameters
-authPlugin=com.yahoo.pulsar.client.impl.auth.AuthenticationAthenz
+authPlugin=org.apache.pulsar.client.impl.auth.AuthenticationAthenz
 authParams=tenantDomain:shopping,tenantService:some_app,providerDomain:pulsar,privateKeyPath:/path/to/private.pem,keyId:v1
 
 # Enable TLS

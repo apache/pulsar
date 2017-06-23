@@ -7,7 +7,7 @@ The protocol definition is located at `pulsar-common/src/main/proto/PulsarApi.pr
 
 ### For Broker and Java Client:
 
-The pre-generated Java code is at `pulsar-common/src/main/java/com/yahoo/pulsar/common/api/proto/PulsarApi.java`. 
+The pre-generated Java code is at `pulsar-common/src/main/java/org/apache/pulsar/common/api/proto/PulsarApi.java`. 
 
 We are currently using a modified version of the Google Protocol Buffer code generator, to generate code that can serialize/deserialize messages with no memory allocations (caching already instantiated objects) and also to be able to directly use Netty pooled ByteBuf with direct memory.
 
