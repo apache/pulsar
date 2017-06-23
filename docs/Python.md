@@ -142,7 +142,7 @@ CLASSES
      |      Close the client and all the associated producers and consumers
      |  
      |  create_producer(self, topic, send_timeout_millis=30000,
-     |                  compression_type=_pulsar.CompressionType.None, max_pending_messages=30000,
+     |                  compression_type=_pulsar.CompressionType.None, max_pending_messages=1000,
      |                  block_if_queue_full=False, batching_enabled=False, batching_max_messages=1000,
      |                  batching_max_allowed_size_in_bytes=131072, batching_max_publish_delay_ms=10)
      |      Create a new producer on a given topic
