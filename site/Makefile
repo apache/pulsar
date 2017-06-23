@@ -5,7 +5,15 @@ GULP = node_modules/.bin/gulp
 RAKE = ${BUNDLE} exec rake
 
 deep_clean:
-	rm -rf .bundle .sass-cache api node_modules vendor _data/config _data/admin-rest-api-swagger.json protobuf.json
+	rm -rf \
+		.bundle \
+		.sass-cache \
+		api \
+		node_modules \
+		vendor \
+		_data/config \
+		_data/admin-rest-api-swagger.json \
+		protobuf.json
 
 doxygen_install:
 	rm -rf scripts/doxygen
@@ -30,7 +38,7 @@ python_setup:
 
 setup: clean_local ruby_setup protobuf_setup doxygen_install python_setup
 
-build:
+build: api_docs
 	scripts/build-all-versions.sh
 
 serve: clean_local
@@ -61,4 +69,4 @@ protobuf_setup:
 
 api_docs: javadoc protobuf_doc_gen python_doc_gen
 
-publish: deep_clean setup protobuf_doc_gen swagger_definition_gen api_docs build
+publish: deep_clean setup protobuf_doc_gen swagger_definition_gen build
