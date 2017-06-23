@@ -696,7 +696,7 @@ object.</p>
 <p>After opening a TCP connection to a broker, typically on port 6650, the client
 is responsible to initiate the session.</p>
 
-<p><img src="/incubator-pulsar//img/Binary%20Protocol%20-%20Connect.png" alt="Connect interaction" /></p>
+<p><img src="/incubator-pulsar/img/Binary%20Protocol%20-%20Connect.png" alt="Connect interaction" /></p>
 
 <p>After receiving a <code class="highlighter-rouge">Connected</code> response from the broker, the client can
 consider the connection ready to use. Alternatively, if the broker doesn’t
@@ -764,7 +764,7 @@ authorized to publish on the topic.</p>
 <p>Once the client gets confirmation of the producer creation, it can publish
 messages to the broker, referring to the producer id negotiated before.</p>
 
-<p><img src="/incubator-pulsar//img/Binary%20Protocol%20-%20Producer.png" alt="Producer interaction" /></p>
+<p><img src="/incubator-pulsar/img/Binary%20Protocol%20-%20Producer.png" alt="Producer interaction" /></p>
 
 <h5 id="command-producer">Command Producer</h5>
 
@@ -883,7 +883,7 @@ connection is not being affected.</p>
 After every reconnection, a client needs to subscribe to the topic. If a
 subscription is not already there, a new one will be created.</p>
 
-<p><img src="/incubator-pulsar//img/Binary%20Protocol%20-%20Consumer.png" alt="Consumer" /></p>
+<p><img src="/incubator-pulsar/img/Binary%20Protocol%20-%20Consumer.png" alt="Consumer" /></p>
 
 <h4 id="flow-control">Flow control</h4>
 
@@ -1044,7 +1044,7 @@ connect to, or a broker hostname to which retry the lookup.</p>
 <p>The <code class="highlighter-rouge">LookupTopic</code> command has to be used in a connection that has already
 gone through the <code class="highlighter-rouge">Connect</code> / <code class="highlighter-rouge">Connected</code> initial handshake.</p>
 
-<p><img src="/incubator-pulsar//img/Binary%20Protocol%20-%20Topic%20lookup.png" alt="Topic lookup" /></p>
+<p><img src="/incubator-pulsar/img/Binary%20Protocol%20-%20Topic%20lookup.png" alt="Topic lookup" /></p>
 
 <div class="language-protobuf highlighter-rouge"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandLookupTopic</span> <span class="p">{</span>
   <span class="s">"topic"</span> <span class="o">:</span> <span class="s">"persistent://my-property/my-cluster/my-namespace/my-topic"</span><span class="p">,</span>

@@ -4,7 +4,7 @@ title: Pulsar geo-replication
 
 *Geo-replication* is the replication of persistently stored message data across multiple {% popover clusters %} of a Pulsar {% popover instance %}.
 
-![Replication Diagram]({{ site.baseurl }}/img/GeoReplication.png)
+![Replication Diagram]({{ site.baseurl }}img/GeoReplication.png)
 
 ## Geo-replication and Pulsar properties
 

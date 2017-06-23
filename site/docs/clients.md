@@ -20,7 +20,7 @@ Library | Purpose
 [`com.yahoo.pulsar.client.api`]({{ site.baseurl }}api/client) | The [Pulsar Java client](../{{ site.current_version }}/applications/JavaClient) for producing and consuming messages on Pulsar {% popover topics %}
 [`com.yahoo.pulsar.client.admin`]({{ site.baseurl }}api/admin) | The Java interface for the [Pulsar admin interface](../{{ site.current_version }}/admin/AdminInterface)
 
-<!-- * [`com.yahoo.pulsar.broker`]({{ site.baseurl }}/api/broker) -->
+<!-- * [`com.yahoo.pulsar.broker`]({{ site.baseurl }}api/broker) -->
 
 ## C++ client
 

@@ -11,9 +11,8 @@ Javadoc for the Pulsar client is divided up into three domains, by package:
 
 Package | Description
 :-------|:-----------
-[`com.yahoo.pulsar.broker`]({{ site.baseurl }}/api/broker) | {% popover Broker %}-specific tasks
-[`com.yahoo.pulsar.client.api`]({{ site.baseurl }}/api/client) | The {% popover producer %} and {% popover consumer %} API
-[`com.yahoo.pulsar.client.admin`]({{ site.baseurl }}/api/admin) | The Java [admin API](../../admin/AdminInterface)
+[`com.yahoo.pulsar.client.api`]({{ site.baseurl }}api/client) | The {% popover producer %} and {% popover consumer %} API
+[`com.yahoo.pulsar.client.admin`]({{ site.baseurl }}api/admin) | The Java [admin API](../../admin/AdminInterface)
 
 This document will focus only on the client API for producing and consuming messages on Pulsar {% popover topics %}.
 
