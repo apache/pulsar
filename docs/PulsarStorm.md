@@ -20,7 +20,7 @@ Include dependency for Pulsar Storm Adaptor:
 
 ```xml
 <dependency>
-  <groupId>com.yahoo.pulsar</groupId>
+  <groupId>org.apache.pulsar</groupId>
   <artifactId>pulsar-storm</artifactId>
   <version>${pulsar.version}</version>
 </dependency>

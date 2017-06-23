@@ -99,11 +99,11 @@ A sample namespace, `sample/standalone/ns1`, is already available.
 
 Include dependency for Pulsar client library.
 
-Latest version is [![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.yahoo.pulsar/pulsar-client/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.yahoo.pulsar/pulsar-client)
+Latest version is [![Maven Central](https://maven-badges.herokuapp.com/maven-central/org.apache.pulsar/pulsar-client/badge.svg)](https://maven-badges.herokuapp.com/maven-central/org.apache.pulsar/pulsar-client)
 
 ```xml
 <dependency>
-  <groupId>com.yahoo.pulsar</groupId>
+  <groupId>org.apache.pulsar</groupId>
   <artifactId>pulsar-client</artifactId>
   <version>${pulsar.version}</version>
 </dependency>

@@ -24,7 +24,7 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>com.yahoo.pulsar</groupId>
+    <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
     <version>1.19-SNAPSHOT</version>
     <relativePath>..</relativePath>

@@ -18,7 +18,7 @@ Include dependency for Spark Streaming Pulsar Receiver:
 
 ```xml
 <dependency>
-  <groupId>com.yahoo.pulsar</groupId>
+  <groupId>org.apache.pulsar</groupId>
   <artifactId>pulsar-spark</artifactId>
   <version>${pulsar.version}</version>
 </dependency>
