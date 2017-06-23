@@ -1,6 +1,6 @@
 destination: generated
 livereload: true
-baseurl: ""
+baseurl: "/"
 current_version: 1.17.5
 include:
 - docs/example.md

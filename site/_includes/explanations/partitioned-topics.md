@@ -6,7 +6,7 @@ Partitioned topics need to be explicitly created via the [admin API](../../admin
 
 The diagram below illustrates this:
 
-![Partitioned Topic]({{ site.baseurl }}/img/pulsar_partitioned_topic.jpg)
+![Partitioned Topic]({{ site.baseurl }}img/pulsar_partitioned_topic.jpg)
 
 With partitioned topics, the *routing mode* determines which partition---that is, which internal topic---a message will be published to. There are three routing modes available by default:
 

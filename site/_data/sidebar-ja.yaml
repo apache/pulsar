@@ -10,5 +10,5 @@ groups:
   - title: クラスタのセットアップ
     endpoint: ClusterSetup
   - title: adminツールとAPI
-    endpoint: AdminInterface
+    endpoint: AdminTools
 # TODO
