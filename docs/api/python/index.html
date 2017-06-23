@@ -1121,10 +1121,17 @@ table {
   <h1 class="title"><span class="name">pulsar</span> module</h1>
   <p>The Pulsar Python client library is based on the existing C++ client library.
 All the same features are exposed through the Python interface.</p>
-<h2>Install</h2>
+<p>Currently, the only supported Python version is 2.7.</p>
+<h2>Install from PyPI</h2>
+<p>Download Python wheel binary files for MacOS and Linux
+directly from the PyPI archive.</p>
+<div class="codehilite"><pre><span></span>$ sudo pip install pulsar-client
+</pre></div>
+
+
+<h2>Install from sources</h2>
 <p>Follow the instructions to compile the Pulsar C++ client library. This method
 will also build the Python binding for the library.</p>
-<p>Currently, the only supported Python version is 2.7.</p>
 <p>To install the Python bindings:</p>
 <div class="codehilite"><pre><span></span>$ <span class="nb">cd</span> pulsar-client-cpp/python
 $ sudo python setup.py install
@@ -1207,12 +1214,20 @@ $ sudo python setup.py install
 <span class="sd">The Pulsar Python client library is based on the existing C++ client library.</span>
 <span class="sd">All the same features are exposed through the Python interface.</span>
 
-<span class="sd">## Install</span>
+<span class="sd">Currently, the only supported Python version is 2.7.</span>
+
+<span class="sd">## Install from PyPI</span>
+
+<span class="sd">Download Python wheel binary files for MacOS and Linux</span>
+<span class="sd">directly from the PyPI archive.</span>
+
+<span class="sd">    #!shell</span>
+<span class="sd">    $ sudo pip install pulsar-client</span>
+
+<span class="sd">## Install from sources</span>
 
 <span class="sd">Follow the instructions to compile the Pulsar C++ client library. This method</span>
 <span class="sd">will also build the Python binding for the library.</span>
-
-<span class="sd">Currently, the only supported Python version is 2.7.</span>
 
 <span class="sd">To install the Python bindings:</span>
 

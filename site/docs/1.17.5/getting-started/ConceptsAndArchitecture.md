@@ -227,7 +227,6 @@ Pulsar enables messages to be produced and consumed in different geo-locations. 
 
 Pulsar supports a pluggable [authentication](https://github.com/yahoo/pulsar/blob/master/docs/Authentication.md) mechanism which can be configured at broker and it also supports [authorization](https://github.com/yahoo/pulsar/blob/master/docs/Authorization.md) to identify client and its access rights on topics and properties.
 
-
 ## Client interface
 
 Pulsar exposes a client API with language bindings for [Java](../../applications/JavaClient) and [C++](../../applications/CppClient). The client API optimizes and encapsulates Pulsar's client-broker communication protocol and exposes a simple and intuitive API for use by applications.
@@ -246,3 +245,9 @@ When an application wants to create a producer/consumer, the Pulsar client libra
 1. Once the client library has the broker address, it will create a TCP connection (or reuse an existing connection from the pool) and authenticate it. Within this connection, client and broker exchange binary commands from a custom protocol. At this point the client will send a command to create producer/consumer to the broker, which will comply after having validated the authorization policy.
 
 Whenever the TCP connection breaks, the client will immediately re-initiate this setup phase and will keep trying with exponential backoff to re-establish the producer or consumer until the operation succeeds.
+
+## Service discovery
+
+[Clients](../../getting-started/Clients) connecting to Pulsar {% popover brokers %} need to be able to communicate with an entire Pulsar {% popover instance %} using a single URL. Pulsar provides a built-in service discovery mechanism that you can set up using the instructions in the [Deploying a Pulsar instance](../../deployment/InstanceSetup#service-discovery-setup) guide.
+
+You can use your own service discovery system if you'd like. If you use your own system, there is just one requirement: when a client performs an HTTP request to

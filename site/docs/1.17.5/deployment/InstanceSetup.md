@@ -62,34 +62,9 @@ clusterName=us-west
 $ bin/pulsar-daemon start broker
 ```
 
-## Service discovery
+## Service discovery setup
 
-
-
-The service discovery mechanism provided by Pulsar brokers has one purpose: to enable Pulsar clients to use a single URL to communicate with an entire Pulsar {% popover instance %}.
-
-You can either use the provided `discovery-service` or any other method. The
-only requirement is that when the client does a HTTP request on
-`http://pulsar.us-west.example.com:8080/` it must be redirected (through DNS, IP
-or HTTP redirect) to an active broker, without preference.
-
-The included discovery service maintains the list of active brokers from ZooKeeper and it supports lookup redirection with HTTP and also with [binary protocol](https://github.com/yahoo/pulsar/blob/master/docs/BinaryProtocol.md#service-discovery).
-
-Add the ZK servers in `conf/discovery.conf`:
-
-```properties
-# Zookeeper quorum connection string
-zookeeperServers=zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181
-
-# Global zookeeper quorum connection string
-globalZookeeperServers=zk1.us-west.example.com:2184,zk2.us-west.example.com:2184,zk3.us-west.example.com:2184
-```
-
-To start the discovery service:
-
-```shell
-$ bin/pulsar-daemon start discovery
-```
+{% include explanations/service-discovery-setup.md %}
 
 #### Admin client and verification
 

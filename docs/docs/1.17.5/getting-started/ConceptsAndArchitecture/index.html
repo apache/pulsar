@@ -33,16 +33,10 @@
   <div class="collapse navbar-collapse justify-content-end" id="nav-content">
     <ul class="nav navbar-nav">
       <li class="nav-item">
-        <a class="nav-link" href="/incubator-pulsar/docs/1.17.5">Docs</a>
+        <a class="nav-link" href="/incubator-pulsar/docs/1.17.5">Documentation</a>
       </li>
       <li class="nav-item">
-        <a class="nav-link" href="/incubator-pulsar/javadoc">Java</a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link" href="/incubator-pulsar/api/cpp">C++</a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link" href="/incubator-pulsar/api/python">Python</a>
+        <a class="nav-link" href="/incubator-pulsar/docs/1.17.5/getting-started/Clients">Client libraries</a>
       </li>
       <li class="nav-item">
         <a class="nav-link" href="/incubator-pulsar/ja"><img class="japan-flag" src="/incubator-pulsar/img/japan-flag.svg"></a>
@@ -76,6 +70,10 @@
       
       
       
+      <li><a href="/incubator-pulsar/docs/1.17.5/getting-started/Clients/"><i class="fa fa-file-text-o"></i>Client libraries</a></li>
+      
+      
+      
       <li><a  class="active"href="/incubator-pulsar/docs/1.17.5/getting-started/ConceptsAndArchitecture/"><i class="fa fa-file-text-o"></i>Concepts and architecture</a></li>
       
     </ul>
@@ -87,7 +85,7 @@
       
       
       
-      <li><a href="/incubator-pulsar/docs/1.17.5/deployment/InstanceSetup/"><i class="fa fa-file-text-o"></i>Setting up a Pulsar instance</a></li>
+      <li><a href="/incubator-pulsar/docs/1.17.5/deployment/InstanceSetup/"><i class="fa fa-file-text-o"></i>Deploying up a Pulsar instance</a></li>
       
       
       
@@ -270,9 +268,9 @@
           
           
           
+          
+          
           <li><a href="/docs/1.17.5/getting-started/ConceptsAndArchitecture/">Pulsar concepts and architecture</a></li>
-          
-          
           
           
           
@@ -768,6 +766,12 @@
 </ol>
 
 <p>Whenever the TCP connection breaks, the client will immediately re-initiate this setup phase and will keep trying with exponential backoff to re-establish the producer or consumer until the operation succeeds.</p>
+
+<h2 id="service-discovery">Service discovery</h2>
+
+<p><a href="../../getting-started/Clients">Clients</a> connecting to Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">brokers</span> need to be able to communicate with an entire Pulsar <span class="popover-term" tabindex="0" title="What is a Pulsar instance?" data-placement="top" data-content="A group of Pulsar clusters that act together as a single unit." data-toggle="popover" data-trigger="focus">instance</span> using a single URL. Pulsar provides a built-in service discovery mechanism that you can set up using the instructions in the <a href="../../deployment/InstanceSetup#service-discovery-setup">Deploying a Pulsar instance</a> guide.</p>
+
+<p>You can use your own service discovery system if you’d like. If you use your own system, there is just one requirement: when a client performs an HTTP request to</p>
 
       </section>
     </article>

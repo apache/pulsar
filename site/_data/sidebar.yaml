@@ -4,12 +4,14 @@ groups:
   docs:
   - title: Run Pulsar locally
     endpoint: LocalCluster
+  - title: Client libraries
+    endpoint: Clients
   - title: Concepts and architecture
     endpoint: ConceptsAndArchitecture
 - title: Deployment
   dir: deployment
   docs:
-  - title: Setting up a Pulsar instance
+  - title: Deploying up a Pulsar instance
     endpoint: InstanceSetup
   - title: Pulsar on Kubernetes
     endpoint: Kubernetes
