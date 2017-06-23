@@ -23,7 +23,7 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>com.yahoo.pulsar</groupId>
+    <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
     <version>1.19-SNAPSHOT</version>
     <relativePath>..</relativePath>
@@ -35,25 +35,25 @@
 
   <dependencies>
     <dependency>
-      <groupId>com.yahoo.pulsar</groupId>
+      <groupId>org.apache.pulsar</groupId>
       <artifactId>pulsar-broker</artifactId>
       <version>${project.version}</version>
     </dependency>
 
     <dependency>
-      <groupId>com.yahoo.pulsar</groupId>
+      <groupId>org.apache.pulsar</groupId>
       <artifactId>pulsar-discovery-service</artifactId>
       <version>${project.version}</version>
     </dependency>
 
     <dependency>
-      <groupId>com.yahoo.pulsar</groupId>
+      <groupId>org.apache.pulsar</groupId>
       <artifactId>pulsar-client-tools</artifactId>
       <version>${project.version}</version>
     </dependency>
 
     <dependency>
-      <groupId>com.yahoo.pulsar</groupId>
+      <groupId>org.apache.pulsar</groupId>
       <artifactId>pulsar-testclient</artifactId>
       <version>${project.version}</version>
     </dependency>

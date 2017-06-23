@@ -4,7 +4,7 @@
 
 Pulsarは、非常に柔軟なメッセージングモデルと直感的なクライアントAPIを備えた分散pub-subメッセージングプラットフォームです。
 
-[![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.yahoo.pulsar/pulsar/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.yahoo.pulsar/pulsar)
+[![Maven Central](https://maven-badges.herokuapp.com/maven-central/org.apache.pulsar/pulsar/badge.svg)](https://maven-badges.herokuapp.com/maven-central/org.apache.pulsar/pulsar)
 
 
 ## 主な特徴
