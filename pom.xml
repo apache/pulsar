@@ -35,15 +35,15 @@ flexible messaging model and an intuitive client API.</description>
   <url>https://github.com/apache/incubator-pulsar</url>
 
   <organization>
-    <name>Yahoo Inc.</name>
-    <url>http://www.yahoo.com/</url>
+    <name>Apache Software Foundation</name>
+    <url>http://www.apache.org/</url>
   </organization>
-  <inceptionYear>2016</inceptionYear>
+  <inceptionYear>2017</inceptionYear>
 
   <developers>
     <developer>
-      <organization>Yahoo Inc.</organization>
-      <organizationUrl>https://www.yahoo.com/</organizationUrl>
+      <organization>Apache Pulsar developers</organization>
+      <organizationUrl>http://pulsar.incubator.apache.org/</organizationUrl>
     </developer>
   </developers>
 
@@ -58,12 +58,12 @@ flexible messaging model and an intuitive client API.</description>
   <scm>
     <url>https://github.com/apache/incubator-pulsar</url>
     <connection>scm:git:https://github.com/apache/incubator-pulsar.git</connection>
-    <developerConnection>scm:git:ssh://git@github.com:yahoo/pulsar.git</developerConnection>
+    <developerConnection>scm:git:ssh://git@github.com:apache/incubator-pulsar.git</developerConnection>
   </scm>
 
   <ciManagement>
     <system>Travis</system>
-    <url>https://travis-ci.org/yahoo/pulsar</url>
+    <url>https://travis-ci.org/apache/incubator-pulsar</url>
   </ciManagement>
 
   <prerequisites>
@@ -199,7 +199,7 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>datasketches-metrics-provider</artifactId>
         <version>${bookkeeper.version}</version>
       </dependency>
-      
+
       <dependency>
         <groupId>org.apache.bookkeeper.stats</groupId>
         <artifactId>prometheus-metrics-provider</artifactId>
@@ -427,7 +427,7 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>simpleclient</artifactId>
         <version>${prometheus.version}</version>
       </dependency>
-      
+
       <dependency>
         <groupId>io.prometheus</groupId>
         <artifactId>simpleclient_hotspot</artifactId>
@@ -473,7 +473,7 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>aspectjrt</artifactId>
         <version>${aspectj.version}</version>
       </dependency>
-    
+
       <dependency>
         <groupId>org.aspectj</groupId>
         <artifactId>aspectjweaver</artifactId>
@@ -572,7 +572,7 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>**/*.hgrm</exclude>
             <exclude>**/CMakeFiles/**</exclude>
             <exclude>dashboard/django/stats/migrations/*.py</exclude>
-            
+
           </excludes>
           <mapping>
             <proto>JAVADOC_STYLE</proto>
