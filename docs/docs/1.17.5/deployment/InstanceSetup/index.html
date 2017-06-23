@@ -756,18 +756,27 @@ can take full advantage of that.</p>
 </code></pre>
 </div>
 
-<h2 id="service-discovery-setup">Service discovery setup</h2>
+<h2 id="service-discovery">Service discovery</h2>
 
-<p><a href="../../getting-started/Clients">Clients</a> connecting to Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">brokers</span> need to be able to communicate with an entire Pulsar <span class="popover-term" tabindex="0" title="What is a Pulsar instance?" data-placement="top" data-content="A group of Pulsar clusters that act together as a single unit." data-toggle="popover" data-trigger="focus">instance</span> using a single URL. You can use your own service discovery system for this if you’d like, but Pulsar provides a built-in service discovery mechanism. For setup instructions, see the <a href="../../deployment/InstanceSetup">Deploying a Pulsar instance</a> guide.</p>
+<p><a href="../../getting-started/Clients">Clients</a> connecting to Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">brokers</span> need to be able to communicate with an entire Pulsar <span class="popover-term" tabindex="0" title="What is a Pulsar instance?" data-placement="top" data-content="A group of Pulsar clusters that act together as a single unit." data-toggle="popover" data-trigger="focus">instance</span> using a single URL. Pulsar provides a built-in service discovery mechanism that you can set up using the instructions <a href="#service-discovery-setup">immediately below</a>.</p>
 
-<p>You can either use the provided <code class="highlighter-rouge">discovery-service</code> or any other method. The
-only requirement is that when the client does a HTTP request on
-<code class="highlighter-rouge">http://pulsar.us-west.example.com:8080/</code> it must be redirected (through DNS, IP
-or HTTP redirect) to an active broker, without preference.</p>
+<p>You can also use your own service discovery system if you’d like. If you use your own system, there is just one requirement: when a client performs an HTTP request to an endpoint for a Pulsar <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">cluster</span>, such as <code class="highlighter-rouge">http://pulsar.us-west.example.com:8080</code>, the client needs to be redirected to <em>some</em> active broker in the desired cluster, whether via DNS, an HTTP or IP redirect, or some other means.</p>
 
-<p>The included discovery service maintains the list of active brokers from ZooKeeper and it supports lookup redirection with HTTP and also with <a href="https://github.com/yahoo/pulsar/blob/master/docs/BinaryProtocol.md#service-discovery">binary protocol</a>.</p>
+<div class="admonition">
+  <div class="success">
+    <span class="admonition-title"><p>Service discovery already provided by many scheduling systems</p>
+</span>
+    
+<p>If you’re deploying Pulsar on <a href="../../deployment/Kubernetes">Kubernetes</a></p>
 
-<p>Add the ZK servers in <code class="highlighter-rouge">conf/discovery.conf</code>:</p>
+  </div>
+</div>
+
+<h3 id="service-discovery-setup">Service discovery setup</h3>
+
+<p>The service discovery mechanism included with Pulsar maintains a list of active brokers, stored in <span class="popover-term" tabindex="0" title="What is ZooKeeper?" data-placement="top" data-content="ZooKeeper is a service that Pulsar uses for coordination-related tasks.&lt;br /&gt;&lt;br /&gt;A Pulsar instance relies on both a local ZooKeeper for cluster-specific tasks and a global ZooKeeper for instance-wide tasks." data-toggle="popover" data-trigger="focus">ZooKeeper</span>, and supports lookup using HTTP and also Pulsar’s <a href="../../project/BinaryProtocol">binary protocol</a>.</p>
+
+<p>To get started setting up Pulsar’s built-in service discovery, you need to change a few parameters in the <a href="../../reference/Configuration#service-discovery"><code class="highlighter-rouge">conf/discovery.conf</code></a> configuration file. Set the <a href="../../reference/Configuration#service-discovery-zookeeperServers"><code class="highlighter-rouge">zookeeperServers</code></a> parameter to the global ZooKeeper quorum connection string and the <a href="../../reference/Configuration#service-discovery-globalZookeeperServers"><code class="highlighter-rouge">globalZookeeperServers</code></a></p>
 
 <div class="language-properties highlighter-rouge"><pre class="highlight"><code><span class="c"># Zookeeper quorum connection string
 </span><span class="py">zookeeperServers</span><span class="p">=</span><span class="s">zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181</span>

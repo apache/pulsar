@@ -67,6 +67,6 @@ protobuf_setup:
 	mv protoc-gen-doc scripts
 	(cd scripts/protoc-gen-doc && PROTOBUF_PREFIX=$(shell brew --prefix protobuf) qmake && make)
 
-api_docs: javadoc protobuf_doc_gen python_doc_gen
+api_docs: javadoc protobuf_doc_gen python_doc_gen cpp_doc_gen
 
 publish: deep_clean setup protobuf_doc_gen swagger_definition_gen build
