@@ -8,6 +8,12 @@
 
 @include sticky-footer;
 
+.modal-body {
+  ul {
+    padding-left: 2.25rem;
+  }
+}
+
 * {
   margin: 0;
   padding: 0;

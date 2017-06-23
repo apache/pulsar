@@ -3,9 +3,9 @@ title: Deploying Pulsar on Kubernetes
 tags: [kubernetes, google container engine]
 ---
 
-Pulsar can be easily deployed in a [Kubernetes](https://kubernetes.io/) cluster, either in managed cluster on [Google Container Engine](#pulsar-on-google-container-engine) or in a [custom Kubernetes cluster](#pulsar-on-a-custom-kubernetes-cluster).
+Pulsar can be easily deployed in [Kubernetes](https://kubernetes.io/) clusters, either in managed clusters on [Google Container Engine](#pulsar-on-google-container-engine) or in [self-deployed clusters](#pulsar-on-a-custom-kubernetes-cluster).
 
-The installation method shown relies on [YAML](http://yaml.org/) definitions for Kubernetes resources. You can see those definitions in the [`kubernetes`]({{ site.pulsar_repo }}/kubernetes) subdirectory of the [Pulsar repo]({{ site.pulsar_repo }}).
+The installation method shown in this guide relies on [YAML](http://yaml.org/) definitions for Kubernetes resources. You can see those definitions in the [`kubernetes`]({{ site.pulsar_repo }}/kubernetes) subdirectory of the [Pulsar repo]({{ site.pulsar_repo }}).
 
 ## Pulsar on Google Container Engine
 
@@ -13,13 +13,13 @@ The installation method shown relies on [YAML](http://yaml.org/) definitions for
 
 ### Prerequisites
 
-To get started, go to [cloud.google.com](https://cloud.google.com), create a new project, and install the [Google Cloud SDK](https://cloud.google.com/sdk/downloads) (you'll need to use the `gcloud` tool).
+To get started, you'll need a Google Cloud Platform account, which you can sign up for at [cloud.google.com](https://cloud.google.com), an existing Cloud Platform project. and the [Google Cloud SDK](https://cloud.google.com/sdk/downloads) (in particular the [`gcloud`](https://cloud.google.com/sdk/gcloud/) tool).
 
 ### Create a new Kubernetes cluster
 
-You can create a new GKE cluster using the [`container clusters create`](https://cloud.google.com/sdk/gcloud/reference/container/clusters/create) command.
+You can create a new GKE cluster using the [`container clusters create`](https://cloud.google.com/sdk/gcloud/reference/container/clusters/create) command, which enables you to specify the number of nodes in the cluster, the machine types of those nodes, and more.
 
-As an example, we'll create a new GKE cluster with 3 VMs, each using 2 locally attached SSDs. These SSDs will be used by {% popover bookie %} instances, one for the journal and the other for storing the data.
+As an example, we'll create a new GKE cluster with three VMs, each using two locally attached SSDs and running on [n1-standard-8](https://cloud.google.com/compute/docs/machine-types) machines. These SSDs will be used by {% popover bookie %} instances, one for the [journal](../../getting-started/ConceptsAndArchitecture#journal-storage) and the other for storing the data.
 
 ```bash
 $ gcloud container clusters create pulsar-us-cent \
@@ -30,7 +30,7 @@ $ gcloud container clusters create pulsar-us-cent \
   --cluster-version=1.6.4
 ```
 
-By default, the Bookies will be running on all the machines that have locally attached SSD disks. In this example, all the machines will have 2 SSDs, but different kind of machines can be added later to the cluster and by using labels, you can control on which machines to start the bookie processes.
+By default, the bookies will be running on all the machines that have locally attached SSD disks. In this example, all the machines will have 2 SSDs, but different types of machines can be added to the cluster later. You can control which machines host bookie servers using labels.
 
 Follow the "Connect to the cluster" instructions to open the Kubernetes dashboard in the browser.
 
@@ -38,7 +38,7 @@ Follow the "Connect to the cluster" instructions to open the Kubernetes dashboar
 
 Pulsar can be deployed on a local Kubernetes cluster as well. You can find detailed documentation on how to choose a method to install Kubernetes at https://kubernetes.io/docs/setup/pick-right-solution/.
 
-To install a mini local cluster, for testing purposes, running in VMs in the local machines you can either:
+To install a mini local cluster for testing purposes, running in VMs in the local machines you can either:
 
 1. Use minikube to have a single-node Kubernetes cluster
 1. Create a local cluster running on multiple VMs on the same machine

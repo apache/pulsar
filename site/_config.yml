@@ -7,8 +7,8 @@ baseurl: /incubator-pulsar/
 destination: ../docs
 
 versions:
-- 1.17.5
-latest: 1.17.5
+- 1.18
+latest: 1.18
 
 markdown: kramdown
 kramdown:
