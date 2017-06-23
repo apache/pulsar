@@ -1241,7 +1241,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             pulsar.getConfiguration().setMaxUnackedMessagesPerConsumer(unAckedMessages);
         }
     }
-    
+
     @Test
     public void testShouldNotBlockConsumerIfRedeliverBeforeReceive() throws Exception {
         log.info("-- Starting {} test --", methodName);
@@ -1693,7 +1693,6 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test
     public void testBlockUnackedConsumerRedeliverySpecificMessagesCloseConsumerWhileProduce() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -1775,7 +1774,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             pulsar.getConfiguration().setMaxUnackedMessagesPerConsumer(unAckedMessages);
         }
     }
-    
+
     @Test
     public void testPriorityConsumer() throws Exception {
         log.info("-- Starting {} test --", methodName);
@@ -1817,10 +1816,10 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }
 
         /**
-         * a. consumer1 and consumer2 now has more permits (as received and sent more permits) 
-         * b. try to produce more messages: which will again distribute among consumer1 and consumer2 
+         * a. consumer1 and consumer2 now has more permits (as received and sent more permits)
+         * b. try to produce more messages: which will again distribute among consumer1 and consumer2
          * and should not dispatch to consumer4
-         * 
+         *
          */
         for (int i = 0; i < 5; i++) {
             final String message = "my-message-" + i;
@@ -1843,12 +1842,12 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
      * <pre>
      * Verifies Dispatcher dispatches messages properly with shared-subscription consumers with combination of blocked
      * and unblocked consumers.
-     * 
-     * 1. Dispatcher will have 5 consumers : c1, c2, c3, c4, c5. 
+     *
+     * 1. Dispatcher will have 5 consumers : c1, c2, c3, c4, c5.
      *      Out of which : c1,c2,c4,c5 will be blocked due to MaxUnackedMessages limit.
      * 2. So, dispatcher should moves round-robin and make sure it delivers unblocked consumer : c3
      * </pre>
-     * 
+     *
      * @throws Exception
      */
     @Test(timeOut=5000)
@@ -2037,5 +2036,5 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
 
     }
-    
+
 }
