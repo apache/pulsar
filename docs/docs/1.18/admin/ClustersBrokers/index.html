@@ -1,0 +1,1341 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <script type="text/javascript">
+  var shiftWindow = function() { scrollBy(0, -108) };
+  window.addEventListener("hashchange", shiftWindow);
+  window.addEventListener("pageshow", shiftWindow);
+  function load() { if (window.location.hash) shiftWindow(); }
+</script>
+
+<title>Pulsar cluster and broker administration</title>
+
+<link rel="stylesheet" href="/incubator-pulsar/css/style.css">
+<link rel="shortcut icon" href="/incubator-pulsar/img/favicon.ico">
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tether/1.4.0/js/tether.min.js"></script>
+<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+<script src="/incubator-pulsar/js/jquery.tocify.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/js/bootstrap.min.js" integrity="sha384-vBWWzlZJ8ea9aCX4pEW3rVHjgjt7zpkNpZk+02D9phzyeVkE+jo0ieGizqPLForn" crossorigin="anonymous"></script>
+
+<script async src="/incubator-pulsar/js/main.js"></script>
+
+  </head>
+  <body class="body">
+    <main class="main">
+      <header class="container-fluid sticky-top top-nav">
+        <nav class="navbar navbar-default navbar-toggleable-xl container">
+  <a class="navbar-brand" href="/incubator-pulsar/">
+    <img src="/incubator-pulsar/img/pulsar-logo.png">
+  </a>
+
+  <div class="collapse navbar-collapse justify-content-end" id="nav-content">
+    <ul class="nav navbar-nav">
+      <li class="nav-item">
+        <a class="nav-link" href="/incubator-pulsar/docs/1.18">Documentation</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="/incubator-pulsar/docs/1.18/getting-started/Clients">Client libraries</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="/incubator-pulsar/ja"><img class="japan-flag" src="/incubator-pulsar/img/japan-flag.svg"></a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="https://github.com/yahoo/pulsar"><i class="fa fa-github fa-lg"></i></a>
+      </li>
+      <li class="nav-item version">
+        <a class="nav-link">Pulsar 1.17.5</a>
+      </li>
+    </ul>
+  </div>
+</nav>
+
+      </header>
+
+      <main>
+        <div class="docs-container container-fluid">
+  <div class="row">
+    <nav class="sidebar-nav hidden-sm-down col-md-3 col-lg-3">
+      
+<ul class="sidebar">
+  
+  <section class="sidebar-group">
+    <h4>Getting started</h4>
+    <ul>
+      
+      
+      
+      <li><a href="/incubator-pulsar/docs/1.17.5/getting-started/LocalCluster/"><i class="fa fa-file-text-o"></i>Run Pulsar locally</a></li>
+      
+      
+      
+      <li><a href="/incubator-pulsar/docs/1.17.5/getting-started/Clients/"><i class="fa fa-file-text-o"></i>Client libraries</a></li>
+      
+      
+      
+      <li><a href="/incubator-pulsar/docs/1.17.5/getting-started/ConceptsAndArchitecture/"><i class="fa fa-file-text-o"></i>Concepts and architecture</a></li>
+      
+    </ul>
+  </section>
+  
+  <section class="sidebar-group">
+    <h4>Deployment</h4>
+    <ul>
+      
+      
+      
+      <li><a href="/incubator-pulsar/docs/1.17.5/deployment/InstanceSetup/"><i class="fa fa-file-text-o"></i>Deploying up a Pulsar instance</a></li>
+      
+      
+      
+      <li><a href="/incubator-pulsar/docs/1.17.5/deployment/Kubernetes/"><i class="fa fa-file-text-o"></i>Pulsar on Kubernetes</a></li>
+      
+    </ul>
+  </section>
+  
+  <section class="sidebar-group">
+    <h4>Concerns</h4>
+    <ul>
+      
+      
+      
+      <li><a href="/incubator-pulsar/docs/1.17.5/concerns/PartitionedTopics/"><i class="fa fa-file-text-o"></i>Partitioned topics</a></li>
+      
+      
+      
+      <li><a href="/incubator-pulsar/docs/1.17.5/concerns/RetentionExpiry/"><i class="fa fa-file-text-o"></i>Retention and expiry</a></li>
+      
+    </ul>
+  </section>
+  
+  <section class="sidebar-group">
+    <h4>Pulsar administration</h4>
+    <ul>
+      
+      
+      
+      <li><a href="/incubator-pulsar/docs/1.17.5/admin/AdminInterface/"><i class="fa fa-file-text-o"></i>Pulsar admin interface</a></li>
+      
+      
+      
+      <li><a href="/incubator-pulsar/docs/1.17.5/admin/ClustersBrokers/"><i class="fa fa-file-text-o"></i>Clusters and brokers</a></li>
+      
+      
+      
+      <li><a href="/incubator-pulsar/docs/1.17.5/admin/PropertiesNamespaces/"><i class="fa fa-file-text-o"></i>Properties and namespaces</a></li>
+      
+      
+      
+      <li><a href="/incubator-pulsar/docs/1.17.5/admin/ZooKeeperBookKeeper/"><i class="fa fa-file-text-o"></i>ZooKeeper and BookKeeper</a></li>
+      
+      
+      
+      <li><a href="/incubator-pulsar/docs/1.17.5/admin/Dashboard/"><i class="fa fa-file-text-o"></i>Dashboard</a></li>
+      
+      
+      
+      <li><a href="/incubator-pulsar/docs/1.17.5/admin/Authz/"><i class="fa fa-file-text-o"></i>Authentication and authorization</a></li>
+      
+      
+      
+      <li><a href="/incubator-pulsar/docs/1.17.5/admin/GeoReplication/"><i class="fa fa-file-text-o"></i>Geo-replication</a></li>
+      
+      
+      
+      <li><a href="/incubator-pulsar/docs/1.17.5/admin/Stats/"><i class="fa fa-file-text-o"></i>Pulsar statistics</a></li>
+      
+      
+      
+      <li><a href="/incubator-pulsar/docs/1.17.5/admin/ModularLoadManager/"><i class="fa fa-file-text-o"></i>Modular load manager</a></li>
+      
+    </ul>
+  </section>
+  
+  <section class="sidebar-group">
+    <h4>Pulsar applications</h4>
+    <ul>
+      
+      
+      
+      <li><a href="/incubator-pulsar/docs/1.17.5/applications/JavaClient/"><i class="fa fa-file-text-o"></i>The Pulsar Java client</a></li>
+      
+      
+      
+      <li><a href="/incubator-pulsar/docs/1.17.5/applications/CppClient/"><i class="fa fa-file-text-o"></i>The Pulsar C++ client</a></li>
+      
+      
+      
+      <li><a href="/incubator-pulsar/docs/1.17.5/applications/PythonClient/"><i class="fa fa-file-text-o"></i>The Pulsar Python client</a></li>
+      
+      
+      
+      <li><a href="/incubator-pulsar/docs/1.17.5/applications/WebSocket/"><i class="fa fa-file-text-o"></i>WebSocket API</a></li>
+      
+      
+      
+      <li><a href="/incubator-pulsar/docs/1.17.5/applications/PulsarSpark/"><i class="fa fa-file-text-o"></i>Spark Streaming receiver</a></li>
+      
+      
+      
+      <li><a href="/incubator-pulsar/docs/1.17.5/applications/PulsarStorm/"><i class="fa fa-file-text-o"></i>Apache Storm adaptor</a></li>
+      
+      
+      
+      <li><a href="/incubator-pulsar/docs/1.17.5/applications/SimulationTools/"><i class="fa fa-file-text-o"></i>Simulation tools</a></li>
+      
+    </ul>
+  </section>
+  
+  <section class="sidebar-group">
+    <h4>Developing Pulsar</h4>
+    <ul>
+      
+      
+      
+      <li><a href="/incubator-pulsar/docs/1.17.5/project/BinaryProtocol/"><i class="fa fa-file-text-o"></i>Pulsar binary protocol</a></li>
+      
+      
+      
+      <li><a href="/incubator-pulsar/docs/1.17.5/project/Codebase/"><i class="fa fa-file-text-o"></i>Codebase</a></li>
+      
+    </ul>
+  </section>
+  
+  <section class="sidebar-group">
+    <h4>Reference</h4>
+    <ul>
+      
+      
+      
+      <li><a href="/incubator-pulsar/docs/1.17.5/reference/RestApi/"><i class="fa fa-file-text-o"></i>Pulsar REST API</a></li>
+      
+      
+      
+      <li><a href="/incubator-pulsar/docs/1.17.5/reference/CliTools/"><i class="fa fa-file-text-o"></i>Command-line tools</a></li>
+      
+      
+      
+      <li><a href="/incubator-pulsar/docs/1.17.5/reference/Configuration/"><i class="fa fa-file-text-o"></i>Pulsar configuration</a></li>
+      
+    </ul>
+  </section>
+  
+</ul>
+
+
+    </nav>
+
+    <article class="col-xs-12 col-sm-12 col-md-7 col-lg-7">
+      <section class="docs-header">
+        <h1 class="docs-title">Pulsar cluster and broker administration</h1>
+        
+        <section class="tags">
+          
+          <!-- <span class="badge badge-pill badge-primary">admin</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-admin">admin</button>
+          <div class="modal fade" id="modal-admin">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Pages with the <strong>admin</strong> tag</h5>
+      </div>
+      <div class="modal-body">
+        <ul>
+          
+          
+          <li><a href="/docs/1.18/admin/AdminInterface/">The Pulsar admin interface</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/1.18/admin/Authz/">Authentication and authorization in Pulsar</a></li>
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/1.18/reference/CliTools/">Pulsar command-line tools</a></li>
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/1.18/admin/ClustersBrokers/">Pulsar cluster and broker administration</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/1.18/deployment/InstanceSetup/">Deploying a Pulsar instance</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/1.18/concerns/PartitionedTopics/">Partitioned topics</a></li>
+          
+          
+          
+          <li><a href="/docs/1.18/admin/PropertiesNamespaces/">Managing properties and namespaces</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/1.18/concerns/RetentionExpiry/">Message retention and expiry</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+          
+          <!-- <span class="badge badge-pill badge-primary">cluster</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-cluster">cluster</button>
+          <div class="modal fade" id="modal-cluster">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Pages with the <strong>cluster</strong> tag</h5>
+      </div>
+      <div class="modal-body">
+        <ul>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/1.18/admin/ClustersBrokers/">Pulsar cluster and broker administration</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+          
+          <!-- <span class="badge badge-pill badge-primary">broker</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-broker">broker</button>
+          <div class="modal fade" id="modal-broker">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Pages with the <strong>broker</strong> tag</h5>
+      </div>
+      <div class="modal-body">
+        <ul>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/1.18/admin/ClustersBrokers/">Pulsar cluster and broker administration</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+          
+          <!-- <span class="badge badge-pill badge-primary">pulsar-admin</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-pulsar-admin">pulsar-admin</button>
+          <div class="modal fade" id="modal-pulsar-admin">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Pages with the <strong>pulsar-admin</strong> tag</h5>
+      </div>
+      <div class="modal-body">
+        <ul>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/1.18/admin/ClustersBrokers/">Pulsar cluster and broker administration</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+          
+          <!-- <span class="badge badge-pill badge-primary">REST API</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-rest-api">REST API</button>
+          <div class="modal fade" id="modal-rest-api">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Pages with the <strong>REST API</strong> tag</h5>
+      </div>
+      <div class="modal-body">
+        <ul>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/1.18/admin/ClustersBrokers/">Pulsar cluster and broker administration</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+          
+          <!-- <span class="badge badge-pill badge-primary">Java</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-java">Java</button>
+          <div class="modal fade" id="modal-java">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Pages with the <strong>Java</strong> tag</h5>
+      </div>
+      <div class="modal-body">
+        <ul>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/1.18/admin/ClustersBrokers/">Pulsar cluster and broker administration</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+          
+        </section>
+
+        <hr class="hr">
+      </section>
+
+      <section class="content">
+        <p>If you have <a href="../../admin/Authz#authentication-providers">authentication</a> enabled in your Pulsar <span class="popover-term" tabindex="0" title="What is a Pulsar instance?" data-placement="top" data-content="A group of Pulsar clusters that act together as a single unit." data-toggle="popover" data-trigger="focus">instance</span>, then you will need to perform a few authentication-related setup steps to use the Pulsar admin interface. Those steps will vary depending on if you’re using the <a href="#the-pulsar-admin-cli"><code class="highlighter-rouge">pulsar-admin</code> command-line interface</a>, the <a href="#rest-api">REST API</a>, or the <a href="#java-admin-client">Java admin client</a>.</p>
+
+<p>Before you get started using Pulsar’s admin interface, you will need to complete a few setup steps that vary depending on whether you’re using the <a href="#pulsar-admin-cli-tool"><code class="highlighter-rouge">pulsar-admin</code> CLI tool</a>, <a href="#java-api">Java API</a>, or <a href="#rest-api">REST API</a> directly.</p>
+
+<h3 id="the-pulsar-admin-cli">The Pulsar admin CLI</h3>
+
+<p>If a Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">broker</span> has <a href="../../admin/Authz#authentication-providers">authentication</a> enabled, you will need to provide an auth configuration to use the <a href="../../reference/CliTools#pulsar-admin"><code class="highlighter-rouge">pulsar-admin</code></a> tool. By default, the configuration for the <code class="highlighter-rouge">pulsar-admin</code> tool is found in the <a href="../../reference/Configuration#client"><code class="highlighter-rouge">conf/client.conf</code></a> file. Here are the available parameters:</p>
+
+<table class="config">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Default</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    
+    <tr id="client-webServiceUrl">
+      <td>webServiceUrl</td>
+      <td>http://localhost:8080/</td>
+      <td>
+</td>
+    </tr>
+    
+    <tr id="client-brokerServiceUrl">
+      <td>brokerServiceUrl</td>
+      <td>pulsar://localhost:6650/</td>
+      <td>
+</td>
+    </tr>
+    
+    <tr id="client-authPlugin">
+      <td>authPlugin</td>
+      <td></td>
+      <td>
+</td>
+    </tr>
+    
+    <tr id="client-authParams">
+      <td>authParams</td>
+      <td></td>
+      <td>
+</td>
+    </tr>
+    
+    <tr id="client-useTls">
+      <td>useTls</td>
+      <td></td>
+      <td>
+</td>
+    </tr>
+    
+    <tr id="client-tlsAllowInsecureConnection">
+      <td>tlsAllowInsecureConnection</td>
+      <td></td>
+      <td>
+</td>
+    </tr>
+    
+    <tr id="client-tlsTrustCertsFilePath">
+      <td>tlsTrustCertsFilePath</td>
+      <td></td>
+      <td>
+</td>
+    </tr>
+    
+  </tbody>
+</table>
+
+<h3 id="rest-api">REST API</h3>
+
+<p>You can find documentation for the REST API exposed by Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">brokers</span> in <a href="../../reference/RestApi">this reference document</a>.</p>
+
+<h3 id="java-admin-client">Java admin client</h3>
+
+<p>To use the Java admin API, instantiate a <a target="_blank" href="/api/admin/com/yahoo/pulsar/client/admin/PulsarAdmin.html"><code class="highlighter-rouge">PulsarAdmin</code></a> object, specifying a URL for a Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">broker</span> and a <a target="_blank" href="/api/admin/com/yahoo/pulsar/client/admin/ClientConfiguration.html"><code class="highlighter-rouge">ClientConfiguration</code></a>. Here’s a minimal example using <code class="highlighter-rouge">localhost</code>:</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">URL</span> <span class="n">url</span> <span class="o">=</span> <span class="k">new</span> <span class="n">URL</span><span class="o">(</span><span class="s">"http://localhost:8080"</span><span class="o">);</span>
+<span class="n">String</span> <span class="n">authPluginClassName</span> <span class="o">=</span> <span class="s">"com.org.MyAuthPluginClass"</span><span class="o">;</span> <span class="c1">//Pass auth-plugin class fully-qualified name if Pulsar-security enabled</span>
+<span class="n">String</span> <span class="n">authParams</span> <span class="o">=</span> <span class="s">"param1=value1"</span><span class="o">;</span><span class="c1">//Pass auth-param if auth-plugin class requires it</span>
+<span class="kt">boolean</span> <span class="n">useTls</span> <span class="o">=</span> <span class="kc">false</span><span class="o">;</span>
+<span class="kt">boolean</span> <span class="n">tlsAllowInsecureConnection</span> <span class="o">=</span> <span class="kc">false</span><span class="o">;</span>
+<span class="n">String</span> <span class="n">tlsTrustCertsFilePath</span> <span class="o">=</span> <span class="kc">null</span><span class="o">;</span>
+
+<span class="n">ClientConfiguration</span> <span class="n">config</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ClientConfiguration</span><span class="o">();</span>
+<span class="n">config</span><span class="o">.</span><span class="na">setAuthentication</span><span class="o">(</span><span class="n">authPluginClassName</span><span class="o">,</span> <span class="n">authParams</span><span class="o">);</span>
+<span class="n">config</span><span class="o">.</span><span class="na">setUseTls</span><span class="o">(</span><span class="n">useTls</span><span class="o">);</span>
+<span class="n">config</span><span class="o">.</span><span class="na">setTlsAllowInsecureConnection</span><span class="o">(</span><span class="n">tlsAllowInsecureConnection</span><span class="o">);</span>
+<span class="n">config</span><span class="o">.</span><span class="na">setTlsTrustCertsFilePath</span><span class="o">(</span><span class="n">tlsTrustCertsFilePath</span><span class="o">);</span>
+
+<span class="n">PulsarAdmin</span> <span class="n">admin</span> <span class="o">=</span> <span class="k">new</span> <span class="n">PulsarAdmin</span><span class="o">(</span><span class="n">url</span><span class="o">,</span> <span class="n">config</span><span class="o">);</span>
+</code></pre>
+</div>
+
+<p>In Pulsar, a cluster is a group of <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">brokers</span>, <span class="popover-term" tabindex="0" title="What is a bookie?" data-placement="top" data-content="Bookie is just a nickname for an individual BookKeeper server." data-toggle="popover" data-trigger="focus">bookies</span>, and other components. Pulsar <span class="popover-term" tabindex="0" title="What is a Pulsar instance?" data-placement="top" data-content="A group of Pulsar clusters that act together as a single unit." data-toggle="popover" data-trigger="focus">instances</span> are typically comprised of multiple Pulsar clusters that replicate to one another using <span class="popover-term" tabindex="0" title="What is geo-replication?" data-placement="top" data-content="TODO" data-toggle="popover" data-trigger="focus">geo-replication</span>.</p>
+
+<h2 id="managing-clusters">Managing clusters</h2>
+
+<p>Pulsar clusters consist of one or more Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">brokers</span>, one or more <span class="popover-term" tabindex="0" title="What is BookKeeper?" data-placement="top" data-content="Apache BookKeeper is a persistent log storage system that Pulsar uses to store message data." data-toggle="popover" data-trigger="focus">BookKeeper</span> servers (aka <span class="popover-term" tabindex="0" title="What is a bookie?" data-placement="top" data-content="Bookie is just a nickname for an individual BookKeeper server." data-toggle="popover" data-trigger="focus">bookies</span>), and a <span class="popover-term" tabindex="0" title="What is ZooKeeper?" data-placement="top" data-content="ZooKeeper is a service that Pulsar uses for coordination-related tasks.&lt;br /&gt;&lt;br /&gt;A Pulsar instance relies on both a local ZooKeeper for cluster-specific tasks and a global ZooKeeper for instance-wide tasks." data-toggle="popover" data-trigger="focus">ZooKeeper</span> cluster that provides configuration and coordination management.</p>
+
+<p>Clusters can be managed via:</p>
+
+<ul>
+  <li>The <a href="../../reference/CliTools#pulsar-admin-clusters"><code class="highlighter-rouge">clusters</code></a> command of the <a href="../../reference/CliTools#pulsar-admin"><code class="highlighter-rouge">pulsar-admin</code></a> tool</li>
+  <li>The <code class="highlighter-rouge">/admin/clusters</code> endpoint of the admin <a href="../../reference/RestApi">REST API</a></li>
+  <li>The <code class="highlighter-rouge">clusters</code> method of the <a target="_blank" href="/api/admin/com/yahoo/pulsar/client/admin/PulsarAdmin.html"><code class="highlighter-rouge">PulsarAdmin</code></a> object in the <a href="../../applications/JavaClient">Java API</a></li>
+</ul>
+
+<h3 id="provision">Provision</h3>
+
+<p>New clusters can be provisioned using the admin interface.</p>
+
+<div class="admonition">
+  <div class="warning">
+    
+    <p>Please note that this operation requires <a href="../../admin/Authz#superusers">superuser</a> privileges.</p>
+
+  </div>
+</div>
+
+<h4 id="pulsar-admin">pulsar-admin</h4>
+
+<p>You can provision a new cluster using the <a href="../../reference/CliTools#pulsar-admin-clusters-create"><code class="highlighter-rouge">create</code></a> subcommand. Here’s an example:</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin clusters create cluster-1 <span class="se">\</span>
+  --url http://my-cluster.org.com:8080 <span class="se">\</span>
+  --broker-url pulsar://my-cluster.org.com:6650
+</code></pre>
+</div>
+
+<h4 id="rest-api-1">REST API</h4>
+
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method put">PUT</code><code class="url">/admin/clusters/<span class="endpoint">:cluster</span></code></pre></div>
+
+<p><a href="../../reference/RestApi#/admin/clusters/:cluster">More info</a></p>
+
+<h4 id="java">Java</h4>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">ClusterData</span> <span class="n">clusterData</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ClusterData</span><span class="o">(</span>
+        <span class="n">serviceUrl</span><span class="o">,</span>
+        <span class="n">serviceUrlTls</span><span class="o">,</span>
+        <span class="n">brokerServiceUrl</span><span class="o">,</span>
+        <span class="n">brokerServiceUrlTls</span>
+<span class="o">);</span>
+<span class="n">admin</span><span class="o">.</span><span class="na">clusters</span><span class="o">().</span><span class="na">createCluster</span><span class="o">(</span><span class="n">clusterName</span><span class="o">,</span> <span class="n">clusterData</span><span class="o">);</span>
+</code></pre>
+</div>
+
+<h3 id="get-configuration">Get configuration</h3>
+
+<p>You can fetch the <a href="../../reference/Configuration">configuration</a> for an existing cluster at any time.</p>
+
+<h4 id="pulsar-admin-1">pulsar-admin</h4>
+
+<p>Use the <a href="../../reference/CliTools#pulsar-admin-clusters-get"><code class="highlighter-rouge">get</code></a> subcommand and specify the name of the cluster. Here’s an example:</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin clusters get cluster-1
+<span class="o">{</span>
+    <span class="s2">"serviceUrl"</span>: <span class="s2">"http://my-cluster.org.com:8080/"</span>,
+    <span class="s2">"serviceUrlTls"</span>: null,
+    <span class="s2">"brokerServiceUrl"</span>: <span class="s2">"pulsar://my-cluster.org.com:6650/"</span>,
+    <span class="s2">"brokerServiceUrlTls"</span>: null
+<span class="o">}</span>
+</code></pre>
+</div>
+
+<h4 id="rest-api-2">REST API</h4>
+
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/clusters/<span class="endpoint">:cluster</span></code></pre></div>
+
+<p><a href="../../reference/RestApi#/admin/clusters/:cluster">More info</a></p>
+
+<h4 id="java-1">Java</h4>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">clusters</span><span class="o">().</span><span class="na">getCluster</span><span class="o">(</span><span class="n">clusterName</span><span class="o">);</span>
+</code></pre>
+</div>
+
+<h3 id="update">Update</h3>
+
+<p>You can update the configuration for an existing cluster at any time.</p>
+
+<h4 id="pulsar-admin-2">pulsar-admin</h4>
+
+<p>Use the <a href="../../reference/CliTools#pulsar-admin-clusters-update"><code class="highlighter-rouge">update</code></a> subcommand and specify new configuration values using flags.</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin clusters update cluster-1 <span class="se">\</span>
+  --url http://my-cluster.org.com:4081 <span class="se">\</span>
+  --broker-url pulsar://my-cluster.org.com:3350
+</code></pre>
+</div>
+
+<h4 id="rest">REST</h4>
+
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method post">POST</code><code class="url">/admin/clusters/<span class="endpoint">:cluster</span></code></pre></div>
+
+<p><a href="../../reference/RestApi#/admin/clusters/:cluster">More info</a></p>
+
+<h4 id="java-2">Java</h4>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">ClusterData</span> <span class="n">clusterData</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ClusterData</span><span class="o">(</span>
+        <span class="n">serviceUrl</span><span class="o">,</span>
+        <span class="n">serviceUrlTls</span><span class="o">,</span>
+        <span class="n">brokerServiceUrl</span><span class="o">,</span>
+        <span class="n">brokerServiceUrlTls</span>
+<span class="o">);</span>
+<span class="n">admin</span><span class="o">.</span><span class="na">clusters</span><span class="o">().</span><span class="na">updateCluster</span><span class="o">(</span><span class="n">clusterName</span><span class="o">,</span> <span class="n">clusterData</span><span class="o">);</span>
+</code></pre>
+</div>
+
+<h3 id="delete">Delete</h3>
+
+<p>Clusters can be deleted from a Pulsar <span class="popover-term" tabindex="0" title="What is a Pulsar instance?" data-placement="top" data-content="A group of Pulsar clusters that act together as a single unit." data-toggle="popover" data-trigger="focus">instance</span>.</p>
+
+<h4 id="pulsar-admin-3">pulsar-admin</h4>
+
+<p>Use the <a href="../../reference/CliTools#pulsar-admin-clusters-delete"><code class="highlighter-rouge">delete</code></a> subcommand and specify the name of the cluster.</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin clusters delete cluster-1
+</code></pre>
+</div>
+
+<h4 id="rest-api-3">REST API</h4>
+
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method delete">DELETE</code><code class="url">/admin/clusters/<span class="endpoint">:cluster</span></code></pre></div>
+
+<p><a href="../../reference/RestApi#/admin/clusters/:cluster">More info</a></p>
+
+<h4 id="java-3">Java</h4>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">clusters</span><span class="o">().</span><span class="na">deleteCluster</span><span class="o">(</span><span class="n">clusterName</span><span class="o">);</span>
+</code></pre>
+</div>
+
+<h3 id="list">List</h3>
+
+<p>You can fetch a list of all clusters in a Pulsar <span class="popover-term" tabindex="0" title="What is a Pulsar instance?" data-placement="top" data-content="A group of Pulsar clusters that act together as a single unit." data-toggle="popover" data-trigger="focus">instance</span>.</p>
+
+<h4 id="pulsar-admin-4">pulsar-admin</h4>
+
+<p>Use the <a href="../../reference/CliTools#pulsar-admin-clusters-list"><code class="highlighter-rouge">list</code></a> subcommand.</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin clusters list
+cluster-1
+cluster-2
+</code></pre>
+</div>
+
+<h4 id="rest-api-4">REST API</h4>
+
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/clusters</code></pre></div>
+
+<p><a href="../../reference/RestApi#/admin/clusters">More info</a></p>
+
+<h6 id="java-4">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">clusters</span><span class="o">().</span><span class="na">getClusters</span><span class="o">();</span>
+</code></pre>
+</div>
+
+<h2 id="managing-brokers">Managing brokers</h2>
+
+<p>Pulsar brokers consist of two components:</p>
+
+<ol>
+  <li>An HTTP server exposing a <a href="../../reference/RestApi">REST interface</a> administration and <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topic</span> lookup.</li>
+  <li>A dispatcher that handles all Pulsar <span class="popover-term" tabindex="0" title="What is a message in Pulsar?" data-placement="top" data-content="TODO" data-toggle="popover" data-trigger="focus">message</span> transfers.</li>
+</ol>
+
+<p><span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">Brokers</span> can be managed via:</p>
+
+<ul>
+  <li>The <a href="../../reference/CliTools#pulsar-admin-brokers"><code class="highlighter-rouge">brokers</code></a> command of the <a href="../../reference/CliTools#pulsar-admin"><code class="highlighter-rouge">pulsar-admin</code></a> tool</li>
+  <li>The <code class="highlighter-rouge">/admin/brokers</code> endpoint of the admin <a href="../../reference/RestApi">REST API</a></li>
+  <li>The <code class="highlighter-rouge">brokers</code> method of the <a target="_blank" href="/api/admin/com/yahoo/pulsar/client/admin/PulsarAdmin.html"><code class="highlighter-rouge">PulsarAdmin</code></a> object in the <a href="../../applications/JavaClient">Java API</a></li>
+</ul>
+
+<p>In addition to being configurable when you start them up, brokers can also be <a href="#dynamic-broker-configuration">dynamically configured</a>.</p>
+
+<div class="admonition">
+  <div class="info">
+    
+    
+<p>See the <a href="../../reference/Configuration#broker">Configuration</a> page for a full listing of broker-specific configuration parameters.</p>
+
+  </div>
+</div>
+
+<h3 id="list-active-brokers">List active brokers</h3>
+
+<p>Fetch all available active brokers that are serving traffic.</p>
+
+<h4 id="pulsar-admin-5">pulsar-admin</h4>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin brokers list use
+</code></pre>
+</div>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>broker1.use.org.com:8080
+</code></pre>
+</div>
+
+<h6 id="rest-1">REST</h6>
+
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/brokers/<span class="endpoint">:cluster</span></code></pre></div>
+
+<p><a href="../../reference/RestApi#/admin/brokers/:cluster">More info</a></p>
+
+<h6 id="java-5">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">brokers</span><span class="o">().</span><span class="na">getActiveBrokers</span><span class="o">(</span><span class="n">clusterName</span><span class="o">)</span>
+</code></pre>
+</div>
+
+<h4 id="list-of-namespaces-owned-by-a-given-broker">list of namespaces owned by a given broker</h4>
+
+<p>It finds all namespaces which are owned and served by a given broker.</p>
+
+<h6 id="cli">CLI</h6>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin brokers namespaces use <span class="se">\</span>
+  --url broker1.use.org.com:8080
+</code></pre>
+</div>
+
+<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="p">{</span><span class="w">
+  </span><span class="nt">"my-property/use/my-ns/0x00000000_0xffffffff"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+    </span><span class="nt">"broker_assignment"</span><span class="p">:</span><span class="w"> </span><span class="s2">"shared"</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"is_controlled"</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"is_active"</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
+  </span><span class="p">}</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre>
+</div>
+<h6 id="rest-2">REST</h6>
+
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/brokers/<span class="endpoint">:cluster</span>/<span class="endpoint">:broker</span>:/ownedNamespaces</code></pre></div>
+
+<h6 id="java-6">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">brokers</span><span class="o">().</span><span class="na">getOwnedNamespaces</span><span class="o">(</span><span class="n">cluster</span><span class="o">,</span><span class="n">brokerUrl</span><span class="o">);</span>
+</code></pre>
+</div>
+
+<h3 id="dynamic-broker-configuration">Dynamic broker configuration</h3>
+
+<p>One way to configure a Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">broker</span> is to supply a <a href="../../reference/Configuration#broker">configuration</a> when the broker is <a href="../../reference/CliTools#pulsar-broker">started up</a>.</p>
+
+<p>But since all broker configuration in Pulsar is stored in <span class="popover-term" tabindex="0" title="What is ZooKeeper?" data-placement="top" data-content="ZooKeeper is a service that Pulsar uses for coordination-related tasks.&lt;br /&gt;&lt;br /&gt;A Pulsar instance relies on both a local ZooKeeper for cluster-specific tasks and a global ZooKeeper for instance-wide tasks." data-toggle="popover" data-trigger="focus">ZooKeeper</span>, configuration values can also be dynamically updated <em>while the broker is running</em>. When you update broker configuration dynamically, ZooKeeper will notify the broker of the change and the broker will then override any existing configuration values.</p>
+
+<ul>
+  <li>The <a href="../../reference/CliTools#pulsar-admin-brokers"><code class="highlighter-rouge">brokers</code></a> command for the <a href="../../reference/CliTools#pulsar-admin"><code class="highlighter-rouge">pulsar-admin</code></a> tool has a variety of subcommands that enable you to manipulate a broker’s configuration dynamically, enabling you to <a href="#update-dynamic-configuration">update config values</a> and more.</li>
+  <li>In the Pulsar admin <a href="../../reference/RestApi">REST API</a>, dynamic configuration is managed through the <code class="highlighter-rouge">/admin/brokers/configuration</code> endpoint.</li>
+</ul>
+
+<h3 id="update-dynamic-configuration">Update dynamic configuration</h3>
+
+<h4 id="pulsar-admin-6">pulsar-admin</h4>
+
+<p>The <a href="../../reference/CliTools#pulsar-admin-brokers-update-dynamic-config"><code class="highlighter-rouge">update-dynamic-config</code></a> subcommand will update existing configuration. It takes two arguments: the name of the parameter and the new value. Here’s an example for the <a href="../../reference/Configuration#broker-brokerShutdownTimeoutMs"><code class="highlighter-rouge">brokerShutdownTimeoutMs</code></a> parameter:</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin brokers update-dynamic-config brokerShutdownTimeoutMs 100
+</code></pre>
+</div>
+
+<h4 id="rest-api-5">REST API</h4>
+
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method post">POST</code><code class="url">/admin/brokers/configuration/<span class="endpoint">:configName</span>/<span class="endpoint">:configValue</span></code></pre></div>
+
+<p><a href="../../reference/RestApi#/admin/brokers/configuration/:configName/:configValue">More info</a></p>
+
+<h4 id="java-7">Java</h4>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">brokers</span><span class="o">().</span><span class="na">updateDynamicConfiguration</span><span class="o">(</span><span class="n">configName</span><span class="o">,</span> <span class="n">configValue</span><span class="o">);</span>
+</code></pre>
+</div>
+
+<h3 id="list-updated-values">List updated values</h3>
+
+<p>Fetch a list of all potentially updatable configuraton parameters.</p>
+
+<h4 id="pulsar-admin-7">pulsar-admin</h4>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin brokers list-dynamic-config
+brokerShutdownTimeoutMs
+</code></pre>
+</div>
+
+<h4 id="rest-api-6">REST API</h4>
+
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/brokers/configuration</code></pre></div>
+
+<p><a href="../../reference/RestApi#/admin/brokers/configuration">More info</a></p>
+
+<h4 id="java-8">Java</h4>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">brokers</span><span class="o">().</span><span class="na">getDynamicConfigurationNames</span><span class="o">();</span>
+</code></pre>
+</div>
+
+<h3 id="list-all">List all</h3>
+
+<p>Fetch a list of all parameters that have been dynamically updated.</p>
+
+<h4 id="pulsar-admin-8">pulsar-admin</h4>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin brokers get-all-dynamic-config
+brokerShutdownTimeoutMs:100
+</code></pre>
+</div>
+
+<h4 id="rest-api-7">REST API</h4>
+
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/brokers/configuration/values</code></pre></div>
+
+<p><a href="../../reference/RestApi#/admin/brokers/configuration/values">More info</a></p>
+
+<h4 id="java-9">Java</h4>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">brokers</span><span class="o">().</span><span class="na">getAllDynamicConfigurations</span><span class="o">();</span>
+</code></pre>
+</div>
+
+
+      </section>
+    </article>
+
+    <nav class="toc-bar hidden-sm-down col-md-2 col-lg-2">
+      
+      <div id="toc">
+        <h4>Pulsar cluster and broker administration</h4>
+      </div>
+      
+    </nav>
+  </div>
+</div>
+
+      </main>
+    </main>
+
+    <footer class="footer">
+  <div class="container">
+    <p class="text-center">&copy; Apache Foundation 2017</p>
+  </div>
+</footer>
+
+
+    
+  </body>
+</html>

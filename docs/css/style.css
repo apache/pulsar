@@ -17,6 +17,9 @@ body.body {
 main.main {
   flex: 1; }
 
+.modal-body ul {
+  padding-left: 2.25rem; }
+
 * {
   margin: 0;
   padding: 0; }

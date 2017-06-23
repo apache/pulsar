@@ -38,7 +38,7 @@ python_setup:
 
 setup: clean_local ruby_setup protobuf_setup doxygen_install python_setup
 
-build: api_docs
+build:
 	scripts/build-all-versions.sh
 
 serve: clean_local
