@@ -1,13 +1,16 @@
-[Clients](../../getting-started/Clients) connecting to Pulsar {% popover brokers %} need to be able to communicate with an entire Pulsar {% popover instance %} using a single URL. You can use your own service discovery system for this if you'd like, but Pulsar provides a built-in service discovery mechanism. For setup instructions, see the [Deploying a Pulsar instance](../../deployment/InstanceSetup) guide.
+[Clients](../../getting-started/Clients) connecting to Pulsar {% popover brokers %} need to be able to communicate with an entire Pulsar {% popover instance %} using a single URL. Pulsar provides a built-in service discovery mechanism that you can set up using the instructions [immediately below](#service-discovery-setup).
 
-You can either use the provided `discovery-service` or any other method. The
-only requirement is that when the client does a HTTP request on
-`http://pulsar.us-west.example.com:8080/` it must be redirected (through DNS, IP
-or HTTP redirect) to an active broker, without preference.
+You can also use your own service discovery system if you'd like. If you use your own system, there is just one requirement: when a client performs an HTTP request to an endpoint for a Pulsar {% popover cluster %}, such as `http://pulsar.us-west.example.com:8080`, the client needs to be redirected to *some* active broker in the desired cluster, whether via DNS, an HTTP or IP redirect, or some other means.
 
-The included discovery service maintains the list of active brokers from ZooKeeper and it supports lookup redirection with HTTP and also with [binary protocol](https://github.com/yahoo/pulsar/blob/master/docs/BinaryProtocol.md#service-discovery).
+{% include admonition.html type="success" title="Service discovery already provided by many scheduling systems" content="
+If you're deploying Pulsar on [Kubernetes](../../deployment/Kubernetes)
+" %}
 
-Add the ZK servers in `conf/discovery.conf`:
+### Service discovery setup
+
+The service discovery mechanism included with Pulsar maintains a list of active brokers, stored in {% popover ZooKeeper %}, and supports lookup using HTTP and also Pulsar's [binary protocol](../../project/BinaryProtocol).
+
+To get started setting up Pulsar's built-in service discovery, you need to change a few parameters in the [`conf/discovery.conf`](../../reference/Configuration#service-discovery) configuration file. Set the [`zookeeperServers`](../../reference/Configuration#service-discovery-zookeeperServers) parameter to the global ZooKeeper quorum connection string and the [`globalZookeeperServers`](../../reference/Configuration#service-discovery-globalZookeeperServers)
 
 ```properties
 # Zookeeper quorum connection string

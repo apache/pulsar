@@ -62,7 +62,7 @@ clusterName=us-west
 $ bin/pulsar-daemon start broker
 ```
 
-## Service discovery setup
+## Service discovery
 
 {% include explanations/service-discovery-setup.md %}
 

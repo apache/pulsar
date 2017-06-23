@@ -33,7 +33,7 @@ The [`pulsar-client`](../CliTools#pulsar-client) CLI tool can be used to publish
 
 {% include config.html id="client" %}
 
-## Discovery
+## Service discovery
 
 {% include config.html id="discovery" %}
 
