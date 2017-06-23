@@ -27,14 +27,14 @@ formatted as binary [Protocol Buffers](https://developers.google.com/protocol-bu
 messages.
 
 The format of protobuf commands is specified in the `PulsarApi.proto` file
-[pulsar-common/src/main/proto/PulsarApi.proto](https://github.com/yahoo/pulsar/blob/master/pulsar-common/src/main/proto/PulsarApi.proto)
+[pulsar-common/src/main/proto/PulsarApi.proto](https://github.com/apache/incubator-pulsar/blob/master/pulsar-common/src/main/proto/PulsarApi.proto)
 
 
 Commands for different producers and consumers can be interleaved and sent
 through the same connection without any restriction.
 
 All the commands are embedded in a
-[`BaseCommand`](https://github.com/yahoo/pulsar/blob/master/pulsar-common/src/main/proto/PulsarApi.proto#L335)
+[`BaseCommand`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-common/src/main/proto/PulsarApi.proto#L335)
 protobuf object that includes a type enum and all the possible sub-commands as
 optional fields. At any time, one `BaseCommand` can only have set a single
 sub-command.
@@ -461,7 +461,7 @@ reconnect a producer or a consumer. Lookup is used to discover which particular
 broker is serving the topic we are about to use.
 
 Lookup can be done with a REST call as described in the
-[admin API](https://github.com/yahoo/pulsar/blob/master/docs/AdminTools.md#lookup-of-topic)
+[admin API](https://github.com/apache/incubator-pulsar/blob/master/docs/AdminTools.md#lookup-of-topic)
 docs.
 
 Since Pulsar-1.16 it is also possible to perform the lookup within the binary

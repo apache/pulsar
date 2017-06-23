@@ -32,7 +32,7 @@
   <name>Pulsar</name>
   <description>Pulsar is a distributed pub-sub messaging platform with a very
 flexible messaging model and an intuitive client API.</description>
-  <url>https://github.com/yahoo/pulsar</url>
+  <url>https://github.com/apache/incubator-pulsar</url>
 
   <organization>
     <name>Yahoo Inc.</name>
@@ -56,8 +56,8 @@ flexible messaging model and an intuitive client API.</description>
   </licenses>
 
   <scm>
-    <url>https://github.com/yahoo/pulsar</url>
-    <connection>scm:git:https://github.com/yahoo/pulsar.git</connection>
+    <url>https://github.com/apache/incubator-pulsar</url>
+    <connection>scm:git:https://github.com/apache/incubator-pulsar.git</connection>
     <developerConnection>scm:git:ssh://git@github.com:yahoo/pulsar.git</developerConnection>
   </scm>
 
@@ -93,7 +93,7 @@ flexible messaging model and an intuitive client API.</description>
 
   <issueManagement>
     <system>Github</system>
-    <url>https://github.com/yahoo/pulsar/issues</url>
+    <url>https://github.com/apache/incubator-pulsar/issues</url>
   </issueManagement>
 
   <properties>
