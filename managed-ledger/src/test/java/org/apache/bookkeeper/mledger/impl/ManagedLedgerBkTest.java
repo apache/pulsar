@@ -43,11 +43,11 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.test.BookKeeperClusterTestCase;
+import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Charsets;
 import com.google.common.collect.Lists;
-import com.yahoo.pulsar.common.policies.data.PersistentOfflineTopicStats;
 
 public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
 
