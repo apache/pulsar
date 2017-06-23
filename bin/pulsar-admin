@@ -106,4 +106,4 @@ OPTS="$OPTS -Dpulsar.log.dir=$PULSAR_LOG_DIR"
 #Change to PULSAR_HOME to support relative paths
 cd "$PULSAR_HOME"
     
-exec $JAVA $OPTS com.yahoo.pulsar.admin.cli.PulsarAdminTool $PULSAR_CLIENT_CONF "$@"
+exec $JAVA $OPTS org.apache.pulsar.admin.cli.PulsarAdminTool $PULSAR_CLIENT_CONF "$@"

@@ -256,7 +256,7 @@
           <apiSources>
             <apiSource>
               <springmvc>false</springmvc>
-              <locations>com.yahoo.pulsar.broker.admin</locations>
+              <locations>org.apache.pulsar.broker.admin</locations>
               <schemes>http,https</schemes>
               <basePath>/admin</basePath>
               <info>

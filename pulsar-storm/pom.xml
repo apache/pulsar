@@ -123,7 +123,7 @@
         </executions>
         <configuration>
           <overview>${basedir}/overview.html</overview>
-          <excludePackageNames>com.yahoo.pulsar.storm.example</excludePackageNames>
+          <excludePackageNames>org.apache.pulsar.storm.example</excludePackageNames>
         </configuration>
       </plugin>
       <plugin>

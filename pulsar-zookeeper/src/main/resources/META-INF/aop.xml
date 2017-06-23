@@ -1,8 +1,8 @@
 <aspectj>
 
   <aspects>
-    <aspect name="com.yahoo.pulsar.zookeeper.FinalRequestProcessorAspect" />
-    <aspect name="com.yahoo.pulsar.zookeeper.ZooKeeperServerAspect" />
+    <aspect name="org.apache.pulsar.zookeeper.FinalRequestProcessorAspect" />
+    <aspect name="org.apache.pulsar.zookeeper.ZooKeeperServerAspect" />
   </aspects>
 
   <weaver>
