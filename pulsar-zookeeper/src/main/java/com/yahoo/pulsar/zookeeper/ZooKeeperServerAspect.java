@@ -31,14 +31,25 @@ import io.prometheus.client.Gauge;
  */
 @Aspect
 public class ZooKeeperServerAspect {
+    private static boolean metricsRegistered = false;
+
     @Pointcut("execution(org.apache.zookeeper.server.ZooKeeperServer.new(..))")
-    public void processRequest() {
+    public void zkServerConstructorPointCut() {
     }
 
-    @After("processRequest()")
-    public void timedProcessRequest(JoinPoint joinPoint) throws Throwable {
+    @After("zkServerConstructorPointCut()")
+    public void zkServerConstructor(JoinPoint joinPoint) throws Throwable {
         // ZooKeeperServer instance was created
         ZooKeeperServer zkServer = (ZooKeeperServer) joinPoint.getThis();
+
+        synchronized (ZooKeeperServerAspect.class) {
+            if (metricsRegistered) {
+                // We can only register the metrics a single time for the process
+                return;
+            }
+
+            metricsRegistered = true;
+        }
 
         Gauge.build().name("zookeeper_server_znode_count").help("Number of z-nodes stored").create()
                 .setChild(new Gauge.Child() {
@@ -80,5 +91,4 @@ public class ZooKeeperServerAspect {
                     }
                 }).register();
     }
-
 }
