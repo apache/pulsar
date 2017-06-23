@@ -8,6 +8,8 @@ tags:
 
 Within a Pulsar {% popover instance %}, [properties](#properties) are the highest administrative unit. Each property can consist of any number of [namespaces](#namespaces).
 
+{% include explanations/admin-setup.md %}
+
 ## Managing properties
 
 {% include explanations/property-admin.md %}

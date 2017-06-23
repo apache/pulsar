@@ -579,3 +579,25 @@ GET /admin/namespaces/{property}/{cluster}/{namespace}/retention
 ```java
 admin.namespaces().getRetention(namespace)
 ```
+
+### Namespace isolation
+
+Coming soon.
+
+### Unloading from a broker
+
+You can unload a namespace, or a {% popover namespace bundle %}, from the Pulsar {% popover broker %} that is currently responsible for it.
+
+#### pulsar-admin
+
+Use the [`unload`](../../reference/CliTools#pulsar-admin-namespaces-unload) subcommand of the [`namespaces`](../../reference/CliTools#pulsar-admin-namespaces) command.
+
+##### Example
+
+```shell
+$ pulsar-admin namespaces unload my-prop/my-cluster/my-ns
+```
+
+#### REST API
+
+#### Java

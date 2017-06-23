@@ -84,6 +84,9 @@ tenant:
 topic:
   q: What is a topic?
   def: A named channel used to pass messages published by producers to consumers who process those messages.
+topic-lookup:
+  q: What is topic lookup?
+  def: A service provided by Pulsar brokers that enables connecting clients to automatically determine which Pulsar cluster is responsible for a topic (and thus where message traffic for the topic needs to be routed).
 zookeeper:
   q: What is ZooKeeper?
   def: |

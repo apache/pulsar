@@ -138,38 +138,38 @@ section.docs-cards {
     margin-left: 15px; }
 
 .sidebar {
-  position: fixed;
-  overflow-y: scroll; }
-  .sidebar section.sidebar-group h4 {
-    font-size: 18px;
-    margin-bottom: 10px; }
-  .sidebar section.sidebar-group ul {
-    overflow: auto;
-    margin-left: 10px; }
-    .sidebar section.sidebar-group ul li {
-      list-style-type: disc;
-      list-style-position: inside;
-      text-indent: 0;
-      word-wrap: break-word;
-      font-size: 16px;
-      list-style-type: none;
-      margin-left: 0; }
-      .sidebar section.sidebar-group ul li a {
-        color: #4d4d4d; }
-        .sidebar section.sidebar-group ul li a.active {
-          color: #d33682; }
-        .sidebar section.sidebar-group ul li a:hover {
-          color: #0075e4;
-          text-decoration: none; }
-      .sidebar section.sidebar-group ul li i {
-        color: #999;
-        margin-right: 15px; }
-        .sidebar section.sidebar-group ul li i:hover {
+  position: fixed; }
+  .sidebar section.sidebar-group {
+    max-width: 80%; }
+    .sidebar section.sidebar-group h4 {
+      font-size: 18px;
+      margin-bottom: 10px; }
+    .sidebar section.sidebar-group ul {
+      overflow: auto;
+      margin-left: 10px; }
+      .sidebar section.sidebar-group ul li {
+        max-width: 100%;
+        text-indent: 0;
+        word-wrap: break-word;
+        font-size: 16px;
+        list-style-type: none;
+        margin-left: 0; }
+        .sidebar section.sidebar-group ul li a {
           color: #4d4d4d; }
-      .sidebar section.sidebar-group ul li + li {
-        margin-top: 4px; }
-  .sidebar section.sidebar-group + section.sidebar-group {
-    margin-top: 15px; }
+          .sidebar section.sidebar-group ul li a.active {
+            color: #d33682; }
+          .sidebar section.sidebar-group ul li a:hover {
+            color: #0075e4;
+            text-decoration: none; }
+        .sidebar section.sidebar-group ul li i {
+          color: #999;
+          margin-right: 15px; }
+          .sidebar section.sidebar-group ul li i:hover {
+            color: #4d4d4d; }
+        .sidebar section.sidebar-group ul li + li {
+          margin-top: 4px; }
+    .sidebar section.sidebar-group + section.sidebar-group {
+      margin-top: 15px; }
 
 header {
   background-color: black; }
@@ -9369,7 +9369,7 @@ span.popover-term {
 /* Monospaced font for syntax highlighting */
 /* Enable Font Awesome icons */
 .tocify {
-  width: 80%;
+  max-width: 80%;
   margin: 0 0 0 1rem;
   position: fixed; }
   .tocify h4 {

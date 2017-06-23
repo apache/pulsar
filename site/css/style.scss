@@ -181,9 +181,9 @@ section.docs-cards {
 
 .sidebar {
   position: fixed;
-  overflow-y: scroll;
 
   section.sidebar-group {
+    max-width: 80%;
     h4 {
       font-size: 18px;
       margin-bottom: 10px;
@@ -194,8 +194,7 @@ section.docs-cards {
       margin-left: 10px;
 
       li {
-        list-style-type: disc;
-        list-style-position: inside;
+        max-width: 100%;
         text-indent: 0;
         word-wrap: break-word;
         font-size: 16px;

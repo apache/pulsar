@@ -195,7 +195,8 @@ commands:
     - flags: -t, --time
       description: "The retention time in minutes, hours, days, or weeks. Examples: `100m`, `13h`, `2d`, `5w`."
   - name: unload
-    description: Unload a namespace from the current serving broker
+    description: Unload a namespace or namespace bundle from the current serving broker.
+    argument: property/cluster/namespace
     options:
     - flags: -b, --bundle
       description: # `{start_boundary}_{end_boundary}`
@@ -219,7 +220,7 @@ commands:
     - flags: -s, --sub
       description: The subscription name
 - name: ns-isolation-policy
-  description: Operations about namespace isolation policy
+  description: Operations for managing namespace isolation policies.
   subcommands:
   - name: set
     description: Create/update a namespace isolation policy for a cluster. This operation requires Pulsar superuser privileges.

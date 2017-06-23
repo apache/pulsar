@@ -888,11 +888,13 @@
       </section>
 
       <section class="content">
-        <p>If you have <a href="../../admin/Authz#authentication-providers">authentication</a> enabled in your Pulsar <span class="popover-term" tabindex="0" title="What is a Pulsar instance?" data-placement="top" data-content="A group of Pulsar clusters that act together as a single unit." data-toggle="popover" data-trigger="focus">instance</span>, then you will need to perform a few authentication-related setup steps to use the Pulsar admin interface. Those steps will vary depending on if you’re using the <a href="#the-pulsar-admin-cli"><code class="highlighter-rouge">pulsar-admin</code> command-line interface</a>, the <a href="#rest-api">REST API</a>, or the <a href="#java-admin-client">Java admin client</a>.</p>
+        <h2 id="admin-setup">Admin setup</h2>
+
+<p>If you have <a href="../../admin/Authz#authentication-providers">authentication</a> enabled in your Pulsar <span class="popover-term" tabindex="0" title="What is a Pulsar instance?" data-placement="top" data-content="A group of Pulsar clusters that act together as a single unit." data-toggle="popover" data-trigger="focus">instance</span>, then you will need to perform a few authentication-related setup steps to use the Pulsar <a href="../../admin/AdminInterface">admin interface</a>. Those steps will vary depending on if you’re using the <a href="#the-pulsar-admin-command-line-tool"><code class="highlighter-rouge">pulsar-admin</code> command-line interface</a>, the <a href="#rest-api">REST API</a>, or the <a href="#java-admin-client">Java admin client</a>.</p>
 
 <p>Before you get started using Pulsar’s admin interface, you will need to complete a few setup steps that vary depending on whether you’re using the <a href="#pulsar-admin-cli-tool"><code class="highlighter-rouge">pulsar-admin</code> CLI tool</a>, <a href="#java-api">Java API</a>, or <a href="#rest-api">REST API</a> directly.</p>
 
-<h3 id="the-pulsar-admin-cli">The Pulsar admin CLI</h3>
+<h3 id="the-pulsar-admin-command-line-tool">The <code class="highlighter-rouge">pulsar-admin</code> command-line tool</h3>
 
 <p>If a Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">broker</span> has <a href="../../admin/Authz#authentication-providers">authentication</a> enabled, you will need to provide an auth configuration to use the <a href="../../reference/CliTools#pulsar-admin"><code class="highlighter-rouge">pulsar-admin</code></a> tool. By default, the configuration for the <code class="highlighter-rouge">pulsar-admin</code> tool is found in the <a href="../../reference/Configuration#client"><code class="highlighter-rouge">conf/client.conf</code></a> file. Here are the available parameters:</p>
 
@@ -982,8 +984,6 @@
 <span class="n">PulsarAdmin</span> <span class="n">admin</span> <span class="o">=</span> <span class="k">new</span> <span class="n">PulsarAdmin</span><span class="o">(</span><span class="n">url</span><span class="o">,</span> <span class="n">config</span><span class="o">);</span>
 </code></pre>
 </div>
-
-<p>In Pulsar, a cluster is a group of <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">brokers</span>, <span class="popover-term" tabindex="0" title="What is a bookie?" data-placement="top" data-content="Bookie is just a nickname for an individual BookKeeper server." data-toggle="popover" data-trigger="focus">bookies</span>, and other components. Pulsar <span class="popover-term" tabindex="0" title="What is a Pulsar instance?" data-placement="top" data-content="A group of Pulsar clusters that act together as a single unit." data-toggle="popover" data-trigger="focus">instances</span> are typically comprised of multiple Pulsar clusters that replicate to one another using <span class="popover-term" tabindex="0" title="What is geo-replication?" data-placement="top" data-content="TODO" data-toggle="popover" data-trigger="focus">geo-replication</span>.</p>
 
 <h2 id="managing-clusters">Managing clusters</h2>
 
@@ -1149,7 +1149,13 @@ cluster-2
 </code></pre>
 </div>
 
+<p>In Pulsar, a <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">cluster</span> is a group of <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">brokers</span>, <span class="popover-term" tabindex="0" title="What is a bookie?" data-placement="top" data-content="Bookie is just a nickname for an individual BookKeeper server." data-toggle="popover" data-trigger="focus">bookies</span>, and other components. Pulsar <span class="popover-term" tabindex="0" title="What is a Pulsar instance?" data-placement="top" data-content="A group of Pulsar clusters that act together as a single unit." data-toggle="popover" data-trigger="focus">instances</span> are comprised of multiple Pulsar clusters that replicate to one another using <span class="popover-term" tabindex="0" title="What is geo-replication?" data-placement="top" data-content="TODO" data-toggle="popover" data-trigger="focus">geo-replication</span>.</p>
+
 <h2 id="managing-brokers">Managing brokers</h2>
+
+<p>In Pulsar, a <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">broker</span> consists of two components: an HTTP server exposing a <a href="../../reference/RestApi">REST interface</a> that powers both <span class="popover-term" tabindex="0" title="What is topic lookup?" data-placement="top" data-content="A service provided by Pulsar brokers that enables connecting clients to automatically determine which Pulsar cluster is responsible for a topic (and thus where message traffic for the topic needs to be routed)." data-toggle="popover" data-trigger="focus">topic lookup</span></p>
+
+<p>and a <span class="popover-term" tabindex="0" title="What is a dispatcher?" data-placement="top" data-content="An asynchronous TCP server used for all data transfers in a Pulsar cluster. The Pulsar dispatcher uses a custom binary protocol for all communications." data-toggle="popover" data-trigger="focus">dispatcher</span></p>
 
 <p>Pulsar brokers consist of two components:</p>
 

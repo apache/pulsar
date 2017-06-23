@@ -572,6 +572,103 @@
       <section class="content">
         <p>Within a Pulsar <span class="popover-term" tabindex="0" title="What is a Pulsar instance?" data-placement="top" data-content="A group of Pulsar clusters that act together as a single unit." data-toggle="popover" data-trigger="focus">instance</span>, <a href="#properties">properties</a> are the highest administrative unit. Each property can consist of any number of <a href="#namespaces">namespaces</a>.</p>
 
+<h2 id="admin-setup">Admin setup</h2>
+
+<p>If you have <a href="../../admin/Authz#authentication-providers">authentication</a> enabled in your Pulsar <span class="popover-term" tabindex="0" title="What is a Pulsar instance?" data-placement="top" data-content="A group of Pulsar clusters that act together as a single unit." data-toggle="popover" data-trigger="focus">instance</span>, then you will need to perform a few authentication-related setup steps to use the Pulsar <a href="../../admin/AdminInterface">admin interface</a>. Those steps will vary depending on if you’re using the <a href="#the-pulsar-admin-command-line-tool"><code class="highlighter-rouge">pulsar-admin</code> command-line interface</a>, the <a href="#rest-api">REST API</a>, or the <a href="#java-admin-client">Java admin client</a>.</p>
+
+<p>Before you get started using Pulsar’s admin interface, you will need to complete a few setup steps that vary depending on whether you’re using the <a href="#pulsar-admin-cli-tool"><code class="highlighter-rouge">pulsar-admin</code> CLI tool</a>, <a href="#java-api">Java API</a>, or <a href="#rest-api">REST API</a> directly.</p>
+
+<h3 id="the-pulsar-admin-command-line-tool">The <code class="highlighter-rouge">pulsar-admin</code> command-line tool</h3>
+
+<p>If a Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">broker</span> has <a href="../../admin/Authz#authentication-providers">authentication</a> enabled, you will need to provide an auth configuration to use the <a href="../../reference/CliTools#pulsar-admin"><code class="highlighter-rouge">pulsar-admin</code></a> tool. By default, the configuration for the <code class="highlighter-rouge">pulsar-admin</code> tool is found in the <a href="../../reference/Configuration#client"><code class="highlighter-rouge">conf/client.conf</code></a> file. Here are the available parameters:</p>
+
+<table class="config">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Default</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    
+    <tr id="client-webServiceUrl">
+      <td>webServiceUrl</td>
+      <td>http://localhost:8080/</td>
+      <td>
+</td>
+    </tr>
+    
+    <tr id="client-brokerServiceUrl">
+      <td>brokerServiceUrl</td>
+      <td>pulsar://localhost:6650/</td>
+      <td>
+</td>
+    </tr>
+    
+    <tr id="client-authPlugin">
+      <td>authPlugin</td>
+      <td></td>
+      <td>
+</td>
+    </tr>
+    
+    <tr id="client-authParams">
+      <td>authParams</td>
+      <td></td>
+      <td>
+</td>
+    </tr>
+    
+    <tr id="client-useTls">
+      <td>useTls</td>
+      <td></td>
+      <td>
+</td>
+    </tr>
+    
+    <tr id="client-tlsAllowInsecureConnection">
+      <td>tlsAllowInsecureConnection</td>
+      <td></td>
+      <td>
+</td>
+    </tr>
+    
+    <tr id="client-tlsTrustCertsFilePath">
+      <td>tlsTrustCertsFilePath</td>
+      <td></td>
+      <td>
+</td>
+    </tr>
+    
+  </tbody>
+</table>
+
+<h3 id="rest-api">REST API</h3>
+
+<p>You can find documentation for the REST API exposed by Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">brokers</span> in <a href="../../reference/RestApi">this reference document</a>.</p>
+
+<h3 id="java-admin-client">Java admin client</h3>
+
+<p>To use the Java admin API, instantiate a <a target="_blank" href="/api/admin/com/yahoo/pulsar/client/admin/PulsarAdmin.html"><code class="highlighter-rouge">PulsarAdmin</code></a> object, specifying a URL for a Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">broker</span> and a <a target="_blank" href="/api/admin/com/yahoo/pulsar/client/admin/ClientConfiguration.html"><code class="highlighter-rouge">ClientConfiguration</code></a>. Here’s a minimal example using <code class="highlighter-rouge">localhost</code>:</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">URL</span> <span class="n">url</span> <span class="o">=</span> <span class="k">new</span> <span class="n">URL</span><span class="o">(</span><span class="s">"http://localhost:8080"</span><span class="o">);</span>
+<span class="n">String</span> <span class="n">authPluginClassName</span> <span class="o">=</span> <span class="s">"com.org.MyAuthPluginClass"</span><span class="o">;</span> <span class="c1">//Pass auth-plugin class fully-qualified name if Pulsar-security enabled</span>
+<span class="n">String</span> <span class="n">authParams</span> <span class="o">=</span> <span class="s">"param1=value1"</span><span class="o">;</span><span class="c1">//Pass auth-param if auth-plugin class requires it</span>
+<span class="kt">boolean</span> <span class="n">useTls</span> <span class="o">=</span> <span class="kc">false</span><span class="o">;</span>
+<span class="kt">boolean</span> <span class="n">tlsAllowInsecureConnection</span> <span class="o">=</span> <span class="kc">false</span><span class="o">;</span>
+<span class="n">String</span> <span class="n">tlsTrustCertsFilePath</span> <span class="o">=</span> <span class="kc">null</span><span class="o">;</span>
+
+<span class="n">ClientConfiguration</span> <span class="n">config</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ClientConfiguration</span><span class="o">();</span>
+<span class="n">config</span><span class="o">.</span><span class="na">setAuthentication</span><span class="o">(</span><span class="n">authPluginClassName</span><span class="o">,</span> <span class="n">authParams</span><span class="o">);</span>
+<span class="n">config</span><span class="o">.</span><span class="na">setUseTls</span><span class="o">(</span><span class="n">useTls</span><span class="o">);</span>
+<span class="n">config</span><span class="o">.</span><span class="na">setTlsAllowInsecureConnection</span><span class="o">(</span><span class="n">tlsAllowInsecureConnection</span><span class="o">);</span>
+<span class="n">config</span><span class="o">.</span><span class="na">setTlsTrustCertsFilePath</span><span class="o">(</span><span class="n">tlsTrustCertsFilePath</span><span class="o">);</span>
+
+<span class="n">PulsarAdmin</span> <span class="n">admin</span> <span class="o">=</span> <span class="k">new</span> <span class="n">PulsarAdmin</span><span class="o">(</span><span class="n">url</span><span class="o">,</span> <span class="n">config</span><span class="o">);</span>
+</code></pre>
+</div>
+
 <h2 id="managing-properties">Managing properties</h2>
 
 <p>Properties, like namespaces, can be managed using the <a href="../../admin/AdminInterface">admin API</a>. There are currently two configurable aspects of properties:</p>
@@ -678,7 +775,7 @@ my-property-2
 </code></pre>
 </div>
 
-<h4 id="rest-api">REST API</h4>
+<h4 id="rest-api-1">REST API</h4>
 
 <div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method put">PUT</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span></code></pre></div>
 
@@ -723,7 +820,7 @@ my-property-2
 </code></pre>
 </div>
 
-<h4 id="rest-api-1">REST API</h4>
+<h4 id="rest-api-2">REST API</h4>
 
 <div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span></code></pre></div>
 
@@ -749,7 +846,7 @@ my-property-2
 </code></pre>
 </div>
 
-<h4 id="rest-api-2">REST API</h4>
+<h4 id="rest-api-3">REST API</h4>
 
 <div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span></code></pre></div>
 
@@ -775,7 +872,7 @@ my-property-2
 </code></pre>
 </div>
 
-<h4 id="rest-api-3">REST API</h4>
+<h4 id="rest-api-4">REST API</h4>
 
 <div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span></code></pre></div>
 
@@ -829,7 +926,7 @@ my-property-2
 </code></pre>
 </div>
 
-<h4 id="rest-api-4">REST API</h4>
+<h4 id="rest-api-5">REST API</h4>
 
 <div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method post">POST</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/permissions/<span class="endpoint">:role</span></code></pre></div>
 
@@ -859,7 +956,7 @@ my-property-2
 </code></pre>
 </div>
 
-<h4 id="rest-api-5">REST API</h4>
+<h4 id="rest-api-6">REST API</h4>
 
 <div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/permissions</code></pre></div>
 
@@ -884,7 +981,7 @@ my-property-2
 </code></pre>
 </div>
 
-<h4 id="rest-api-6">REST API</h4>
+<h4 id="rest-api-7">REST API</h4>
 
 <div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method delete">DELETE</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/permissions/<span class="endpoint">:role</span></code></pre></div>
 
@@ -1324,6 +1421,28 @@ my-property-2
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getRetention</span><span class="o">(</span><span class="n">namespace</span><span class="o">)</span>
 </code></pre>
 </div>
+
+<h3 id="namespace-isolation">Namespace isolation</h3>
+
+<p>Coming soon.</p>
+
+<h3 id="unloading-from-a-broker">Unloading from a broker</h3>
+
+<p>You can unload a namespace, or a <span class="popover-term" tabindex="0" title="What is a namespace bundle?" data-placement="top" data-content="A virtual group of topics that belong to the same namespace. A namespace bundle is defined as a range between two 32-bit hashes, such as 0x00000000 and 0xffffffff." data-toggle="popover" data-trigger="focus">namespace bundle</span>, from the Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">broker</span> that is currently responsible for it.</p>
+
+<h4 id="pulsar-admin-12">pulsar-admin</h4>
+
+<p>Use the <a href="../../reference/CliTools#pulsar-admin-namespaces-unload"><code class="highlighter-rouge">unload</code></a> subcommand of the <a href="../../reference/CliTools#pulsar-admin-namespaces"><code class="highlighter-rouge">namespaces</code></a> command.</p>
+
+<h5 id="example">Example</h5>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin namespaces unload my-prop/my-cluster/my-ns
+</code></pre>
+</div>
+
+<h4 id="rest-api-8">REST API</h4>
+
+<h4 id="java-23">Java</h4>
 
 <h2 id="concepts">Concepts</h2>
 
