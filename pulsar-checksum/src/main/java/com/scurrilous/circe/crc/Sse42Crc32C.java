@@ -15,12 +15,13 @@
  ******************************************************************************/
 package com.scurrilous.circe.crc;
 
+import static org.apache.pulsar.checksum.utils.NativeUtils.*;
+
 import java.nio.ByteBuffer;
 
 import com.scurrilous.circe.IncrementalIntHash;
 import com.scurrilous.circe.impl.AbstractIncrementalIntHash;
 import com.scurrilous.circe.params.CrcParameters;
-import static com.yahoo.pulsar.checksum.utils.NativeUtils.*;
 
 /**
  * Implementation of CRC-32C using the SSE 4.2 CRC instruction.
