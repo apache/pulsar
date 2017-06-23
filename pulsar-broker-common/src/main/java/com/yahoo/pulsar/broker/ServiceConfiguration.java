@@ -27,11 +27,10 @@ import com.google.common.collect.Sets;
 import com.yahoo.pulsar.client.impl.auth.AuthenticationDisabled;
 import com.yahoo.pulsar.common.configuration.FieldContext;
 import com.yahoo.pulsar.common.configuration.PulsarConfiguration;
+import com.yahoo.pulsar.common.policies.data.AuthAction;
 
 /**
- *
  * Pulsar service configuration object.
- *
  */
 public class ServiceConfiguration implements PulsarConfiguration {
 
@@ -137,6 +136,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // Role names that are treated as "super-user", meaning they will be able to
     // do all admin operations and publish/consume from all topics
     private Set<String> superUserRoles = Sets.newTreeSet();
+
+    // Actions that can be authorized by using permitted role name which contains wildcard
+    private Set<AuthAction> wildcardRoleNamePermittedActions = Sets.newTreeSet();
 
     // Authentication settings of the broker itself. Used when the broker connects
     // to other brokers, either in same or other clusters
@@ -278,7 +280,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // Name of load manager to use
     @FieldContext(dynamic = true)
     private String loadManagerClassName = "com.yahoo.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl";
-    // If true, (and ModularLoadManagerImpl is being used), the load manager will attempt to 
+    // If true, (and ModularLoadManagerImpl is being used), the load manager will attempt to
     // use only brokers running the latest software version (to minimize impact to bundles)
     @FieldContext(dynamic = true)
     private boolean preferLaterVersions = false;
@@ -569,6 +571,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public Set<String> getSuperUserRoles() {
         return superUserRoles;
+    }
+
+    public Set<AuthAction> getWildcardRoleNamePermittedActions() {
+        return wildcardRoleNamePermittedActions;
+    }
+
+    public void setWildcardRoleNamePermittedActions(Set<AuthAction> wildcardRoleNamePermittedActions) {
+        this.wildcardRoleNamePermittedActions = wildcardRoleNamePermittedActions;
     }
 
     public void setSuperUserRoles(Set<String> superUserRoles) {
