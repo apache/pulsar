@@ -98,11 +98,11 @@ Pulsarのサービスはすぐに利用可能となり、`http://localhost:8080/
 
 Pulsarクライアントライブラリの依存関係をインクルードしてください。
 
-最新のバージョンは [![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.yahoo.pulsar/pulsar-client/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.yahoo.pulsar/pulsar-client) です。
+最新のバージョンは [![Maven Central](https://maven-badges.herokuapp.com/maven-central/org.apache.pulsar/pulsar-client/badge.svg)](https://maven-badges.herokuapp.com/maven-central/org.apache.pulsar/pulsar-client) です。
 
 ```xml
 <dependency>
-  <groupId>com.yahoo.pulsar</groupId>
+  <groupId>org.apache.pulsar</groupId>
   <artifactId>pulsar-client</artifactId>
   <version>${pulsar.version}</version>
 </dependency>

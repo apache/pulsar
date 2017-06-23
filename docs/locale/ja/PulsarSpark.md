@@ -18,7 +18,7 @@ Spark Streaming Pulsar Receiverの依存をincludeします:
 
 ```xml
 <dependency>
-  <groupId>com.yahoo.pulsar</groupId>
+  <groupId>org.apache.pulsar</groupId>
   <artifactId>pulsar-spark</artifactId>
   <version>${pulsar.version}</version>
 </dependency>
