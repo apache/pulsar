@@ -4,16 +4,16 @@
   <thead>
     <tr>
       <th>Name</th>
-      <th>Default</th>
       {% unless config.no_descriptions %}<th>Description</th>{% endunless %}
+      <th>Default</th>
     </tr>
   </thead>
   <tbody>
     {% for c in configs %}
     <tr id="{{ include.id }}-{{ c.name }}">
       <td>{{ c.name }}</td>
-      <td>{{ c.default }}</td>
       {% unless config.no_descriptions %}<td>{{ c.description | markdownify }}</td>{% endunless %}
+      <td>{{ c.default }}</td>
     </tr>
     {% endfor %}
   </tbody>

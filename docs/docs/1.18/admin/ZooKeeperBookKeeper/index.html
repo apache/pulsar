@@ -394,66 +394,66 @@ of these regions is unreachable.</p>
   <thead>
     <tr>
       <th>Name</th>
-      <th>Default</th>
       <th>Description</th>
+      <th>Default</th>
     </tr>
   </thead>
   <tbody>
     
     <tr id="zookeeper-tickTime">
       <td>tickTime</td>
-      <td>2000</td>
       <td><p>The <em>tick</em> is the basic unit of time in ZooKeeper, measured in milliseconds and used to regulate things like <a href="https://www.tutorialspoint.com/zookeeper/zookeeper_quick_guide.htm">heartbeats and timeouts</a>. <code class="highlighter-rouge">tickTime</code> is the length of a single tick.</p>
 </td>
+      <td>2000</td>
     </tr>
     
     <tr id="zookeeper-initLimit">
       <td>initLimit</td>
-      <td>10</td>
       <td><p>The maximum time, in ticks, that the leader ZooKeeper server allows follower ZooKeeper servers to successfully connect and sync. The tick time is set in milliseconds using the <a href="#zookeeper-tickTime"><code class="highlighter-rouge">tickTime</code></a> parameter.</p>
 </td>
+      <td>10</td>
     </tr>
     
     <tr id="zookeeper-syncLimit">
       <td>syncLimit</td>
-      <td>5</td>
       <td><p>The maximum time, in ticks, that a follower ZooKeeper server is allowed to sync with other ZooKeeper servers. The tick time is set in milliseconds using the <a href="#zookeeper-tickTime"><code class="highlighter-rouge">tickTime</code></a> parameter.</p>
 </td>
+      <td>5</td>
     </tr>
     
     <tr id="zookeeper-dataDir">
       <td>dataDir</td>
-      <td>data/zookeeper</td>
       <td><p>The location where ZooKeeper will store in-memory database snapshots as well as the transaction log of updates to the database.</p>
 </td>
+      <td>data/zookeeper</td>
     </tr>
     
     <tr id="zookeeper-clientPort">
       <td>clientPort</td>
-      <td>2181</td>
       <td><p>The port on which the ZooKeeper server will listen for connections.</p>
 </td>
+      <td>2181</td>
     </tr>
     
     <tr id="zookeeper-autopurge.snapRetainCount">
       <td>autopurge.snapRetainCount</td>
-      <td>3</td>
       <td><p>In ZooKeeper, auto purge determines how many recent snapshots of the database stored in <a href="#zookeeper-dataDir"><code class="highlighter-rouge">dataDir</code></a> to retain within the time interval specified by <a href="#zookeeper-autopurge.purgeInterval"><code class="highlighter-rouge">autopurge.purgeInterval</code></a> (while deleting the rest).</p>
 </td>
+      <td>3</td>
     </tr>
     
     <tr id="zookeeper-autopurge.purgeInterval">
       <td>autopurge.purgeInterval</td>
-      <td>1</td>
       <td><p>The time interval, in hours, by which the ZooKeeper database purge task is triggered. Setting to a non-zero number will enable auto purge; setting to 0 will disable. Read <a href="http://zookeeper.apache.org/doc/current/zookeeperAdmin.html#sc_maintenance">this guide</a> before enabling auto purge.</p>
 </td>
+      <td>1</td>
     </tr>
     
     <tr id="zookeeper-maxClientCnxns">
       <td>maxClientCnxns</td>
-      <td>60</td>
       <td><p>The maximum number of client connections. Increase this if you need to handle more ZooKeeper clients.</p>
 </td>
+      <td>60</td>
     </tr>
     
   </tbody>
@@ -465,66 +465,66 @@ of these regions is unreachable.</p>
   <thead>
     <tr>
       <th>Name</th>
-      <th>Default</th>
       <th>Description</th>
+      <th>Default</th>
     </tr>
   </thead>
   <tbody>
     
     <tr id="global-zookeeper-tickTime">
       <td>tickTime</td>
-      <td>2000</td>
       <td><p>The number of milliseconds of each tick</p>
 </td>
+      <td>2000</td>
     </tr>
     
     <tr id="global-zookeeper-initLimit">
       <td>initLimit</td>
-      <td>10</td>
       <td><p>The number of ticks that the initial synchronization phase can take</p>
 </td>
+      <td>10</td>
     </tr>
     
     <tr id="global-zookeeper-syncLimit">
       <td>syncLimit</td>
-      <td>5</td>
       <td><p>The number of ticks that can pass between sending a request and getting an acknowledgement</p>
 </td>
+      <td>5</td>
     </tr>
     
     <tr id="global-zookeeper-dataDir">
       <td>dataDir</td>
-      <td>data/global-zookeeper</td>
       <td><p>the directory where the snapshot is stored.</p>
 </td>
+      <td>data/global-zookeeper</td>
     </tr>
     
     <tr id="global-zookeeper-clientPort">
       <td>clientPort</td>
-      <td>2184</td>
       <td><p>the port at which the clients will connect</p>
 </td>
+      <td>2184</td>
     </tr>
     
     <tr id="global-zookeeper-maxClientCnxns">
       <td>maxClientCnxns</td>
-      <td>60</td>
       <td><p>the maximum number of client connections. increase this if you need to handle more clients</p>
 </td>
+      <td>60</td>
     </tr>
     
     <tr id="global-zookeeper-autopurge.snapRetainCount">
       <td>autopurge.snapRetainCount</td>
-      <td>3</td>
       <td><p>The number of snapshots to retain in dataDir. For more info see <a href="http://zookeeper.apache.org/doc/current/zookeeperAdmin.html#sc_maintenance">here</a>.</p>
 </td>
+      <td>3</td>
     </tr>
     
     <tr id="global-zookeeper-autopurge.purgeInterval">
       <td>autopurge.purgeInterval</td>
-      <td>1</td>
       <td><p>Purge task interval in hours. Set to “0” to disable auto purge feature</p>
 </td>
+      <td>1</td>
     </tr>
     
   </tbody>
