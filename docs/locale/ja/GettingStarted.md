@@ -70,7 +70,7 @@ persistent://my-property/us-west/my-namespace/my-topic
 次の場所から最新のバイナリリリースをダウンロードしてください。
 
 ```
-https://github.com/yahoo/pulsar/releases/latest
+https://github.com/apache/incubator-pulsar/releases/latest
 ```
 
 ```shell

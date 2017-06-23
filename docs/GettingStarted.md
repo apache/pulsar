@@ -71,7 +71,7 @@ page.
 Download latest binary release from
 
 ```
-https://github.com/yahoo/pulsar/releases/latest
+https://github.com/apache/incubator-pulsar/releases/latest
 ```
 
 ```shell
