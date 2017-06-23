@@ -8,7 +8,7 @@
   function load() { if (window.location.hash) shiftWindow(); }
 </script>
 
-<title>The Pulsar codebase</title>
+<title>Pulsar client libraries</title>
 
 <link rel="stylesheet" href="/incubator-pulsar/css/style.css">
 <link rel="shortcut icon" href="/incubator-pulsar/img/favicon.ico">
@@ -199,7 +199,7 @@
       
       
       
-      <li><a  class="active"href="/incubator-pulsar/docs/1.17.5/project/Codebase/"><i class="fa fa-file-text-o"></i>Codebase</a></li>
+      <li><a href="/incubator-pulsar/docs/1.17.5/project/Codebase/"><i class="fa fa-file-text-o"></i>Codebase</a></li>
       
     </ul>
   </section>
@@ -230,8 +230,8 @@
 
     <article class="col-xs-12 col-sm-12 col-md-7 col-lg-7">
       <section class="docs-header">
-        <h1 class="docs-title">The Pulsar codebase</h1>
-        <span class="docs-lead">If you want to contribute to Pulsar, here's an overview of what lives where in the repo</span><br />
+        <h1 class="docs-title">Pulsar client libraries</h1>
+        
         <section class="tags">
           
         </section>
@@ -240,128 +240,52 @@
       </section>
 
       <section class="content">
-        
-<div class="card">
-  <div class="card-block">
-    <h2 class="card-title">pulsar-broker</h2>  <a href="https://github.com/apache/incubator-pulsar/tree/master/pulsar-broker"><i class="fa fa-github fa-lg"></i></a>
-    <p>Java</p>
-    <div class="card-text">
-      <p>Code related to the Pulsar broker</p>
+        <p>Pulsar currently has client libraries available for three languages:</p>
 
-    </div>
-  </div>
-</div>
+<ul>
+  <li><a href="#java-client">Java</a></li>
+  <li><a href="#c-client">C++</a></li>
+  <li><a href="#python-client">Python</a></li>
+</ul>
 
-<div class="card">
-  <div class="card-block">
-    <h2 class="card-title">pulsar-common</h2>  <a href="https://github.com/apache/incubator-pulsar/tree/master/pulsar-common"><i class="fa fa-github fa-lg"></i></a>
-    <p>Java, Protocol Buffers</p>
-    <div class="card-text">
-      <p>Common assets</p>
+<h2 id="java-client">Java client</h2>
 
-    </div>
-  </div>
-</div>
+<p>For a tutorial on using the Pulsar Java client to produce and consume messages, see <a href="../1.17.5/applications/JavaClient">The Pulsar Java client</a>.</p>
 
-<div class="card">
-  <div class="card-block">
-    <h2 class="card-title">dashboard</h2>  <a href="https://github.com/apache/incubator-pulsar/tree/master/dashboard"><i class="fa fa-github fa-lg"></i></a>
-    <p>python</p>
-    <div class="card-text">
-      
+<p>There are also two independent sets of Javadoc API docs available:</p>
 
-    </div>
-  </div>
-</div>
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">Library</th>
+      <th style="text-align: left">Purpose</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left"><a href="/incubator-pulsar/api/client"><code class="highlighter-rouge">com.yahoo.pulsar.client.api</code></a></td>
+      <td style="text-align: left">The <a href="../1.17.5/applications/JavaClient">Pulsar Java client</a> for producing and consuming messages on Pulsar <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topics</span></td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><a href="/incubator-pulsar/api/admin"><code class="highlighter-rouge">com.yahoo.pulsar.client.admin</code></a></td>
+      <td style="text-align: left">The Java interface for the <a href="../1.17.5/admin/AdminInterface">Pulsar admin interface</a></td>
+    </tr>
+  </tbody>
+</table>
 
-<div class="card">
-  <div class="card-block">
-    <h2 class="card-title">kubernetes</h2>  <a href="https://github.com/apache/incubator-pulsar/tree/master/kubernetes"><i class="fa fa-github fa-lg"></i></a>
-    <p>YAML</p>
-    <div class="card-text">
-      <p>Stuff for <a href="../../deployment/Kubernetes">Kubernetes deployment</a></p>
+<!-- * [`com.yahoo.pulsar.broker`](/incubator-pulsar//api/broker) -->
 
-    </div>
-  </div>
-</div>
+<h2 id="c-client">C++ client</h2>
 
-<div class="card">
-  <div class="card-block">
-    <h2 class="card-title">managed-ledger</h2>  <a href="https://github.com/apache/incubator-pulsar/tree/master/managed-ledger"><i class="fa fa-github fa-lg"></i></a>
-    <p>Java</p>
-    <div class="card-text">
-      
+<p>For a tutorial on using the Pulsar C++ clent, see <a href="../1.17.5/applications/CppClient">The Pulsar C++ client</a>.</p>
 
-    </div>
-  </div>
-</div>
+<p>There are also <a href="http://www.stack.nl/~dimitri/doxygen/">Doxygen</a>-generated API docs for the C++ client <a href="/incubator-pulsar/api/cpp">here</a>.</p>
 
-<div class="card">
-  <div class="card-block">
-    <h2 class="card-title">pulsar-broker-auth-athenz</h2>  <a href="https://github.com/apache/incubator-pulsar/tree/master/pulsar-broker-auth-athenz"><i class="fa fa-github fa-lg"></i></a>
-    <p></p>
-    <div class="card-text">
-      
+<h2 id="python-client">Python client</h2>
 
-    </div>
-  </div>
-</div>
+<p>For a tutorial on using the Pulsar Python client, see <a href="../1.17.5/applications/PythonClient">The Pulsar Python client</a>.</p>
 
-<div class="card">
-  <div class="card-block">
-    <h2 class="card-title">pulsar-client</h2>  <a href="https://github.com/apache/incubator-pulsar/tree/master/pulsar-client"><i class="fa fa-github fa-lg"></i></a>
-    <p></p>
-    <div class="card-text">
-      
-
-    </div>
-  </div>
-</div>
-
-<div class="card">
-  <div class="card-block">
-    <h2 class="card-title">pulsar-spark</h2>  <a href="https://github.com/apache/incubator-pulsar/tree/master/pulsar-spark"><i class="fa fa-github fa-lg"></i></a>
-    <p></p>
-    <div class="card-text">
-      
-
-    </div>
-  </div>
-</div>
-
-<div class="card">
-  <div class="card-block">
-    <h2 class="card-title">pulsar-storm</h2>  <a href="https://github.com/apache/incubator-pulsar/tree/master/pulsar-storm"><i class="fa fa-github fa-lg"></i></a>
-    <p></p>
-    <div class="card-text">
-      
-
-    </div>
-  </div>
-</div>
-
-<div class="card">
-  <div class="card-block">
-    <h2 class="card-title">pulsar-testclient</h2>  <a href="https://github.com/apache/incubator-pulsar/tree/master/pulsar-testclient"><i class="fa fa-github fa-lg"></i></a>
-    <p></p>
-    <div class="card-text">
-      
-
-    </div>
-  </div>
-</div>
-
-<div class="card">
-  <div class="card-block">
-    <h2 class="card-title">src</h2>  <a href="https://github.com/apache/incubator-pulsar/tree/master/src"><i class="fa fa-github fa-lg"></i></a>
-    <p>XML</p>
-    <div class="card-text">
-      
-
-    </div>
-  </div>
-</div>
-
+<p>There are also <a href="https://github.com/BurntSushi/pdoc">pdoc</a>-generated API docs for the Python client <a href="/incubator-pulsar/api/python">here</a>.</p>
 
       </section>
     </article>
@@ -369,7 +293,7 @@
     <nav class="toc-bar hidden-sm-down col-md-2 col-lg-2">
       
       <div id="toc">
-        <h4>The Pulsar codebase</h4>
+        <h4>Pulsar client libraries</h4>
       </div>
       
     </nav>

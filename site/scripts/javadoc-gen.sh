@@ -28,14 +28,15 @@ JDK_COMMON_PKGS=java.lang:java.util:java.util.concurrent:java.nio:java.net:java.
     `find pulsar-client-admin -name *.java | grep -v /internal/` \
     `find pulsar-common/src/main/java/com/yahoo/pulsar/common/policies -name *.java`
 
-  javadoc \
-    -quiet \
-    -windowtitle "Pulsar Broker Java API" \
-    -doctitle "Pulsar Broker Java API" \
-    -overview site/scripts/javadoc-broker.html \
-    -d site/api/broker \
-    -noqualifier $JDK_COMMON_PKGS \
-    `find pulsar-broker -name *.java`
+  # Broker
+  #javadoc \
+  #  -quiet \
+  #  -windowtitle "Pulsar Broker Java API" \
+  #  -doctitle "Pulsar Broker Java API" \
+  #  -overview site/scripts/javadoc-broker.html \
+  #  -d site/api/broker \
+  #  -noqualifier $JDK_COMMON_PKGS \
+  #  `find pulsar-broker -name *.java`
 ) || true
 
 # The "|| true" is present here to keep this script from failing due to

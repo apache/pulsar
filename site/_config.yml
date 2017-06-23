@@ -2,8 +2,8 @@ title: Apache Pulsar
 description: Distributed pub-sub messaging system
 encoding: utf-8
 permalink: pretty
-pulsar_repo: https://github.com/yahoo/pulsar/tree/master
-baseurl: /incubator-pulsar
+pulsar_repo: https://github.com/apache/incubator-pulsar/tree/master
+baseurl: /incubator-pulsar/
 destination: ../docs
 
 versions:

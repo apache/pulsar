@@ -5,10 +5,10 @@ tags:
 - python
 ---
 
-The Pulsar Python client library is based on the existing [C++ client library](../CppClient).
-All the same features are exposed through Python interface.
+The Pulsar Python client library is a wrapper over the existing [C++ client library](../CppClient) and exposes all of the [same features]({{ site.baseurl }}api/cpp). You can find the code in the [`python` subdirectory]({{ site.pulsar_repo }}/pulsar-client-cpp/python) of the C++ client code.
 
-## Install
+
+## Installation
 
 First, follow the [instructions](../CppClient#compilation) to compile the Pulsar C++ client library. That will also build the Python binding for the library.
 
