@@ -25,13 +25,13 @@ PulsarはProducer/ConsumerとBrokerの通信に独自バイナリプロトコル
 コマンドは[Protocol Buffers](https://developers.google.com/protocol-buffers/)によるバイナリメッセージの形式です。
 
 Protocol Buffersによるコマンドの仕様は`PulsarApi.proto`
- ([pulsar-common/src/main/proto/PulsarApi.proto](https://github.com/yahoo/pulsar/blob/master/pulsar-common/src/main/proto/PulsarApi.proto)) に記述されています。
+ ([pulsar-common/src/main/proto/PulsarApi.proto](https://github.com/apache/incubator-pulsar/blob/master/pulsar-common/src/main/proto/PulsarApi.proto)) に記述されています。
 
 異なるProducerとConsumerのコマンドは同じ接続を介して
 制限なく送信、インターリーブできます。
 
 全てのコマンドはenum型と全ての可能なサブコマンドをオプショナルフィールドに含むProtocol Buffersのオブジェクト
-[`BaseCommand`](https://github.com/yahoo/pulsar/blob/master/pulsar-common/src/main/proto/PulsarApi.proto#L335)
+[`BaseCommand`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-common/src/main/proto/PulsarApi.proto#L335)
 に埋め込まれています。
 いかなる時も、1つの`BaseCommand`は1つのサブコマンドしか設定できません。
 

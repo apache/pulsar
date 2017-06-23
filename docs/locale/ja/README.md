@@ -1,4 +1,4 @@
-***訳注: [v1.16のドキュメント](https://github.com/yahoo/pulsar/tree/v1.16/docs)を日本語訳したものです。***
+***訳注: [v1.16のドキュメント](https://github.com/apache/incubator-pulsar/tree/v1.16/docs)を日本語訳したものです。***
 
 ![logo](../../img/pulsar.png)
 
