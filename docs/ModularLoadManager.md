@@ -6,18 +6,18 @@ abstractions so that complex load management strategies may be implemented.
 ## Usage
 To use the modular load manager, change
 
-`loadManagerClassName=com.yahoo.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl`
+`loadManagerClassName=org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl`
 
 in `broker.conf` to
 
-`loadManagerClassName=com.yahoo.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl`
+`loadManagerClassName=org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl`
 
 Alternatively, the load manager may also be changed dynamically via the `pulsar-admin` tool as follows:
 
 `pulsar-admin update-dynamic-config --config loadManagerClassName --value
-com.yahoo.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl`
+org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl`
 
-The admin tool may also be used to change back to `com.yahoo.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl`. In either
+The admin tool may also be used to change back to `org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl`. In either
 case, any mistake in specifying the load manager will cause Pulsar to default to `SimpleLoadManagerImpl`.
 
 ## Verification
@@ -29,18 +29,18 @@ There are a few different ways to determine which load manager is being used:
 ```
 $ ./pulsar-admin brokers get-all-dynamic-config
 {
-  "loadManagerClassName" : "com.yahoo.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl"
+  "loadManagerClassName" : "org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl"
 }
 ```
 
-If there is no `loadManagerClassName` element, then the default load manager (`com.yahoo.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl`)
+If there is no `loadManagerClassName` element, then the default load manager (`org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl`)
 is being used.
 
 2. Look at a load report in ZooKeeper
 
-With `com.yahoo.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl`, the load report in `/loadbalance/brokers/...`
+With `org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl`, the load report in `/loadbalance/brokers/...`
 will have many differences. E.g., the `systemResourceUsage` subelements (`bandwidthIn`, `bandwidthOut`, ...) are now all at the top-level.
-Here is an example load report from `com.yahoo.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl`:
+Here is an example load report from `org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl`:
 
 ```
 {
@@ -65,7 +65,7 @@ Here is an example load report from `com.yahoo.pulsar.broker.loadbalance.impl.Mo
 }
 ```
 
-With `com.yahoo.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl`, the load report in `/loadbalance/brokers/...`
+With `org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl`, the load report in `/loadbalance/brokers/...`
 will look like this:
 
 ```
@@ -99,7 +99,7 @@ will look like this:
 3. The command-line broker monitor (`./pulsar-perf monitor-brokers ...`) will have a different output format depending on which load manager
 implementation is being used.
 
-Here is an example from `com.yahoo.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl`:
+Here is an example from `org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl`:
 ```
 ===================================================================================================================
 ||SYSTEM         |CPU %          |MEMORY %       |DIRECT %       |BW IN %        |BW OUT %       |MAX %          ||
@@ -115,7 +115,7 @@ Here is an example from `com.yahoo.pulsar.broker.loadbalance.impl.ModularLoadMan
 ===================================================================================================================
 ```
 
-Here is an example from `com.yahoo.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl`:
+Here is an example from `org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl`:
 ```
 ===================================================================================================================
 ||COUNT          |TOPIC          |BUNDLE         |PRODUCER       |CONSUMER       |BUNDLE +       |BUNDLE -       ||
@@ -130,24 +130,24 @@ Here is an example from `com.yahoo.pulsar.broker.loadbalance.impl.SimpleLoadMana
 ||               |54.84          |134.48         |189.31         |126.54         |320.96         |447.50         ||
 ===================================================================================================================
 ```
-It is important to note that `com.yahoo.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl` is _centralized_, meaning all requests
+It is important to note that `org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl` is _centralized_, meaning all requests
 to assign a bundle (whether it's been seen before or whether this is the first time) only get handled by the _lead_ broker
 (which can change over time). To determine the current lead broker, examine this node in ZooKeeper: `/loadbalance/leader`
 
 ## Implementation
 
 ### Data
-The data monitored by the modular load manager is contained in the class `com.yahoo.pulsar.broker.loadbalance.LoadData`.
+The data monitored by the modular load manager is contained in the class `org.apache.pulsar.broker.loadbalance.LoadData`.
 Here, the available data is subdivided into the bundle data and the broker data.
 
 #### Broker Data
-The broker data is contained in the class `com.yahoo.pulsar.broker.BrokerData`. It is further subdivided into two parts,
+The broker data is contained in the class `org.apache.pulsar.broker.BrokerData`. It is further subdivided into two parts,
 one being the local data which every broker individually writes to ZooKeeper, and the other being the historical broker
 data which is written to ZooKeeper by the leader broker.
 
 ##### Local Broker Data
 The local broker data is contained in the class
-`com.yahoo.pulsar.broker.LocalBrokerData` and gives information about the following resources:
+`org.apache.pulsar.broker.LocalBrokerData` and gives information about the following resources:
 
 * CPU usage
 * JVM heap memory usage
@@ -164,7 +164,7 @@ receive the update immediately via a ZooKeeper watch, where the local data is re
 `/loadbalance/brokers/<broker host/port>`
 
 ##### Historical Broker Data
-The historical broker data is contained in the class `com.yahoo.pulsar.broker.TimeAverageBrokerData`.
+The historical broker data is contained in the class `org.apache.pulsar.broker.TimeAverageBrokerData`.
 In order to reconcile the need to make good decisions in a steady-state scenario and make reactive decisions in a
 critical scenario, the historical data is split into two parts: the short-term data for reactive decisions, and the
 long-term data for steady-state decisions. Both time frames maintain the following information:
@@ -180,7 +180,7 @@ writes their local data to ZooKeeper. Then, the historical data is written to Zo
 periodically according to the configuration `loadBalancerResourceQuotaUpdateIntervalMinutes`.
 
 ##### Bundle Data
-The bundle data is contained in the class `com.yahoo.pulsar.broker.BundleData`.
+The bundle data is contained in the class `org.apache.pulsar.broker.BundleData`.
 Like the historical broker data, the bundle data is split into a short-term and a long-term time frame.
 The information maintained in each time frame is
 
@@ -205,10 +205,10 @@ broker data, according to the configuration `loadBalancerResourceQuotaUpdateInte
 
 ### Traffic Distribution
 The modular load manager uses the abstraction provided by
-`com.yahoo.pulsar.broker.loadbalance.ModularLoadManagerStrategy` to make decisions about bundle assignment. The
+`org.apache.pulsar.broker.loadbalance.ModularLoadManagerStrategy` to make decisions about bundle assignment. The
 strategy makes a decision by considering the service configuration, the entire load data, and the bundle data for the
 bundle to be assigned. Currently, the only supported strategy is
-`com.yahoo.pulsar.broker.loadbalance.impl.LeastLongTermMessageRate`, though soon users will have the ability to inject
+`org.apache.pulsar.broker.loadbalance.impl.LeastLongTermMessageRate`, though soon users will have the ability to inject
 their own strategies if desired.
 
 #### Least Long Term Message Rate Strategy

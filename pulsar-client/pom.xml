@@ -88,7 +88,7 @@
         </executions>
         <configuration>
           <overview>${basedir}/overview.html</overview>
-          <excludePackageNames>com.yahoo.pulsar.client.impl:com.yahoo.pulsar.client.impl.auth:com.yahoo.pulsar.client.util</excludePackageNames>
+          <excludePackageNames>org.apache.pulsar.client.impl:org.apache.pulsar.client.impl.auth:org.apache.pulsar.client.util</excludePackageNames>
         </configuration>
       </plugin>
 
@@ -143,43 +143,43 @@
               <relocations>
                 <relocation>
                     <pattern>org.asynchttpclient</pattern>
-                    <shadedPattern>com.yahoo.pulsar.shade.org.asynchttpclient</shadedPattern>
+                    <shadedPattern>org.apache.pulsar.shade.org.asynchttpclient</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>org.apache.commons</pattern>
-                  <shadedPattern>com.yahoo.pulsar.shade.org.apache.commons</shadedPattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.apache.commons</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>com.google</pattern>
-                  <shadedPattern>com.yahoo.pulsar.shade.com.google</shadedPattern>
+                  <shadedPattern>org.apache.pulsar.shade.com.google</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>com.fasterxml.jackson</pattern>
-                  <shadedPattern>com.yahoo.pulsar.shade.com.fasterxml.jackson</shadedPattern>
+                  <shadedPattern>org.apache.pulsar.shade.com.fasterxml.jackson</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>io.netty</pattern>
-                  <shadedPattern>com.yahoo.pulsar.shade.io.netty</shadedPattern>
+                  <shadedPattern>org.apache.pulsar.shade.io.netty</shadedPattern>
                 </relocation>
                 <relocation>
-                  <pattern>com.yahoo.pulsar.common</pattern>
-                  <shadedPattern>com.yahoo.pulsar.shade.com.yahoo.pulsar.common</shadedPattern>
+                  <pattern>org.apache.pulsar.common</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.apache.pulsar.common</shadedPattern>
                 </relocation>
                 <relocation>
-                  <pattern>com.yahoo.pulsar.checksum</pattern>
-                  <shadedPattern>com.yahoo.pulsar.shade.com.yahoo.pulsar.checksum</shadedPattern>
+                  <pattern>org.apache.pulsar.checksum</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.apache.pulsar.checksum</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>com.scurrilous.circe</pattern>
-                  <shadedPattern>com.yahoo.pulsar.shade.com.scurrilous.circe</shadedPattern>
+                  <shadedPattern>org.apache.pulsar.shade.com.scurrilous.circe</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>net.jpountz</pattern>
-                  <shadedPattern>com.yahoo.pulsar.shade.net.jpountz</shadedPattern>
+                  <shadedPattern>org.apache.pulsar.shade.net.jpountz</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>com.yahoo.datasketches</pattern>
-                  <shadedPattern>com.yahoo.pulsar.shade.com.yahoo.datasketches</shadedPattern>
+                  <shadedPattern>org.apache.pulsar.shade.com.yahoo.datasketches</shadedPattern>
                 </relocation>
               </relocations>
             </configuration>

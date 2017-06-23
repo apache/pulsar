@@ -143,19 +143,19 @@ COMMAND=$1
 shift
 
 if [ "$COMMAND" == "produce" ]; then
-    exec $JAVA $OPTS com.yahoo.pulsar.testclient.PerformanceProducer --conf-file $PULSAR_PERFTEST_CONF "$@"
+    exec $JAVA $OPTS org.apache.pulsar.testclient.PerformanceProducer --conf-file $PULSAR_PERFTEST_CONF "$@"
 elif [ "$COMMAND" == "consume" ]; then
-    exec $JAVA $OPTS com.yahoo.pulsar.testclient.PerformanceConsumer --conf-file $PULSAR_PERFTEST_CONF "$@"
+    exec $JAVA $OPTS org.apache.pulsar.testclient.PerformanceConsumer --conf-file $PULSAR_PERFTEST_CONF "$@"
 elif [ "$COMMAND" == "read" ]; then
-    exec $JAVA $OPTS com.yahoo.pulsar.testclient.PerformanceReader --conf-file $PULSAR_PERFTEST_CONF "$@"
+    exec $JAVA $OPTS org.apache.pulsar.testclient.PerformanceReader --conf-file $PULSAR_PERFTEST_CONF "$@"
 elif [ "$COMMAND" == "monitor-brokers" ]; then
-    exec $JAVA $OPTS com.yahoo.pulsar.testclient.BrokerMonitor "$@"
+    exec $JAVA $OPTS org.apache.pulsar.testclient.BrokerMonitor "$@"
 elif [ "$COMMAND" == "simulation-client" ]; then
-    exec $JAVA $OPTS com.yahoo.pulsar.testclient.LoadSimulationClient "$@"
+    exec $JAVA $OPTS org.apache.pulsar.testclient.LoadSimulationClient "$@"
 elif [ "$COMMAND" == "simulation-controller" ]; then
-    exec $JAVA $OPTS com.yahoo.pulsar.testclient.LoadSimulationController "$@"
+    exec $JAVA $OPTS org.apache.pulsar.testclient.LoadSimulationController "$@"
 elif [ "$COMMAND" == "websocket-producer" ]; then
-    exec $JAVA $OPTS com.yahoo.pulsar.proxy.socket.client.PerformanceClient "$@"
+    exec $JAVA $OPTS org.apache.pulsar.proxy.socket.client.PerformanceClient "$@"
 elif [ "$COMMAND" == "help" ]; then
     pulsar_help;
 else

@@ -144,7 +144,7 @@ each API and how admin CLI command maps to its appropriate REST api.
 
 ### Java API
 
-Java-api can be accessed by : ```com.yahoo.pulsar.client.admin.PulsarAdmin```
+Java-api can be accessed by : ```org.apache.pulsar.client.admin.PulsarAdmin```
 
 Below code snippet shows how to initialize *PulsarAdmin* and later in
 the document we will see how to use it in order to manage Pulsar

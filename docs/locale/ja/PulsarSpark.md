@@ -41,5 +41,5 @@ JavaReceiverInputDStream<byte[]> msgs = jssc
 
 
 ## 実装例
-完全な実装の例は[SparkStreamingPulsarReceiver.java](../../../pulsar-spark/src/test/java/com/yahoo/pulsar/spark/example/SparkStreamingPulsarReceiverExample.java)を参照してください。
+完全な実装の例は[SparkStreamingPulsarReceiver.java](../../../pulsar-spark/src/test/java/org/apache/pulsar/spark/example/SparkStreamingPulsarReceiverExample.java)を参照してください。
 この例では、受け取ったメッセージのうち"Pulsar"という文字列が含まれるものがいくつあるかを数えます。
