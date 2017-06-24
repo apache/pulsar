@@ -24,7 +24,7 @@ from google.protobuf.text_format import Merge
 from google.protobuf.text_format import MessageToString
 import sys
     
-from mltool import MLDataFormats_pb2
+from proto import MLDataFormats_pb2
 
 try:
     from kazoo.client import KazooClient
@@ -32,8 +32,8 @@ except Exception as missingLib:
     print "You need Kazoo ZK client library. Get it from: pip install kazoo"
 
 '''
-This util provides API to access managed-ledger data if it's ONLY stored in binary format in to zookeeper.
-It also provides command line tool-access to execute these commands.
+This util provides API to access managed-ledger data and also 
+provides command line tool-access to execute these commands.
 '''
 managedLedgerPath = "/managed-ledgers/"
 printMlCommand = "print-managed-ledger"
@@ -275,34 +275,38 @@ def updateMarkDeleteOfCursorCommand(zk, mlPath, cursorName, markDeletePosition):
         print 'Failed to update ml-cursor {}/{} due to {}'.format(mlPath, cursorName, repr(e))
             
 if __name__ in '__main__':
+    
+    commandHelpText = 'Managed-ledger command: \n{}, {}, {}, {}'.format(printMlCommand, deleteMlLedgerIds, printCursorsCommands, updateMakDeleteCursor)
+    
+    try:
         command = sys.argv[1]
-        arguments = sys.argv[2:]
-        
-        parser = argparse.ArgumentParser()
-        commandHelpText = 'Managed-ledger command: \n{}, {}, {}, {}'.format(printMlCommand, deleteMlLedgerIds, printCursorsCommands, updateMakDeleteCursor)
-        parser.add_argument("--zkServer", "-zk", required=True, help="ZooKeeperServer:port")
-        parser.add_argument("--managedLedgerPath", "-mlp", required=True, help="Managed-ledger path")
-        parser.add_argument("--ledgerIds", "-lid", required=False, help="Delete ledger ids: comma separated")
-        parser.add_argument("--cursorName", "-cn", required=False, help="Managed-ledger cursor name")
-        parser.add_argument("--cursorMarkDelete", "-cm", required=False, help="Cursor mark delete position: <ledger_id>:<entry_id>")
-        args = parser.parse_args(arguments)
+    except Exception as indexError:
+        print 'ERROR: Pass command as a first argument, supported {}\n\n'.format(commandHelpText)
+    arguments = sys.argv[2:]
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--zkServer", "-zk", required=True, help="ZooKeeperServer:port")
+    parser.add_argument("--managedLedgerPath", "-mlp", required=True, help="Managed-ledger path")
+    parser.add_argument("--ledgerIds", "-lid", required=False, help="Delete ledger ids: comma separated")
+    parser.add_argument("--cursorName", "-cn", required=False, help="Managed-ledger cursor name")
+    parser.add_argument("--cursorMarkDelete", "-cm", required=False, help="Cursor mark delete position: <ledger_id>:<entry_id>")
+    args = parser.parse_args(arguments)
 
-        zkSrvr = args.zkServer
-        mlPath = managedLedgerPath + args.managedLedgerPath
-        deleteLedgerIds = args.ledgerIds
-        cursorName = args.cursorName
-        cursorMarkDelete = args.cursorMarkDelete
+    zkSrvr = args.zkServer
+    mlPath = managedLedgerPath + args.managedLedgerPath
+    deleteLedgerIds = args.ledgerIds
+    cursorName = args.cursorName
+    cursorMarkDelete = args.cursorMarkDelete
 
-        zk = KazooClient(hosts=zkSrvr)
-        zk.start()
-        
-        if command == printMlCommand:
-            printManagedLedgerCommand(zk, mlPath)
-        elif command == deleteMlLedgerIds:
-            deleteMLLedgerIdsCommand(zk, mlPath, deleteLedgerIds)
-        elif command == printCursorsCommands:
-            printManagedCursorCommand(zk, mlPath, cursorName)
-        elif command == updateMakDeleteCursor:
-            updateMarkDeleteOfCursorCommand(zk, mlPath, cursorName, cursorMarkDelete)
-        else:
-            print '{} command not found. supported {}, pass command as a first argument'.format(command, commandHelpText)
+    zk = KazooClient(hosts=zkSrvr)
+    zk.start()
+    
+    if command == printMlCommand:
+        printManagedLedgerCommand(zk, mlPath)
+    elif command == deleteMlLedgerIds:
+        deleteMLLedgerIdsCommand(zk, mlPath, deleteLedgerIds)
+    elif command == printCursorsCommands:
+        printManagedCursorCommand(zk, mlPath, cursorName)
+    elif command == updateMakDeleteCursor:
+        updateMarkDeleteOfCursorCommand(zk, mlPath, cursorName, cursorMarkDelete)
+    else:
+        print '{} command not found. supported {}, pass command as a first argument'.format(command, commandHelpText)
