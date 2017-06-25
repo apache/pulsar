@@ -551,6 +551,7 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>**/*.txt</exclude>
             <exclude>**/*.md</exclude>
             <exclude>**/proto/*.java</exclude>
+            <exclude>bin/proto/*</exclude>
             <exclude>**/*.patch</exclude>
             <exclude>src/test/resources/**</exclude>
             <exclude>src/main/resources/**</exclude>
