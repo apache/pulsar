@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/env python
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -29,7 +29,7 @@ from proto import MLDataFormats_pb2
 try:
     from kazoo.client import KazooClient
 except Exception as missingLib:
-    print "You need Kazoo ZK client library. Get it from: pip install kazoo"
+    sys.exit("You need Kazoo ZK client library. Get it from: pip install kazoo")
 
 '''
 This util provides API to access managed-ledger data and also 
