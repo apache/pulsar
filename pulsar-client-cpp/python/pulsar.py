@@ -227,7 +227,7 @@ class Client:
     def create_producer(self, topic,
                         send_timeout_millis=30000,
                         compression_type=CompressionType.None,
-                        max_pending_messages=30000,
+                        max_pending_messages=1000,
                         block_if_queue_full=False,
                         batching_enabled=False,
                         batching_max_messages=1000,
