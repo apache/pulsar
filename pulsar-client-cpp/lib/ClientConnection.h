@@ -84,7 +84,7 @@ class ClientConnection : public boost::enable_shared_from_this<ClientConnection>
     typedef std::vector<ConnectionListener>::iterator ListenerIterator;
 
     /*
-     *  endpoint  -  url of the service, for ex. pulsar://bm92.corp.yahoo.com:8880
+     *  endpoint  -  url of the service, for ex. pulsar://localhost:6650
      *  connected -  set when tcp connection is established
      *
      */
@@ -225,7 +225,7 @@ class ClientConnection : public boost::enable_shared_from_this<ClientConnection>
     SocketPtr socket_;
     TlsSocketPtr tlsSocket_;
     /*
-     *  stores address of the service, for ex. pulsar://pulsar.corp.yahoo.com:8880
+     *  stores address of the service, for ex. pulsar://localhost:6650
      */
     const std::string address_;
 
