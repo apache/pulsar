@@ -553,15 +553,15 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>**/proto/*.java</exclude>
             <exclude>bin/proto/*</exclude>
             <exclude>**/*.patch</exclude>
-            <exclude>src/test/resources/**</exclude>
-            <exclude>src/main/resources/**</exclude>
             <exclude>data/**</exclude>
             <exclude>logs/**</exclude>
             <exclude>**/*.versionsBackup</exclude>
             <exclude>**/circe/**</exclude>
             <exclude>pulsar-client-cpp/lib/checksum/int_types.h</exclude>
             <exclude>pulsar-client-cpp/lib/checksum/gf2.hpp</exclude>
-            <exclude>pulsar-client-cpp/lib/checksum/crc32c*</exclude>
+            <exclude>pulsar-client-cpp/lib/checksum/crc32c_sse42.cc</exclude>
+            <exclude>pulsar-client-cpp/lib/checksum/crc32c_sse42.h</exclude>
+            <exclude>pulsar-client-cpp/lib/checksum/crc32c_sw.cc</exclude>
             <exclude>pulsar-client-cpp/lib/lz4/lz4.*</exclude>
             <exclude>pulsar-client-cpp/.idea/*</exclude>
             <exclude>pulsar-client-cpp/lib/PulsarApi.pb.*</exclude>
@@ -579,6 +579,7 @@ flexible messaging model and an intuitive client API.</description>
             <proto>JAVADOC_STYLE</proto>
             <conf>SCRIPT_STYLE</conf>
             <ini>SCRIPT_STYLE</ini>
+            <yaml>SCRIPT_STYLE</yaml>
             <cc>JAVADOC_STYLE</cc>
           </mapping>
         </configuration>
@@ -605,6 +606,57 @@ flexible messaging model and an intuitive client API.</description>
             </configuration>
           </execution>
         </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.rat</groupId>
+        <artifactId>apache-rat-plugin</artifactId>
+        <version>0.12</version>
+        <configuration>
+          <excludes>
+            <exclude>target/**</exclude>
+            <exclude>data/**</exclude>
+            <exclude>logs/**</exclude>
+            <exclude>**/test-output/**</exclude>
+            <exclude>protobuf/LICENSE.protobuf.txt</exclude>
+            <exclude>**/*.patch</exclude>
+            <exclude>**/*.md</exclude>
+            <exclude>**/proto/*.java</exclude>
+            <exclude>pulsar-client-cpp/lib/PulsarApi.pb.*</exclude>
+            <exclude>pulsar-client-cpp/**/cmake_install.cmake</exclude>
+            <exclude>**/*.versionsBackup</exclude>
+            <exclude>**/.classpath</exclude>
+            <exclude>**/.project</exclude>
+            <exclude>**/.settings/*</exclude>
+            <exclude>**/dependency-reduced-pom.xml</exclude>
+
+            <exclude>pulsar-client-cpp/pulsar-cpp.cbp</exclude>
+            <exclude>pulsar-client-cpp/python/MANIFEST</exclude>
+            <exclude>pulsar-client-cpp/python/pulsar_client.egg-info/*</exclude>
+
+            <!-- Dashboard are exported from grafana -->
+            <exclude>docker/grafana/dashboards/*.json</exclude>
+
+            <!-- LZ4 code is under BSD 2-clause  -->
+            <exclude>pulsar-client-cpp/lib/lz4/lz4.*</exclude>
+
+            <exclude>**/META-INF/services/com.scurrilous.circe.HashProvider</exclude>
+
+            <exclude>pulsar-client-cpp/.idea/*</exclude>
+
+            <exclude>**/CMakeFiles/**</exclude>
+            <exclude>**/CMakeCache.txt</exclude>
+            <exclude>*/**/Makefile</exclude>
+            <exclude>dashboard/django/stats/migrations/*.py</exclude>
+            <exclude>dashboard/conf/uwsgi_params</exclude>
+            <exclude>docs/img/pulsar.svg</exclude>
+
+            <!-- Exclude certificates used for tests -->
+            <exclude>**/*.crt</exclude>
+            <exclude>**/*.key</exclude>
+            <exclude>**/*.csr</exclude>
+            <exclude>**/*.json</exclude>
+          </excludes>
+        </configuration>
       </plugin>
     </plugins>
 
