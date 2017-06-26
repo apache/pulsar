@@ -26,7 +26,6 @@ import java.util.Set;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
-import org.apache.pulsar.common.policies.data.AuthAction;
 
 import com.google.common.collect.Sets;
 
@@ -104,7 +103,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int maxUnackedMessagesPerBroker = 0;
     // Once broker reaches maxUnackedMessagesPerBroker limit, it blocks subscriptions which has higher unacked messages
     // than this percentage limit and subscription will not receive any new messages until that subscription acks back
-    // limit/2 messages 
+    // limit/2 messages
     private double maxUnackedMessagesPerSubscriptionOnBrokerBlocked = 0.16;
     // Max number of concurrent lookup request broker allows to throttle heavy incoming lookup traffic
     @FieldContext(dynamic = true)
@@ -139,7 +138,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private Set<String> superUserRoles = Sets.newTreeSet();
 
     // Actions that can be authorized by using permitted role name which contains wildcard
-    private Set<AuthAction> wildcardRoleNamePermittedActions = Sets.newTreeSet();
+    private boolean wildcardInPermittedRoleNameEnabled = false;
 
     // Authentication settings of the broker itself. Used when the broker connects
     // to other brokers, either in same or other clusters
@@ -574,12 +573,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
         return superUserRoles;
     }
 
-    public Set<AuthAction> getWildcardRoleNamePermittedActions() {
-        return wildcardRoleNamePermittedActions;
+    public boolean getWildcardInPermittedRoleNameEnabled() {
+        return wildcardInPermittedRoleNameEnabled;
     }
 
-    public void setWildcardRoleNamePermittedActions(Set<AuthAction> wildcardRoleNamePermittedActions) {
-        this.wildcardRoleNamePermittedActions = wildcardRoleNamePermittedActions;
+    public void setWildcardInPermittedRoleNameEnabled(boolean wildcardInPermittedRoleNameEnabled) {
+        this.wildcardInPermittedRoleNameEnabled = wildcardInPermittedRoleNameEnabled;
     }
 
     public void setSuperUserRoles(Set<String> superUserRoles) {

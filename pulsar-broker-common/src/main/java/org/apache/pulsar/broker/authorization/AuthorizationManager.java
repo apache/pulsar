@@ -162,7 +162,7 @@ public class AuthorizationManager {
                     }
 
                     // Using wildcard
-                    if (conf.getWildcardRoleNamePermittedActions().contains(action)) {
+                    if (conf.getWildcardInPermittedRoleNameEnabled()) {
                         if (checkWildcardPermission(role, action, namespaceRoles)) {
                             // The role has namespace level permission by wildcard match
                             permissionFuture.complete(true);
@@ -190,7 +190,7 @@ public class AuthorizationManager {
         return permissionFuture;
     }
 
-    private Boolean checkWildcardPermission(String checkedRole, AuthAction checkedAction,
+    private boolean checkWildcardPermission(String checkedRole, AuthAction checkedAction,
             Map<String, Set<AuthAction>> permissionMap) {
         for (Map.Entry<String, Set<AuthAction>> permissionData : permissionMap.entrySet()) {
             String permittedRole = permissionData.getKey();

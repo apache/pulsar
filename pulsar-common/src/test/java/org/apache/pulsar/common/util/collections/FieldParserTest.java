@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.common.util.collections;
 
-import org.apache.pulsar.common.policies.data.AuthAction;
-
 import static org.apache.pulsar.common.util.FieldParser.booleanToString;
 import static org.apache.pulsar.common.util.FieldParser.convert;
 import static org.apache.pulsar.common.util.FieldParser.integerToString;
@@ -29,7 +27,6 @@ import static org.apache.pulsar.common.util.FieldParser.stringToList;
 import static org.apache.pulsar.common.util.FieldParser.stringToLong;
 import static org.apache.pulsar.common.util.FieldParser.stringToSet;
 import static org.apache.pulsar.common.util.FieldParser.update;
-import static org.apache.pulsar.common.util.FieldParser.stringToAuthAction;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -62,7 +59,6 @@ public class FieldParserTest {
         assertEquals(stringToDouble("2.2"), Double.valueOf(2.2));
         assertEquals(stringToLong("2"), Long.valueOf(2));
         assertEquals(booleanToString(Boolean.TRUE), String.valueOf(true));
-        assertEquals(stringToAuthAction("produce"), AuthAction.produce);
 
         // test invalid value type
         try {
