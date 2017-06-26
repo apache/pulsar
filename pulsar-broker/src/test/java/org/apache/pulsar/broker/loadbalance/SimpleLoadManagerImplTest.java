@@ -395,8 +395,8 @@ public class SimpleLoadManagerImplTest {
         rd.put("bandwidthIn", new ResourceUsage(250 * 1024, 1024 * 1024));
         rd.put("bandwidthOut", new ResourceUsage(550 * 1024, 1024 * 1024));
 
-        ResourceUnit ru1 = new SimpleResourceUnit("http://prod1-broker7.messaging.gq1.yahoo.com:8080", rd);
-        ResourceUnit ru2 = new SimpleResourceUnit("http://prod2-broker7.messaging.gq1.yahoo.com:8080", rd);
+        ResourceUnit ru1 = new SimpleResourceUnit("http://pulsar-broker1.com:8080", rd);
+        ResourceUnit ru2 = new SimpleResourceUnit("http://pulsar-broker2.com:8080", rd);
         Set<ResourceUnit> rus = new HashSet<ResourceUnit>();
         rus.add(ru1);
         rus.add(ru2);

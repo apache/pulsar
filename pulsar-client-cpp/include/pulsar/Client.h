@@ -43,7 +43,7 @@ class Client {
     /**
      * Create a Pulsar client object connecting to the specified cluster address and using the default configuration.
      *
-     * @param serviceUrl the Pulsar endpoint to use (eg: http://brokerv2-pdev.messaging.corp.gq1.yahoo.com:4080 for Sandbox access)
+     * @param serviceUrl the Pulsar endpoint to use (eg: pulsar://localhost:6650)
      */
     Client(const std::string& serviceUrl);
 
