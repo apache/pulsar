@@ -138,7 +138,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private Set<String> superUserRoles = Sets.newTreeSet();
 
     // Actions that can be authorized by using permitted role name which contains wildcard
-    private boolean wildcardInPermittedRoleNameEnabled = false;
+    private boolean authorizationAllowWildcardsMatching = false;
 
     // Authentication settings of the broker itself. Used when the broker connects
     // to other brokers, either in same or other clusters
@@ -573,12 +573,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
         return superUserRoles;
     }
 
-    public boolean getWildcardInPermittedRoleNameEnabled() {
-        return wildcardInPermittedRoleNameEnabled;
+    public boolean getAuthorizationAllowWildcardsMatching() {
+        return authorizationAllowWildcardsMatching;
     }
 
-    public void setWildcardInPermittedRoleNameEnabled(boolean wildcardInPermittedRoleNameEnabled) {
-        this.wildcardInPermittedRoleNameEnabled = wildcardInPermittedRoleNameEnabled;
+    public void setAuthorizationAllowWildcardsMatching(boolean authorizationAllowWildcardsMatching) {
+        this.authorizationAllowWildcardsMatching = authorizationAllowWildcardsMatching;
     }
 
     public void setSuperUserRoles(Set<String> superUserRoles) {

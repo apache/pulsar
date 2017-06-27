@@ -48,7 +48,7 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
     protected void setup() throws Exception {
         conf.setClusterName("c1");
         conf.setAuthorizationEnabled(true);
-        conf.setWildcardInPermittedRoleNameEnabled(true);
+        conf.setAuthorizationAllowWildcardsMatching(true);
         internalSetup();
     }
 

@@ -162,7 +162,7 @@ public class AuthorizationManager {
                     }
 
                     // Using wildcard
-                    if (conf.getWildcardInPermittedRoleNameEnabled()) {
+                    if (conf.getAuthorizationAllowWildcardsMatching()) {
                         if (checkWildcardPermission(role, action, namespaceRoles)) {
                             // The role has namespace level permission by wildcard match
                             permissionFuture.complete(true);
