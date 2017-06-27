@@ -571,11 +571,83 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         MessageBuilder.create().setContent(new byte[PulsarDecoder.MaxMessageSize]).build();
 
         try {
-            MessageBuilder.create().setContent(new byte[PulsarDecoder.MaxMessageSize + 1]).build();
+            final String topic = "persistent://my-property/use/my-ns/bigMsg";
+            Producer producer = pulsarClient.createProducer(topic);
+            Message message = MessageBuilder.create().setContent(new byte[PulsarDecoder.MaxMessageSize + 1]).build();
+            producer.send(message);
             fail("Should have thrown exception");
-        } catch (IllegalArgumentException e) {
+        } catch (PulsarClientException.InvalidMessageException e) {
             // OK
         }
+    }
+
+    /**
+     * Verifies non-batch message size being validated after performing compression while batch-messaging validates
+     * before compression of message
+     * 
+     * <pre>
+     * send msg with size > MAX_SIZE (5 MB)
+     * a. non-batch with compression: pass
+     * b. batch-msg with compression: fail
+     * c. non-batch w/o  compression: fail
+     * d. non-batch with compression, consumer consume: pass
+     * </pre>
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testSendBigMessageSizeButCompressed() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        final String topic = "persistent://my-property/use/my-ns/bigMsg";
+
+        // (a) non-batch msg with compression
+        ProducerConfiguration producerConf = new ProducerConfiguration();
+        producerConf.setCompressionType(CompressionType.LZ4);
+        Producer producer = pulsarClient.createProducer(topic, producerConf);
+        Message message = MessageBuilder.create().setContent(new byte[PulsarDecoder.MaxMessageSize + 1]).build();
+        producer.send(message);
+        producer.close();
+
+        // (b) batch-msg
+        producerConf = new ProducerConfiguration();
+        producerConf.setBatchingEnabled(true);
+        producerConf.setCompressionType(CompressionType.LZ4);
+        producer = pulsarClient.createProducer(topic, producerConf);
+        message = MessageBuilder.create().setContent(new byte[PulsarDecoder.MaxMessageSize + 1]).build();
+        try {
+            producer.send(message);
+            fail("Should have thrown exception");
+        } catch (PulsarClientException.InvalidMessageException e) {
+            // OK
+        }
+        producer.close();
+
+        // (c) non-batch msg without compression
+        producerConf = new ProducerConfiguration();
+        producerConf.setCompressionType(CompressionType.NONE);
+        producer = pulsarClient.createProducer(topic, producerConf);
+        message = MessageBuilder.create().setContent(new byte[PulsarDecoder.MaxMessageSize + 1]).build();
+        try {
+            producer.send(message);
+            fail("Should have thrown exception");
+        } catch (PulsarClientException.InvalidMessageException e) {
+            // OK
+        }
+        producer.close();
+
+        // (d) non-batch msg with compression and try to consume message
+        producerConf = new ProducerConfiguration();
+        producerConf.setCompressionType(CompressionType.LZ4);
+        producer = pulsarClient.createProducer(topic, producerConf);
+        Consumer consumer = pulsarClient.subscribe(topic, "sub1");
+        byte[] content = new byte[PulsarDecoder.MaxMessageSize + 10];
+        message = MessageBuilder.create().setContent(content).build();
+        producer.send(message);
+        assertEquals(consumer.receive().getData(), content);
+        producer.close();
+        consumer.close();
+
     }
 
     /**
