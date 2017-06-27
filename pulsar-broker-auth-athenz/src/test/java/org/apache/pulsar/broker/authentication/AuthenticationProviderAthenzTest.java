@@ -60,7 +60,7 @@ public class AuthenticationProviderAthenzTest {
         provider.initialize(config);
 
         // Specify Athenz configuration file for AuthZpeClient which is used in AuthenticationProviderAthenz
-        System.setProperty(ZpeConsts.ZPE_PROP_ATHENZ_CONF, "./src/test/resources/athenz.conf");
+        System.setProperty(ZpeConsts.ZPE_PROP_ATHENZ_CONF, "./src/test/resources/athenz.conf.test");
     }
 
     @Test
