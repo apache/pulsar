@@ -238,7 +238,7 @@ TEST(BatchMessageTest, testSmallReceiverQueueSize) {
     globalTestBatchMessagesCounter=0;
 
     ClientConfiguration clientConf;
-    clientConf.setStatsIntervalInSeconds(10);
+    clientConf.setStatsIntervalInSeconds(20);
 
     Client client(lookupUrl, clientConf);
     std::string topicName = "persistent://property/cluster/namespace/" + testName;
@@ -312,7 +312,7 @@ TEST(BatchMessageTest, testSmallReceiverQueueSize) {
     ASSERT_EQ(PulsarFriend::sum(consumerStatsImplPtr->getReceivedMsgMap()), numOfMessages);
     ASSERT_EQ(PulsarFriend::sum(consumerStatsImplPtr->getTotalReceivedMsgMap()), numOfMessages);
     ASSERT_EQ(consumerStatsImplPtr->getTotalNumBytesRecieved(), consumerStatsImplPtr->getNumBytesRecieved());
-    usleep(10 * 1000 * 1000);
+    usleep(20 * 1e6);
     ASSERT_NE(consumerStatsImplPtr->getTotalNumBytesRecieved(), consumerStatsImplPtr->getNumBytesRecieved());
     ASSERT_EQ(PulsarFriend::sum(consumerStatsImplPtr->getTotalAckedMsgMap()), numOfMessages);
     ASSERT_EQ(PulsarFriend::sum(consumerStatsImplPtr->getTotalReceivedMsgMap()), numOfMessages);
