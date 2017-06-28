@@ -7,7 +7,7 @@ index 4c087db..cd18e28 100644
          "public $static$ final class $classname$ extends\n"
          "    com.google.protobuf.GeneratedMessage.ExtendableMessage<\n"
 -        "      $classname$> implements $classname$OrBuilder {\n",
-+        "      $classname$> implements $classname$OrBuilder, com.yahoo.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage {\n",
++        "      $classname$> implements $classname$OrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage {\n",
          "static", is_own_file ? "" : "static",
          "classname", descriptor_->name());
      } else {
@@ -15,7 +15,7 @@ index 4c087db..cd18e28 100644
          "public $static$ final class $classname$ extends\n"
          "    com.google.protobuf.GeneratedMessageLite.ExtendableMessage<\n"
 -        "      $classname$> implements $classname$OrBuilder {\n",
-+        "      $classname$> implements $classname$OrBuilder, com.yahoo.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {\n",
++        "      $classname$> implements $classname$OrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {\n",
          "static", is_own_file ? "" : "static",
          "classname", descriptor_->name());
      }
@@ -24,7 +24,7 @@ index 4c087db..cd18e28 100644
          "public $static$ final class $classname$ extends\n"
          "    com.google.protobuf.GeneratedMessage\n"
 -        "    implements $classname$OrBuilder {\n",
-+        "    implements $classname$OrBuilder, com.yahoo.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {\n",
++        "    implements $classname$OrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {\n",
          "static", is_own_file ? "" : "static",
          "classname", descriptor_->name());
      } else {
@@ -32,7 +32,7 @@ index 4c087db..cd18e28 100644
          "public $static$ final class $classname$ extends\n"
          "    com.google.protobuf.GeneratedMessageLite\n"
 -        "    implements $classname$OrBuilder {\n",
-+        "    implements $classname$OrBuilder, com.yahoo.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {\n",
++        "    implements $classname$OrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {\n",
          "static", is_own_file ? "" : "static",
          "classname", descriptor_->name());
      }
@@ -104,7 +104,7 @@ index 4c087db..cd18e28 100644
 +          "    throw new RuntimeException(\"Cannot use CodedOutputStream\");\n"
 +          "}\n\n"
 +  
-+    "public void writeTo(com.yahoo.pulsar.common.util.protobuf.ByteBufCodedOutputStream output)\n"
++    "public void writeTo(org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream output)\n"
      "                    throws java.io.IOException {\n");
    printer->Indent();
    // writeTo(CodedOutputStream output) might be invoked without
@@ -133,14 +133,14 @@ index 4c087db..cd18e28 100644
          "public static final class Builder extends\n"
          "    com.google.protobuf.GeneratedMessage.ExtendableBuilder<\n"
 -        "      $classname$, Builder> implements $classname$OrBuilder {\n",
-+        "      $classname$, Builder> implements $classname$OrBuilder, com.yahoo.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {\n",
++        "      $classname$, Builder> implements $classname$OrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {\n",
          "classname", ClassName(descriptor_));
      } else {
        printer->Print(
          "public static final class Builder extends\n"
          "    com.google.protobuf.GeneratedMessageLite.ExtendableBuilder<\n"
 -        "      $classname$, Builder> implements $classname$OrBuilder {\n",
-+        "      $classname$, Builder> implements $classname$OrBuilder, com.yahoo.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {\n",
++        "      $classname$, Builder> implements $classname$OrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {\n",
          "classname", ClassName(descriptor_));
      }
    } else {
@@ -149,7 +149,7 @@ index 4c087db..cd18e28 100644
          "public static final class Builder extends\n"
          "    com.google.protobuf.GeneratedMessage.Builder<Builder>\n"
 -         "   implements $classname$OrBuilder {\n",
-+         "   implements $classname$OrBuilder, com.yahoo.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder {\n",
++         "   implements $classname$OrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder {\n",
          "classname", ClassName(descriptor_));
      } else {
        printer->Print(
@@ -157,7 +157,7 @@ index 4c087db..cd18e28 100644
          "    com.google.protobuf.GeneratedMessageLite.Builder<\n"
          "      $classname$, Builder>\n"
 -        "    implements $classname$OrBuilder {\n",
-+        "    implements $classname$OrBuilder, com.yahoo.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {\n",
++        "    implements $classname$OrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {\n",
          "classname", ClassName(descriptor_));
      }
    }
@@ -215,7 +215,7 @@ index 4c087db..cd18e28 100644
 +    "                        }\n"
      "public Builder mergeFrom(\n"
 -    "    com.google.protobuf.CodedInputStream input,\n"
-+    "    com.yahoo.pulsar.common.util.protobuf.ByteBufCodedInputStream input,\n"
++    "    org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream input,\n"
      "    com.google.protobuf.ExtensionRegistryLite extensionRegistry)\n"
      "    throws java.io.IOException {\n");
    printer->Indent();

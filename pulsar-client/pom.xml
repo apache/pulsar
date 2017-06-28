@@ -1,18 +1,21 @@
 <!--
 
-    Copyright 2016 Yahoo Inc.
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
 
-    Licensed under the Apache License, Version 2.0 (the "License");
-    you may not use this file except in compliance with the License.
-    You may obtain a copy of the License at
+      http://www.apache.org/licenses/LICENSE-2.0
 
-        http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing, software
-    distributed under the License is distributed on an "AS IS" BASIS,
-    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-    See the License for the specific language governing permissions and
-    limitations under the License.
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
 
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -20,9 +23,9 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>com.yahoo.pulsar</groupId>
+    <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>1.19-SNAPSHOT</version>
+    <version>1.19-incubating-SNAPSHOT</version>
     <relativePath>..</relativePath>
   </parent>
 
@@ -85,7 +88,7 @@
         </executions>
         <configuration>
           <overview>${basedir}/overview.html</overview>
-          <excludePackageNames>com.yahoo.pulsar.client.impl:com.yahoo.pulsar.client.impl.auth:com.yahoo.pulsar.client.util</excludePackageNames>
+          <excludePackageNames>org.apache.pulsar.client.impl:org.apache.pulsar.client.impl.auth:org.apache.pulsar.client.util</excludePackageNames>
         </configuration>
       </plugin>
 
@@ -123,8 +126,8 @@
                   <include>com.fasterxml.jackson.core</include>
                   <include>io.netty:netty</include>
                   <include>io.netty:netty-all</include>
-                  <include>com.yahoo.pulsar:pulsar-common</include>
-                  <include>com.yahoo.pulsar:pulsar-checksum</include>
+                  <include>org.apache.pulsar:pulsar-common</include>
+                  <include>org.apache.pulsar:pulsar-checksum</include>
                   <include>net.jpountz.lz4:lz4</include>
                   <include>com.yahoo.datasketches:sketches-core</include>
                 </includes>
@@ -140,43 +143,43 @@
               <relocations>
                 <relocation>
                     <pattern>org.asynchttpclient</pattern>
-                    <shadedPattern>com.yahoo.pulsar.shade.org.asynchttpclient</shadedPattern>
+                    <shadedPattern>org.apache.pulsar.shade.org.asynchttpclient</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>org.apache.commons</pattern>
-                  <shadedPattern>com.yahoo.pulsar.shade.org.apache.commons</shadedPattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.apache.commons</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>com.google</pattern>
-                  <shadedPattern>com.yahoo.pulsar.shade.com.google</shadedPattern>
+                  <shadedPattern>org.apache.pulsar.shade.com.google</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>com.fasterxml.jackson</pattern>
-                  <shadedPattern>com.yahoo.pulsar.shade.com.fasterxml.jackson</shadedPattern>
+                  <shadedPattern>org.apache.pulsar.shade.com.fasterxml.jackson</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>io.netty</pattern>
-                  <shadedPattern>com.yahoo.pulsar.shade.io.netty</shadedPattern>
+                  <shadedPattern>org.apache.pulsar.shade.io.netty</shadedPattern>
                 </relocation>
                 <relocation>
-                  <pattern>com.yahoo.pulsar.common</pattern>
-                  <shadedPattern>com.yahoo.pulsar.shade.com.yahoo.pulsar.common</shadedPattern>
+                  <pattern>org.apache.pulsar.common</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.apache.pulsar.common</shadedPattern>
                 </relocation>
                 <relocation>
-                  <pattern>com.yahoo.pulsar.checksum</pattern>
-                  <shadedPattern>com.yahoo.pulsar.shade.com.yahoo.pulsar.checksum</shadedPattern>
+                  <pattern>org.apache.pulsar.checksum</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.apache.pulsar.checksum</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>com.scurrilous.circe</pattern>
-                  <shadedPattern>com.yahoo.pulsar.shade.com.scurrilous.circe</shadedPattern>
+                  <shadedPattern>org.apache.pulsar.shade.com.scurrilous.circe</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>net.jpountz</pattern>
-                  <shadedPattern>com.yahoo.pulsar.shade.net.jpountz</shadedPattern>
+                  <shadedPattern>org.apache.pulsar.shade.net.jpountz</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>com.yahoo.datasketches</pattern>
-                  <shadedPattern>com.yahoo.pulsar.shade.com.yahoo.datasketches</shadedPattern>
+                  <shadedPattern>org.apache.pulsar.shade.com.yahoo.datasketches</shadedPattern>
                 </relocation>
               </relocations>
             </configuration>

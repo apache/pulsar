@@ -1,18 +1,21 @@
 #!/bin/bash
 #
-# Copyright 2016 Yahoo Inc.
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 #
 
 function usage() {
@@ -55,10 +58,10 @@ exec_cmd() {
 
 if [ "$3" = "all" -o "$3" = "dep" ]; then
   # Install dependant packages
-  exec_cmd "apt-get update && apt-get install -y cmake gcc-4.4 cpp-4.4 gcc-4.4-base libssl-dev libcurl4-openssl-dev liblog4cxx10-dev libprotobuf-dev libboost1.55-all-dev libgtest-dev libxml2-utils g++-4.4 libjsoncpp-dev";
+  exec_cmd "apt-get update && apt-get install -y cmake libssl-dev libcurl4-openssl-dev liblog4cxx10-dev libprotobuf-dev libboost1.55-all-dev libgtest-dev libxml2-utils libjsoncpp-dev";
   if [ ! -f "$1/libgtest.a" ]; then
     echo "Not Found: $1/libgtest.a"
-    exec_cmd "pushd /usr/src/gtest && CC=gcc-4.4 CXX=g++-4.4 cmake . && make && cp libgtest.a $1/ && popd";
+    exec_cmd "pushd /usr/src/gtest && cmake . && make && cp libgtest.a $1/ && popd";
   fi
   if [ ! -d "$1/protobuf-2.6.1/" ]; then
     echo "Not Found: $1/protobuf-2.6.1/"
@@ -74,7 +77,7 @@ if [ "$3" = "all" -o "$3" = "compile" ]; then
   export PATH=$PATH:$1/
   # Compile and run unit tests
   pushd $2/pulsar-client-cpp
-  CC=gcc-4.4 CXX=g++-4.4 cmake . && make
+  cmake . && make
   if [ $? -ne 0 ]; then
     echo "Failed to compile CPP client library"
     exit 1

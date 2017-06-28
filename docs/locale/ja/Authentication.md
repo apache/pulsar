@@ -97,7 +97,7 @@ tlsTrustCertsFilePath=/path/to/cacert.pem
 # Add TLS auth provider
 authenticationEnabled=true
 authorizationEnabled=true
-authenticationProviders=com.yahoo.pulsar.broker.authentication.AuthenticationProviderTls
+authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationProviderTls
 ```
 
 #### ディスカバリサービスの設定
@@ -133,7 +133,7 @@ PulsarClient client = PulsarClient.create(
 
 ```shell
 serviceUrl=https://broker.example.com:8443/
-authPlugin=com.yahoo.pulsar.client.impl.auth.AuthenticationTls
+authPlugin=org.apache.pulsar.client.impl.auth.AuthenticationTls
 authParams=tlsCertFile:/path/to/client-cert.pem,tlsKeyFile:/path/to/client-cert.pem
 useTls=true
 tlsAllowInsecureConnection=false

@@ -197,7 +197,7 @@ Pulsar enables messages to be produced and consumed in different geo-locations. 
 
 ### Authentication and Authorization
 
-Pulsar supports a pluggable [authentication](https://github.com/yahoo/pulsar/blob/master/docs/Authentication.md) mechanism which can be configured at broker and it also supports [authorization](https://github.com/yahoo/pulsar/blob/master/docs/Authorization.md) to identify client and its access rights on topics and properties. 
+Pulsar supports a pluggable [authentication](https://github.com/apache/incubator-pulsar/blob/master/docs/Authentication.md) mechanism which can be configured at broker and it also supports [authorization](https://github.com/apache/incubator-pulsar/blob/master/docs/Authorization.md) to identify client and its access rights on topics and properties. 
 
 
 # Client Library
