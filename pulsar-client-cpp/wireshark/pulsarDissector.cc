@@ -16,8 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
+#include <glib.h>
+#include <gmodule.h>
+
 #include <config.h>
+
 #include "moduleinfo.h"
+
 #include <epan/expert.h>
 #include <epan/packet.h>
 #include <epan/prefs.h>
@@ -26,8 +32,7 @@
 #include <epan/dissectors/packet-tcp.h>
 #include <epan/value_string.h>
 #include <wsutil/nstime.h>
-#include <glib.h>
-#include <gmodule.h>
+
 
 #include "PulsarApi.pb.h"
 
