@@ -42,6 +42,9 @@ public class LoadReport implements ServiceLookupData {
     private final String webServiceUrlTls;
     private final String pulsarServiceUrl;
     private final String pulsarServiceUrlTls;
+    private boolean enablePersistentTopics=true;
+    private boolean enableNonPersistentTopics=true;
+    
     private boolean isUnderLoaded;
     private boolean isOverLoaded;
     private long timestamp;
@@ -386,5 +389,21 @@ public class LoadReport implements ServiceLookupData {
     @Override
     public String getPulsarServiceUrlTls() {
         return pulsarServiceUrlTls;
+    }
+    
+    public boolean isEnablePersistentTopics() {
+        return enablePersistentTopics;
+    }
+
+    public void setEnablePersistentTopics(boolean enablePersistentTopics) {
+        this.enablePersistentTopics = enablePersistentTopics;
+    }
+
+    public boolean isEnableNonPersistentTopics() {
+        return enableNonPersistentTopics;
+    }
+
+    public void setEnableNonPersistentTopics(boolean enableNonPersistentTopics) {
+        this.enableNonPersistentTopics = enableNonPersistentTopics;
     }
 }

@@ -119,6 +119,7 @@ import io.netty.channel.AdaptiveRecvByteBufAllocator;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 
 public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies> {
     private static final Logger log = LoggerFactory.getLogger(BrokerService.class);
@@ -438,6 +439,14 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     private CompletableFuture<Topic> createNonPersistentTopic(String topic) {
         CompletableFuture<Topic> topicFuture = new CompletableFuture<Topic>();
 
+        if (!pulsar.getConfiguration().isEnableNonPersistentTopics()) {
+            if (log.isDebugEnabled()) {
+                log.debug("Broker is unable to load non-persistent topic {}", topic);
+            }
+            topicFuture.completeExceptionally(
+                    new NotAllowedException("Broker is not unable to load non-persistent topic"));
+            return topicFuture;
+        }
         final long topicCreateTimeMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
         NonPersistentTopic nonPersistentTopic = new NonPersistentTopic(topic, this);
         CompletableFuture<Void> replicationFuture = nonPersistentTopic.checkReplication();
@@ -511,6 +520,13 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         checkTopicNsOwnership(topic);
 
         final CompletableFuture<Topic> topicFuture = new CompletableFuture<>();
+        if (!pulsar.getConfiguration().isEnablePersistentTopics()) {
+            if (log.isDebugEnabled()) {
+                log.debug("Broker is unable to load persistent topic {}", topic);
+            }
+            topicFuture.completeExceptionally(new NotAllowedException("Broker is not unable to load persistent topic"));
+            return topicFuture;
+        }
 
         final Semaphore topicLoadSemaphore = topicLoadRequestSemaphore.get();
 

@@ -115,6 +115,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int maxConcurrentNonPersistentMessagePerConnection = 1000;
     // Number of worker threads to serve non-persistent topic 
     private int numWorkerThreadsForNonPersistentTopic = 8;
+    // Enable broker to load persistent topics
+    private boolean enablePersistentTopics = true;
+    // Enable broker to load non-persistent topics
+    private boolean enableNonPersistentTopics = true;
 
     /***** --- TLS --- ****/
     // Enable TLS
@@ -525,6 +529,22 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public void setNumWorkerThreadsForNonPersistentTopic(int numWorkerThreadsForNonPersistentTopic) {
         this.numWorkerThreadsForNonPersistentTopic = numWorkerThreadsForNonPersistentTopic;
+    }
+
+    public boolean isEnablePersistentTopics() {
+        return enablePersistentTopics;
+    }
+
+    public void setEnablePersistentTopics(boolean enablePersistentTopics) {
+        this.enablePersistentTopics = enablePersistentTopics;
+    }
+
+    public boolean isEnableNonPersistentTopics() {
+        return enableNonPersistentTopics;
+    }
+
+    public void setEnableNonPersistentTopics(boolean enableNonPersistentTopics) {
+        this.enableNonPersistentTopics = enableNonPersistentTopics;
     }
 
     public boolean isTlsEnabled() {
