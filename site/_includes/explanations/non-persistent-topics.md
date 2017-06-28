@@ -1,10 +1,3 @@
-
-## Topic
-
-In pulsar, topic is a key entity that used to connect producers and consumers. Pulsar supports **persistent** and **non-persistent** topics, which can be chosen by application based on its usecases and requirements. Producers and consumers can use the same client-api to connect to persistent and non-persistent topic. 
-
-## Non-persistent topic
-
 As name suggests, non-persist topic does not persist messages into any durable storage disk unlike persistent topic where messages are durably persisted on multiple disks. 
 
 Therefore, if you are using persistent delivery, messages are persisted to disk/database so that they will survive a broker restart or subscriber failover. While using non-persistent delivery, if you kill a broker or subscriber is disconnected then subscriber will lose all in-transit messages. So, client may see message loss with non-persistent topic.

@@ -66,26 +66,13 @@ Producer producer = client.createProducer(
             "non-persistent://sample/standalone/ns1/my-topic");
 ```
 
-## Non-persistent configuration
+## Broker configuration
 
-### Namespace configuration
-
-
-Boker creates non-persistent topic only under a namespace that is configured with non-persistency. Client can set non-persistency of a namespace using admin API and tools:
+Sometimes, there would be a need to configure few dedicated brokers in a cluster, to just serve non-persistent topics. With the help of below configurations, only brokers that have non-persistent topic mode enabled will load and serve non-persistent topics.
 
 ```
-bin/pulsar-admin namespaces set-non-persistency test-property/cl1/ns1 --non-persistent
-```
-
-### Broker configuration
-
-Sometimes, there would be a need to configure few dedicated brokers in a cluster, to just serve non-persistent topics.
-
-Broker configuration for enabling broker to own only configured type of topics  
-
-```
-# It enables broker to own persistent topics
-enablePersistentTopics=true
-# It enables broker to own non-persistent topics 
+# It disables broker to load persistent topics
+enablePersistentTopics=false
+# It enables broker to load non-persistent topics 
 enableNonPersistentTopics=true
 ```
