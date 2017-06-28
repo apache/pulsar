@@ -39,6 +39,8 @@
 #include "BatchAcknowledgementTracker.h"
 #include <limits>
 #include <lib/BrokerConsumerStatsImpl.h>
+#include <lib/stats/ConsumerStatsImpl.h>
+#include <lib/stats/ConsumerStatsDisabled.h>
 
 using namespace pulsar;
 
@@ -107,6 +109,7 @@ enum ConsumerTopicType {
     }
     virtual const std::string& getName() const;
     virtual int getNumOfPrefetchedMessages() const ;
+    ConsumerStatsBasePtr consumerStatsBasePtr_;
 private:
     bool waitingForZeroQueueSizeMessage;
     bool uncompressMessageIfNeeded(const ClientConnectionPtr& cnx, const proto::CommandMessage& msg,
@@ -118,6 +121,11 @@ private:
     void drainIncomingMessageQueue(size_t count);
     unsigned int receiveIndividualMessagesFromBatch(Message &batchedMessage);
     void brokerConsumerStatsListener(Result, BrokerConsumerStatsImpl, BrokerConsumerStatsCallback);
+
+    // TODO - Convert these functions to lambda when we move to C++11
+    Result receiveHelper(Message& msg);
+    Result receiveHelper(Message& msg, int timeout);
+    void statsCallback(Result, ResultCallback, proto::CommandAck_AckType);
 
     boost::mutex mutexForReceiveWithZeroQueueSize;
     const ConsumerConfiguration config_;
@@ -139,6 +147,8 @@ private:
     UnAckedMessageTrackerScopedPtr unAckedMessageTrackerPtr_;
     BatchAcknowledgementTracker batchAcknowledgementTracker_;
     BrokerConsumerStatsImpl brokerConsumerStats_;
+
+    friend class PulsarFriend;
 };
 
 } /* namespace pulsar */

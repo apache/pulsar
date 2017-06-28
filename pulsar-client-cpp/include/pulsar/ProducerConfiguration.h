@@ -80,6 +80,7 @@ class ProducerConfiguration {
     ProducerConfiguration& setBatchingMaxPublishDelayMs(
             const unsigned long& batchingMaxPublishDelayMs);
     const unsigned long& getBatchingMaxPublishDelayMs() const;
+
     friend class PulsarWrapper;
 
  private:

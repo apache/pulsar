@@ -83,6 +83,7 @@ namespace pulsar {
     }
 
     ClientImpl::~ClientImpl() {
+        LOG_DEBUG("~ClientImpl");
         shutdown();
     }
 
@@ -365,6 +366,10 @@ namespace pulsar {
     uint64_t ClientImpl::newRequestId() {
         Lock lock(mutex_);
         return requestIdGenerator_++;
+    }
+
+    const ClientConfiguration& ClientImpl::getClientConfig() const {
+        return clientConfiguration_;
     }
 
 } /* namespace pulsar */
