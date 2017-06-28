@@ -74,10 +74,12 @@ TEST(BasicEndToEndTest, testBatchMessages)
     // Enable batching on producer side
     int batchSize = 2;
     int numOfMessages = 1000;
+    
     ProducerConfiguration conf;
     conf.setCompressionType(CompressionLZ4);
     conf.setBatchingMaxMessages(batchSize);
     conf.setBatchingEnabled(true);
+    conf.setBlockIfQueueFull(true);
 
     Promise<Result, Producer> producerPromise;
     client.createProducerAsync(topicName, conf, WaitForCallbackValue<Producer>(producerPromise));
@@ -927,7 +929,7 @@ TEST(BasicEndToEndTest, testMessageListenerPause)
     ASSERT_GE((uint64_t )totalLatencies[3], 20 * 1000);
 
     while (producerStatsImplPtr->getNumMsgsSent() != 0) {
-        // wait till stats flush
+        usleep(1e6); // wait till stats flush
     }
 
     usleep(1 * 1e6); // 1 second

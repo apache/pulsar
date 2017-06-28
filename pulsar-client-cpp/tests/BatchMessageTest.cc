@@ -253,6 +253,7 @@ TEST(BatchMessageTest, testSmallReceiverQueueSize) {
     conf.setBatchingMaxMessages(batchSize);
     conf.setBatchingMaxPublishDelayMs(1);
     conf.setBatchingEnabled(true);
+    conf.setMaxPendingMessages(numOfMessages + 1);
 
     Promise<Result, Producer> producerPromise;
     client.createProducerAsync(topicName, conf, WaitForCallbackValue<Producer>(producerPromise));
@@ -288,31 +289,33 @@ TEST(BatchMessageTest, testSmallReceiverQueueSize) {
         Message msg = MessageBuilder().setContent(messageContent).setProperty("msgIndex", boost::lexical_cast<std::string>(i)).build();
         producer.sendAsync(msg, &sendCallBack);
         ASSERT_EQ(producerStatsImplPtr->getTotalMsgsSent(), i+1);
-        ASSERT_LT(PulsarFriend::sum(producerStatsImplPtr->getTotalSendMap()), i+1);
+        ASSERT_LE(PulsarFriend::sum(producerStatsImplPtr->getTotalSendMap()), i+1);
         LOG_DEBUG("sending message " << messageContent);
     }
 
     Message receivedMsg;
     int i = 0;
-    while (consumer.receive(receivedMsg, 1000) == ResultOk) {
+    for (i = 0; i < numOfMessages; i++) {
+        consumer.receive(receivedMsg);
         std::string expectedMessageContent = prefix + boost::lexical_cast<std::string>(i);
         LOG_DEBUG("Received Message with [ content - " << receivedMsg.getDataAsString() << "] [ messageID = " << receivedMsg.getMessageId() << "]");
-        ASSERT_EQ(receivedMsg.getProperty("msgIndex"), boost::lexical_cast<std::string>(i++));
+        ASSERT_EQ(receivedMsg.getProperty("msgIndex"), boost::lexical_cast<std::string>(i));
         ASSERT_EQ(expectedMessageContent, receivedMsg.getDataAsString());
-        ASSERT_EQ(ResultOk, consumer.acknowledge(receivedMsg));
+        ASSERT_EQ(ResultOk, consumer.acknowledge(receivedMsg));   
     }
+
     ConsumerStatsImplPtr consumerStatsImplPtr = PulsarFriend::getConsumerStatsPtr(consumer);
     unsigned long t = consumerStatsImplPtr->getAckedMsgMap().at(std::make_pair<Result, proto::CommandAck_AckType>(ResultOk, proto::CommandAck_AckType_Individual));
     ASSERT_EQ(t, numOfMessages);
     ASSERT_EQ(PulsarFriend::sum(consumerStatsImplPtr->getAckedMsgMap()), numOfMessages);
     ASSERT_EQ(PulsarFriend::sum(consumerStatsImplPtr->getTotalAckedMsgMap()), numOfMessages);
-    ASSERT_EQ(PulsarFriend::sum(consumerStatsImplPtr->getReceivedMsgMap()), numOfMessages + 1);
-    ASSERT_EQ(PulsarFriend::sum(consumerStatsImplPtr->getTotalReceivedMsgMap()), numOfMessages + 1);
+    ASSERT_EQ(PulsarFriend::sum(consumerStatsImplPtr->getReceivedMsgMap()), numOfMessages);
+    ASSERT_EQ(PulsarFriend::sum(consumerStatsImplPtr->getTotalReceivedMsgMap()), numOfMessages);
     ASSERT_EQ(consumerStatsImplPtr->getTotalNumBytesRecieved(), consumerStatsImplPtr->getNumBytesRecieved());
     usleep(10 * 1000 * 1000);
     ASSERT_NE(consumerStatsImplPtr->getTotalNumBytesRecieved(), consumerStatsImplPtr->getNumBytesRecieved());
     ASSERT_EQ(PulsarFriend::sum(consumerStatsImplPtr->getTotalAckedMsgMap()), numOfMessages);
-    ASSERT_EQ(PulsarFriend::sum(consumerStatsImplPtr->getTotalReceivedMsgMap()), numOfMessages + 1);
+    ASSERT_EQ(PulsarFriend::sum(consumerStatsImplPtr->getTotalReceivedMsgMap()), numOfMessages);
     ASSERT_EQ(PulsarFriend::sum(consumerStatsImplPtr->getAckedMsgMap()), 0);
     ASSERT_EQ(PulsarFriend::sum(consumerStatsImplPtr->getReceivedMsgMap()), 0);
 
