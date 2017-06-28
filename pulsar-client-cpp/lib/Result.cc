@@ -25,7 +25,7 @@ using namespace pulsar;
 const char* pulsar::strResult(Result result) {
     switch (result) {
         case ResultOk:
-            return "OK";
+            return "Ok";
 
         case ResultUnknownError:
             return "UnknownError";
@@ -34,7 +34,7 @@ const char* pulsar::strResult(Result result) {
             return "InvalidConfiguration";
 
         case ResultTimeout:
-            return "Timeout";
+            return "TimeOut";
 
         case ResultLookupError:
             return "LookupError";

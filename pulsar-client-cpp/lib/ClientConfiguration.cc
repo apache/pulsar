@@ -121,4 +121,13 @@ const std::string& ClientConfiguration::getLogConfFilePath() const {
     return impl_->logConfFilePath;
 }
 
+ClientConfiguration& ClientConfiguration::setStatsIntervalInSeconds(const unsigned int& statsIntervalInSeconds) {
+    impl_->statsIntervalInSeconds = statsIntervalInSeconds;
+    return *this;
+}
+
+const unsigned int& ClientConfiguration::getStatsIntervalInSeconds() const {
+    return impl_->statsIntervalInSeconds;
+}
+
 }

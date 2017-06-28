@@ -53,7 +53,8 @@ ConsumerImpl::ConsumerImpl(const ClientImplPtr client, const std::string& topic,
           consumerCreatedPromise_(),
           messageListenerRunning_(true),
           batchAcknowledgementTracker_(topic_, subscription, (long)consumerId_),
-          brokerConsumerStats_() {
+          brokerConsumerStats_(),
+          consumerStatsBasePtr_() {
     std::stringstream consumerStrStream;
     consumerStrStream << "[" << topic_ << ", " << subscription_ << ", " << consumerId_ << "] ";
     consumerStr_ = consumerStrStream.str();
@@ -66,6 +67,15 @@ ConsumerImpl::ConsumerImpl(const ClientImplPtr client, const std::string& topic,
         listenerExecutor_ = listenerExecutor;
     } else {
         listenerExecutor_ = client->getListenerExecutorProvider()->get();
+    }
+
+    unsigned int statsIntervalInSeconds = client->getClientConfig().getStatsIntervalInSeconds();
+    if (statsIntervalInSeconds) {
+        consumerStatsBasePtr_ = boost::make_shared<ConsumerStatsImpl>(
+                consumerStr_, client->getIOExecutorProvider()->get()->createDeadlineTimer(),
+                statsIntervalInSeconds);
+    } else {
+        consumerStatsBasePtr_ = boost::make_shared<ConsumerStatsDisabled>();
     }
 }
 
@@ -357,6 +367,7 @@ void ConsumerImpl::internalListener() {
         return;
     }
     try {
+        consumerStatsBasePtr_->receivedMessage(msg, ResultOk);
         messageListener_(Consumer(shared_from_this()), msg);
     } catch (const std::exception& e) {
         LOG_ERROR(getName() << "Exception thrown from listener" << e.what());
@@ -407,6 +418,12 @@ Result ConsumerImpl::fetchSingleMessageFromBroker(Message& msg) {
 }
 
 Result ConsumerImpl::receive(Message& msg) {
+    Result res = receiveHelper(msg);
+    consumerStatsBasePtr_->receivedMessage(msg, res);
+    return res;
+}
+
+Result ConsumerImpl::receiveHelper(Message& msg) {
     {
         Lock lock(mutex_);
         if (state_ != Ready) {
@@ -429,6 +446,12 @@ Result ConsumerImpl::receive(Message& msg) {
 }
 
 Result ConsumerImpl::receive(Message& msg, int timeout) {
+    Result res = receiveHelper(msg, timeout);
+    consumerStatsBasePtr_->receivedMessage(msg, res);
+    return res;
+}
+
+Result ConsumerImpl::receiveHelper(Message& msg, int timeout) {
     if (config_.getReceiverQueueSize() == 0) {
         LOG_WARN(getName() << "Can't use this function if the queue size is 0");
         return ResultInvalidConfiguration;
@@ -496,27 +519,35 @@ inline proto::CommandSubscribe_SubType ConsumerImpl::getSubType() {
     }
 }
 
+
+void ConsumerImpl::statsCallback(Result res, ResultCallback callback, proto::CommandAck_AckType ackType) {
+    consumerStatsBasePtr_->messageAcknowledged(res, ackType);
+    callback(res);
+}
+
 void ConsumerImpl::acknowledgeAsync(const MessageId& msgId, ResultCallback callback) {
+    ResultCallback cb = boost::bind(&ConsumerImpl::statsCallback, this, _1, callback, proto::CommandAck_AckType_Individual);
     const BatchMessageId& batchMsgId = (const BatchMessageId&)msgId;
     if(batchMsgId.batchIndex_ != -1 && !batchAcknowledgementTracker_.isBatchReady(batchMsgId, proto::CommandAck_AckType_Individual)) {
-        callback(ResultOk);
+        cb(ResultOk);
         return;
     }
-    doAcknowledge(batchMsgId, proto::CommandAck_AckType_Individual, callback);
+    doAcknowledge(batchMsgId, proto::CommandAck_AckType_Individual, cb);
 }
 
 void ConsumerImpl::acknowledgeCumulativeAsync(const MessageId& mId, ResultCallback callback) {
+    ResultCallback cb = boost::bind(&ConsumerImpl::statsCallback, this, _1, callback, proto::CommandAck_AckType_Cumulative);
     const BatchMessageId& msgId = (const BatchMessageId&) mId;
     if(msgId.batchIndex_ != -1 && !batchAcknowledgementTracker_.isBatchReady(msgId, proto::CommandAck_AckType_Cumulative)) {
         BatchMessageId messageId = batchAcknowledgementTracker_.getGreatestCumulativeAckReady(msgId);
         if(messageId == BatchMessageId()) {
             // nothing to ack
-            callback(ResultOk);
+            cb(ResultOk);
         } else {
-            doAcknowledge(messageId, proto::CommandAck_AckType_Cumulative, callback);
+            doAcknowledge(messageId, proto::CommandAck_AckType_Cumulative, cb);
         }
     } else {
-        doAcknowledge(msgId, proto::CommandAck_AckType_Cumulative, callback);
+        doAcknowledge(msgId, proto::CommandAck_AckType_Cumulative, cb);
     }
 }
 
