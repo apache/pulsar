@@ -578,8 +578,13 @@ TEST(BasicEndToEndTest, testSinglePartitionRoutingPolicy)
         consumer.receive(m);
         consumer.acknowledgeCumulative(m);
     }
+
+    Promise<bool, Result> closePromise;
+    Result r;
     consumer.close();
-    producer.closeAsync(0);
+    producer.closeAsync(WaitForCallback(closePromise));
+    closePromise.getFuture().get(r);
+    ASSERT_EQ(ResultOk, r);
     client.close();
 }
 
@@ -757,8 +762,12 @@ TEST(BasicEndToEndTest, testMessageListener)
     // Sleeping for 5 seconds
     usleep(5 * 1000 * 1000);
     ASSERT_EQ(globalCount, 10);
+    Promise<bool, Result> closePromise;
+    Result r;
     consumer.close();
-    producer.closeAsync(0);
+    producer.closeAsync(WaitForCallback(closePromise));
+    closePromise.getFuture().get(r);
+    ASSERT_EQ(r, ResultOk);
     client.close();
 }
 
@@ -811,9 +820,14 @@ TEST(BasicEndToEndTest, testMessageListenerPause)
     consumer.resumeMessageListener();
     // Sleeping for 2 seconds
     usleep(2 * 1000 * 1000);
+    Promise<bool, Result> closePromise;
+    Result r;
+    
     ASSERT_EQ(globalCount, 10000);
     consumer.close();
-    producer.closeAsync(0);
+    producer.closeAsync(WaitForCallback(closePromise));
+    closePromise.getFuture().get(r);
+    ASSERT_EQ(r, ResultOk);
     client.close();
 }
 
