@@ -102,7 +102,7 @@ public class AuthenticationProviderAthenz implements AuthenticationProvider {
             }
 
             if (token.validate(ztsPublicKey, allowedOffset, false, null)) {
-                log.info("Athenz Role Token : {}, Authorized for Client: {}", roleToken, clientAddress);
+                log.debug("Athenz Role Token : {}, Authorized for Client: {}", roleToken, clientAddress);
                 return token.getPrincipal();
             } else {
                 throw new AuthenticationException(
