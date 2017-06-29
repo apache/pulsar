@@ -101,7 +101,7 @@ public class AuthenticationProviderAthenz implements AuthenticationProvider {
                 throw new AuthenticationException("Unable to retrieve ZTS Public Key");
             }
 
-            if (token.validate(ztsPublicKey, allowedOffset, null)) {
+            if (token.validate(ztsPublicKey, allowedOffset, false, null)) {
                 log.info("Athenz Role Token : {}, Authorized for Client: {}", roleToken, clientAddress);
                 return token.getPrincipal();
             } else {

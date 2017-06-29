@@ -51,7 +51,7 @@
 
     <dependency>
       <groupId>com.yahoo.athenz</groupId>
-      <artifactId>zpe_java_client</artifactId>
+      <artifactId>athenz-zpe-java-client</artifactId>
     </dependency>
 
   </dependencies>

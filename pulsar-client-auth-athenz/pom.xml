@@ -43,7 +43,7 @@
 
     <dependency>
       <groupId>com.yahoo.athenz</groupId>
-      <artifactId>zts_java_client</artifactId>
+      <artifactId>athenz-zts-java-client</artifactId>
     </dependency>
 
   </dependencies>
