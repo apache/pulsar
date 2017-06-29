@@ -44,6 +44,7 @@ import org.apache.pulsar.client.api.ProducerConfiguration;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.DoubleByteBuf;
+import org.apache.pulsar.common.api.PulsarDecoder;
 import org.apache.pulsar.common.api.Commands.ChecksumType;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
@@ -61,6 +62,7 @@ import io.netty.util.Recycler.Handle;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
+import static java.lang.String.format;
 
 public class ProducerImpl extends ProducerBase implements TimerTask {
 
@@ -202,7 +204,20 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
             compressedPayload = compressor.encode(payload);
             payload.release();
         }
+        int compressedSize = compressedPayload.readableBytes();
 
+        // validate msg-size (validate uncompressed-payload size for batch as we can't discard later on while building a
+        // batch)
+        if (compressedSize > PulsarDecoder.MaxMessageSize) {
+            compressedPayload.release();
+            String compressedStr = (!isBatchMessagingEnabled() && conf.getCompressionType() != CompressionType.NONE)
+                    ? "Compressed" : "";
+            callback.sendComplete(new PulsarClientException.InvalidMessageException(
+                    format("%s Message payload size %d cannot exceed %d bytes", compressedStr, compressedSize,
+                            PulsarDecoder.MaxMessageSize)));
+            return;
+        }
+        
         if (!msg.isReplicated() && msgMetadata.hasProducerName()) {
             callback.sendComplete(new PulsarClientException.InvalidMessageException("Cannot re-use the same message"));
             compressedPayload.release();

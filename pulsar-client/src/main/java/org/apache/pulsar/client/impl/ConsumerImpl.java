@@ -902,10 +902,11 @@ public class ConsumerImpl extends ConsumerBase {
         CompressionType compressionType = msgMetadata.getCompression();
         CompressionCodec codec = codecProvider.getCodec(compressionType);
         int uncompressedSize = msgMetadata.getUncompressedSize();
-        if (uncompressedSize > PulsarDecoder.MaxMessageSize) {
-            // Uncompressed size is itself corrupted since it cannot be bigger than the MaxMessageSize
-            log.error("[{}][{}] Got corrupted uncompressed message size {} at {}", topic, subscription,
-                uncompressedSize, messageId);
+        int payloadSize = payload.readableBytes();
+        if (payloadSize > PulsarDecoder.MaxMessageSize) {
+            // payload size is itself corrupted since it cannot be bigger than the MaxMessageSize
+            log.error("[{}][{}] Got corrupted payload message size {} at {}", topic, subscription, payloadSize,
+                    messageId);
             discardCorruptedMessage(messageId, currentCnx, ValidationError.UncompressedSizeCorruption);
             return null;
         }

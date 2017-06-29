@@ -24,7 +24,6 @@ import java.util.Map;
 
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageBuilder;
-import org.apache.pulsar.common.api.PulsarDecoder;
 import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 
@@ -37,10 +36,6 @@ public class MessageBuilderImpl implements MessageBuilder {
 
     @Override
     public Message build() {
-        if (content.remaining() > PulsarDecoder.MaxMessageSize) {
-            throw new IllegalArgumentException(
-                    "Message payload cannot exceed " + PulsarDecoder.MaxMessageSize + " bytes");
-        }
         return MessageImpl.create(msgMetadataBuilder, content);
     }
 
