@@ -812,14 +812,10 @@ TEST(BasicEndToEndTest, testMessageListenerPause)
     consumer.resumeMessageListener();
     // Sleeping for 2 seconds
     usleep(2 * 1000 * 1000);
-    Promise<bool, Result> closePromise;
-    Result r;
     
     ASSERT_EQ(globalCount, 10000);
     consumer.close();
-    producer.closeAsync(WaitForCallback(closePromise));
-    closePromise.getFuture().get(r);
-    ASSERT_EQ(r, ResultOk);
+    producer.close();
     client.close();
 }
 
