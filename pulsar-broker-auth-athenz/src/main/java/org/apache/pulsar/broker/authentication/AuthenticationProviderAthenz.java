@@ -101,12 +101,12 @@ public class AuthenticationProviderAthenz implements AuthenticationProvider {
                 throw new AuthenticationException("Unable to retrieve ZTS Public Key");
             }
 
-            if (token.validate(ztsPublicKey, allowedOffset, null)) {
-                log.info("Athenz Role Token : {}, Authorized for Client: {}", roleToken, clientAddress);
+            if (token.validate(ztsPublicKey, allowedOffset, false, null)) {
+                log.debug("Athenz Role Token : {}, Authenticated for Client: {}", roleToken, clientAddress);
                 return token.getPrincipal();
             } else {
                 throw new AuthenticationException(
-                        String.format("Athenz Role Token Not Authorized from Client: %s", clientAddress));
+                        String.format("Athenz Role Token Not Authenticated from Client: %s", clientAddress));
             }
         }
     }
