@@ -82,7 +82,7 @@ public class ProxyServer {
         if (config.isTlsEnabled()) {
             SslContextFactory sslCtxFactory = new SslContextFactory(true);
             try {
-                SSLContext sslCtx = SecurityUtility.createSslContext(false, null, config.getTlsCertificateFilePath(),
+                SSLContext sslCtx = SecurityUtility.createSslContext(false, config.getTlsTrustCertsFilePath(), config.getTlsCertificateFilePath(),
                         config.getTlsKeyFilePath());
                 sslCtxFactory.setSslContext(sslCtx);
 

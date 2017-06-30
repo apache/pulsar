@@ -55,8 +55,17 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
             File tlsCert = new File(serviceConfig.getTlsCertificateFilePath());
             File tlsKey = new File(serviceConfig.getTlsKeyFilePath());
             SslContextBuilder builder = SslContextBuilder.forServer(tlsCert, tlsKey);
-            // allows insecure connection
-            builder.trustManager(InsecureTrustManagerFactory.INSTANCE);
+            if (serviceConfig.isTlsAllowInsecureConnection()) {
+                builder.trustManager(InsecureTrustManagerFactory.INSTANCE);
+            } else {
+                if (serviceConfig.getTlsTrustCertsFilePath().isEmpty()) {
+                    // Use system default
+                    builder.trustManager((File) null);
+                } else {
+                    File trustCertCollection = new File(serviceConfig.getTlsTrustCertsFilePath());
+                    builder.trustManager(trustCertCollection);
+                }
+            }
             SslContext sslCtx = builder.clientAuth(ClientAuth.OPTIONAL).build();
             ch.pipeline().addLast(TLS_HANDLER, sslCtx.newHandler(ch.alloc()));
         }

@@ -73,14 +73,14 @@ public class ServerManager {
         if (config.isTlsEnabled()) {
             SslContextFactory sslCtxFactory = new SslContextFactory();
             try {
-                SSLContext sslCtx = SecurityUtility.createSslContext(false, null, config.getTlsCertificateFilePath(),
+                SSLContext sslCtx = SecurityUtility.createSslContext(config.isTlsAllowInsecureConnection(), config.getTlsTrustCertsFilePath(), config.getTlsCertificateFilePath(),
                         config.getTlsKeyFilePath());
                 sslCtxFactory.setSslContext(sslCtx);
             } catch (GeneralSecurityException e) {
                 throw new RestException(e);
             }
 
-            sslCtxFactory.setWantClientAuth(false);
+            sslCtxFactory.setWantClientAuth(true);
             ServerConnector tlsConnector = new ServerConnector(server, 1, 1, sslCtxFactory);
             tlsConnector.setPort(config.getWebServicePortTls());
             connectors.add(tlsConnector);
