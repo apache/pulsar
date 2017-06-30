@@ -138,6 +138,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private Set<String> superUserRoles = Sets.newTreeSet();
 
     // Allow wildcard matching in authorization
+    // (wildcard matching only applicable if wildcard-char:
+    // * presents at first or last position eg: *.pulsar.service, pulsar.service.*)
     private boolean authorizationAllowWildcardsMatching = false;
 
     // Authentication settings of the broker itself. Used when the broker connects
