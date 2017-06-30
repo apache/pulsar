@@ -81,7 +81,7 @@ $ bin/pulsar-admin namespaces grant-permission \
 Then, roles `1.role.my`, `2.role.my`, `foo.role.my`, `bar.role.my`, etc. can produce and consume.
 
 
-**Note**: A wildcard mathing works at **the beginning or end of the role name only**.
+**Note**: A wildcard matching works at **the beginning or end of the role name only**.
 
 e.g.
 ```
