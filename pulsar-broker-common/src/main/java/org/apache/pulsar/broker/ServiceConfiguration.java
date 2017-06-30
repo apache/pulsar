@@ -30,9 +30,7 @@ import org.apache.pulsar.common.configuration.PulsarConfiguration;
 import com.google.common.collect.Sets;
 
 /**
- *
  * Pulsar service configuration object.
- *
  */
 public class ServiceConfiguration implements PulsarConfiguration {
 
@@ -105,7 +103,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int maxUnackedMessagesPerBroker = 0;
     // Once broker reaches maxUnackedMessagesPerBroker limit, it blocks subscriptions which has higher unacked messages
     // than this percentage limit and subscription will not receive any new messages until that subscription acks back
-    // limit/2 messages 
+    // limit/2 messages
     private double maxUnackedMessagesPerSubscriptionOnBrokerBlocked = 0.16;
     // Max number of concurrent lookup request broker allows to throttle heavy incoming lookup traffic
     @FieldContext(dynamic = true)
@@ -138,6 +136,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // Role names that are treated as "super-user", meaning they will be able to
     // do all admin operations and publish/consume from all topics
     private Set<String> superUserRoles = Sets.newTreeSet();
+
+    // Actions that can be authorized by using permitted role name which contains wildcard
+    private boolean authorizationAllowWildcardsMatching = false;
 
     // Authentication settings of the broker itself. Used when the broker connects
     // to other brokers, either in same or other clusters
@@ -279,7 +280,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // Name of load manager to use
     @FieldContext(dynamic = true)
     private String loadManagerClassName = "org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl";
-    // If true, (and ModularLoadManagerImpl is being used), the load manager will attempt to 
+    // If true, (and ModularLoadManagerImpl is being used), the load manager will attempt to
     // use only brokers running the latest software version (to minimize impact to bundles)
     @FieldContext(dynamic = true)
     private boolean preferLaterVersions = false;
@@ -570,6 +571,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public Set<String> getSuperUserRoles() {
         return superUserRoles;
+    }
+
+    public boolean getAuthorizationAllowWildcardsMatching() {
+        return authorizationAllowWildcardsMatching;
+    }
+
+    public void setAuthorizationAllowWildcardsMatching(boolean authorizationAllowWildcardsMatching) {
+        this.authorizationAllowWildcardsMatching = authorizationAllowWildcardsMatching;
     }
 
     public void setSuperUserRoles(Set<String> superUserRoles) {

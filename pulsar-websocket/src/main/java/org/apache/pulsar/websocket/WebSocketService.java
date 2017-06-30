@@ -220,6 +220,7 @@ public class WebSocketService implements Closeable {
         serviceConfig.setBrokerClientAuthenticationPlugin(config.getBrokerClientAuthenticationPlugin());
         serviceConfig.setBrokerClientAuthenticationParameters(config.getBrokerClientAuthenticationParameters());
         serviceConfig.setAuthorizationEnabled(config.isAuthorizationEnabled());
+        serviceConfig.setAuthorizationAllowWildcardsMatching(config.getAuthorizationAllowWildcardsMatching());
         serviceConfig.setSuperUserRoles(config.getSuperUserRoles());
         serviceConfig.setGlobalZookeeperServers(config.getGlobalZookeeperServers());
         serviceConfig.setZooKeeperSessionTimeoutMillis(config.getZooKeeperSessionTimeoutMillis());

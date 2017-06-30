@@ -42,7 +42,7 @@ public class FieldParserTest {
 
     /**
      * test all conversion scenarios.
-     * 
+     *
      * @throws Exception
      */
     @Test
