@@ -137,7 +137,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // do all admin operations and publish/consume from all topics
     private Set<String> superUserRoles = Sets.newTreeSet();
 
-    // Actions that can be authorized by using permitted role name which contains wildcard
+    // Allow wildcard matching in authorization
     private boolean authorizationAllowWildcardsMatching = false;
 
     // Authentication settings of the broker itself. Used when the broker connects
