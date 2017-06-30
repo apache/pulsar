@@ -578,8 +578,9 @@ TEST(BasicEndToEndTest, testSinglePartitionRoutingPolicy)
         consumer.receive(m);
         consumer.acknowledgeCumulative(m);
     }
+
     consumer.close();
-    producer.closeAsync(0);
+    producer.close();
     client.close();
 }
 
@@ -758,7 +759,7 @@ TEST(BasicEndToEndTest, testMessageListener)
     usleep(5 * 1000 * 1000);
     ASSERT_EQ(globalCount, 10);
     consumer.close();
-    producer.closeAsync(0);
+    producer.close();
     client.close();
 }
 
@@ -811,9 +812,10 @@ TEST(BasicEndToEndTest, testMessageListenerPause)
     consumer.resumeMessageListener();
     // Sleeping for 2 seconds
     usleep(2 * 1000 * 1000);
+    
     ASSERT_EQ(globalCount, 10000);
     consumer.close();
-    producer.closeAsync(0);
+    producer.close();
     client.close();
 }
 
