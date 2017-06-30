@@ -67,6 +67,9 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     // do all admin operations and publish/consume from all topics
     private Set<String> superUserRoles = Sets.newTreeSet();
 
+    // Actions that can be authorized by using permitted role name which contains wildcard
+    private boolean authorizationAllowWildcardsMatching = false;
+
     // Authentication settings of the proxy itself. Used to connect to brokers
     private String brokerClientAuthenticationPlugin;
     private String brokerClientAuthenticationParameters;
@@ -192,6 +195,14 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
 
     public void setAuthorizationEnabled(boolean authorizationEnabled) {
         this.authorizationEnabled = authorizationEnabled;
+    }
+
+    public boolean getAuthorizationAllowWildcardsMatching() {
+        return authorizationAllowWildcardsMatching;
+    }
+
+    public void setAuthorizationAllowWildcardsMatching(boolean authorizationAllowWildcardsMatching) {
+        this.authorizationAllowWildcardsMatching = authorizationAllowWildcardsMatching;
     }
 
     public Set<String> getSuperUserRoles() {
