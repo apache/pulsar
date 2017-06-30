@@ -257,7 +257,7 @@ only requirement is that when the client does a HTTP request on
 `http://pulsar.us-west.example.com:8080/` it must be redirected (through DNS, IP
 or HTTP redirect) to an active broker, without preference.
 
-The included discovery service maintains the list of active brokers from ZooKeeper and it supports lookup redirection with HTTP and also with [binary protocol](https://github.com/yahoo/pulsar/blob/master/docs/BinaryProtocol.md#service-discovery).
+The included discovery service maintains the list of active brokers from ZooKeeper and it supports lookup redirection with HTTP and also with [binary protocol](https://github.com/apache/incubator-pulsar/blob/master/docs/BinaryProtocol.md#service-discovery).
 
 Add the ZK servers in `conf/discovery.conf`:
 ```shell

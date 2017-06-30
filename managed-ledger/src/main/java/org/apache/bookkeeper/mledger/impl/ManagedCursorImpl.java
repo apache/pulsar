@@ -1,17 +1,20 @@
 /**
- * Copyright 2016 Yahoo Inc.
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package org.apache.bookkeeper.mledger.impl;
 
@@ -52,6 +55,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.CursorAlreadyClosedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.NoMoreEntriesToReadException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.PositionBound;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
@@ -112,7 +116,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
 
     private final RateLimiter markDeleteLimiter;
-    
+
     private final ZNodeProtobufFormat protobufFormat;
 
     class PendingMarkDeleteEntry {
@@ -545,6 +549,11 @@ public class ManagedCursorImpl implements ManagedCursor {
                             log.debug("[{}] [{}] notification was already cancelled", ledger.getName(), name);
                         }
                     }
+                } else if (ledger.isTerminated()) {
+                    // At this point we registered for notification and still there were no more available
+                    // entries.
+                    // If the managed ledger was indeed terminated, we need to notify the cursor
+                    callback.readEntriesFailed(new NoMoreEntriesToReadException("Topic was terminated"), ctx);
                 }
             }), 10, TimeUnit.MILLISECONDS);
         }
@@ -861,12 +870,12 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     /**
-     * Async replays given positions: 
-     * a. before reading it filters out already-acked messages 
+     * Async replays given positions:
+     * a. before reading it filters out already-acked messages
      * b. reads remaining entries async and gives it to given ReadEntriesCallback
      * c. returns all already-acked messages which are not replayed so, those messages can be removed by
      * caller(Dispatcher)'s replay-list and it won't try to replay it again
-     * 
+     *
      */
     @Override
     public Set<? extends Position> asyncReplayEntries(final Set<? extends Position> positions, ReadEntriesCallback callback, Object ctx) {
@@ -884,7 +893,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         } finally {
             lock.readLock().unlock();
         }
-        
+
         final int totalValidPositions = positions.size() - alreadyAcknowledgedPositions.size();
         final AtomicReference<ManagedLedgerException> exception = new AtomicReference<>();
         ReadEntryCallback cb = new ReadEntryCallback() {
@@ -923,7 +932,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         positions.stream()
                 .filter(position -> !alreadyAcknowledgedPositions.contains(position))
                 .forEach(p -> ledger.asyncReadEntry((PositionImpl) p, cb, ctx));
-        
+
         return alreadyAcknowledgedPositions;
     }
 

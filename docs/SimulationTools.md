@@ -9,7 +9,7 @@ The simulation client is a machine which will create and subscribe to topics wit
 Because it is sometimes necessary in simulating large load to use multiple client machines, the user does not interact
 with the simulation client directly, but instead delegates their requests to the simulation controller, which will then
 send signals to clients to start incurring load. The client implementation is in the class
-`com.yahoo.pulsar.testclient.LoadSimulationClient`.
+`org.apache.pulsar.testclient.LoadSimulationClient`.
 
 ### Usage
 To Start a simulation client, use the `pulsar-perf` script with the command `simulation-client` as follows:
@@ -22,7 +22,7 @@ The client will then be ready to receive controller commands.
 ## Simulation Controller
 The simulation controller send signals to the simulation clients, requesting them to create new topics, stop old
 topics, change the load incurred by topics, as well as several other tasks. It is implemented in the class
-`com.yahoo.pulsar.testclient.LoadSimulationController` and presents a shell to the user as an interface to send 
+`org.apache.pulsar.testclient.LoadSimulationController` and presents a shell to the user as an interface to send 
 command with.
 
 ### Usage
@@ -87,7 +87,7 @@ be sent at only `5%` of the rate of the load that is being simulated.
 
 ## Broker Monitor
 To observe the behavior of the load manager in these simulations, one may utilize the broker monitor, which is
-implemented in `com.yahoo.pulsar.testclient.BrokerMonitor`. The broker monitor will print tabular load data to the
+implemented in `org.apache.pulsar.testclient.BrokerMonitor`. The broker monitor will print tabular load data to the
 console as it is updated using watchers.
 
 ### Usage

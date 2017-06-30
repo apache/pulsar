@@ -1,17 +1,20 @@
 /**
- * Copyright 2016 Yahoo Inc.
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package org.apache.bookkeeper.mledger.impl;
 
@@ -31,7 +34,10 @@ import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.*;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLongFieldUpdater;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 import org.apache.bookkeeper.client.AsyncCallback.CreateCallback;
 import org.apache.bookkeeper.client.AsyncCallback.OpenCallback;
@@ -44,6 +50,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.TerminateCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
@@ -51,6 +58,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.BadVersionException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerFencedException;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerTerminatedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
 import org.apache.bookkeeper.mledger.ManagedLedgerMXBean;
 import org.apache.bookkeeper.mledger.Position;
@@ -59,11 +67,15 @@ import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
 import org.apache.bookkeeper.mledger.impl.MetaStore.Stat;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats.NestedPositionInfo;
 import org.apache.bookkeeper.mledger.util.CallbackMutex;
 import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.bookkeeper.mledger.util.Pair;
 import org.apache.bookkeeper.util.OrderedSafeExecutor;
 import org.apache.bookkeeper.util.UnboundArrayBlockingQueue;
+import org.apache.pulsar.common.api.Commands;
+import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
+import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -73,9 +85,6 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Queues;
 import com.google.common.collect.Range;
 import com.google.common.util.concurrent.RateLimiter;
-import com.yahoo.pulsar.common.api.Commands;
-import com.yahoo.pulsar.common.api.proto.PulsarApi.MessageMetadata;
-import com.yahoo.pulsar.common.util.collections.ConcurrentLongHashMap;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -103,13 +112,16 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     // Ever increasing counter of entries added
     static final AtomicLongFieldUpdater<ManagedLedgerImpl> ENTRIES_ADDED_COUNTER_UPDATER =
             AtomicLongFieldUpdater.newUpdater(ManagedLedgerImpl.class, "entriesAddedCounter");
+    @SuppressWarnings("unused")
     private volatile long entriesAddedCounter = 0;
 
     static final AtomicLongFieldUpdater<ManagedLedgerImpl> NUMBER_OF_ENTRIES_UPDATER =
             AtomicLongFieldUpdater.newUpdater(ManagedLedgerImpl.class, "numberOfEntries");
+    @SuppressWarnings("unused")
     private volatile long numberOfEntries = 0;
     static final AtomicLongFieldUpdater<ManagedLedgerImpl> TOTAL_SIZE_UPDATER =
             AtomicLongFieldUpdater.newUpdater(ManagedLedgerImpl.class, "totalSize");
+    @SuppressWarnings("unused")
     private volatile long totalSize = 0;
 
     private RateLimiter updateCursorRateLimit;
@@ -157,6 +169,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 // access from a different session/machine. In this state the
                 // managed ledger will throw exception for all operations, since
                 // the new instance will take over
+        Terminated, // Managed ledger was terminated and no more entries
+                    // are allowed to be added. Reads are allowed
     }
 
     // define boundaries for position based seeks and searches
@@ -214,6 +228,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             @Override
             public void operationComplete(ManagedLedgerInfo mlInfo, Stat stat) {
                 ledgersStat = stat;
+                if (mlInfo.hasTerminatedPosition()) {
+                    state = State.Terminated;
+                    lastConfirmedEntry = new PositionImpl(mlInfo.getTerminatedPosition());
+                    log.info("[{}] Recovering managed ledger terminated at {}", name, lastConfirmedEntry);
+                }
+
                 for (LedgerInfo ls : mlInfo.getLedgerInfoList()) {
                     ledgers.put(ls.getLedgerId(), ls);
                 }
@@ -284,6 +304,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             }
         }
 
+        if (state == State.Terminated) {
+            // When recovering a terminated managed ledger, we don't need to create
+            // a new ledger for writing, since no more writes are allowed.
+            // We just move on to the next stage
+            initializeCursors(callback);
+            return;
+        }
+
         final MetaStoreCallback<Void> storeLedgersCb = new MetaStoreCallback<Void>() {
             @Override
             public void operationComplete(Void v, Stat stat) {
@@ -316,11 +344,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         lastConfirmedEntry = new PositionImpl(lh.getId(), -1);
                         LedgerInfo info = LedgerInfo.newBuilder().setLedgerId(lh.getId()).setTimestamp(0).build();
                         ledgers.put(lh.getId(), info);
-                        // Save it back to ensure all nodes exist
 
-                        ManagedLedgerInfo mlInfo = ManagedLedgerInfo.newBuilder().addAllLedgerInfo(ledgers.values())
-                                .build();
-                        store.asyncUpdateLedgerIds(name, mlInfo, ledgersStat, storeLedgersCb);
+                        // Save it back to ensure all nodes exist
+                        store.asyncUpdateLedgerIds(name, getManagedLedgerInfo(), ledgersStat, storeLedgersCb);
                     }));
                 }, null);
     }
@@ -447,6 +473,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         final State state = STATE_UPDATER.get(this);
         if (state == State.Fenced) {
             callback.addFailed(new ManagedLedgerFencedException(), ctx);
+            return;
+        } else if (state == State.Terminated) {
+            callback.addFailed(new ManagedLedgerTerminatedException("Managed ledger was already terminated"), ctx);
             return;
         } else if (state == State.Closed) {
             callback.addFailed(new ManagedLedgerException("Managed ledger was already closed"), ctx);
@@ -848,6 +877,97 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     @Override
+    public synchronized void asyncTerminate(TerminateCallback callback, Object ctx) {
+        if (state == State.Fenced) {
+            callback.terminateFailed(new ManagedLedgerFencedException(), ctx);
+            return;
+        } else if (state == State.Terminated) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Ignoring request to terminate an already terminated managed ledger", name);
+            }
+            callback.terminateComplete(lastConfirmedEntry, ctx);
+            return;
+        }
+
+        log.info("[{}] Terminating managed ledger", name);
+        state = State.Terminated;
+
+        LedgerHandle lh = currentLedger;
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] Closing current writing ledger {}", name, lh.getId());
+        }
+
+        mbean.startDataLedgerCloseOp();
+        lh.asyncClose((rc, lh1, ctx1) -> {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Close complete for ledger {}: rc = {}", name, lh.getId(), rc);
+            }
+            mbean.endDataLedgerCloseOp();
+            if (rc != BKException.Code.OK) {
+                callback.terminateFailed(new ManagedLedgerException(BKException.getMessage(rc)), ctx);
+            } else {
+                lastConfirmedEntry = new PositionImpl(lh.getId(), lh.getLastAddConfirmed());
+                // Store the new state in metadata
+                store.asyncUpdateLedgerIds(name, getManagedLedgerInfo(), ledgersStat, new MetaStoreCallback<Void>() {
+                    @Override
+                    public void operationComplete(Void result, Stat stat) {
+                        ledgersStat = stat;
+                        log.info("[{}] Terminated managed ledger at {}", name, lastConfirmedEntry);
+                        callback.terminateComplete(lastConfirmedEntry, ctx);
+                    }
+
+                    @Override
+                    public void operationFailed(MetaStoreException e) {
+                        log.error("[{}] Failed to terminate managed ledger: {}", name, e.getMessage());
+                        callback.terminateFailed(new ManagedLedgerException(e), ctx);
+                    }
+                });
+            }
+        }, null);
+    }
+
+    @Override
+    public Position terminate() throws InterruptedException, ManagedLedgerException {
+        final CountDownLatch counter = new CountDownLatch(1);
+        class Result {
+            Position lastPosition = null;
+            ManagedLedgerException exception = null;
+        }
+        final Result result = new Result();
+
+        asyncTerminate(new TerminateCallback() {
+            @Override
+            public void terminateComplete(Position lastPosition, Object ctx) {
+                result.lastPosition = lastPosition;
+                counter.countDown();
+            }
+
+            @Override
+            public void terminateFailed(ManagedLedgerException exception, Object ctx) {
+                result.exception = exception;
+                counter.countDown();
+            }
+
+        }, null);
+
+        if (!counter.await(AsyncOperationTimeoutSeconds, TimeUnit.SECONDS)) {
+            throw new ManagedLedgerException("Timeout during managed ledger terminate");
+        }
+
+        if (result.exception != null) {
+            log.error("[{}] Error terminating managed ledger", name, result.exception);
+            throw result.exception;
+        }
+
+        return result.lastPosition;
+    }
+
+    @Override
+    public boolean isTerminated() {
+        return state == State.Terminated;
+    }
+
+    @Override
     public void close() throws InterruptedException, ManagedLedgerException {
         final CountDownLatch counter = new CountDownLatch(1);
         class Result {
@@ -900,6 +1020,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         STATE_UPDATER.set(this, State.Closed);
 
         LedgerHandle lh = currentLedger;
+
+        if (lh == null) {
+            // No ledger to close, proceed with next step
+            closeAllCursors(callback, ctx);
+            return;
+        }
+
         if (log.isDebugEnabled()) {
             log.debug("[{}] Closing current writing ledger {}", name, lh.getId());
         }
@@ -915,22 +1042,25 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 return;
             }
 
-            // Close all cursors in parallel
-            List<CompletableFuture<Void>> futures = Lists.newArrayList();
-            for (ManagedCursor cursor : cursors) {
-                Futures.CloseFuture closeFuture = new Futures.CloseFuture();
-                cursor.asyncClose(closeFuture, null);
-                futures.add(closeFuture);
-            }
-
-            Futures.waitForAll(futures).thenRun(() -> {
-                callback.closeComplete(ctx);
-            }).exceptionally(exception -> {
-                callback.closeFailed(new ManagedLedgerException(exception), ctx);
-                return null;
-            });
-
+            closeAllCursors(callback, ctx);
         }, null);
+    }
+
+    private void closeAllCursors(CloseCallback callback, final Object ctx) {
+        // Close all cursors in parallel
+        List<CompletableFuture<Void>> futures = Lists.newArrayList();
+        for (ManagedCursor cursor : cursors) {
+            Futures.CloseFuture closeFuture = new Futures.CloseFuture();
+            cursor.asyncClose(closeFuture, null);
+            futures.add(closeFuture);
+        }
+
+        Futures.waitForAll(futures).thenRun(() -> {
+            callback.closeComplete(ctx);
+        }).exceptionally(exception -> {
+            callback.closeFailed(new ManagedLedgerException(exception), ctx);
+            return null;
+        });
     }
 
     // //////////////////////////////////////////////////////////////////////
@@ -1019,11 +1149,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return;
         }
 
-        ManagedLedgerInfo mlInfo = ManagedLedgerInfo.newBuilder().addAllLedgerInfo(ledgers.values()).build();
         if (log.isDebugEnabled()) {
             log.debug("[{}] Updating ledgers ids with new ledger. version={}", name, ledgersStat);
         }
-        store.asyncUpdateLedgerIds(name, mlInfo, ledgersStat, callback);
+        store.asyncUpdateLedgerIds(name, getManagedLedgerInfo(), ledgersStat, callback);
     }
 
     public synchronized void updateLedgersIdsComplete(Stat stat) {
@@ -1449,8 +1578,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Updating of ledgers list after trimming", name);
             }
-            ManagedLedgerInfo mlInfo = ManagedLedgerInfo.newBuilder().addAllLedgerInfo(ledgers.values()).build();
-            store.asyncUpdateLedgerIds(name, mlInfo, ledgersStat, new MetaStoreCallback<Void>() {
+
+            store.asyncUpdateLedgerIds(name, getManagedLedgerInfo(), ledgersStat, new MetaStoreCallback<Void>() {
                 @Override
                 public void operationComplete(Void result, Stat stat) {
                     log.info("[{}] End TrimConsumedLedgers. ledgers={} totalSize={}", name, ledgers.size(),
@@ -1925,6 +2054,16 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     OrderedSafeExecutor getExecutor() {
         return executor;
+    }
+
+    private ManagedLedgerInfo getManagedLedgerInfo() {
+        ManagedLedgerInfo.Builder mlInfo = ManagedLedgerInfo.newBuilder().addAllLedgerInfo(ledgers.values());
+        if (state == State.Terminated) {
+            mlInfo.setTerminatedPosition(NestedPositionInfo.newBuilder().setLedgerId(lastConfirmedEntry.getLedgerId())
+                    .setEntryId(lastConfirmedEntry.getEntryId()));
+        }
+
+        return mlInfo.build();
     }
 
     /**

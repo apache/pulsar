@@ -20,7 +20,7 @@ Include dependency for Pulsar Storm Adaptor:
 
 ```xml
 <dependency>
-  <groupId>com.yahoo.pulsar</groupId>
+  <groupId>org.apache.pulsar</groupId>
   <artifactId>pulsar-storm</artifactId>
   <version>${pulsar.version}</version>
 </dependency>
@@ -104,4 +104,4 @@ PulsarBolt bolt = new PulsarBolt(boltConf, clientConf);
 ```
 
 ## Example
-You can find a complete example [here](../pulsar-storm/src/test/java/com/yahoo/pulsar/storm/example/StormExample.java).
+You can find a complete example [here](../pulsar-storm/src/test/java/org/apache/pulsar/storm/example/StormExample.java).

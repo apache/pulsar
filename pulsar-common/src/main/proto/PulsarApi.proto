@@ -1,22 +1,25 @@
 /**
- * Copyright 2016 Yahoo Inc.
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 syntax = "proto2";
 
 package pulsar.proto;
-option java_package = "com.yahoo.pulsar.common.api.proto";
+option java_package = "org.apache.pulsar.common.api.proto";
 option optimize_for = LITE_RUNTIME;
 
 message MessageIdData {
@@ -84,6 +87,7 @@ enum ServerError {
     SubscriptionNotFound = 12; // Subscription not found
     ConsumerNotFound = 13; // Consumer not found
     TooManyRequests = 14; // Error with too many simultaneously request 
+    TopicTerminatedError = 15; // The topic has been terminated
 }
 
 enum AuthMethod {
@@ -104,6 +108,7 @@ enum ProtocolVersion {
 	v6 = 6;  // Added checksum computation for metadata + payload
 	v7 = 7;  // Added CommandLookupTopic - Binary Lookup 
 	v8 = 8;  // Added CommandConsumerStats - Client fetches broker side consumer stats
+	v9 = 9;  // Added end of topic notification
 }
 
 message CommandConnect {
@@ -257,6 +262,13 @@ message CommandUnsubscribe {
 	required uint64 request_id  = 2;
 }
 
+// Message sent by broker to client when a topic
+// has been forcefully terminated and there are no more
+// messages left to consume
+message CommandReachedEndOfTopic {
+	required uint64 consumer_id = 1;
+}
+
 message CommandCloseProducer {
 	required uint64 producer_id = 1;
 	required uint64 request_id = 2;
@@ -385,6 +397,8 @@ message BaseCommand {
 		CONSUMER_STATS		= 25;
 		CONSUMER_STATS_RESPONSE	= 26;
 
+		REACHED_END_OF_TOPIC = 27;
+
 	}
 
 	required Type type = 1;
@@ -421,4 +435,6 @@ message BaseCommand {
 
 	optional CommandConsumerStats consumerStats                         = 25;
 	optional CommandConsumerStatsResponse consumerStatsResponse         = 26;
+
+	optional CommandReachedEndOfTopic reachedEndOfTopic  = 27;
 }

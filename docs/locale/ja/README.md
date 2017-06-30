@@ -1,10 +1,10 @@
-***訳注: [v1.16のドキュメント](https://github.com/yahoo/pulsar/tree/v1.16/docs)を日本語訳したものです。***
+***訳注: [v1.16のドキュメント](https://github.com/apache/incubator-pulsar/tree/v1.16/docs)を日本語訳したものです。***
 
 ![logo](../../img/pulsar.png)
 
 Pulsarは、非常に柔軟なメッセージングモデルと直感的なクライアントAPIを備えた分散pub-subメッセージングプラットフォームです。
 
-[![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.yahoo.pulsar/pulsar/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.yahoo.pulsar/pulsar)
+[![Maven Central](https://maven-badges.herokuapp.com/maven-central/org.apache.pulsar/pulsar/badge.svg)](https://maven-badges.herokuapp.com/maven-central/org.apache.pulsar/pulsar)
 
 
 ## 主な特徴
@@ -38,7 +38,5 @@ Pulsarは、非常に柔軟なメッセージングモデルと直感的なク�
 * ユーザからの質問は [Pulsar-Users](https://groups.google.com/d/forum/pulsar-users) へ
 
 ## ライセンス
-
-Copyright 2016 Yahoo Inc.
 
 Apache License Version 2.0に基づいて使用許諾されます: http://www.apache.org/licenses/LICENSE-2.0

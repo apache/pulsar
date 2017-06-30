@@ -1,18 +1,21 @@
 #!/usr/bin/env bash
 #
-# Copyright 2016 Yahoo Inc.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+# 
+#   http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 #
 
 BINDIR=$(dirname "$0")
@@ -140,19 +143,19 @@ COMMAND=$1
 shift
 
 if [ "$COMMAND" == "produce" ]; then
-    exec $JAVA $OPTS com.yahoo.pulsar.testclient.PerformanceProducer --conf-file $PULSAR_PERFTEST_CONF "$@"
+    exec $JAVA $OPTS org.apache.pulsar.testclient.PerformanceProducer --conf-file $PULSAR_PERFTEST_CONF "$@"
 elif [ "$COMMAND" == "consume" ]; then
-    exec $JAVA $OPTS com.yahoo.pulsar.testclient.PerformanceConsumer --conf-file $PULSAR_PERFTEST_CONF "$@"
+    exec $JAVA $OPTS org.apache.pulsar.testclient.PerformanceConsumer --conf-file $PULSAR_PERFTEST_CONF "$@"
 elif [ "$COMMAND" == "read" ]; then
-    exec $JAVA $OPTS com.yahoo.pulsar.testclient.PerformanceReader --conf-file $PULSAR_PERFTEST_CONF "$@"
+    exec $JAVA $OPTS org.apache.pulsar.testclient.PerformanceReader --conf-file $PULSAR_PERFTEST_CONF "$@"
 elif [ "$COMMAND" == "monitor-brokers" ]; then
-    exec $JAVA $OPTS com.yahoo.pulsar.testclient.BrokerMonitor "$@"
+    exec $JAVA $OPTS org.apache.pulsar.testclient.BrokerMonitor "$@"
 elif [ "$COMMAND" == "simulation-client" ]; then
-    exec $JAVA $OPTS com.yahoo.pulsar.testclient.LoadSimulationClient "$@"
+    exec $JAVA $OPTS org.apache.pulsar.testclient.LoadSimulationClient "$@"
 elif [ "$COMMAND" == "simulation-controller" ]; then
-    exec $JAVA $OPTS com.yahoo.pulsar.testclient.LoadSimulationController "$@"
+    exec $JAVA $OPTS org.apache.pulsar.testclient.LoadSimulationController "$@"
 elif [ "$COMMAND" == "websocket-producer" ]; then
-    exec $JAVA $OPTS com.yahoo.pulsar.proxy.socket.client.PerformanceClient "$@"
+    exec $JAVA $OPTS org.apache.pulsar.proxy.socket.client.PerformanceClient "$@"
 elif [ "$COMMAND" == "help" ]; then
     pulsar_help;
 else

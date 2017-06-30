@@ -18,7 +18,7 @@ Include dependency for Spark Streaming Pulsar Receiver:
 
 ```xml
 <dependency>
-  <groupId>com.yahoo.pulsar</groupId>
+  <groupId>org.apache.pulsar</groupId>
   <artifactId>pulsar-spark</artifactId>
   <version>${pulsar.version}</version>
 </dependency>
@@ -41,5 +41,5 @@ JavaReceiverInputDStream<byte[]> msgs = jssc
 
 
 ## Example
-You can find a complete example [here](../pulsar-spark/src/test/java/com/yahoo/pulsar/spark/example/SparkStreamingPulsarReceiverExample.java).
+You can find a complete example [here](../pulsar-spark/src/test/java/org/apache/pulsar/spark/example/SparkStreamingPulsarReceiverExample.java).
 In this example, the number of messages which contain "Pulsar" string in received messages is counted.

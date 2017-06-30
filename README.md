@@ -3,7 +3,7 @@
 Pulsar is a distributed pub-sub messaging platform with a very
 flexible messaging model and an intuitive client API.
 
-[![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.yahoo.pulsar/pulsar/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.yahoo.pulsar/pulsar)
+[![Maven Central](https://maven-badges.herokuapp.com/maven-central/org.apache.pulsar/pulsar/badge.svg)](https://maven-badges.herokuapp.com/maven-central/org.apache.pulsar/pulsar)
 
 
 ## Main features
@@ -40,7 +40,5 @@ flexible messaging model and an intuitive client API.
   users questions
 
 ## License
-
-Copyright 2016 Yahoo Inc.
 
 Licensed under the Apache License, Version 2.0: http://www.apache.org/licenses/LICENSE-2.0
