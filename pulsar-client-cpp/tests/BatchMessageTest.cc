@@ -246,8 +246,8 @@ TEST(BatchMessageTest, testSmallReceiverQueueSize) {
     Producer producer;
 
     // Enable batching on producer side
-    int batchSize = 1000;
-    int numOfMessages = 100000;
+    int batchSize = 10;
+    int numOfMessages = 1000;
     ProducerConfiguration conf;
     conf.setCompressionType(CompressionLZ4);
     conf.setBatchingMaxMessages(batchSize);
@@ -473,6 +473,9 @@ TEST(BatchMessageTest, testIndividualAck) {
 
     // Number of messages consumed
     ASSERT_NE(ResultOk, consumer.receive(receivedMsg, 5000));
+
+    consumer.close();
+    client.close();
 }
 
 TEST(BatchMessageTest, testCumulativeAck) {

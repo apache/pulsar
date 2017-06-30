@@ -63,6 +63,10 @@ if [ "$3" = "all" -o "$3" = "dep" ]; then
     echo "Not Found: $1/libgtest.a"
     exec_cmd "pushd /usr/src/gtest && cmake . && make && cp libgtest.a $1/ && popd";
   fi
+  if [ ! -d "$1/gtest-parallel/" ]; then
+    echo "Not Found: $1/gtest-parallel/"
+    exec_cmd "pushd $1/ && git clone https://github.com/google/gtest-parallel.git && popd";
+  fi
   if [ ! -d "$1/protobuf-2.6.1/" ]; then
     echo "Not Found: $1/protobuf-2.6.1/"
     exec_cmd "pushd $1/ && wget https://github.com/google/protobuf/releases/download/v2.6.1/protobuf-2.6.1.tar.gz && popd";
@@ -95,7 +99,7 @@ if [ "$3" = "all" -o "$3" = "compile" ]; then
   PULSAR_CLIENT_CONF=$2/pulsar-client-cpp/tests/client.conf $2/bin/pulsar-admin clusters create --url http://localhost:9765/ --url-secure https://localhost:9766/ --broker-url pulsar://localhost:9885/ --broker-url-secure pulsar+ssl://localhost:9886/ cluster
   sleep 5
   pushd $2/pulsar-client-cpp/tests
-  ./main
+  $1/gtest-parallel/gtest-parallel ./main --workers=10
   RES=$?
   popd
   exec_cmd "kill -SIGTERM $standalone_pid";
