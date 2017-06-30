@@ -59,7 +59,7 @@ $ bin/pulsar-admin namespaces grant-permission \
 After this, clients identifying with the role `my-client-role`, will be
 able to use topics in the specified namespace.
 
-When `authorizationAllowWildcardsMatching` is `true` in `broker.conf`, wildcard matching is also allowed.
+Wildcard authorization can be performed when `authorizationAllowWildcardsMatching` is set to `true` in `broker.conf`.
 
 e.g.
 ```
