@@ -51,7 +51,6 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 /**
  * Main discovery-service which starts component to serve incoming discovery-request over binary-proto channel and
  * redirects to one of the active broker
- *
  */
 public class DiscoveryService implements Closeable {
 
@@ -93,12 +92,12 @@ public class DiscoveryService implements Closeable {
 
     /**
      * Starts discovery service by initializing zookkeeper and server
+     *
      * @throws Exception
      */
     public void start() throws Exception {
         discoveryProvider = new BrokerDiscoveryProvider(this.config, getZooKeeperClientFactory());
-        this.configurationCacheService = new ConfigurationCacheService(
-                discoveryProvider.globalZkCache);
+        this.configurationCacheService = new ConfigurationCacheService(discoveryProvider.globalZkCache);
         ServiceConfiguration serviceConfiguration = createServiceConfiguration(config);
         authenticationService = new AuthenticationService(serviceConfiguration);
         authorizationManager = new AuthorizationManager(serviceConfiguration, configurationCacheService);
@@ -107,7 +106,7 @@ public class DiscoveryService implements Closeable {
 
     /**
      * starts server to handle discovery-request from client-channel
-     * 
+     *
      * @throws Exception
      */
     public void startServer() throws Exception {
@@ -158,14 +157,15 @@ public class DiscoveryService implements Closeable {
     }
 
     private ServiceConfiguration createServiceConfiguration(ServiceConfig config) {
-    	ServiceConfiguration serviceConfiguration = new ServiceConfiguration();
-    	serviceConfiguration.setAuthenticationEnabled(config.isAuthenticationEnabled());
-    	serviceConfiguration.setAuthorizationEnabled(config.isAuthorizationEnabled());
-    	serviceConfiguration.setAuthenticationProviders(config.getAuthenticationProviders());
-    	serviceConfiguration.setProperties(config.getProperties());
-		return serviceConfiguration;
-	}
-    
+        ServiceConfiguration serviceConfiguration = new ServiceConfiguration();
+        serviceConfiguration.setAuthenticationEnabled(config.isAuthenticationEnabled());
+        serviceConfiguration.setAuthorizationEnabled(config.isAuthorizationEnabled());
+        serviceConfiguration.setAuthenticationProviders(config.getAuthenticationProviders());
+        serviceConfiguration.setAuthorizationAllowWildcardsMatching(config.getAuthorizationAllowWildcardsMatching());
+        serviceConfiguration.setProperties(config.getProperties());
+        return serviceConfiguration;
+    }
+
     /**
      * Derive the host
      *
@@ -207,9 +207,9 @@ public class DiscoveryService implements Closeable {
     }
 
     public ServiceConfig getConfiguration() {
-    	return config;
+        return config;
     }
-    
+
     public AuthenticationService getAuthenticationService() {
         return authenticationService;
     }
@@ -225,6 +225,6 @@ public class DiscoveryService implements Closeable {
     public void setConfigurationCacheService(ConfigurationCacheService configurationCacheService) {
         this.configurationCacheService = configurationCacheService;
     }
-	
-	private static final Logger LOG = LoggerFactory.getLogger(DiscoveryService.class);
+
+    private static final Logger LOG = LoggerFactory.getLogger(DiscoveryService.class);
 }
