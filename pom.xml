@@ -105,7 +105,7 @@ flexible messaging model and an intuitive client API.</description>
     <netty.version>4.0.46.Final</netty.version>
     <storm.version>0.9.5</storm.version>
     <jetty.version>9.3.11.v20160721</jetty.version>
-    <athenz.version>1.1.8</athenz.version>
+    <athenz.version>1.7.17</athenz.version>
     <prometheus.version>0.0.21</prometheus.version>
     <aspectj.version>1.8.9</aspectj.version>
   </properties>
@@ -406,13 +406,13 @@ flexible messaging model and an intuitive client API.</description>
 
       <dependency>
         <groupId>com.yahoo.athenz</groupId>
-        <artifactId>zts_java_client</artifactId>
+        <artifactId>athenz-zts-java-client</artifactId>
         <version>${athenz.version}</version>
       </dependency>
 
       <dependency>
         <groupId>com.yahoo.athenz</groupId>
-        <artifactId>zpe_java_client</artifactId>
+        <artifactId>athenz-zpe-java-client</artifactId>
         <version>${athenz.version}</version>
       </dependency>
 
