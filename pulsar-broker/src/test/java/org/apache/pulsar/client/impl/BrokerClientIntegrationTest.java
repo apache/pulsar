@@ -256,7 +256,15 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         // [1] OwnershipCache should not contain any more namespaces
         OwnershipCache ownershipCache = pulsar.getNamespaceService().getOwnershipCache();
         assertTrue(ownershipCache.getOwnedBundles().keySet().isEmpty());
-
+        // Strategical retry
+        for (int i = 0; i < 5; i++) {
+            if (producer1.getClientCnx() != null || consumer1.getClientCnx() != null
+                    || producer2.getClientCnx() != null) {
+                Thread.sleep(100);
+            } else {
+                break;
+            }
+        }
         // [2] All clients must be disconnected and in connecting state
         // producer1 must not be able to connect again
         assertTrue(producer1.getClientCnx() == null);
