@@ -974,7 +974,7 @@ TEST(BasicEndToEndTest, testMessageListenerPause)
 TEST(BasicEndToEndTest, testProduceMessageSize) {
     ClientConfiguration config;
     Client client(lookupUrl);
-    std::string topicName = "persistent://prop/unit/ns1/my-topic";
+    std::string topicName = "persistent://prop/unit/ns1/maxMsgSize";
     std::string subName = "my-sub-name";
     Producer producer1;
     Producer producer2;
@@ -999,10 +999,6 @@ TEST(BasicEndToEndTest, testProduceMessageSize) {
     result = producer1.send(msg);
     ASSERT_EQ(ResultMessageTooBig, result);
 
-    msg = MessageBuilder().setAllocatedContent(content, size).build();
-    result = producer2.send(msg);
-    ASSERT_EQ(ResultOk, result);
-
     Consumer consumer;
     Promise<Result, Consumer> consumerPromise;
     client.subscribeAsync(topicName, subName, WaitForCallbackValue<Consumer>(consumerPromise));
@@ -1010,13 +1006,17 @@ TEST(BasicEndToEndTest, testProduceMessageSize) {
     result = consumerFuture.get(consumer);
     ASSERT_EQ(ResultOk, result);
 
+    msg = MessageBuilder().setAllocatedContent(content, size).build();
+    result = producer2.send(msg);
+    ASSERT_EQ(ResultOk, result);
+
     Message receivedMsg;
     consumer.receive(receivedMsg);
     ASSERT_EQ(size, receivedMsg.getDataAsString().length());
 
-    consumer.close();
     producer1.closeAsync(0);
     producer2.closeAsync(0);
+    consumer.close();
     client.close();
 
     delete[] content;
