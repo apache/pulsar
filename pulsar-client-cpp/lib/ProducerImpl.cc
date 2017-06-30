@@ -247,10 +247,6 @@ void ProducerImpl::statsCallBackHandler(Result res, const Message& msg, SendCall
 void ProducerImpl::sendAsync(const Message& msg, SendCallback callback) {
     producerStatsBasePtr_->messageSent(msg);
     SendCallback cb = boost::bind(&ProducerImpl::statsCallBackHandler, this, _1, _2, callback, boost::posix_time::microsec_clock::universal_time());
-    if (msg.getLength() > Commands::MaxMessageSize) {
-        callback(ResultMessageTooBig, msg);
-        return;
-    }
 
     // Reserve a spot in the messages queue before acquiring the ProducerImpl
     // mutex. When the queue is full, this call will block until a spot is
@@ -267,6 +263,14 @@ void ProducerImpl::sendAsync(const Message& msg, SendCallback callback) {
     if (! batchMessageContainer) {
         // If batching is enabled we compress all the payloads together before sending the batch
         payload = CompressionCodecProvider::getCodec(conf_.getCompressionType()).encode(payload);
+    }
+    uint32_t compressedSize = payload.readableBytes();
+    if (compressedSize > Commands::MaxMessageSize) {
+        if (conf_.getBlockIfQueueFull()) {
+            pendingMessagesQueue_.release(1);
+        }
+        cb(ResultMessageTooBig, msg);
+        return;
     }
 
     Lock lock(mutex_);
