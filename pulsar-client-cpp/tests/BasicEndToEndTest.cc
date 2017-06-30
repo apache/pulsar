@@ -1003,8 +1003,21 @@ TEST(BasicEndToEndTest, testProduceMessageSize) {
     result = producer2.send(msg);
     ASSERT_EQ(ResultOk, result);
 
+    Consumer consumer;
+    Promise<Result, Consumer> consumerPromise;
+    client.subscribeAsync(topicName, subName, WaitForCallbackValue<Consumer>(consumerPromise));
+    Future<Result, Consumer> consumerFuture = consumerPromise.getFuture();
+    result = consumerFuture.get(consumer);
+    ASSERT_EQ(ResultOk, result);
+
+    Message receivedMsg;
+    consumer.receive(receivedMsg);
+    ASSERT_EQ(size, receivedMsg.getDataAsString().length());
+
+    consumer.close();
     producer1.closeAsync(0);
     producer2.closeAsync(0);
+    client.close();
 
     delete[] content;
 }

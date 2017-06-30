@@ -248,13 +248,6 @@ void ProducerImpl::sendAsync(const Message& msg, SendCallback callback) {
     producerStatsBasePtr_->messageSent(msg);
     SendCallback cb = boost::bind(&ProducerImpl::statsCallBackHandler, this, _1, _2, callback, boost::posix_time::microsec_clock::universal_time());
 
-    // Reserve a spot in the messages queue before acquiring the ProducerImpl
-    // mutex. When the queue is full, this call will block until a spot is
-    // available.
-    if (conf_.getBlockIfQueueFull()) {
-        pendingMessagesQueue_.reserve(1);
-    }
-
     // Compress the payload if required
     SharedBuffer& payload = msg.impl_->payload;
 
@@ -266,11 +259,17 @@ void ProducerImpl::sendAsync(const Message& msg, SendCallback callback) {
     }
     uint32_t compressedSize = payload.readableBytes();
     if (compressedSize > Commands::MaxMessageSize) {
-        if (conf_.getBlockIfQueueFull()) {
-            pendingMessagesQueue_.release(1);
-        }
+        LOG_DEBUG(
+                getName() << " - compressed Message payload size" << compressedSize << "cannot exceed " << Commands::MaxMessageSize << " bytes");
         cb(ResultMessageTooBig, msg);
         return;
+    }
+
+    // Reserve a spot in the messages queue before acquiring the ProducerImpl
+    // mutex. When the queue is full, this call will block until a spot is
+    // available.
+    if (conf_.getBlockIfQueueFull()) {
+        pendingMessagesQueue_.reserve(1);
     }
 
     Lock lock(mutex_);
