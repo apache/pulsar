@@ -22,8 +22,17 @@ file(GLOB PULSAR_SOURCES *.cc lz4/*.c checksum/*.cc stats/*.cc)
 execute_process(COMMAND cat ../pom.xml COMMAND xmllint --format - COMMAND sed "s/xmlns=\".*\"//g" COMMAND xmllint --stream --pattern /project/version --debug - COMMAND grep -A 2 "matches pattern" COMMAND grep text COMMAND sed "s/.* [0-9] //g" OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE PV)
 set (CMAKE_CXX_FLAGS " ${CMAKE_CXX_FLAGS} -msse4.2 -mpclmul -D_PULSAR_VERSION_=\\\"${PV}\\\"")
 
-add_library(pulsarStatic STATIC ${PULSAR_SOURCES})
-add_library(pulsarShared SHARED ${PULSAR_SOURCES})
+# Protobuf generation is only supported natively starting from CMake 3.8
+# Using custom command for now
+ADD_CUSTOM_COMMAND(
+         OUTPUT PulsarApi.pb.h PulsarApi.pb.cc
+         COMMAND protoc -I ../../pulsar-common/src/main/proto ../../pulsar-common/src/main/proto/PulsarApi.proto --cpp_out=${CMAKE_CURRENT_BINARY_DIR}
+         DEPENDS
+         ../../pulsar-common/src/main/proto/PulsarApi.proto
+         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+
+add_library(pulsarStatic STATIC ${PULSAR_SOURCES} PulsarApi.pb.h PulsarApi.pb.cc)
+add_library(pulsarShared SHARED ${PULSAR_SOURCES} PulsarApi.pb.h PulsarApi.pb.cc)
 
 set(LIBRARY_VERSION $ENV{PULSAR_LIBRARY_VERSION})
 if (NOT LIBRARY_VERSION)
