@@ -29,15 +29,28 @@
     <span class="navbar-toggler-icon"></span>
   </button>
   <a class="navbar-brand" href="/incubator-pulsar/">
-    <img src="/incubator-pulsar/img/pulsar-logo.png" alt="Pulsar logo">
+    <img class="main-logo" src="/incubator-pulsar/img/pulsar-logo.png" alt="Pulsar logo">
   </a>
-  <div class="collapse navbar-collapse" id="navbarNavDropdown">
+  <div class="collapse navbar-collapse justify-content-end" id="navbarNavDropdown">
     <ul class="navbar-nav">
       <li class="nav-item">
-        <a class="nav-link" href="#">Features</a>
+        <a class="nav-link" href="/incubator-pulsar/ja"><img class="japan-flag" src="/incubator-pulsar/img/japan-flag.svg"></a>
       </li>
       <li class="nav-item">
-        <a class="nav-link" href="#">Pricing</a>
+        <a class="nav-link" href="/incubator-pulsar/docs/1.18">Docs</a>
+      </li>
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="versionsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Versions
+        </a>
+        <div class="dropdown-menu" aria-labelledby="versionsDropdown">
+          
+          <a class="dropdown-item" href="/incubator-pulsar/docs/1.18">
+            1.18
+            <span class="badge badge-primary">LATEST</span>
+          </a>
+          
+        </div>
       </li>
       <li class="nav-item dropdown">
         <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
@@ -56,16 +69,22 @@
         </div>
       </li>
       <li class="nav-item dropdown">
-        <a class="nav-link dropdown-toggle" href="#" id="versionsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-          Versions
+        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          API docs
         </a>
-        <div class="dropdown-menu" aria-labelledby="versionsDropdown">
-          
-          <a class="dropdown-item" href="/incubator-pulsar/docs/1.18">
-            1.18
-            <span class="badge badge-primary">LATEST</span>
+        <div class="dropdown-menu" aria-labelledby="clientLibsDropdown">
+          <a class="dropdown-item" href="/api/client">
+            Java client
           </a>
-          
+          <a class="dropdown-item" href="/api/admin">
+            Java admin
+          </a>
+          <a class="dropdown-item" href="/api/python">
+            Python
+          </a>
+          <a class="dropdown-item" href="/api/cpp">
+            C++
+          </a>
         </div>
       </li>
     </ul>
@@ -327,7 +346,7 @@
   </div>
 </div>
 
-<h4 id="single-cluster-pulsar-instance">Single-cluster pulsar instance</h4>
+<h4 id="single-cluster-pulsar-instance">Single-cluster Pulsar instance</h4>
 
 <p>If your Pulsar <span class="popover-term" tabindex="0" title="What is a Pulsar instance?" data-placement="top" data-content="A group of Pulsar clusters that act together as a single unit." data-toggle="popover" data-trigger="focus">instance</span> will consist of just one cluster, then you can deploy <span class="popover-term" tabindex="0" title="What is global ZooKeeper?" data-placement="top" data-content="A ZooKeeper cluster that Pulsar uses for instance-wide, rather than cluster-specific, tasks." data-toggle="popover" data-trigger="focus">global ZooKeeper</span> on the same machines as the local ZooKeeper quorum but running on different TCP ports.</p>
 
@@ -565,6 +584,14 @@ of these regions is unreachable.</p>
 
 <h3 id="deploying-bookkeeper">Deploying BookKeeper</h3>
 
+<p><span class="popover-term" tabindex="0" title="What is BookKeeper?" data-placement="top" data-content="Apache BookKeeper is a persistent log storage system that Pulsar uses to store message data." data-toggle="popover" data-trigger="focus">BookKeeper</span> provides persistent message storage for Pulsar.</p>
+
+<p>Each Pulsar <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">cluster</span> needs to have its own cluster of <span class="popover-term" tabindex="0" title="What is a bookie?" data-placement="top" data-content="Bookie is just a nickname for an individual BookKeeper server." data-toggle="popover" data-trigger="focus">bookies</span>. The BookKeeper cluster shares a local ZooKeeper quorum with the Pulsar cluster.</p>
+
+<h3 id="configuring-bookies">Configuring bookies</h3>
+
+<p>BookKeeper bookies can be configured using the <a href="../../reference/Configuration#bookkeeper"><code class="highlighter-rouge">conf/bookkeeper.conf</code></a> configuration file. The most important aspect of configuring each bookie is ensuring that the <a href="../../reference/Configuration#bookkeeper-zkServers"><code class="highlighter-rouge">zkServers</code></a> parameter is set to the connection string for the Pulsar cluster’s local ZooKeeper.</p>
+
 <h3 id="starting-up-bookies">Starting up bookies</h3>
 
 <p>You can start up a bookie in two ways: in the foreground or as a background daemon.</p>
@@ -575,7 +602,7 @@ of these regions is unreachable.</p>
 </code></pre>
 </div>
 
-<p>You can verify that the bookie is working properly:</p>
+<p>You can verify that the bookie is working properly using the <code class="highlighter-rouge">bookiesanity</code> command for the <a href="../../reference/CliTools#bookkeeper-shell">BookKeeper shell</a>:</p>
 
 <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/bookkeeper shell bookiesanity
 </code></pre>

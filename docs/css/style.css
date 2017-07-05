@@ -28,9 +28,6 @@ main.main {
   padding: 0;
   margin: 0; }
 
-.modal-dialog {
-  margin-top: 300px; }
-
 button.version-btn {
   color: white !important;
   font-weight: bold;
@@ -9284,10 +9281,13 @@ a.text-gray-dark:focus, a.text-gray-dark:hover {
 nav.navbar {
   background-color: white;
   width: 80%; }
-  nav.navbar .navbar-brand img {
+  nav.navbar img.main-logo {
     height: 40px; }
+  nav.navbar img.japan-flag {
+    height: 28px;
+    border: 1px solid #c4c4c4; }
   nav.navbar .collapse {
-    margin: 8px 0 0 100px; }
+    margin: 8px 0 8px 100px; }
     nav.navbar .collapse ul.navbar-nav li.nav-item + li.nav-item {
       margin-left: 50px; }
   nav.navbar a.dropdown-item {
@@ -9297,53 +9297,6 @@ nav.navbar {
   nav.navbar ul.navbar-nav li {
     font-size: 24px; }
 
-/*header.top-nav {
-  background-color: white;
-
-  nav.navbar {
-    width: 80%;
-
-    a.navbar-brand {
-      img {
-        height: 50px;
-        padding-bottom: 5px;
-      }
-    }
-
-    img.japan-flag {
-      height: 20px;
-      border: 1px solid #999;
-    }
-
-    li.version {
-      a {
-        padding: 10px;
-        color: white;
-        background-color: $pulsar-blue;
-      }
-    }
-
-    ul li a {
-      color: $pulsar-blue;
-      font-size: 24px;
-
-      &:hover {
-        color: lighten($pulsar-blue, 10%);
-      }
-
-      i.fa {
-        color: white;
-
-        &:hover {
-          color: lighten($pulsar-blue, 10%);
-        }
-      }
-    }
-
-    li + li {
-      margin-left: 50px;
-    }
-  }*/
 /* Regular font */
 /* Monospaced font for syntax highlighting */
 /* Enable Font Awesome icons */
