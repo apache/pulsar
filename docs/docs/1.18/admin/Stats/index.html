@@ -24,34 +24,54 @@
   </head>
   <body class="body">
     <main class="main">
-      <header class="container-fluid sticky-top top-nav">
-        <nav class="navbar navbar-default navbar-toggleable-xl container">
+      <nav class="navbar navbar-toggleable-md navbar-light container-fluid sticky-top">
+  <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarNavDropdown" aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
   <a class="navbar-brand" href="/incubator-pulsar/">
-    <img src="/incubator-pulsar/img/pulsar-logo.png">
+    <img src="/incubator-pulsar/img/pulsar-logo.png" alt="Pulsar logo">
   </a>
-
-  <div class="collapse navbar-collapse justify-content-end" id="nav-content">
-    <ul class="nav navbar-nav">
+  <div class="collapse navbar-collapse" id="navbarNavDropdown">
+    <ul class="navbar-nav">
       <li class="nav-item">
-        <a class="nav-link" href="/incubator-pulsar/docs/1.18">Documentation</a>
+        <a class="nav-link" href="#">Features</a>
       </li>
       <li class="nav-item">
-        <a class="nav-link" href="/incubator-pulsar/docs/1.18/getting-started/Clients">Client libraries</a>
+        <a class="nav-link" href="#">Pricing</a>
       </li>
-      <li class="nav-item">
-        <a class="nav-link" href="/incubator-pulsar/ja"><img class="japan-flag" src="/incubator-pulsar/img/japan-flag.svg"></a>
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Client libraries
+        </a>
+        <div class="dropdown-menu" aria-labelledby="clientLibsDropdown">
+          <a class="dropdown-item" href="/incubator-pulsar/docs/1.18/applications/JavaClient">
+            Java
+          </a>
+          <a class="dropdown-item" href="/incubator-pulsar/docs/1.18/applications/PythonClient">
+            Python
+          </a>
+          <a class="dropdown-item" href="/incubator-pulsar/docs/1.18/applications/CppClient">
+            C++
+          </a>
+        </div>
       </li>
-      <li class="nav-item">
-        <a class="nav-link" href="https://github.com/yahoo/pulsar"><i class="fa fa-github fa-lg"></i></a>
-      </li>
-      <li class="nav-item version">
-        <a class="nav-link">Pulsar 1.18</a>
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="versionsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Versions
+        </a>
+        <div class="dropdown-menu" aria-labelledby="versionsDropdown">
+          
+          <a class="dropdown-item" href="/incubator-pulsar/docs/1.18">
+            1.18
+            <span class="badge badge-primary">LATEST</span>
+          </a>
+          
+        </div>
       </li>
     </ul>
   </div>
 </nav>
 
-      </header>
 
       <main>
         <div class="docs-container container-fluid">
@@ -251,151 +271,151 @@
     
     <tr>
       <td>msgRateIn</td>
-      <td><p>The sum of all local and replication publishers’ publish rates in messages per second</p>
+      <td>The sum of all local and replication publishers’ publish rates in messages per second
 </td>
     </tr>
     
     <tr>
       <td>msgThroughputIn</td>
-      <td><p>Same as above, but in bytes per second instead of messages per second</p>
+      <td>Same as <code class="highlighter-rouge">msgRateIn</code> but in bytes per second instead of messages per second
 </td>
     </tr>
     
     <tr>
       <td>msgRateOut</td>
-      <td><p>The sum of all local and replication consumers’ dispatch rates in messages per second</p>
+      <td>The sum of all local and replication consumers’ dispatch rates in messages per second
 </td>
     </tr>
     
     <tr>
       <td>msgThroughputOut</td>
-      <td><p>Same as above, but in bytes per second instead of messages per second</p>
+      <td>Same as <code class="highlighter-rouge">msgRateOut</code> but in bytes per second instead of messages per second
 </td>
     </tr>
     
     <tr>
       <td>averageMsgSize</td>
-      <td><p>Average message size in bytes from this publisher within the last interval</p>
+      <td>Average message size, in bytes, from this publisher within the last interval
 </td>
     </tr>
     
     <tr>
       <td>storageSize</td>
-      <td><p>The sum of the ledgers’ storage size for this topic. See</p>
+      <td>The sum of the ledgers’ storage size for this topic
 </td>
     </tr>
     
     <tr>
       <td>publishers</td>
-      <td><p>The list of all local publishers into the topic. There can be zero or thousands</p>
+      <td>The list of all local publishers into the topic. There can be anywhere from zero to thousands.
 </td>
     </tr>
     
     <tr>
       <td>producerId</td>
-      <td><p>Internal identifier for this producer on this topic</p>
+      <td>Internal identifier for this producer on this topic
 </td>
     </tr>
     
     <tr>
       <td>producerName</td>
-      <td><p>Internal identifier for this producer, generated by the client library</p>
+      <td>Internal identifier for this producer, generated by the client library
 </td>
     </tr>
     
     <tr>
       <td>address</td>
-      <td><p>IP address and source port for the connection of this producer</p>
+      <td>IP address and source port for the connection of this producer
 </td>
     </tr>
     
     <tr>
       <td>connectedSince</td>
-      <td><p>Timestamp this producer was created or last reconnected</p>
+      <td>Timestamp this producer was created or last reconnected
 </td>
     </tr>
     
     <tr>
       <td>subscriptions</td>
-      <td><p>The list of all local subscriptions to the topic</p>
+      <td>The list of all local subscriptions to the topic
 </td>
     </tr>
     
     <tr>
       <td>my-subscription</td>
-      <td><p>The name of this subscription (client defined)</p>
+      <td>The name of this subscription (client defined)
 </td>
     </tr>
     
     <tr>
       <td>msgBacklog</td>
-      <td><p>The count of messages in backlog for this subscription</p>
+      <td>The count of messages in backlog for this subscription
 </td>
     </tr>
     
     <tr>
       <td>type</td>
-      <td><p>This subscription type</p>
+      <td>This subscription type
 </td>
     </tr>
     
     <tr>
       <td>msgRateExpired</td>
-      <td><p>The rate at which messages were discarded instead of dispatched from this subscription due to TTL</p>
+      <td>The rate at which messages were discarded instead of dispatched from this subscription due to TTL
 </td>
     </tr>
     
     <tr>
       <td>consumers</td>
-      <td><p>The list of connected consumers for this subscription</p>
+      <td>The list of connected consumers for this subscription
 </td>
     </tr>
     
     <tr>
       <td>consumerName</td>
-      <td><p>Internal identifier for this consumer, generated by the client library</p>
+      <td>Internal identifier for this consumer, generated by the client library
 </td>
     </tr>
     
     <tr>
       <td>availablePermits</td>
-      <td><p>The number of messages this consumer has space for in the client library’s listen queue. A value of 0 means the client library’s queue is full and receive() isn’t being called. A nonzero value means this consumer is ready to be dispatched messages.</p>
+      <td>The number of messages this consumer has space for in the client library’s listen queue. A value of 0 means the client library’s queue is full and receive() isn’t being called. A nonzero value means this consumer is ready to be dispatched messages.
 </td>
     </tr>
     
     <tr>
       <td>replication</td>
-      <td><p>This section gives the stats for cross-colo replication of this topic</p>
+      <td>This section gives the stats for cross-colo replication of this topic
 </td>
     </tr>
     
     <tr>
       <td>replicationBacklog</td>
-      <td><p>The outbound replication backlog in messages</p>
+      <td>The outbound replication backlog in messages
 </td>
     </tr>
     
     <tr>
       <td>connected</td>
-      <td><p>Whether the outbound replicator is connected</p>
+      <td>Whether the outbound replicator is connected
 </td>
     </tr>
     
     <tr>
       <td>replicationDelayInSeconds</td>
-      <td><p>How long the oldest message has been waiting to be sent through the connection, if connected is true</p>
+      <td>How long the oldest message has been waiting to be sent through the connection, if connected is true
 </td>
     </tr>
     
     <tr>
       <td>inboundConnection</td>
-      <td><p>The IP and port of the broker in the remote cluster’s publisher connection to this broker</p>
+      <td>The IP and port of the broker in the remote cluster’s publisher connection to this broker
 </td>
     </tr>
     
     <tr>
       <td>inboundConnectedSince</td>
-      <td><p>The TCP connection being used to publish messages to the remote cluster. If there are no local publishers connected, this connection is automatically closed after a minute.</p>
+      <td>The TCP connection being used to publish messages to the remote cluster. If there are no local publishers connected, this connection is automatically closed after a minute.
 </td>
     </tr>
     
@@ -415,133 +435,133 @@
     
     <tr>
       <td>entriesAddedCounter</td>
-      <td><p>Messages published since this broker loaded this topic</p>
+      <td>Messages published since this broker loaded this topic
 </td>
     </tr>
     
     <tr>
       <td>numberOfEntries</td>
-      <td><p>Total number of messages being tracked</p>
+      <td>Total number of messages being tracked
 </td>
     </tr>
     
     <tr>
       <td>totalSize</td>
-      <td><p>Total storage size in bytes of all messages</p>
+      <td>Total storage size in bytes of all messages
 </td>
     </tr>
     
     <tr>
       <td>currentLedgerEntries</td>
-      <td><p>Count of messages written to the ledger currently open for writing</p>
+      <td>Count of messages written to the ledger currently open for writing
 </td>
     </tr>
     
     <tr>
       <td>currentLedgerSize</td>
-      <td><p>Size in bytes of messages written to ledger currently open for writing</p>
+      <td>Size in bytes of messages written to ledger currently open for writing
 </td>
     </tr>
     
     <tr>
       <td>lastLedgerCreatedTimestamp</td>
-      <td><p>Time when last ledger was created</p>
+      <td>Time when last ledger was created
 </td>
     </tr>
     
     <tr>
       <td>lastLedgerCreationFailureTimestamp</td>
-      <td><p>time when last ledger was failed</p>
+      <td>time when last ledger was failed
 </td>
     </tr>
     
     <tr>
       <td>waitingCursorsCount</td>
-      <td><p>How many cursors are caught up and waiting for a new message to be published</p>
+      <td>How many cursors are caught up and waiting for a new message to be published
 </td>
     </tr>
     
     <tr>
       <td>pendingAddEntriesCount</td>
-      <td><p>How many messages have (asynchronous) write requests we are waiting on completion</p>
+      <td>How many messages have (asynchronous) write requests we are waiting on completion
 </td>
     </tr>
     
     <tr>
       <td>lastConfirmedEntry</td>
-      <td><p>The ledgerid:entryid of the last message successfully written. If the entryid is -1, then the ledger has been opened or is currently being opened but has no entries written yet.</p>
+      <td>The ledgerid:entryid of the last message successfully written. If the entryid is -1, then the ledger has been opened or is currently being opened but has no entries written yet.
 </td>
     </tr>
     
     <tr>
       <td>state</td>
-      <td><p>The state of the cursor ledger. Open means we have a cursor ledger for saving updates of the markDeletePosition.</p>
+      <td>The state of the cursor ledger. Open means we have a cursor ledger for saving updates of the markDeletePosition.
 </td>
     </tr>
     
     <tr>
       <td>ledgers</td>
-      <td><p>The ordered list of all ledgers for this topic holding its messages</p>
+      <td>The ordered list of all ledgers for this topic holding its messages
 </td>
     </tr>
     
     <tr>
       <td>cursors</td>
-      <td><p>The list of all cursors on this topic. There will be one for every subscription you saw in the topic stats.</p>
+      <td>The list of all cursors on this topic. There will be one for every subscription you saw in the topic stats.
 </td>
     </tr>
     
     <tr>
       <td>markDeletePosition</td>
-      <td><p>The ack position: the last message the subscriber acknowledged receiving</p>
+      <td>The ack position: the last message the subscriber acknowledged receiving
 </td>
     </tr>
     
     <tr>
       <td>readPosition</td>
-      <td><p>The latest position of subscriber for reading message</p>
+      <td>The latest position of subscriber for reading message
 </td>
     </tr>
     
     <tr>
       <td>waitingReadOp</td>
-      <td><p>This is true when the subscription has read the latest message published to the topic and is waiting on new messages to be published.</p>
+      <td>This is true when the subscription has read the latest message published to the topic and is waiting on new messages to be published.
 </td>
     </tr>
     
     <tr>
       <td>pendingReadOps</td>
-      <td><p>The counter for how many outstanding read requests to the BookKeepers we have in progress</p>
+      <td>The counter for how many outstanding read requests to the BookKeepers we have in progress
 </td>
     </tr>
     
     <tr>
       <td>messagesConsumedCounter</td>
-      <td><p>Number of messages this cursor has acked since this broker loaded this topic</p>
+      <td>Number of messages this cursor has acked since this broker loaded this topic
 </td>
     </tr>
     
     <tr>
       <td>cursorLedger</td>
-      <td><p>The ledger being used to persistently store the current markDeletePosition</p>
+      <td>The ledger being used to persistently store the current markDeletePosition
 </td>
     </tr>
     
     <tr>
       <td>cursorLedgerLastEntry</td>
-      <td><p>The last entryid used to persistently store the current markDeletePosition</p>
+      <td>The last entryid used to persistently store the current markDeletePosition
 </td>
     </tr>
     
     <tr>
       <td>individuallyDeletedMessages</td>
-      <td><p>If Acks are being done out of order, shows the ranges of messages Acked between the markDeletePosition and the read-position</p>
+      <td>If Acks are being done out of order, shows the ranges of messages Acked between the markDeletePosition and the read-position
 </td>
     </tr>
     
     <tr>
       <td>lastLedgerSwitchTimestamp</td>
-      <td><p>The last time the cursor ledger was rolled over</p>
+      <td>The last time the cursor ledger was rolled over
 </td>
     </tr>
     

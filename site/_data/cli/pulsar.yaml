@@ -4,7 +4,7 @@ description: |
   These processes can also be started in the background, using [nohup](https://en.wikipedia.org/wiki/Nohup), using the [`pulsar-daemon`](#pulsar-daemon) tool, which has the same command interface as `pulsar`.
 example: |
   pulsar broker \
-    --conf /path/to/bookkeeper.conf
+    --conf /path/to/broker.conf
 commands:
 - name: bookie
   description: Starts up a bookie server

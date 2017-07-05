@@ -30,6 +30,6 @@ There are also [Doxygen](http://www.stack.nl/~dimitri/doxygen/)-generated API do
 
 ## Python client
 
-For a tutorial on using the Pulsar Python client, see [The Pulsar Python client](../{{ site.current_version }}/applications/PythonClient).
+For a tutorial on using the Pulsar Python client, see [The Pulsar Python client](../../applications/PythonClient).
 
 There are also [pdoc](https://github.com/BurntSushi/pdoc)-generated API docs for the Python client [here]({{ site.baseurl }}api/python).

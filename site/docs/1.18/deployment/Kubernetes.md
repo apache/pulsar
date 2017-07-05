@@ -5,7 +5,13 @@ tags: [kubernetes, google container engine]
 
 Pulsar can be easily deployed in [Kubernetes](https://kubernetes.io/) clusters, either in managed clusters on [Google Container Engine](#pulsar-on-google-container-engine) or in [self-deployed clusters](#pulsar-on-a-custom-kubernetes-cluster).
 
-The installation method shown in this guide relies on [YAML](http://yaml.org/) definitions for Kubernetes resources. You can see those definitions in the [`kubernetes`]({{ site.pulsar_repo }}/kubernetes) subdirectory of the [Pulsar repo]({{ site.pulsar_repo }}).
+The installation method shown in this guide relies on [YAML](http://yaml.org/) definitions for Kubernetes [resources](https://kubernetes.io/docs/resources-reference/v1.6/). The [`kubernetes`]({{ site.pulsar_repo }}/kubernetes) subdirectory of the [Pulsar repo]({{ site.pulsar_repo }}) holds resource definitions for:
+
+* {% popover BookKeeper %}
+* {% popover ZooKeeper %}
+* A three-{% popover broker %} Pulsar {% popover cluster %}
+* [Prometheus]()
+* A [pod](https://kubernetes.io/docs/concepts/workloads/pods/pod/) from which you can run commands from the [`pulsar-admin`](../../reference/CliTools#pulsar-admin) CLI tool
 
 ## Pulsar on Google Container Engine
 
@@ -13,7 +19,11 @@ The installation method shown in this guide relies on [YAML](http://yaml.org/) d
 
 ### Prerequisites
 
-To get started, you'll need a Google Cloud Platform account, which you can sign up for at [cloud.google.com](https://cloud.google.com), an existing Cloud Platform project. and the [Google Cloud SDK](https://cloud.google.com/sdk/downloads) (in particular the [`gcloud`](https://cloud.google.com/sdk/gcloud/) tool).
+To get started, you'll need:
+
+* A Google Cloud Platform account, which you can sign up for at [cloud.google.com](https://cloud.google.com)
+* An existing Cloud Platform project
+* The [Google Cloud SDK](https://cloud.google.com/sdk/downloads) (in particular the [`gcloud`](https://cloud.google.com/sdk/gcloud/) and [`kubectl`]() tools).
 
 ### Create a new Kubernetes cluster
 
@@ -169,6 +179,8 @@ $ bin/pulsar-admin persistent stats persistent://prop/us-central/ns/my-topic
 ```
 
 ### Monitoring
+
+Pulsar provides
 
 #### Prometheus
 

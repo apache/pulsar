@@ -24,34 +24,54 @@
   </head>
   <body class="body">
     <main class="main">
-      <header class="container-fluid sticky-top top-nav">
-        <nav class="navbar navbar-default navbar-toggleable-xl container">
+      <nav class="navbar navbar-toggleable-md navbar-light container-fluid sticky-top">
+  <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarNavDropdown" aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
   <a class="navbar-brand" href="/incubator-pulsar/">
-    <img src="/incubator-pulsar/img/pulsar-logo.png">
+    <img src="/incubator-pulsar/img/pulsar-logo.png" alt="Pulsar logo">
   </a>
-
-  <div class="collapse navbar-collapse justify-content-end" id="nav-content">
-    <ul class="nav navbar-nav">
+  <div class="collapse navbar-collapse" id="navbarNavDropdown">
+    <ul class="navbar-nav">
       <li class="nav-item">
-        <a class="nav-link" href="/incubator-pulsar/docs/1.18">Documentation</a>
+        <a class="nav-link" href="#">Features</a>
       </li>
       <li class="nav-item">
-        <a class="nav-link" href="/incubator-pulsar/docs/1.18/getting-started/Clients">Client libraries</a>
+        <a class="nav-link" href="#">Pricing</a>
       </li>
-      <li class="nav-item">
-        <a class="nav-link" href="/incubator-pulsar/ja"><img class="japan-flag" src="/incubator-pulsar/img/japan-flag.svg"></a>
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Client libraries
+        </a>
+        <div class="dropdown-menu" aria-labelledby="clientLibsDropdown">
+          <a class="dropdown-item" href="/incubator-pulsar/docs/1.18/applications/JavaClient">
+            Java
+          </a>
+          <a class="dropdown-item" href="/incubator-pulsar/docs/1.18/applications/PythonClient">
+            Python
+          </a>
+          <a class="dropdown-item" href="/incubator-pulsar/docs/1.18/applications/CppClient">
+            C++
+          </a>
+        </div>
       </li>
-      <li class="nav-item">
-        <a class="nav-link" href="https://github.com/yahoo/pulsar"><i class="fa fa-github fa-lg"></i></a>
-      </li>
-      <li class="nav-item version">
-        <a class="nav-link">Pulsar 1.18</a>
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="versionsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Versions
+        </a>
+        <div class="dropdown-menu" aria-labelledby="versionsDropdown">
+          
+          <a class="dropdown-item" href="/incubator-pulsar/docs/1.18">
+            1.18
+            <span class="badge badge-primary">LATEST</span>
+          </a>
+          
+        </div>
       </li>
     </ul>
   </div>
 </nav>
 
-      </header>
 
       <main>
         <div class="docs-container container-fluid">
@@ -402,56 +422,56 @@ of these regions is unreachable.</p>
     
     <tr id="zookeeper-tickTime">
       <td>tickTime</td>
-      <td><p>The <em>tick</em> is the basic unit of time in ZooKeeper, measured in milliseconds and used to regulate things like <a href="https://www.tutorialspoint.com/zookeeper/zookeeper_quick_guide.htm">heartbeats and timeouts</a>. <code class="highlighter-rouge">tickTime</code> is the length of a single tick.</p>
+      <td>The <em>tick</em> is the basic unit of time in ZooKeeper, measured in milliseconds and used to regulate things like <a href="https://www.tutorialspoint.com/zookeeper/zookeeper_quick_guide.htm">heartbeats and timeouts</a>. <code class="highlighter-rouge">tickTime</code> is the length of a single tick.
 </td>
       <td>2000</td>
     </tr>
     
     <tr id="zookeeper-initLimit">
       <td>initLimit</td>
-      <td><p>The maximum time, in ticks, that the leader ZooKeeper server allows follower ZooKeeper servers to successfully connect and sync. The tick time is set in milliseconds using the <a href="#zookeeper-tickTime"><code class="highlighter-rouge">tickTime</code></a> parameter.</p>
+      <td>The maximum time, in ticks, that the leader ZooKeeper server allows follower ZooKeeper servers to successfully connect and sync. The tick time is set in milliseconds using the <a href="#zookeeper-tickTime"><code class="highlighter-rouge">tickTime</code></a> parameter.
 </td>
       <td>10</td>
     </tr>
     
     <tr id="zookeeper-syncLimit">
       <td>syncLimit</td>
-      <td><p>The maximum time, in ticks, that a follower ZooKeeper server is allowed to sync with other ZooKeeper servers. The tick time is set in milliseconds using the <a href="#zookeeper-tickTime"><code class="highlighter-rouge">tickTime</code></a> parameter.</p>
+      <td>The maximum time, in ticks, that a follower ZooKeeper server is allowed to sync with other ZooKeeper servers. The tick time is set in milliseconds using the <a href="#zookeeper-tickTime"><code class="highlighter-rouge">tickTime</code></a> parameter.
 </td>
       <td>5</td>
     </tr>
     
     <tr id="zookeeper-dataDir">
       <td>dataDir</td>
-      <td><p>The location where ZooKeeper will store in-memory database snapshots as well as the transaction log of updates to the database.</p>
+      <td>The location where ZooKeeper will store in-memory database snapshots as well as the transaction log of updates to the database.
 </td>
       <td>data/zookeeper</td>
     </tr>
     
     <tr id="zookeeper-clientPort">
       <td>clientPort</td>
-      <td><p>The port on which the ZooKeeper server will listen for connections.</p>
+      <td>The port on which the ZooKeeper server will listen for connections.
 </td>
       <td>2181</td>
     </tr>
     
     <tr id="zookeeper-autopurge.snapRetainCount">
       <td>autopurge.snapRetainCount</td>
-      <td><p>In ZooKeeper, auto purge determines how many recent snapshots of the database stored in <a href="#zookeeper-dataDir"><code class="highlighter-rouge">dataDir</code></a> to retain within the time interval specified by <a href="#zookeeper-autopurge.purgeInterval"><code class="highlighter-rouge">autopurge.purgeInterval</code></a> (while deleting the rest).</p>
+      <td>In ZooKeeper, auto purge determines how many recent snapshots of the database stored in <a href="#zookeeper-dataDir"><code class="highlighter-rouge">dataDir</code></a> to retain within the time interval specified by <a href="#zookeeper-autopurge.purgeInterval"><code class="highlighter-rouge">autopurge.purgeInterval</code></a> (while deleting the rest).
 </td>
       <td>3</td>
     </tr>
     
     <tr id="zookeeper-autopurge.purgeInterval">
       <td>autopurge.purgeInterval</td>
-      <td><p>The time interval, in hours, by which the ZooKeeper database purge task is triggered. Setting to a non-zero number will enable auto purge; setting to 0 will disable. Read <a href="http://zookeeper.apache.org/doc/current/zookeeperAdmin.html#sc_maintenance">this guide</a> before enabling auto purge.</p>
+      <td>The time interval, in hours, by which the ZooKeeper database purge task is triggered. Setting to a non-zero number will enable auto purge; setting to 0 will disable. Read <a href="http://zookeeper.apache.org/doc/current/zookeeperAdmin.html#sc_maintenance">this guide</a> before enabling auto purge.
 </td>
       <td>1</td>
     </tr>
     
     <tr id="zookeeper-maxClientCnxns">
       <td>maxClientCnxns</td>
-      <td><p>The maximum number of client connections. Increase this if you need to handle more ZooKeeper clients.</p>
+      <td>The maximum number of client connections. Increase this if you need to handle more ZooKeeper clients.
 </td>
       <td>60</td>
     </tr>
@@ -473,56 +493,56 @@ of these regions is unreachable.</p>
     
     <tr id="global-zookeeper-tickTime">
       <td>tickTime</td>
-      <td><p>The number of milliseconds of each tick</p>
+      <td>The number of milliseconds of each tick
 </td>
       <td>2000</td>
     </tr>
     
     <tr id="global-zookeeper-initLimit">
       <td>initLimit</td>
-      <td><p>The number of ticks that the initial synchronization phase can take</p>
+      <td>The number of ticks that the initial synchronization phase can take
 </td>
       <td>10</td>
     </tr>
     
     <tr id="global-zookeeper-syncLimit">
       <td>syncLimit</td>
-      <td><p>The number of ticks that can pass between sending a request and getting an acknowledgement</p>
+      <td>The number of ticks that can pass between sending a request and getting an acknowledgement
 </td>
       <td>5</td>
     </tr>
     
     <tr id="global-zookeeper-dataDir">
       <td>dataDir</td>
-      <td><p>the directory where the snapshot is stored.</p>
+      <td>the directory where the snapshot is stored.
 </td>
       <td>data/global-zookeeper</td>
     </tr>
     
     <tr id="global-zookeeper-clientPort">
       <td>clientPort</td>
-      <td><p>the port at which the clients will connect</p>
+      <td>the port at which the clients will connect
 </td>
       <td>2184</td>
     </tr>
     
     <tr id="global-zookeeper-maxClientCnxns">
       <td>maxClientCnxns</td>
-      <td><p>the maximum number of client connections. increase this if you need to handle more clients</p>
+      <td>the maximum number of client connections. increase this if you need to handle more clients
 </td>
       <td>60</td>
     </tr>
     
     <tr id="global-zookeeper-autopurge.snapRetainCount">
       <td>autopurge.snapRetainCount</td>
-      <td><p>The number of snapshots to retain in dataDir. For more info see <a href="http://zookeeper.apache.org/doc/current/zookeeperAdmin.html#sc_maintenance">here</a>.</p>
+      <td>The number of snapshots to retain in dataDir. For more info see <a href="http://zookeeper.apache.org/doc/current/zookeeperAdmin.html#sc_maintenance">here</a>.
 </td>
       <td>3</td>
     </tr>
     
     <tr id="global-zookeeper-autopurge.purgeInterval">
       <td>autopurge.purgeInterval</td>
-      <td><p>Purge task interval in hours. Set to “0” to disable auto purge feature</p>
+      <td>Purge task interval in hours. Set to “0” to disable auto purge feature
 </td>
       <td>1</td>
     </tr>

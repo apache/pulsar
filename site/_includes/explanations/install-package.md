@@ -32,6 +32,6 @@ Directory | Contains
 :---------|:--------
 `bin` | Pulsar's [command-line tools](../../reference/CliTools), such as [`pulsar`](../../reference/CliTools#pulsar) and [`pulsar-admin`](../../reference/CliTools#pulsar-admin)
 `conf` | Configuration files for Pulsar, including for [broker configuration](../../reference/Configuration#broker), [ZooKeeper configuration](../../reference/Configuration#zookeeper), and more
-`data` | The data store for Pulsar.
+`data` | The data storage directory used by {% popover ZooKeeper %} and {% popover BookKeeper %}.
 `lib` | The [JAR](https://en.wikipedia.org/wiki/JAR_(file_format)) files used by Pulsar.
 `logs` | Logs created by the installation.

@@ -1,4 +1,39 @@
-header.top-nav {
+nav.navbar {
+  background-color: white;
+  width: 80%;
+
+  .navbar-brand {
+    img {
+      height: 40px;
+    }
+  }
+
+  .collapse {
+    margin: 8px 0 0 100px;
+
+    ul.navbar-nav {
+      li.nav-item + li.nav-item {
+        margin-left: 50px;
+      }
+    }
+  }
+
+  a.dropdown-item {
+    font-size: 18px;
+
+    span.badge {
+      margin-left: 2rem;
+    }
+  }
+
+  ul.navbar-nav {
+    li {
+      font-size: 24px;
+    }
+  }
+}
+
+/*header.top-nav {
   background-color: white;
 
   nav.navbar {
@@ -44,5 +79,4 @@ header.top-nav {
     li + li {
       margin-left: 50px;
     }
-  }
-}
+  }*/

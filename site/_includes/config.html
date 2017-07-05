@@ -12,7 +12,7 @@
     {% for c in configs %}
     <tr id="{{ include.id }}-{{ c.name }}">
       <td>{{ c.name }}</td>
-      {% unless config.no_descriptions %}<td>{{ c.description | markdownify }}</td>{% endunless %}
+      {% unless config.no_descriptions %}<td>{{ c.description | markdownify | remove: "<p>" | remove: "</p>" }}</td>{% endunless %}
       <td>{{ c.default }}</td>
     </tr>
     {% endfor %}

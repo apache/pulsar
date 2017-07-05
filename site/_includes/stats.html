@@ -10,7 +10,7 @@
     {% for stat in stats %}
     <tr>
       <td>{{ stat[0] }}</td>
-      <td>{{ stat[1] | markdownify }}</td>
+      <td>{{ stat[1] | markdownify | remove: "<p>" | remove: "</p>" }}</td>
     </tr>
     {% endfor %}
   </tbody>
