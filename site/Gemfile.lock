@@ -11,7 +11,6 @@ GEM
     ffi (1.9.18)
     forwardable-extended (2.6.0)
     http_parser.rb (0.6.0)
-    java-properties (0.2.0)
     jekyll (3.4.3)
       addressable (~> 2.4)
       colorator (~> 1.0)
@@ -39,7 +38,6 @@ GEM
     pathutil (0.14.0)
       forwardable-extended (~> 2.6)
     public_suffix (2.0.5)
-    rake (12.0.0)
     rb-fsevent (0.9.8)
     rb-inotify (0.9.8)
       ffi (>= 0.5.0)
@@ -51,10 +49,8 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
-  java-properties
   jekyll (= 3.4.3)
   jekyll-livereload
-  rake (= 12.0.0)
 
 RUBY VERSION
    ruby 2.4.1p111
