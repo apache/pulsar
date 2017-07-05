@@ -13,6 +13,16 @@ nav.navbar {
     }
   }
 
+  li.nav-item {
+    a.nav-link {
+      color: $pulsar-blue;
+
+      &:hover, &:active {
+        color: $pulsar-blue;
+      }
+    }
+  }
+
   .collapse {
     margin: 8px 0 8px 100px;
 

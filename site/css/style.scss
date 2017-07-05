@@ -175,14 +175,15 @@ section.docs-cards {
   @include btn($javadoc-magenta, darken($javadoc-magenta, 20%));
 }
 
-.sidebar {
+aside.sidebar {
   position: fixed;
+  overflow-y: scroll;
 
   section.sidebar-group {
     //max-width: 90%;
     h4 {
-      font-size: 18px;
-      margin-bottom: 10px;
+      font-size: 16px;
+      margin-bottom: 8px;
     }
 
     ul {
@@ -194,7 +195,7 @@ section.docs-cards {
         max-width: 100%;
         //text-indent: 20;
         //word-wrap: break-word;
-        font-size: 16px;
+        font-size: 14px;
         //list-style-type: none;
         margin-left: 0;
 
@@ -230,10 +231,6 @@ section.docs-cards {
       margin-top: 15px;
     }
   }
-}
-
-header {
-  background-color: black;
 }
 
 .docs-container {
@@ -496,6 +493,7 @@ a.download-btn {
 footer.footer {
   padding: 1%;
   background-color: black;
+  z-index: 999;
 
   p {
     color: $brand-primary;
