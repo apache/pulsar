@@ -46,12 +46,15 @@ script:
     - mvn license:check test && sudo bash -x $TRAVIS_BUILD_DIR/pulsar-client-cpp/travis-build.sh $HOME/pulsar-dep $TRAVIS_BUILD_DIR compile
 
 deploy:
-  -
-    provider: script
-    skip_cleanup: true
-    script: mvn deploy -DskipTests --settings .travis/settings.xml
-    on:
-      tags: false
+  # Disabled the deployment of snapshots jars to Maven central for now
+  # until we figure out a way to deploy them through the proper Apache
+  # route.
+  # -
+  #   provider: script
+  #   skip_cleanup: true
+  #   script: mvn deploy -DskipTests --settings .travis/settings.xml
+  #   on:
+  #     tags: false
   -
     provider: script
     skip_cleanup: true
