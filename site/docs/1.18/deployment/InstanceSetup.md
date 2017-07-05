@@ -5,8 +5,6 @@ tags: [admin, instance]
 
 A Pulsar *instance* is a Pulsar installation consisting of multiple {% popover clusters %} that are potentially distributed across data centers or geographical regions.
 
-Deploying a full Pulsar instance involves setting up two [ZooKeeper](#deploying-zookeeper) quorums
-
 {% include admonition.html type="info" title='Running Pulsar locally?' content="
 This guide shows you how to deploy Pulsar in production. If you're looking to run a standalone Pulsar cluster for development purposes on a single machine, see the [Setting up a local cluster](../../getting-started/LocalCluster) guide." %}
 
@@ -18,9 +16,9 @@ This guide shows you how to deploy Pulsar in production. If you're looking to ru
 
 ## Cluster metadata initialization
 
-When setting up a new cluster, there is some metadata that needs to be initialized
-for the first time. The following command will prepare both the BookKeeper
-as well as the Pulsar metadata.
+Once you've set up local and global ZooKeeper for your instance, there is some metadata that needs to be written to ZooKeeper for each cluster in your instance. It only needs to be written once.
+
+You can initialize this metadata using the [`initialize-cluster-metadata`](../../reference/CliTools#pulsar-initialize-cluster-metadata) command of the [`pulsar`](../../reference/CliTools#pulsar) CLI tool. Here's an example:
 
 ```shell
 $ bin/pulsar initialize-cluster-metadata \
@@ -33,67 +31,93 @@ $ bin/pulsar initialize-cluster-metadata \
   --broker-service-url-tls pulsar+ssl://pulsar.us-west.example.com:6651/
 ```
 
+As you can see from the example above, the following needs to be specified:
+
+* The name of the cluster
+* The local ZooKeeper connection string for the cluster
+* The global ZooKeeper connection string for the entire instance
+* The web service URL for the cluster
+* A broker service URL enabling interaction with the {% popover brokers %} in the cluster
+
+If you're using [TLS](../../admin/Authz#tls-client-auth), you'll also need to specify a TLS web service URL for the cluster as well as a TLS broker service URL for the brokers in the cluster.
+
+Make sure to run `initialize-cluster-metadata` for each cluster in your instance.
+
 ## Deploying BookKeeper
 
 {% include explanations/deploying-bk.md %}
 
-#### Broker
+## Deploying brokers
 
-Pulsar brokers do not need any special hardware consideration since they don't
-use the local disk. Fast CPUs and 10Gbps NIC are recommended since the software
-can take full advantage of that.
+Once you've set up ZooKeeper, initialized cluster metadata, and spun up BookKeeper {% popover bookies %}, you can deploy {% popover brokers %}.
 
-Minimal configuration changes in `conf/broker.conf` will include:
+### Broker configuration
+
+Brokers can be configured using the [`conf/broker.conf`](../../reference/Configuration#broker) configuration file.
+
+The most important element of broker configuration is ensuring that each broker is aware of its local ZooKeeper quorum as well as the global ZooKeeper quorum. Make sure that you set the [`zookeeperServers`](../../reference/Configuration#broker-zookeeperServers) parameter to reflect the local quorum and the [`globalZookeeperServers`](../../reference/Configuration#broker-globalZookeeperServers) parameter to reflect the global quorum (although you'll need to specify only those global ZooKeeper servers located in the same cluster).
+
+You also need to specify the name of the {% popover cluster %} to which the broker belongs using the [`clusterName`](../../reference/Configuration#broker-clusterName) parameter.
+
+Here's an example configuration:
 
 ```properties
-# Local ZK servers
+# Local ZooKeeper servers
 zookeeperServers=zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181
 
-# Global Zookeeper quorum connection string. Here we just need to specify the
-# servers located in the same cluster
+# Global Zookeeper quorum connection string.
 globalZookeeperServers=zk1.us-west.example.com:2184,zk2.us-west.example.com:2184,zk3.us-west.example.com:2184
 
 clusterName=us-west
 ```
 
-##### Start broker service
+### Broker hardware
+
+Pulsar brokers do not require any special hardware since they don't use the local disk. Fast CPUs and 10Gbps [NIC](https://en.wikipedia.org/wiki/Network_interface_controller) are recommended since the software can take full advantage of that.
+
+### Starting the broker service
+
+You can start a broker in the background using [nohup](https://en.wikipedia.org/wiki/Nohup) with the [`pulsar-daemon`](../../reference/CliTools#pulsar-daemon) CLI tool:
 
 ```shell
 $ bin/pulsar-daemon start broker
+```
+
+You can also start brokers in the foreground using [`pulsar broker`](../../reference/CliTools#pulsar-broker):
+
+```shell
+$ bin/pulsar broker
 ```
 
 ## Service discovery
 
 {% include explanations/service-discovery-setup.md %}
 
-#### Admin client and verification
+## Admin client and verification
 
-At this point the cluster should be ready to use. We can now configure a client
-machine that can serve as the administrative client.
+At this point your Pulsar instance should be ready to use. You can now configure client machines that can serve as [administrative clients](../../admin/AdminInterface) for each cluster. You can use the [`conf/client.conf`](../../reference/Configuration#client) configuration file to configure admin clients.
 
-Edit `conf/client.conf` to point the client to the correct service URL:
+The most important thing is that you point the [`serviceUrl`](../../reference/Configuration#client-serviceUrl) parameter to the correct service URL for the cluster:
 
 ```properties
 serviceUrl=http://pulsar.us-west.example.com:8080/
 ```
 
-##### Provisioning a new tenant
+## Provisioning a new tenant
 
-To allow a new tenant to use the system, we need to create a new property.
-Typically this will be done by the Pulsar cluster administrator or by some
-automated tool:
+Once you've set up an administrative client, 
+
+To allow a new tenant to use the system, we need to create a new {% popover property %}. You can create a new property using the [`pulsar-admin`](../../reference/CliTools#pulsar-admin-properties-create) CLI tool:
 
 ```shell
-$ bin/pulsar-admin properties create test \
+$ bin/pulsar-admin properties create test-prop \
   --allowed-clusters us-west \
   --admin-roles test-admin-role
 ```
 
-This will allow users who identify with role `test-admin-role` to administer
-the configuration for the property `test` which will only be allowed to use the
-cluster `us-west`.
+This will allow users who identify with role `test-admin-role` to administer the configuration for the property `test` which will only be allowed to use the cluster `us-west`. From now on, this tenant will be able to self-manage its resources.
 
-The tenant will be able from now on to self manage its resources.
+Once a tenant has been created, you will need to create {% popover namespaces %} for topics within that property.
 
 The first step is to create a namespace. A namespace is an administrative unit
 that can contain many topic. Common practice is to create a namespace for each

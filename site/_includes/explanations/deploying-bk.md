@@ -1,4 +1,10 @@
+{% popover BookKeeper %} provides persistent message storage for Pulsar.
 
+Each Pulsar {% popover cluster %} needs to have its own cluster of {% popover bookies %}. The BookKeeper cluster shares a local ZooKeeper quorum with the Pulsar cluster.
+
+### Configuring bookies
+
+BookKeeper bookies can be configured using the [`conf/bookkeeper.conf`](../../reference/Configuration#bookkeeper) configuration file. The most important aspect of configuring each bookie is ensuring that the [`zkServers`](../../reference/Configuration#bookkeeper-zkServers) parameter is set to the connection string for the Pulsar cluster's local ZooKeeper.
 
 ### Starting up bookies
 
@@ -10,7 +16,7 @@ To start up a bookie in the foreground, use the [`bookeeper`](../../reference/Cl
 $ bin/pulsar-daemon start bookie
 ```
 
-You can verify that the bookie is working properly:
+You can verify that the bookie is working properly using the `bookiesanity` command for the [BookKeeper shell](../../reference/CliTools#bookkeeper-shell):
 
 ```shell
 $ bin/bookkeeper shell bookiesanity

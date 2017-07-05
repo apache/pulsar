@@ -44,7 +44,7 @@ If you're deploying a [single-cluster](#single-cluster-pulsar-instance) instance
 
 {% include message.html id="global_cluster" %}
 
-#### Single-cluster pulsar instance
+#### Single-cluster Pulsar instance
 
 If your Pulsar {% popover instance %} will consist of just one cluster, then you can deploy {% popover global ZooKeeper %} on the same machines as the local ZooKeeper quorum but running on different TCP ports.
 

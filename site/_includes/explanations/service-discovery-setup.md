@@ -3,7 +3,7 @@
 You can also use your own service discovery system if you'd like. If you use your own system, there is just one requirement: when a client performs an HTTP request to an endpoint for a Pulsar {% popover cluster %}, such as `http://pulsar.us-west.example.com:8080`, the client needs to be redirected to *some* active broker in the desired cluster, whether via DNS, an HTTP or IP redirect, or some other means.
 
 {% include admonition.html type="success" title="Service discovery already provided by many scheduling systems" content="
-If you're deploying Pulsar on [Kubernetes](../../deployment/Kubernetes)
+Many large-scale deployment systems, such as [Kubernetes](../../deployment/Kubernetes), have service discovery systems built in. If you're running Pulsar on such a system, you many not need to provide your own service discovery mechanism.
 " %}
 
 ### Service discovery setup

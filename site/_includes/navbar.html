@@ -3,15 +3,28 @@
     <span class="navbar-toggler-icon"></span>
   </button>
   <a class="navbar-brand" href="{{ site.baseurl }}">
-    <img src="{{ site.baseurl }}img/pulsar-logo.png" alt="Pulsar logo">
+    <img class="main-logo" src="{{ site.baseurl }}img/pulsar-logo.png" alt="Pulsar logo">
   </a>
-  <div class="collapse navbar-collapse" id="navbarNavDropdown">
+  <div class="collapse navbar-collapse justify-content-end" id="navbarNavDropdown">
     <ul class="navbar-nav">
       <li class="nav-item">
-        <a class="nav-link" href="#">Features</a>
+        <a class="nav-link" href="{{ site.baseurl }}ja"><img class="japan-flag" src="{{ site.baseurl }}img/japan-flag.svg"></a>
       </li>
       <li class="nav-item">
-        <a class="nav-link" href="#">Pricing</a>
+        <a class="nav-link" href="{{ site.baseurl }}docs/{{ site.current_version }}">Docs</a>
+      </li>
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="versionsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Versions
+        </a>
+        <div class="dropdown-menu" aria-labelledby="versionsDropdown">
+          {% for version in site.versions %}
+          <a class="dropdown-item" href="{{ site.baseurl }}docs/{{ version }}">
+            {{ version }}
+            {% if version == site.current_version %}<span class="badge badge-primary">LATEST</span>{% endif %}
+          </a>
+          {% endfor %}
+        </div>
       </li>
       <li class="nav-item dropdown">
         <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
@@ -30,16 +43,22 @@
         </div>
       </li>
       <li class="nav-item dropdown">
-        <a class="nav-link dropdown-toggle" href="#" id="versionsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-          Versions
+        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          API docs
         </a>
-        <div class="dropdown-menu" aria-labelledby="versionsDropdown">
-          {% for version in site.versions %}
-          <a class="dropdown-item" href="{{ site.baseurl }}docs/{{ version }}">
-            {{ version }}
-            {% if version == site.current_version %}<span class="badge badge-primary">LATEST</span>{% endif %}
+        <div class="dropdown-menu" aria-labelledby="clientLibsDropdown">
+          <a class="dropdown-item" href="/api/client">
+            Java client
           </a>
-          {% endfor %}
+          <a class="dropdown-item" href="/api/admin">
+            Java admin
+          </a>
+          <a class="dropdown-item" href="/api/python">
+            Python
+          </a>
+          <a class="dropdown-item" href="/api/cpp">
+            C++
+          </a>
         </div>
       </li>
     </ul>

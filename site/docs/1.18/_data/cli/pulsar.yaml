@@ -4,7 +4,7 @@ example: |
     --conf /path/to/bookkeeper.conf
 commands:
 - name: bookie
-  description: Starts up a bookie server
+  description: Starts up a bookie server in the foreground.
   example: |
     pulsar bookie \
       -readonly \
@@ -24,10 +24,13 @@ commands:
     description: Start auto-recovery service bookie server
     default: 'false'
 - name: broker
-  description: Starts up a Pulsar broker
+  description: Starts up a Pulsar broker in the foreground.
 - name: discovery
+  description: Starts up Pulsar's service discovery process in the foreground.
 - name: global-zookeeper
+  description: Starts up a global ZooKeeper quorum node in the foreground.
 - name: initialize-cluster-metadata
+  description: Initializes the metadata for a Pulsar cluster.
 - name: standalone
 - name: websocket
 - name: zookeeper

@@ -56,7 +56,7 @@ content="You may have noticed that we did not explicitly create the `my-topic` t
 
 ## Using Pulsar clients locally
 
-Pulsar currently offers client libraries for [Java](../../applications/JavaClient) and [C++](../../applications/CppClient). If you're running a local {% popover standalone %} cluster, you can use one of these root URLs for interacting with your cluster:
+Pulsar currently offers client libraries for [Java](../../applications/JavaClient), [Python](../../applications/PythonClient), and [C++](../../applications/CppClient). If you're running a local {% popover standalone %} cluster, you can use one of these root URLs for interacting with your cluster:
 
 * `http://localhost:8080`
 * `pulsar://localhost:6650`
@@ -65,7 +65,7 @@ Here's an example producer for a Pulsar {% popover topic %} using the Java clien
 
 ```java
 String localClusterUrl = "pulsar://localhost:6650";
-String namespace = "sample/standalone/ns1"; // Created automatically
+String namespace = "sample/standalone/ns1"; // This namespace is created automatically
 String topic = String.format("persistent://%s/my-topic", namespace);
 
 PulsarClient client = PulsarClient.create(localClusterUrl);

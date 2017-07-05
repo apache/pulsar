@@ -6,7 +6,7 @@ Pulsar is currently available for **MacOS** and **Linux**. In order to use Pulsa
 
 ## Installing Pulsar
 
-To get started running Pulsar locally, download a binary tarball release in one of the following ways:
+To get started running Pulsar, download a binary tarball release in one of the following ways:
 
 * by clicking here:
 
