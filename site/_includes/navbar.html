@@ -18,10 +18,10 @@
           Versions
         </a>
         <div class="dropdown-menu" aria-labelledby="versionsDropdown">
-          {% for version in site.versions %}
+          {% for version in site.versions | sort %}
           <a class="dropdown-item" href="{{ site.baseurl }}docs/{{ version }}">
             {{ version }}
-            {% if version == site.current_version %}<span class="badge badge-primary">LATEST</span>{% endif %}
+            {% if forloop.first %}<span class="badge badge-primary">LATEST</span>{% endif %}
           </a>
           {% endfor %}
         </div>
