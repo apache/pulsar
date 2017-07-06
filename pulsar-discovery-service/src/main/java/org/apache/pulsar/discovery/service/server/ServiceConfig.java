@@ -56,6 +56,11 @@ public class ServiceConfig implements PulsarConfiguration {
     // do all admin operations and publish/consume from all topics
     private Set<String> superUserRoles = Sets.newTreeSet();
 
+    // Allow wildcard matching in authorization
+    // (wildcard matching only applicable if wildcard-char:
+    // * presents at first or last position eg: *.pulsar.service, pulsar.service.*)
+    private boolean authorizationAllowWildcardsMatching = false;
+
     // Enable authentication
     private boolean authenticationEnabled = false;
     // Authentication provider name list, which is a list of class names
@@ -211,6 +216,14 @@ public class ServiceConfig implements PulsarConfiguration {
 
     public void setSuperUserRoles(Set<String> superUserRoles) {
         this.superUserRoles = superUserRoles;
+    }
+
+    public boolean getAuthorizationAllowWildcardsMatching() {
+        return authorizationAllowWildcardsMatching;
+    }
+
+    public void setAuthorizationAllowWildcardsMatching(boolean authorizationAllowWildcardsMatching) {
+        this.authorizationAllowWildcardsMatching = authorizationAllowWildcardsMatching;
     }
 
     public Properties getProperties() {
