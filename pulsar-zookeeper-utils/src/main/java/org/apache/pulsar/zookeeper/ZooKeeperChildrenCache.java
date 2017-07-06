@@ -93,7 +93,7 @@ public class ZooKeeperChildrenCache implements Watcher, CacheUpdater<Set<String>
 
     @Override
     public void process(WatchedEvent event) {
-        LOG.debug("[{}] Received ZooKeeper watch event: {}", cache.zkSession.get(), event);
+        LOG.info("[{}] Received ZooKeeper watch event: {}", cache.zkSession.get(), event);
         if (!isShutdown.get()) {
             cache.process(event, this);
         }
