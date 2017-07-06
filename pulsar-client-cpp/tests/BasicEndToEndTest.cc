@@ -972,3 +972,54 @@ TEST(BasicEndToEndTest, testMessageListenerPause)
     // Number of messages consumed
     ASSERT_EQ(i, numOfMessages);
 }
+
+TEST(BasicEndToEndTest, testProduceMessageSize) {
+    ClientConfiguration config;
+    Client client(lookupUrl);
+    std::string topicName = "persistent://prop/unit/ns1/maxMsgSize";
+    std::string subName = "my-sub-name";
+    Producer producer1;
+    Producer producer2;
+
+    Promise<Result, Producer> producerPromise;
+    client.createProducerAsync(topicName, WaitForCallbackValue<Producer>(producerPromise));
+    Future<Result, Producer> producerFuture = producerPromise.getFuture();
+    Result result = producerFuture.get(producer1);
+    ASSERT_EQ(ResultOk, result);
+
+    Promise<Result, Producer> producerPromise2;
+    ProducerConfiguration conf;
+    conf.setCompressionType(CompressionLZ4);
+    client.createProducerAsync(topicName, conf, WaitForCallbackValue<Producer>(producerPromise2));
+    producerFuture = producerPromise2.getFuture();
+    result = producerFuture.get(producer2);
+    ASSERT_EQ(ResultOk, result);
+
+    int size = Commands::MaxMessageSize + 1;
+    char* content = new char[size];
+    Message msg = MessageBuilder().setAllocatedContent(content, size).build();
+    result = producer1.send(msg);
+    ASSERT_EQ(ResultMessageTooBig, result);
+
+    Consumer consumer;
+    Promise<Result, Consumer> consumerPromise;
+    client.subscribeAsync(topicName, subName, WaitForCallbackValue<Consumer>(consumerPromise));
+    Future<Result, Consumer> consumerFuture = consumerPromise.getFuture();
+    result = consumerFuture.get(consumer);
+    ASSERT_EQ(ResultOk, result);
+
+    msg = MessageBuilder().setAllocatedContent(content, size).build();
+    result = producer2.send(msg);
+    ASSERT_EQ(ResultOk, result);
+
+    Message receivedMsg;
+    consumer.receive(receivedMsg);
+    ASSERT_EQ(size, receivedMsg.getDataAsString().length());
+
+    producer1.closeAsync(0);
+    producer2.closeAsync(0);
+    consumer.close();
+    client.close();
+
+    delete[] content;
+}
