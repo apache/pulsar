@@ -7,27 +7,32 @@ layout: default
   <div class="container">
     <div class="jumbotron-fluid text-center">
       <h1 class="display-1">{{ site.title }}</h1>
-      <p class="lead"><a href="">Pulsar</a> is an open-source distributed pub-sub messaging system originally created by <a href="https://yahoo.github.io">Yahoo!</a> and now part of the <a href="https://apache.org">Apache Software Foundation</a>.</p>
+      <p class="lead"><a href="">Pulsar</a> is an open-source distributed pub-sub messaging system originally<br /> created by <a href="https://yahoo.github.io">Yahoo!</a> and now part of the <a href="https://apache.org">Apache Software Foundation</a>.</p>
 
       <p class="button-group lead">
         <a class="btn btn-pulsar btn-lg" href="{{ site.baseurl }}docs/{{ site.versions.first }}" role="button">Read the docs</a>
         <a class="btn btn-github btn-lg" href="https://github.com/yahoo/pulsar" role="button">GitHub <i class="fa fa-github fa-lg"></i></a>
         <a class="btn btn-stack-overflow btn-lg" href="https://stackoverflow.com/search?q=yahoo+pulsar" role="button">StackOverflow <i class="fa fa-stack-overflow fa-lg"></i></a>
       </p>
+    </div>
+  </div>
+</div>
 
-      <div class="row main-page-features">
-        {% for feature in site.data.features %}
-        <div class="col-sm-4">
-          <div class="card">
-            <div class="card-block">
-              <h3 class="card-title">{{ feature.title }}</h3>
-              <p>{{ feature.content }}</p>
-              <a href="{{ site.baseurl }}docs/{{ site.versions.first }}/{{ feature.endpoint }}" class="btn btn-primary">Read more</a>
-            </div>
+<div class="main-page-features">
+  <div class="container">
+    <h1 class="text-center">Key features</h2>
+    <div class="row">
+      {% for feature in site.data.features %}
+      <div class="col-sm-3">
+        <div class="card">
+          <div class="card-block">
+            <h3 class="card-title">{{ feature.title }}</h3>
+            <p>{{ feature.content | markdownify }}</p>
+            <a href="{{ site.baseurl }}docs/{{ site.versions.first }}/{{ feature.endpoint }}" class="btn btn-primary">Read more</a>
           </div>
         </div>
-        {% endfor %}
       </div>
+      {% endfor %}
     </div>
   </div>
 </div>

@@ -9,11 +9,12 @@ tags:
 
 Pulsar's key features include:
 
-* Native support for multiple {% popover clusters %} in a Pulsar {% popover instance %}, with seamless [geo-replication](../../admin/GeoReplication) of messages across {% popover clusters %}
+* Native support for multiple {% popover clusters %} in a Pulsar {% popover instance %}, with seamless [geo-replication](../../admin/GeoReplication) of messages across clusters
 * Very low publish and end-to-end latency
-* A simple [client API](#client-api) with bindings for both [Java](../../applications/JavaClient) and [C++](../../applications/CppClient)
-* Multiple [subscription modes](#subscription-modes) for {% popover topics %}: exclusive, shared, and failover
-* Guaranteed message delivery with persistent message storage provided by [Apache BookKeeper](http://bookkeeper.apache.org/)
+* Seamless scalability out to over a million topics
+* A simple [client API](#client-api) with bindings for [Java](../../applications/JavaClient), [Python](../../applications/PythonClient), and [C++](../../applications/CppClient)
+* Multiple [subscription modes](#subscription-modes) for {% popover topics %} ([exclusive](#exclusive), [shared](#shared), and [failover](#failover))
+* Guaranteed message delivery with [persistent message storage](#persistent-storage) provided by [Apache BookKeeper](http://bookkeeper.apache.org/)
 
 ## Producers, consumers, topics, and subscriptions
 
@@ -118,10 +119,6 @@ In the diagram above, Consumer-C-1 is the master consumer while Consumer-C-2 wou
 
 {% include explanations/partitioned-topics.md %}
 
-### Properties and namespaces
-
-{% include explanations/properties-namespaces.md %}
-
 ## Architecture overview
 
 At the highest level, a Pulsar {% popover instance %} is composed of one or more Pulsar {% popover clusters %}. Clusters within an instance can [replicate](#replicate) data amongst themselves.
@@ -157,9 +154,9 @@ A Pulsar {% popover instance %} consists of one or more Pulsar *clusters*. Clust
 
 * One or more Pulsar [brokers](#broker)
 * A {% popover ZooKeeper %} quorum used for cluster-level configuration and coordination
-* One or more {% popover bookies %} for [persistent storage](#persistent-storage) of messages
+* An ensemble of {% popover bookies %} used for [persistent storage](#persistent-storage) of messages
 
-You can set up clusters within an
+Clusters can replicate amongst themselves using [geo-replication](#geo-replication).
 
 {% include admonition.html type="info" content="For a guide to managing Pulsar clusters, see the [Clusters and brokers](../../admin/ClustersBrokers#managing-clusters) guide." %}
 
@@ -172,23 +169,28 @@ Pulsar uses [Apache Zookeeper](https://zookeeper.apache.org/) for metadata stora
 
 ## Persistent storage
 
+![Brokers and bookies]({{ site.baseurl }}img/broker-bookie.png)
+
 Pulsar provides guaranteed message delivery for applications. If a message successfully reaches a Pulsar {% popover broker %}, it will be delivered to its intended target.
 
 This guarantee requires that non-{% popover acknowledged %} messages are stored in a durable manner until they can be delivered to and acknowledged by {% popover consumers %}. This mode of messaging is commonly called *persistent messaging*. In Pulsar, N copies of all messages are stored and synced on disk, for example 4 copies across two servers with mirrored [RAID](https://en.wikipedia.org/wiki/RAID) volumes on each server.
 
 Pulsar uses a system called [Apache BookKeeper](http://bookkeeper.apache.org/) for persistent message storage. BookKeeper is a distributed [write-ahead log](https://en.wikipedia.org/wiki/Write-ahead_logging) (WAL) system that provides a number of crucial advantages for Pulsar:
 
-* It enables Pulsar to utilize many independent logs, called [ledgers](#ledgers).
+* It enables Pulsar to utilize many independent logs, called [ledgers](#ledgers). Multiple ledgers can be created for {% popover topics %} over time.
+* It offers very efficient storage for sequential data that handles entry replication.
 * It guarantees read consistency of ledgers in the presence of various system failures.
-* It's a very efficient sequential store that handles entry replication.
+* It offers even distribution of I/O across bookies.
 * It's horizontally scalable in both capacity and throughput. Capacity can be immediately increased by adding more {% popover bookies %} to a cluster.
 * {% popover Bookies %} are designed to handle thousands of ledgers with concurrent reads and writes. By using multiple disk devices---one for journal and another for general storage--bookies are able to isolate the effects of read operations from the latency of ongoing write operations.
 
-In addition to message data, *cursors* are also persistently stored in BookKeeper. Cursors are {% popover subscription %} positions for {% popover consumers %}.
+In addition to message data, *cursors* are also persistently stored in BookKeeper. Cursors are {% popover subscription %} positions for {% popover consumers %}. BookKeeper enables Pulsar to store consumer position in a scalable fashion.
 
-At the moment, Pulsar only supports persistent storage. This accounts for the `persistent` in all {% popover topic %} names. Here's an example:
+At the moment, Pulsar only supports persistent message storage. This accounts for the `persistent` in all {% popover topic %} names. Here's an example:
 
 {% include topic.html p="my-property" c="global" n="my-namespace" t="my-topic" %}
+
+In the future, Pulsar will support ephemeral message storage.
 
 ### Ledgers
 
@@ -222,6 +224,20 @@ A future version of BookKeeper will support *non-persistent messaging* and thus 
 ## Replication
 
 Pulsar enables messages to be produced and consumed in different geo-locations. For instance, your application may be publishing data in one region or market and you would like to process it for consumption in other regions or markets. [Geo-replication](../../admin/GeoReplication) in Pulsar enables you to do that.
+
+## Multi-tenancy
+
+Pulsar was created from the ground up as a {% popover multi-tenant %} system. To support multi-tenancy, Pulsar has a concept of {% popover properties %}. Properties can be spread across {% popover clusters %} and can each have their own [authentication and authorization](../../admin/Authz) scheme applied to them. They are also the administrative unit at which [storage quotas](TODO), [message TTL](TODO), and [isolation policies](TODO) can be managed.
+
+The multi-tenant nature of Pulsar is reflected mostly visibly in topic URLs, which have this structure:
+
+{% include topic.html p="property" c="cluster" n="namespace" t="topic" %}
+
+As you can see, the property is the most basic unit of categorization for topics (and even more fundamental than the {% popover cluster %}).
+
+### Properties and namespaces
+
+{% include explanations/properties-namespaces.md %}
 
 ## Authentication and Authorization
 

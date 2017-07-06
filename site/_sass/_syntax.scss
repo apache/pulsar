@@ -11,6 +11,12 @@ p code {
   border: $sx-border;
   overflow: $sx-overflow;
 
+  .language-shell .highlight {
+    .nb {
+      color: $sx-light-gray;
+    }
+  }
+
   .w {
     color: $sx-light-gray;
     background-color: $sx-bg-color;

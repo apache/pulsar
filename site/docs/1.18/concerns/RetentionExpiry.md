@@ -7,18 +7,14 @@ tags: [admin, expiry, retention, backlog]
 By default Pulsar {% popover brokers %} do two things:
 
 * They immediately delete all messages that have been {% popover acknowledged %} by a {% popover consumer %}.
-* They persistently store all unacknowledged messages in a backlog.
+* They persistently store all unacknowledged messages in a [backlog](#backlog-quotas).
 
-Pulsar's [admin interface](../../admin/AdminInterface) enables you to do the following at the {% popover namespace %} level:
+Pulsar also enables you to:
 
-* Retain acknowledged messages by setting [retention policies](#retention-policies) that determine size and time limits for retention
+* persistently store acknowledged messages by setting [retention policies](#retention-policies)
+* delete messages that have not been acknowledged within a specified timeframe using [time to live](#time-to-live-ttl) (TTL)
 
-You can also retain acknowledged messages
-
-* Message [retention](#retention-policies) enables you to store messages even after they've been acknowledged (acked).
-* [Time to live](#time-to-live-ttl) enables you to delete all messages for topics in a namespace if they haven't been acknowledged within a specified time frame.
-
-All of these policies are managed at the {% popover namespace %} level (and thus within a specific {% popover property %} and on a specific {% popover cluster %}).
+Pulsar's [admin interface](../../admin/AdminInterface) enables you to manage both retention policies and TTL at the {% popover namespace %} level (and thus within a specific {% popover property %} and on a specific {% popover cluster %}).
 
 {% include admonition.html type="warning" title="Don't use retention and TTL at the same time" content="
 Message retention policies and TTL fulfill similar purposes and should not be used in conjunction. For any given namespace, use one or the other.
@@ -26,17 +22,15 @@ Message retention policies and TTL fulfill similar purposes and should not be us
 
 ## Retention policies
 
-By default, when a Pulsar message arrives at a {% popover broker %} it will be stored until it has been {% popover acknowledged %} by a {% popover consumer %}, at which point it will be deleted. You can override this behavior and retain even messages that have already been acknowledged by setting a *retention policy* on all the topics in a given {% popover consumer %}. When you set a retention policy you can set either a *size limit* or a *time limit*.
+By default, when a Pulsar message arrives at a {% popover broker %} it will be stored until it has been {% popover acknowledged %} by a {% popover consumer %}, at which point it will be deleted. You can override this behavior and retain even messages that have already been acknowledged by setting a *retention policy* on all the topics in a given {% popover namespace %}. When you set a retention policy you can set either a *size limit* or a *time limit*.
 
 When you set a size limit of, say, 10 gigabytes, then messages in all topics in the namespace, *even acknowledged messages*, will be retained until the size limit for the topic is reached; if you set a time limit of, say, 1 day, then messages for all topics in the namespace will be retained for 24 hours.
-
-{% include admonition.html type="warning" title="Set a size limit *or* a time limit" content="You can set either a size limit *or* a time limit for a given namespace. If you try to set both, the broker will return an error." %}
 
 ### Defaults
 
 There are two configuration parameters that you can use to set {% popover instance %}-wide defaults for message retention: [`defaultRetentionTimeInMinutes`](../../reference/Configuration#broker-defaultRetentionTimeInMinutes) and [`defaultRetentionSizeInMB`](../../reference/Configuration#broker-defaultRetentionSizeInMB).
 
-Both of these parameters are in the [`broker.conf`](../../reference/Configuration#broker) configuration file. If you change those values when starting up the brokers in your
+Both of these parameters are in the [`broker.conf`](../../reference/Configuration#broker) configuration file.
 
 ### Set retention policy
 
@@ -60,6 +54,13 @@ To set a time limit of 3 hours for the `my-prop/my-cluster/my-ns` namespace:
 ```shell
 $ pulsar-admin namespaces set-retention my-prop/my-cluster/my-ns \
   --time 3h
+```
+
+To set a size *and* time limit:
+
+```shell
+$ pulsar-admin namespaces set-retention my-prop/my-cluster/my-ns \
+  --time 3h \
 ```
 
 #### REST API
@@ -111,7 +112,7 @@ admin.namespaces().getRetention(namespace);
 
 *Backlogs* are sets of unacknowledged messages for a topic that have been stored by {% popover bookies %}. Pulsar stores all unacknowledged messages in backlogs until they are processed and acknowledged.
 
-You can control the allowable size of backlogs---at the {% popover namespace %} level---using *backlog quotas*. Setting a backlog quota involves setting:
+You can control the allowable size of backlogs, at the {% popover namespace %} level, using *backlog quotas*. Setting a backlog quota involves setting:
 
 * an allowable *size threshold* for each topic in the namespace
 * a *retention policy* that determines which action the {% popover broker %} takes if the threshold is exceeded.
@@ -125,7 +126,7 @@ Policy | Action
 `consumer_backlog_eviction` | The broker will begin discarding backlog messages
 
 {% include admonition.html type="warning" title="Beware the distinction between retention policy types" content='
-As you may have noticed, there are two definitions of the term "retention policy" in Pulsar, one that applies to [BookKeeper](#persistence-policies) and one that
+As you may have noticed, there are two definitions of the term "retention policy" in Pulsar, one that applies to persistent storage of already-acknowledged messages and one that applies to backlogs.
 ' %}
 
 Backlog quotas are handled at the {% popover namespace %} level. They can be managed via:
@@ -230,6 +231,8 @@ $ pulsar-admin namespaces clear-backlog my-prop/my-cluster/my-ns
 By default, you will be prompted to ensure that you really want to clear the backlog for the namespace. You can override the prompt using the `-f`/`--force` flag.
 
 ## Time to live (TTL)
+
+By default, Pulsar stores all {% popover unacknowledged %} messages forever. This can lead to heavy disk space usage in cases where a lot of messages are going unacknowledged. If disk space is a concern, you can set a time to live (TTL) that determines how long unacknowledged messages will 
 
 ### Set the TTL for a namespace
 

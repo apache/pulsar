@@ -1,9 +1,12 @@
 - title: Geo-replication
-  content: something or other
+  content: Replicate persistently stored messages across Pulsar clusters.
   endpoint: admin/GeoReplication
 - title: Multi-tenancy
-  content: Something or other
+  content: Pulsar was built from the ground up as a multi-tenant system.
   endpoint: getting-started/ConceptsAndArchitecture#multi-tenancy
-- title: BookKeeper
-  content: Persistent message storage
+- title: Persistent storage
+  content: Persistent message storage in Pulsar is provided by [Apache BookKeeper](http://bookkeeper.apache.org/).
   endpoint: getting-started/ConceptsAndArchitecture#persistent-storage
+- title: Subscription modes
+  content: TODO
+  endpoint: getting-started/ConceptsAndArchitecture#subscription-modes

@@ -1,19 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
 
-    Copyright 2016 Yahoo Inc.
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
 
-    Licensed under the Apache License, Version 2.0 (the "License");
-    you may not use this file except in compliance with the License.
-    You may obtain a copy of the License at
+      http://www.apache.org/licenses/LICENSE-2.0
 
-        http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing, software
-    distributed under the License is distributed on an "AS IS" BASIS,
-    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-    See the License for the specific language governing permissions and
-    limitations under the License.
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
 
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -21,26 +24,26 @@
   <modelVersion>4.0.0</modelVersion>
   <packaging>pom</packaging>
 
-  <groupId>com.yahoo.pulsar</groupId>
+  <groupId>org.apache.pulsar</groupId>
   <artifactId>pulsar</artifactId>
 
-  <version>1.19-SNAPSHOT</version>
+  <version>1.19-incubating-SNAPSHOT</version>
 
   <name>Pulsar</name>
   <description>Pulsar is a distributed pub-sub messaging platform with a very
 flexible messaging model and an intuitive client API.</description>
-  <url>https://github.com/yahoo/pulsar</url>
+  <url>https://github.com/apache/incubator-pulsar</url>
 
   <organization>
-    <name>Yahoo Inc.</name>
-    <url>http://www.yahoo.com/</url>
+    <name>Apache Software Foundation</name>
+    <url>http://www.apache.org/</url>
   </organization>
-  <inceptionYear>2016</inceptionYear>
+  <inceptionYear>2017</inceptionYear>
 
   <developers>
     <developer>
-      <organization>Yahoo Inc.</organization>
-      <organizationUrl>https://www.yahoo.com/</organizationUrl>
+      <organization>Apache Pulsar developers</organization>
+      <organizationUrl>http://pulsar.incubator.apache.org/</organizationUrl>
     </developer>
   </developers>
 
@@ -53,14 +56,14 @@ flexible messaging model and an intuitive client API.</description>
   </licenses>
 
   <scm>
-    <url>https://github.com/yahoo/pulsar</url>
-    <connection>scm:git:https://github.com/yahoo/pulsar.git</connection>
-    <developerConnection>scm:git:ssh://git@github.com:yahoo/pulsar.git</developerConnection>
+    <url>https://github.com/apache/incubator-pulsar</url>
+    <connection>scm:git:https://github.com/apache/incubator-pulsar.git</connection>
+    <developerConnection>scm:git:ssh://git@github.com:apache/incubator-pulsar.git</developerConnection>
   </scm>
 
   <ciManagement>
     <system>Travis</system>
-    <url>https://travis-ci.org/yahoo/pulsar</url>
+    <url>https://travis-ci.org/apache/incubator-pulsar</url>
   </ciManagement>
 
   <prerequisites>
@@ -90,7 +93,7 @@ flexible messaging model and an intuitive client API.</description>
 
   <issueManagement>
     <system>Github</system>
-    <url>https://github.com/yahoo/pulsar/issues</url>
+    <url>https://github.com/apache/incubator-pulsar/issues</url>
   </issueManagement>
 
   <properties>
@@ -102,7 +105,7 @@ flexible messaging model and an intuitive client API.</description>
     <netty.version>4.0.46.Final</netty.version>
     <storm.version>0.9.5</storm.version>
     <jetty.version>9.3.11.v20160721</jetty.version>
-    <athenz.version>1.1.8</athenz.version>
+    <athenz.version>1.7.17</athenz.version>
     <prometheus.version>0.0.21</prometheus.version>
     <aspectj.version>1.8.9</aspectj.version>
   </properties>
@@ -196,7 +199,7 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>datasketches-metrics-provider</artifactId>
         <version>${bookkeeper.version}</version>
       </dependency>
-      
+
       <dependency>
         <groupId>org.apache.bookkeeper.stats</groupId>
         <artifactId>prometheus-metrics-provider</artifactId>
@@ -403,13 +406,13 @@ flexible messaging model and an intuitive client API.</description>
 
       <dependency>
         <groupId>com.yahoo.athenz</groupId>
-        <artifactId>zts_java_client</artifactId>
+        <artifactId>athenz-zts-java-client</artifactId>
         <version>${athenz.version}</version>
       </dependency>
 
       <dependency>
         <groupId>com.yahoo.athenz</groupId>
-        <artifactId>zpe_java_client</artifactId>
+        <artifactId>athenz-zpe-java-client</artifactId>
         <version>${athenz.version}</version>
       </dependency>
 
@@ -424,7 +427,7 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>simpleclient</artifactId>
         <version>${prometheus.version}</version>
       </dependency>
-      
+
       <dependency>
         <groupId>io.prometheus</groupId>
         <artifactId>simpleclient_hotspot</artifactId>
@@ -470,7 +473,7 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>aspectjrt</artifactId>
         <version>${aspectj.version}</version>
       </dependency>
-    
+
       <dependency>
         <groupId>org.aspectj</groupId>
         <artifactId>aspectjweaver</artifactId>
@@ -548,16 +551,17 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>**/*.txt</exclude>
             <exclude>**/*.md</exclude>
             <exclude>**/proto/*.java</exclude>
+            <exclude>bin/proto/*</exclude>
             <exclude>**/*.patch</exclude>
-            <exclude>src/test/resources/**</exclude>
-            <exclude>src/main/resources/**</exclude>
             <exclude>data/**</exclude>
             <exclude>logs/**</exclude>
             <exclude>**/*.versionsBackup</exclude>
             <exclude>**/circe/**</exclude>
             <exclude>pulsar-client-cpp/lib/checksum/int_types.h</exclude>
             <exclude>pulsar-client-cpp/lib/checksum/gf2.hpp</exclude>
-            <exclude>pulsar-client-cpp/lib/checksum/crc32c*</exclude>
+            <exclude>pulsar-client-cpp/lib/checksum/crc32c_sse42.cc</exclude>
+            <exclude>pulsar-client-cpp/lib/checksum/crc32c_sse42.h</exclude>
+            <exclude>pulsar-client-cpp/lib/checksum/crc32c_sw.cc</exclude>
             <exclude>pulsar-client-cpp/lib/lz4/lz4.*</exclude>
             <exclude>pulsar-client-cpp/.idea/*</exclude>
             <exclude>pulsar-client-cpp/lib/PulsarApi.pb.*</exclude>
@@ -569,12 +573,13 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>**/*.hgrm</exclude>
             <exclude>**/CMakeFiles/**</exclude>
             <exclude>dashboard/django/stats/migrations/*.py</exclude>
-            
+
           </excludes>
           <mapping>
             <proto>JAVADOC_STYLE</proto>
             <conf>SCRIPT_STYLE</conf>
             <ini>SCRIPT_STYLE</ini>
+            <yaml>SCRIPT_STYLE</yaml>
             <cc>JAVADOC_STYLE</cc>
           </mapping>
         </configuration>
@@ -601,6 +606,57 @@ flexible messaging model and an intuitive client API.</description>
             </configuration>
           </execution>
         </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.rat</groupId>
+        <artifactId>apache-rat-plugin</artifactId>
+        <version>0.12</version>
+        <configuration>
+          <excludes>
+            <exclude>target/**</exclude>
+            <exclude>data/**</exclude>
+            <exclude>logs/**</exclude>
+            <exclude>**/test-output/**</exclude>
+            <exclude>protobuf/LICENSE.protobuf.txt</exclude>
+            <exclude>**/*.patch</exclude>
+            <exclude>**/*.md</exclude>
+            <exclude>**/proto/*.java</exclude>
+            <exclude>pulsar-client-cpp/lib/PulsarApi.pb.*</exclude>
+            <exclude>pulsar-client-cpp/**/cmake_install.cmake</exclude>
+            <exclude>**/*.versionsBackup</exclude>
+            <exclude>**/.classpath</exclude>
+            <exclude>**/.project</exclude>
+            <exclude>**/.settings/*</exclude>
+            <exclude>**/dependency-reduced-pom.xml</exclude>
+
+            <exclude>pulsar-client-cpp/pulsar-cpp.cbp</exclude>
+            <exclude>pulsar-client-cpp/python/MANIFEST</exclude>
+            <exclude>pulsar-client-cpp/python/pulsar_client.egg-info/*</exclude>
+
+            <!-- Dashboard are exported from grafana -->
+            <exclude>docker/grafana/dashboards/*.json</exclude>
+
+            <!-- LZ4 code is under BSD 2-clause  -->
+            <exclude>pulsar-client-cpp/lib/lz4/lz4.*</exclude>
+
+            <exclude>**/META-INF/services/com.scurrilous.circe.HashProvider</exclude>
+
+            <exclude>pulsar-client-cpp/.idea/*</exclude>
+
+            <exclude>**/CMakeFiles/**</exclude>
+            <exclude>**/CMakeCache.txt</exclude>
+            <exclude>*/**/Makefile</exclude>
+            <exclude>dashboard/django/stats/migrations/*.py</exclude>
+            <exclude>dashboard/conf/uwsgi_params</exclude>
+            <exclude>docs/img/pulsar.svg</exclude>
+
+            <!-- Exclude certificates used for tests -->
+            <exclude>**/*.crt</exclude>
+            <exclude>**/*.key</exclude>
+            <exclude>**/*.csr</exclude>
+            <exclude>**/*.json</exclude>
+          </excludes>
+        </configuration>
       </plugin>
     </plugins>
 

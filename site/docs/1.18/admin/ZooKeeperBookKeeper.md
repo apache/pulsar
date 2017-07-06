@@ -15,15 +15,17 @@ ZooKeeper and BookKeeper are both open-source [Apache](https://www.apache.org/) 
 
 ### ZooKeeper configuration
 
-In Pulsar, ZooKeeper configuration is handled by two separate configuration files found in the `conf` directory of your Pulsar installation.
+In Pulsar, ZooKeeper configuration is handled by two separate configuration files found in the `conf` directory of your Pulsar installation: `conf/zookeeper.conf` for [local ZooKeeper](#local-zookeeper) and `conf/global-zookeeper.conf` for [global ZooKeeper](#global-zookeeper).
 
 #### Local ZooKeeper
 
-Configuration for local ZooKeeper is handled by the [`conf/zookeeper.conf`](../../reference/Configuration#zookeeper) file. The table below shows the available parameters
+Configuration for local ZooKeeper is handled by the [`conf/zookeeper.conf`](../../reference/Configuration#zookeeper) file. The table below shows the available parameters:
 
 {% include config.html id="zookeeper" %}
 
 #### Global ZooKeeper
+
+Configuration for global ZooKeeper is handled by the [`conf/global-zookeeper.conf`](../../reference/Configuration#global-zookeeper) file. The table below shows the available parameters:
 
 {% include config.html id="global-zookeeper" %}
 
@@ -63,16 +65,16 @@ Consult the official [BookKeeper docs](http://bookkeeper.apache.org) for more in
 
 ## BookKeeper persistence policies
 
-In Pulsar, you can set *persistence policies*, at the {% popover namespace %} level, that determine how persistent storage of messages is handled by {% popover BookKeeper %}. Policies determine four things:
+In Pulsar, you can set *persistence policies* at the {% popover namespace %} level. Persistence policies determine how persistent storage of messages is handled by {% popover BookKeeper %}. Policies determine four things:
 
-* The number of {% popover acks %} (guaranteed copies) to wait for for each entry.
+* The number of {% popover acks %} (guaranteed copies) to wait for for each ledger entry
 * The number of {% popover bookies %} to use for a topic
-* How many writes to make for each entry
-* The throttling rate of mark-delete operations
-
-By default, messages are not persistently stored, which means that default values for all of the above are 0.
+* How many writes to make for each ledger entry
+* The throttling rate for mark-delete operations
 
 ### Set persistence policies
+
+You can set persistence policies for BookKeeper at the {% popover namespace %} level.
 
 #### pulsar-admin
 
@@ -113,9 +115,13 @@ admin.namespaces().setPersistence(namespace, policies);
 
 ### List persistence policies
 
+You can see which persistence policy currently applies to a namespace.
+
 #### pulsar-admin
 
-Use the [`get-persistence`](../../reference/CliTools#pulsar-admin-namespaces-get-persistence) and specify the namespace.
+Use the [`get-persistence`](../../reference/CliTools#pulsar-admin-namespaces-get-persistence) subcommand and specify the namespace.
+
+##### Example
 
 ```shell
 $ pulsar-admin namespaces get-persistence my-prop/my-cluster/my-ns
@@ -132,3 +138,9 @@ $ pulsar-admin namespaces get-persistence my-prop/my-cluster/my-ns
 {% endpoint GET /admin/namespaces/:property/:cluster/:namespace/persistence %}
 
 [More info](../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/persistence)
+
+#### Java
+
+```java
+PersistencePolicies policies = admin.namespaces().getPersistence(namespace);
+```

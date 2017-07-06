@@ -4,7 +4,15 @@ title: Pulsar geo-replication
 
 *Geo-replication* is the replication of persistently stored message data across multiple {% popover clusters %} of a Pulsar {% popover instance %}.
 
+## How it works
+
+The diagram below illustrates the process of geo-replication across Pulsar clusters:
+
 ![Replication Diagram]({{ site.baseurl }}img/GeoReplication.png)
+
+In this diagram, whenever producers **P1**, **P2**, and **P3** publish messages to the topic **T1** on clusters **Cluster-A**, **Cluster-B**, and **Cluster-C**, respectively, those messages are instantly replicated across clusters. Once replicated, consumers **C1** and **C2** can consume those messages from their respective clusters.
+
+Without geo-replication, consumers **C1** and **C2** wouldn't be able to consume messages published by producer **P3**.
 
 ## Geo-replication and Pulsar properties
 

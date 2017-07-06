@@ -17,6 +17,9 @@ body.body {
 main.main {
   flex: 1; }
 
+.main-page-features {
+  margin-top: 5rem; }
+
 .modal-body ul {
   padding-left: 2.25rem; }
 

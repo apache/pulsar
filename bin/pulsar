@@ -1,18 +1,21 @@
 #!/usr/bin/env bash
 #
-# Copyright 2016 Yahoo Inc.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+# 
+#   http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 #
 
 BINDIR=$(dirname "$0")
@@ -186,7 +189,7 @@ OPTS="$OPTS -Dpulsar.log.dir=$PULSAR_LOG_DIR"
 cd "$PULSAR_HOME"
 if [ $COMMAND == "broker" ]; then
     PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"pulsar-broker.log"}
-    exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE com.yahoo.pulsar.PulsarBrokerStarter $PULSAR_BROKER_CONF $@
+    exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.PulsarBrokerStarter $PULSAR_BROKER_CONF $@
 elif [ $COMMAND == "bookie" ]; then
     PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"bookkeeper.log"}
     exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.bookkeeper.proto.BookieServer --conf $PULSAR_BOOKKEEPER_CONF $@
@@ -196,7 +199,7 @@ elif [ $COMMAND == "zookeeper" ]; then
     # Add instrumentation
     WEAVER_JAR=`find $PULSAR_HOME/lib -name 'aspectjweaver-*.jar'`
     if [ -n "$WEAVER_JAR" ]; then OPTS="$OPTS -javaagent:$WEAVER_JAR"; fi
-    exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE com.yahoo.pulsar.zookeeper.ZooKeeperStarter $PULSAR_ZK_CONF $@
+    exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.zookeeper.ZooKeeperStarter $PULSAR_ZK_CONF $@
 elif [ $COMMAND == "global-zookeeper" ]; then
     PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"global-zookeeper.log"}
     # Allow global ZK to turn into read-only mode when it cannot reach the quorum
@@ -204,18 +207,18 @@ elif [ $COMMAND == "global-zookeeper" ]; then
     # Add instrumentation
     WEAVER_JAR=`find $PULSAR_HOME/lib -name 'aspectjweaver-*.jar'`
     if [ -n "$WEAVER_JAR" ]; then OPTS="$OPTS -javaagent:$WEAVER_JAR"; fi
-    exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE com.yahoo.pulsar.zookeeper.ZooKeeperStarter $PULSAR_GLOBAL_ZK_CONF $@
+    exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.zookeeper.ZooKeeperStarter $PULSAR_GLOBAL_ZK_CONF $@
 elif [ $COMMAND == "discovery" ]; then
     PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"discovery.log"}
-    exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE com.yahoo.pulsar.discovery.service.server.DiscoveryServiceStarter $PULSAR_DISCOVERY_CONF $@
+    exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.discovery.service.server.DiscoveryServiceStarter $PULSAR_DISCOVERY_CONF $@
 elif [ $COMMAND == "websocket" ]; then
     PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"pulsar-websocket.log"}
-    exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE com.yahoo.pulsar.websocket.service.WebSocketServiceStarter $PULSAR_WEBSOCKET_CONF $@
+    exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.websocket.service.WebSocketServiceStarter $PULSAR_WEBSOCKET_CONF $@
 elif [ $COMMAND == "standalone" ]; then
     PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"pulsar-standalone.log"}
-    exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE com.yahoo.pulsar.PulsarStandaloneStarter --config $PULSAR_STANDALONE_CONF $@
+    exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.PulsarStandaloneStarter --config $PULSAR_STANDALONE_CONF $@
 elif [ $COMMAND == "initialize-cluster-metadata" ]; then
-    exec $JAVA $OPTS com.yahoo.pulsar.PulsarClusterMetadataSetup $@
+    exec $JAVA $OPTS org.apache.pulsar.PulsarClusterMetadataSetup $@
 elif [ $COMMAND == "zookeeper-shell" ]; then
     exec $JAVA $OPTS org.apache.zookeeper.ZooKeeperMain $@
 elif [ $COMMAND == "help" ]; then
