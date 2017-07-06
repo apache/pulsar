@@ -60,7 +60,6 @@ protobuf_doc_gen:
 	scripts/protobuf-doc-gen.sh
 
 protobuf_setup:
-	PROTOBUF_PREFIX=$(brew --prefix protobuf)
 	rm -rf protoc-gen-doc scripts/protoc-gen-doc
 	git clone https://github.com/pseudomuto/protoc-gen-doc
 	rm -rf protoc-gen-doc/.git

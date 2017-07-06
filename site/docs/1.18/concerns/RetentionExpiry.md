@@ -232,7 +232,7 @@ By default, you will be prompted to ensure that you really want to clear the bac
 
 ## Time to live (TTL)
 
-By default, Pulsar stores all {% popover unacknowledged %} messages forever. This can lead to heavy disk space usage in cases where a lot of messages are going unacknowledged. If disk space is a concern, you can set a time to live (TTL) that determines how long unacknowledged messages will 
+By default, Pulsar stores all unacknowledged messages forever. This can lead to heavy disk space usage in cases where a lot of messages are going unacknowledged. If disk space is a concern, you can set a time to live (TTL) that determines how long unacknowledged messages will 
 
 ### Set the TTL for a namespace
 
