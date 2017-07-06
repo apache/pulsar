@@ -1,0 +1,9 @@
+- title: Geo-replication
+  content: something or other
+  endpoint: admin/GeoReplication
+- title: Multi-tenancy
+  content: Something or other
+  endpoint: getting-started/ConceptsAndArchitecture#multi-tenancy
+- title: BookKeeper
+  content: Persistent message storage
+  endpoint: getting-started/ConceptsAndArchitecture#persistent-storage

@@ -18,7 +18,7 @@ If you're looking to run a full production Pulsar installation, see the [Deployi
 
 ## Starting the cluster
 
-Once you have an up-to-date local copy of the release, you can start up a local cluster using the `pulsar` script, which is stored in the `bin` directory, and specifying that you want to fire up Pulsar in {% popover standalone %} mode:
+Once you have an up-to-date local copy of the release, you can start up a local cluster using the [`pulsar`](../../reference/CliTools#pulsar) command, which is stored in the `bin` directory, and specifying that you want to fire up Pulsar in {% popover standalone %} mode:
 
 ```bash
 $ bin/pulsar standalone
