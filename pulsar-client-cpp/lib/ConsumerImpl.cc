@@ -324,9 +324,10 @@ bool ConsumerImpl::uncompressMessageIfNeeded(const ClientConnectionPtr& cnx,
     CompressionType compressionType = CompressionCodecProvider::convertType(metadata.compression());
 
     uint32_t uncompressedSize = metadata.uncompressed_size();
-    if (uncompressedSize > Commands::MaxMessageSize) {
+    uint32_t payloadSize = payload.readableBytes();
+    if (payloadSize > Commands::MaxMessageSize) {
         // Uncompressed size is itself corrupted since it cannot be bigger than the MaxMessageSize
-        LOG_ERROR(getName() << "Got corrupted uncompressed message size " << uncompressedSize  //
+        LOG_ERROR(getName() << "Got corrupted payload message size " << payloadSize  //
                 << " at  " << msg.message_id().ledgerid() << ":" << msg.message_id().entryid());
         discardCorruptedMessage(cnx, msg.message_id(),
                                 proto::CommandAck::UncompressedSizeCorruption);
