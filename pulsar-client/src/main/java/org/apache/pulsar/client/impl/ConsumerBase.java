@@ -227,7 +227,7 @@ public abstract class ConsumerBase extends HandlerBase implements Consumer {
 
     @Override
     public CompletableFuture<Void> acknowledgeCumulativeAsync(MessageId messageId) {
-        if (conf.getSubscriptionType() != SubscriptionType.Exclusive) {
+        if (!isCumulativeAcknowledgementAllowed(conf.getSubscriptionType())) {
             return FutureUtil.failedFuture(new PulsarClientException.InvalidConfigurationException(
                     "Cannot use cumulative acks on a non-exclusive subscription"));
         }
@@ -276,6 +276,10 @@ public abstract class ConsumerBase extends HandlerBase implements Consumer {
 
     @Override
     abstract public CompletableFuture<Void> closeAsync();
+
+    private boolean isCumulativeAcknowledgementAllowed(SubscriptionType type) {
+        return SubscriptionType.Shared != type;
+    }
 
     protected SubType getSubType() {
         SubscriptionType type = conf.getSubscriptionType();
