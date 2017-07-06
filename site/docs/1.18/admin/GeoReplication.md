@@ -16,13 +16,11 @@ Without geo-replication, consumers **C1** and **C2** wouldn't be able to consume
 
 ## Geo-replication and Pulsar properties
 
-Geo-replication must be enabled on a per-{% popover property %} basis. If a property has been created and allowed access to multiple clusters, then geo-replication can be enabled between those clusters.
+Geo-replication must be enabled on a per-{% popover property %} basis in Pulsar. Geo-replication can be enabled between clusters only when a property has been created that allows access to both clusters.
 
-Pulsar {% popover properties %} provisioned on more than one cluster can enable *geo-replication* among those clusters. Replication is managed directly by users, at the {% popover namespace %} level.
+Although geo-replication must be enabled between two clusters, it's actually managed at the {% popover namespace %} level. You must do the following to enable geo-replication for a namespace:
 
-When geo-replication is enabled between two clusters, you must do the following to enable geo-replication for a namespace:
-
-* Create a global namespace
+* [Create a global namespace](#creating-a-global-namespace)
 * Configure that namespace to replicate between two or more provisioned clusters
 
 Any message published on *any* topic in that namespace will then be replicated to all clusters in the specified set.
