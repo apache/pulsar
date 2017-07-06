@@ -593,7 +593,7 @@
       </section>
 
       <section class="content">
-        <p>Pulsar’s <a href="https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API">WebSocket</a> API is meant to provide a simple way to interact with Pulsar using languages outside the Java Virtual Machine (JVM). Through WebSockets you can publish and consume messages and use all the features available in the <a href="../JavaClient">Java client library</a>.</p>
+        <p>Pulsar’s <a href="https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API">WebSocket</a> API is meant to provide a simple way to interact with Pulsar using languages that do not have an official <a href="../../getting-started/Clients">client library</a>. Through WebSockets you can publish and consume messages and use all the features available in the <a href="../JavaClient">Java</a>, <a href="../PythonClient">Python</a>, and <a href="../CppClient">C++</a> client libraries.</p>
 
 <div class="admonition">
   <div class="success">
@@ -652,13 +652,13 @@
 
 <p>Pulsar’s WebSocket API offers two endpoints, one for <a href="#producer-endpoint">producing</a> messages and one for <a href="#consumer-endpoint">consuming</a> messages.</p>
 
-<p>All exchanges via the WebSocket API are done using JSON messages.</p>
+<p>All exchanges via the WebSocket API use JSON.</p>
 
 <h3 id="producer-endpoint">Producer endpoint</h3>
 
 <p>The producer endpoint requires you to specify a <span class="popover-term" tabindex="0" title="What is a property?" data-placement="top" data-content="TODO" data-toggle="popover" data-trigger="focus">property</span>, <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">cluster</span>, <span class="popover-term" tabindex="0" title="What is a namespace?" data-placement="top" data-content="TODO" data-toggle="popover" data-trigger="focus">namespace</span>, and <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topic</span> in the URL:</p>
 
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method "></code><code class="url">http://broker-service-url<span class="endpoint">:8080</span>/ws/producer/persistent/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:topic</span></code></pre></div>
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method "></code><code class="url">ws://broker-service-url<span class="endpoint">:8080</span>/ws/producer/persistent/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:topic</span></code></pre></div>
 
 <h4 id="publishing-a-message">Publishing a message</h4>
 
@@ -713,9 +713,7 @@
   </tbody>
 </table>
 
-<h4 id="acknowledgement-from-server">Acknowledgement from server</h4>
-
-<h5 id="success-response">Success response</h5>
+<h5 id="example-success-response">Example success response</h5>
 
 <div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="p">{</span><span class="w">
    </span><span class="nt">"result"</span><span class="p">:</span><span class="w"> </span><span class="s2">"ok"</span><span class="p">,</span><span class="w">
@@ -724,7 +722,8 @@
  </span><span class="p">}</span><span class="w">
 </span></code></pre>
 </div>
-<h6 id="failure-response">Failure response</h6>
+<h5 id="example-failure-response">Example failure response</h5>
+
 <div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="w"> </span><span class="p">{</span><span class="w">
    </span><span class="nt">"result"</span><span class="p">:</span><span class="w"> </span><span class="s2">"send-error:3"</span><span class="p">,</span><span class="w">
    </span><span class="nt">"errorMsg"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Failed to de-serialize from JSON"</span><span class="p">,</span><span class="w">
@@ -768,7 +767,7 @@
 
 <p>The producer endpoint requires you to specify a <span class="popover-term" tabindex="0" title="What is a property?" data-placement="top" data-content="TODO" data-toggle="popover" data-trigger="focus">property</span>, <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">cluster</span>, <span class="popover-term" tabindex="0" title="What is a namespace?" data-placement="top" data-content="TODO" data-toggle="popover" data-trigger="focus">namespace</span>, and <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topic</span>, as well as a <span class="popover-term" tabindex="0" title="What is a subscription?" data-placement="top" data-content="TODO" data-toggle="popover" data-trigger="focus">subscription</span>, in the URL:</p>
 
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method "></code><code class="url">http://broker-service-url<span class="endpoint">:8080</span>/ws/consumer/persistent/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:topic</span>/<span class="endpoint">:subscription</span></code></pre></div>
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method "></code><code class="url">ws://broker-service-url<span class="endpoint">:8080</span>/ws/consumer/persistent/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:topic</span>/<span class="endpoint">:subscription</span></code></pre></div>
 
 <h5 id="receiving-messages">Receiving messages</h5>
 
@@ -868,8 +867,6 @@ have the Pulsar broker delete it.</p>
 <p>In case of error the server will close the WebSocket session using the
 following error codes:</p>
 
-<h4 id="different-possible-error-types">Different Possible Error Types</h4>
-
 <table>
   <thead>
     <tr>
@@ -888,7 +885,7 @@ following error codes:</p>
     </tr>
     <tr>
       <td style="text-align: left">3</td>
-      <td style="text-align: left">Failed to de-serialize from JSON</td>
+      <td style="text-align: left">Failed to deserialize from JSON</td>
     </tr>
     <tr>
       <td style="text-align: left">4</td>
@@ -916,7 +913,7 @@ following error codes:</p>
 <div class="admonition">
   <div class="warning">
     
-    <p>The application is responsible to re-establish a new WebSocket session after a backoff period.</p>
+    <p>The application is responsible for re-establishing a new WebSocket session after a backoff period.</p>
 
   </div>
 </div>
@@ -945,7 +942,7 @@ following error codes:</p>
 
 <span class="n">ws</span> <span class="o">=</span> <span class="n">websocket</span><span class="o">.</span><span class="n">create_connection</span><span class="p">(</span><span class="n">TOPIC</span><span class="p">)</span>
 
-<span class="c"># Send one message</span>
+<span class="c"># Send one message as JSON</span>
 <span class="n">ws</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">({</span>
     <span class="s">'payload'</span> <span class="p">:</span> <span class="n">base64</span><span class="o">.</span><span class="n">b64encode</span><span class="p">(</span><span class="s">'Hello World'</span><span class="p">),</span>
     <span class="s">'properties'</span><span class="p">:</span> <span class="p">{</span>
@@ -966,7 +963,7 @@ following error codes:</p>
 
 <h4 id="python-consumer">Python consumer</h4>
 
-<p>Here’s an example Python <span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumer</span> that listens on a Pulsar <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topic</span> and prints the message payload whenever a message arrives:</p>
+<p>Here’s an example Python <span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumer</span> that listens on a Pulsar <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topic</span> and prints the message ID whenever a message arrives:</p>
 
 <div class="language-python highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">websocket</span><span class="o">,</span> <span class="nn">base64</span><span class="o">,</span> <span class="nn">json</span>
 

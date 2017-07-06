@@ -1,1 +1,1 @@
-com.yahoo.pulsar.client.admin
+org.apache.pulsar.client.admin

@@ -485,7 +485,9 @@
       </section>
 
       <section class="content">
-        <p>For the purposes of local development and testing, you can run a <span class="popover-term" tabindex="0" title="What is a standalone Pulsar broker?" data-placement="top" data-content="A lightweight Pulsar broker in which all components run in a single Java Virtual Machine (JVM) process. Standalone clusters can be run on a single machine and are useful for development purposes." data-toggle="popover" data-trigger="focus">standalone</span> Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">broker</span> on your own machine.</p>
+        <p>For the purposes of local development and testing, you can run Pulsar in <span class="popover-term" tabindex="0" title="What is a standalone Pulsar broker?" data-placement="top" data-content="A lightweight Pulsar broker in which all components run in a single Java Virtual Machine (JVM) process. Standalone clusters can be run on a single machine and are useful for development purposes." data-toggle="popover" data-trigger="focus">standalone</span> mode on your own machine.</p>
+
+<p>Standalone mode includes a Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">broker</span> as well as the necessary <span class="popover-term" tabindex="0" title="What is ZooKeeper?" data-placement="top" data-content="ZooKeeper is a service that Pulsar uses for coordination-related tasks.&lt;br /&gt;&lt;br /&gt;A Pulsar instance relies on both a local ZooKeeper for cluster-specific tasks and a global ZooKeeper for instance-wide tasks." data-toggle="popover" data-trigger="focus">ZooKeeper</span> and <span class="popover-term" tabindex="0" title="What is BookKeeper?" data-placement="top" data-content="Apache BookKeeper is a persistent log storage system that Pulsar uses to store message data." data-toggle="popover" data-trigger="focus">BookKeeper</span> components running inside of a single Java Virtual Machine (JVM) process.</p>
 
 <div class="admonition">
   <div class="info">
@@ -563,15 +565,13 @@
 
 <h2 id="starting-the-cluster">Starting the cluster</h2>
 
-<p>Once you have an up-to-date local copy of the release, you can start up a local cluster using the <code class="highlighter-rouge">pulsar</code> script, which is stored in the <code class="highlighter-rouge">bin</code> directory, and specifying that you want to fire up a <span class="popover-term" tabindex="0" title="What is a standalone Pulsar broker?" data-placement="top" data-content="A lightweight Pulsar broker in which all components run in a single Java Virtual Machine (JVM) process. Standalone clusters can be run on a single machine and are useful for development purposes." data-toggle="popover" data-trigger="focus">standalone</span> cluster:</p>
+<p>Once you have an up-to-date local copy of the release, you can start up a local cluster using the <code class="highlighter-rouge">pulsar</code> script, which is stored in the <code class="highlighter-rouge">bin</code> directory, and specifying that you want to fire up Pulsar in <span class="popover-term" tabindex="0" title="What is a standalone Pulsar broker?" data-placement="top" data-content="A lightweight Pulsar broker in which all components run in a single Java Virtual Machine (JVM) process. Standalone clusters can be run on a single machine and are useful for development purposes." data-toggle="popover" data-trigger="focus">standalone</span> mode:</p>
 
 <div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar standalone
 </code></pre>
 </div>
 
-<p>This will start up a Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">broker</span> and the necessary <span class="popover-term" tabindex="0" title="What is ZooKeeper?" data-placement="top" data-content="ZooKeeper is a service that Pulsar uses for coordination-related tasks.&lt;br /&gt;&lt;br /&gt;A Pulsar instance relies on both a local ZooKeeper for cluster-specific tasks and a global ZooKeeper for instance-wide tasks." data-toggle="popover" data-trigger="focus">ZooKeeper</span> and <span class="popover-term" tabindex="0" title="What is BookKeeper?" data-placement="top" data-content="Apache BookKeeper is a persistent log storage system that Pulsar uses to store message data." data-toggle="popover" data-trigger="focus">BookKeeper</span> components inside of a single Java Virtual Machine (JVM) process.</p>
-
-<p>If the cluster has been successfully started, you should see <code class="highlighter-rouge">INFO</code>-level log messages like this:</p>
+<p>If Pulsar has been successfully started, you should see <code class="highlighter-rouge">INFO</code>-level log messages like this:</p>
 
 <div class="highlighter-rouge"><pre class="highlight"><code>2017-06-01 14:46:29,192 - INFO  - [main:WebSocketService@95] - Global Zookeeper cache started
 2017-06-01 14:46:29,192 - INFO  - [main:AuthenticationService@61] - Authentication is disabled
@@ -591,15 +591,15 @@
 
 <h2 id="testing-your-cluster-setup">Testing your cluster setup</h2>
 
-<p>Pulsar provides a CLI tool called <a href="../../reference/CliTools#pulsar-client"><code class="highlighter-rouge">pulsar-client</code></a> that enables you to do things like send messages to a Pulsar <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topic</span> in a running cluster. This command will send a simple message saying <code class="highlighter-rouge">Hello, Pulsar</code> to the <code class="highlighter-rouge">persistent://sample/standalone/ns1/my-topic</code> topic:</p>
+<p>Pulsar provides a CLI tool called <a href="../../reference/CliTools#pulsar-client"><code class="highlighter-rouge">pulsar-client</code></a> that enables you to do things like send messages to a Pulsar <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topic</span> in a running cluster. This command will send a simple message saying <code class="highlighter-rouge">hello-pulsar</code> to the <code class="highlighter-rouge">persistent://sample/standalone/ns1/my-topic</code> topic:</p>
 
 <div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-client produce <span class="se">\</span>
   persistent://sample/standalone/ns1/my-topic <span class="se">\</span>
-  -m <span class="s1">'Hello, Pulsar'</span>
+  -m <span class="s1">'hello-pulsar'</span>
 </code></pre>
 </div>
 
-<p>If the message has been successfully published to the topic, you should see an <span class="popover-term" tabindex="0" title="What is an acknowledgement (ack)?" data-placement="top" data-content="A message sent to a Pulsar broker by a consumer that a message has been successfully processed. An acknowledgement (ack) is Pulsar's way of knowing that the message can be deleted from the system; if no acknowledgement, then the message will be retained until it's processed." data-toggle="popover" data-trigger="focus">acknowledgement</span> like this in the <code class="highlighter-rouge">pulsar-client</code> logs:</p>
+<p>If the message has been successfully published to the topic, you should see a confirmation like this in the <code class="highlighter-rouge">pulsar-client</code> logs:</p>
 
 <div class="highlighter-rouge"><pre class="highlight"><code>2017-06-01 18:18:57,094 - INFO  - [main:CmdProduce@189] - 1 messages successfully produced
 </code></pre>
@@ -609,7 +609,7 @@
   <div class="success">
     <span class="admonition-title"><p>No need to explicitly create new topics</p>
 </span>
-    <p>You may have noticed that we did not explicitly create the <code class="highlighter-rouge">my-topic</code> topic to which we sent the <code class="highlighter-rouge">Hello, Pulsar</code> message. If you attempt to write a message to a topic that does not yet exist, Pulsar will automatically create that topic for you.</p>
+    <p>You may have noticed that we did not explicitly create the <code class="highlighter-rouge">my-topic</code> topic to which we sent the <code class="highlighter-rouge">hello-pulsar</code> message. If you attempt to write a message to a topic that does not yet exist, Pulsar will automatically create that topic for you.</p>
 
   </div>
 </div>
@@ -623,7 +623,7 @@
   <li><code class="highlighter-rouge">pulsar://localhost:6650</code></li>
 </ul>
 
-<p>Here’s an example producer for a Pulsar <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topic</span> using the Java client:</p>
+<p>Here’s an example producer for a Pulsar <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topic</span> using the <a href="../../applications/JavaClient">Java</a> client:</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">String</span> <span class="n">localClusterUrl</span> <span class="o">=</span> <span class="s">"pulsar://localhost:6650"</span><span class="o">;</span>
 <span class="n">String</span> <span class="n">namespace</span> <span class="o">=</span> <span class="s">"sample/standalone/ns1"</span><span class="o">;</span> <span class="c1">// This namespace is created automatically</span>
@@ -631,6 +631,29 @@
 
 <span class="n">PulsarClient</span> <span class="n">client</span> <span class="o">=</span> <span class="n">PulsarClient</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="n">localClusterUrl</span><span class="o">);</span>
 <span class="n">Producer</span> <span class="n">producer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="na">createProducer</span><span class="o">(</span><span class="n">topic</span><span class="o">);</span>
+</code></pre>
+</div>
+
+<p>Here’s an example <a href="../../applications/PythonClient">Python</a> producer:</p>
+
+<div class="language-python highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">pulsar</span>
+
+<span class="n">TOPIC</span> <span class="o">=</span> <span class="s">'persistent://sample/standalone/ns/my-topic'</span>
+
+<span class="n">client</span> <span class="o">=</span> <span class="n">pulsar</span><span class="o">.</span><span class="n">Client</span><span class="p">(</span><span class="s">'pulsar://localhost:6650'</span><span class="p">)</span>
+<span class="n">producer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">create_producer</span><span class="p">(</span><span class="n">TOPIC</span><span class="p">)</span>
+</code></pre>
+</div>
+
+<p>Finally, here’s an example <a href="../../applications/CppClient">C++</a> producer:</p>
+
+<div class="language-cpp highlighter-rouge"><pre class="highlight"><code><span class="n">Client</span> <span class="n">client</span><span class="p">(</span><span class="s">"pulsar://localhost:6650"</span><span class="p">);</span>
+<span class="n">Producer</span> <span class="n">producer</span><span class="p">;</span>
+<span class="n">Result</span> <span class="n">result</span> <span class="o">=</span> <span class="n">client</span><span class="p">.</span><span class="n">createProducer</span><span class="p">(</span><span class="s">"persistent://sample/standalone/ns1/my-topic"</span><span class="p">,</span> <span class="n">producer</span><span class="p">);</span>
+<span class="k">if</span> <span class="p">(</span><span class="n">result</span> <span class="o">!=</span> <span class="n">ResultOk</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">LOG_ERROR</span><span class="p">(</span><span class="s">"Error creating producer: "</span> <span class="o">&lt;&lt;</span> <span class="n">result</span><span class="p">);</span>
+    <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+<span class="p">}</span>
 </code></pre>
 </div>
 

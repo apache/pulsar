@@ -569,7 +569,6 @@
 
 <span class="c"># Protocol Buffers installation</span>
 <span class="gp">$ </span>brew tap homebrew/versions
-<span class="gp">$ </span>brew tap homebrew/versions
 <span class="gp">$ </span>brew install protobuf260
 <span class="gp">$ </span>brew install boost
 <span class="gp">$ </span>brew install log4cxx
@@ -585,9 +584,50 @@
 <p>Then compile the Pulsar client library in the repo that you cloned:</p>
 
 <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span><span class="nb">cd </span>pulsar-client-cpp
-<span class="gp">$ </span>TODO
+<span class="gp">$ </span>cmake .
+<span class="gp">$ </span>make
 </code></pre>
 </div>
+
+<h2 id="connection-urls">Connection URLs</h2>
+
+<p>To connect to Pulsar using client libraries, you need to specify a <a href="../../project/BinaryProtocol">Pulsar protocol</a> URL.</p>
+
+<p>Pulsar protocol URLs are assigned to specific <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">clusters</span>, use the <code class="highlighter-rouge">pulsar</code> scheme and have a default port of 6650. Here’s an example for <code class="highlighter-rouge">localhost</code>:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>pulsar://localhost:6650
+</code></pre>
+</div>
+
+<p>A URL for a production Pulsar cluster may look something like this:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>pulsar://pulsar.us-west.example.com:6650
+</code></pre>
+</div>
+
+<p>If you’re using <a href="../../admin/Authz#tls-client-auth">TLS</a> authentication, the URL will look like something like this:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>pulsar+ssl://pulsar.us-west.example.com:6650
+</code></pre>
+</div>
+
+<h3 id="global-vs-cluster-specific-topics">Global vs. cluster-specific topics</h3>
+
+<p>Pulsar <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topics</span> can be either cluster specific or global. Cluster-specific topic URLs have this structure:</p>
+
+<section class="topic">
+  persistent://<span class="property">property</span>/<span class="cluster">cluster</span>/<span class="namespace">namespace</span>/<span class="t">topic</span>
+</section>
+
+<p>If the topic that a client needs to publish to or consume from is specific to a cluster, the client will need to use the broker service URL that you assigned to that cluster when <a href="../../deployment/InstanceSetup#cluster-metadata-initialization">initializing its metadata</a>.</p>
+
+<p>If the topic is global, however, the URL for the topic will look like this:</p>
+
+<section class="topic">
+  persistent://<span class="property">property</span>/<span class="cluster">global</span>/<span class="namespace">namespace</span>/<span class="t">topic</span>
+</section>
+
+<p>In that case, your client can use the broker service URL for <em>any</em> cluster in the <span class="popover-term" tabindex="0" title="What is a Pulsar instance?" data-placement="top" data-content="A group of Pulsar clusters that act together as a single unit." data-toggle="popover" data-trigger="focus">instance</span> and Pulsar’s internal service discovery system will handle the rest.</p>
 
 <h2 id="consumer">Consumer</h2>
 

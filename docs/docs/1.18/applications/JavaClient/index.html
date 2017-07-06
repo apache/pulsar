@@ -503,7 +503,7 @@
 
 <p>The current version of the Java client is <strong>1.18</strong>.</p>
 
-<p>Javadoc for the Pulsar client is divided up into three domains, by package:</p>
+<p>Javadoc for the Pulsar client is divided up into two domains, by package:</p>
 
 <table>
   <thead>
@@ -514,21 +514,21 @@
   </thead>
   <tbody>
     <tr>
-      <td style="text-align: left"><a href="/incubator-pulsar/api/client"><code class="highlighter-rouge">com.yahoo.pulsar.client.api</code></a></td>
+      <td style="text-align: left"><a href="/incubator-pulsar/api/client"><code class="highlighter-rouge">org.apache.pulsar.client.api</code></a></td>
       <td style="text-align: left">The <span class="popover-term" tabindex="0" title="What is a producer?" data-placement="top" data-content="A process that publishes messages to a Pulsar topic." data-toggle="popover" data-trigger="focus">producer</span> and <span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumer</span> API</td>
     </tr>
     <tr>
-      <td style="text-align: left"><a href="/incubator-pulsar/api/admin"><code class="highlighter-rouge">com.yahoo.pulsar.client.admin</code></a></td>
+      <td style="text-align: left"><a href="/incubator-pulsar/api/admin"><code class="highlighter-rouge">org.apache.pulsar.client.admin</code></a></td>
       <td style="text-align: left">The Java <a href="../../admin/AdminInterface">admin API</a></td>
     </tr>
   </tbody>
 </table>
 
-<p>This document will focus only on the client API for producing and consuming messages on Pulsar <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topics</span>.</p>
+<p>This document will focus only on the client API for producing and consuming messages on Pulsar <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topics</span>. For a guide to using the Java admin client, see <a href="../../admin/AdminInterface">The Pulsar admin interface</a>.</p>
 
 <h2 id="installation">Installation</h2>
 
-<p>The latest version of the Pulsar Java client library is available via <a href="http://search.maven.org/#artifactdetails%7Ccom.yahoo.pulsar%7Cpulsar-client%7C1.18%7Cjar">Maven Central</a>. To use the latest version, add the <code class="highlighter-rouge">pulsar-client</code> library to your build configuration.</p>
+<p>The latest version of the Pulsar Java client library is available via <a href="http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client%7C1.18%7Cjar">Maven Central</a>. To use the latest version, add the <code class="highlighter-rouge">pulsar-client</code> library to your build configuration.</p>
 
 <h3 id="maven">Maven</h3>
 
@@ -539,7 +539,7 @@
 
 <span class="c">&lt;!-- in your &lt;dependencies&gt; block --&gt;</span>
 <span class="nt">&lt;dependency&gt;</span>
-  <span class="nt">&lt;groupId&gt;</span>com.yahoo.pulsar<span class="nt">&lt;/groupId&gt;</span>
+  <span class="nt">&lt;groupId&gt;</span>org.apache.pulsar<span class="nt">&lt;/groupId&gt;</span>
   <span class="nt">&lt;artifactId&gt;</span>pulsar-client<span class="nt">&lt;/artifactId&gt;</span>
   <span class="nt">&lt;version&gt;</span>${pulsar.version}<span class="nt">&lt;/version&gt;</span>
 <span class="nt">&lt;/dependency&gt;</span>
@@ -550,57 +550,77 @@
 
 <p>If you’re using Gradle, add this to your <code class="highlighter-rouge">build.gradle</code> file:</p>
 
-<div class="language-groovy highlighter-rouge"><pre class="highlight"><code><span class="n">dependencies</span> <span class="o">{</span>
-    <span class="n">compile</span> <span class="nl">group:</span> <span class="s1">'com.yahoo.pulsar'</span><span class="o">,</span> <span class="nl">name:</span> <span class="s1">'pulsar-client'</span><span class="o">,</span> <span class="nl">version:</span> <span class="s1">'1.18'</span>
+<div class="language-groovy highlighter-rouge"><pre class="highlight"><code><span class="kt">def</span> <span class="n">pulsarVersion</span> <span class="o">=</span> <span class="s1">'1.18'</span>
+
+<span class="n">dependencies</span> <span class="o">{</span>
+    <span class="n">compile</span> <span class="nl">group:</span> <span class="s1">'org.apache.pulsar'</span><span class="o">,</span> <span class="nl">name:</span> <span class="s1">'pulsar-client'</span><span class="o">,</span> <span class="nl">version:</span> <span class="n">pulsarVersion</span>
 <span class="o">}</span>
 </code></pre>
 </div>
 
+<h2 id="connection-urls">Connection URLs</h2>
+
+<p>To connect to Pulsar using client libraries, you need to specify a <a href="../../project/BinaryProtocol">Pulsar protocol</a> URL.</p>
+
+<p>Pulsar protocol URLs are assigned to specific <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">clusters</span>, use the <code class="highlighter-rouge">pulsar</code> scheme and have a default port of 6650. Here’s an example for <code class="highlighter-rouge">localhost</code>:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>pulsar://localhost:6650
+</code></pre>
+</div>
+
+<p>A URL for a production Pulsar cluster may look something like this:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>pulsar://pulsar.us-west.example.com:6650
+</code></pre>
+</div>
+
+<p>If you’re using <a href="../../admin/Authz#tls-client-auth">TLS</a> authentication, the URL will look like something like this:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>pulsar+ssl://pulsar.us-west.example.com:6650
+</code></pre>
+</div>
+
+<h3 id="global-vs-cluster-specific-topics">Global vs. cluster-specific topics</h3>
+
+<p>Pulsar <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topics</span> can be either cluster specific or global. Cluster-specific topic URLs have this structure:</p>
+
+<section class="topic">
+  persistent://<span class="property">property</span>/<span class="cluster">cluster</span>/<span class="namespace">namespace</span>/<span class="t">topic</span>
+</section>
+
+<p>If the topic that a client needs to publish to or consume from is specific to a cluster, the client will need to use the broker service URL that you assigned to that cluster when <a href="../../deployment/InstanceSetup#cluster-metadata-initialization">initializing its metadata</a>.</p>
+
+<p>If the topic is global, however, the URL for the topic will look like this:</p>
+
+<section class="topic">
+  persistent://<span class="property">property</span>/<span class="cluster">global</span>/<span class="namespace">namespace</span>/<span class="t">topic</span>
+</section>
+
+<p>In that case, your client can use the broker service URL for <em>any</em> cluster in the <span class="popover-term" tabindex="0" title="What is a Pulsar instance?" data-placement="top" data-content="A group of Pulsar clusters that act together as a single unit." data-toggle="popover" data-trigger="focus">instance</span> and Pulsar’s internal service discovery system will handle the rest.</p>
+
 <h2 id="client-configuration">Client configuration</h2>
 
-<p>You can instantiate a <a target="_blank" href="/api/client/com/yahoo/pulsar/client/api/PulsarClient.html"><code class="highlighter-rouge">PulsarClient</code></a> object using just a URL for the target Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">broker</span>, like this:</p>
+<p>You can instantiate a <a target="_blank" href="/api/client/org/apache/pulsar/client/api/PulsarClient.html"><code class="highlighter-rouge">PulsarClient</code></a> object using just a URL for the target Pulsar <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">cluster</span>, like this:</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">String</span> <span class="n">pulsarBrokerRootUrl</span> <span class="o">=</span> <span class="s">"pulsar://localhost:6650"</span><span class="o">;</span>
 <span class="n">PulsarClient</span> <span class="n">client</span> <span class="o">=</span> <span class="n">PulsarClient</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="n">pulsarBrokerRootUrl</span><span class="o">);</span>
 </code></pre>
 </div>
 
-<p>This object will use the default configuration.</p>
-
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// Set the authentication provider to use in the Pulsar client instance</span>
-<span class="kd">public</span> <span class="kt">void</span> <span class="nf">setAuthentication</span><span class="o">(</span><span class="n">Authentication</span> <span class="n">authentication</span><span class="o">);</span>
-<span class="kd">public</span> <span class="kt">void</span> <span class="nf">setAuthentication</span><span class="o">(</span><span class="n">String</span> <span class="n">authPluginClassName</span><span class="o">,</span> <span class="n">String</span> <span class="n">authParamsString</span><span class="o">);</span>
-<span class="kd">public</span> <span class="kt">void</span> <span class="nf">setAuthentication</span><span class="o">(</span><span class="n">String</span> <span class="n">authPluginClassName</span><span class="o">,</span> <span class="n">Map</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;</span> <span class="n">authParams</span><span class="o">);</span>
-
-<span class="c1">// Set the operation timeout(default: 30 seconds)</span>
-<span class="kd">public</span> <span class="kt">void</span> <span class="nf">setOperationTimeout</span><span class="o">(</span><span class="kt">int</span> <span class="n">operationTimeout</span><span class="o">,</span> <span class="n">TimeUnit</span> <span class="n">unit</span><span class="o">);</span>
-
-<span class="c1">// Set the number of threads to be used for handling connections to brokers (default: 1 thread)</span>
-<span class="kd">public</span> <span class="kt">void</span> <span class="nf">setIoThreads</span><span class="o">(</span><span class="kt">int</span> <span class="n">numIoThreads</span><span class="o">);</span>
-
-<span class="c1">// Set the number of threads to be used for message listeners(default: 1 thread)</span>
-<span class="kd">public</span> <span class="kt">void</span> <span class="nf">setListenerThreads</span><span class="o">(</span><span class="kt">int</span> <span class="n">numListenerThreads</span><span class="o">);</span>
-
-<span class="c1">// Sets the max number of connection that the client library will open to a single broker</span>
-<span class="kd">public</span> <span class="kt">void</span> <span class="nf">setConnectionsPerBroker</span><span class="o">(</span><span class="kt">int</span> <span class="n">connectionsPerBroker</span><span class="o">);</span>
-
-<span class="c1">// Configure whether to use TCP no-delay flag on the connection, to disable the Nagle algorithm</span>
-<span class="kd">public</span> <span class="kt">void</span> <span class="nf">setUseTcpNoDelay</span><span class="o">(</span><span class="kt">boolean</span> <span class="n">useTcpNoDelay</span><span class="o">);</span>
-</code></pre>
-</div>
+<p>This <code class="highlighter-rouge">PulsarClient</code> object will use the default configuration. See the Javadoc for <a target="_blank" href="/api/client/org/apache/pulsar/client/api/ClientConfiguration.html"><code class="highlighter-rouge">ClientConfiguration</code></a> to see how to provide a non-default configuration.</p>
 
 <div class="admonition">
   <div class="info">
     
     
-<p>In addition to client-level configuration, you can also apply <a href="#configuring-producers">producer</a>- and <a href="#configuring-consumers">consumer</a>-specific configuration.</p>
+<p>In addition to client-level configuration, you can also apply <a href="#configuring-producers">producer</a>- and <a href="#configuring-consumers">consumer</a>-specific configuration, as you’ll see in the sections below.</p>
 
   </div>
 </div>
 
 <h2 id="producers">Producers</h2>
 
-<p>In Pulsar, <span class="popover-term" tabindex="0" title="What is a producer?" data-placement="top" data-content="A process that publishes messages to a Pulsar topic." data-toggle="popover" data-trigger="focus">producers</span> point to a Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">broker</span> and write <span class="popover-term" tabindex="0" title="What is a message in Pulsar?" data-placement="top" data-content="TODO" data-toggle="popover" data-trigger="focus">messages</span> to <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topics</span>. You can instantiate a new popover producer  by first instantiating a <a target="_blank" href="/api/client/com/yahoo/pulsar/client/api/PulsarClient.html"><code class="highlighter-rouge">PulsarClient</code></a>, passing it a URL for a Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">broker</span>.</p>
+<p>In Pulsar, <span class="popover-term" tabindex="0" title="What is a producer?" data-placement="top" data-content="A process that publishes messages to a Pulsar topic." data-toggle="popover" data-trigger="focus">producers</span> write <span class="popover-term" tabindex="0" title="What is a message in Pulsar?" data-placement="top" data-content="TODO" data-toggle="popover" data-trigger="focus">messages</span> to <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topics</span>. You can instantiate a new <span class="popover-term" tabindex="0" title="What is a producer?" data-placement="top" data-content="A process that publishes messages to a Pulsar topic." data-toggle="popover" data-trigger="focus">producer</span> by first instantiating a <a target="_blank" href="/api/client/org/apache/pulsar/client/api/PulsarClient.html"><code class="highlighter-rouge">PulsarClient</code></a>, passing it a URL for a Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">broker</span>.</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">String</span> <span class="n">pulsarBrokerRootUrl</span> <span class="o">=</span> <span class="s">"pulsar://localhost:6650"</span><span class="o">;</span>
 <span class="n">PulsarClient</span> <span class="n">client</span> <span class="o">=</span> <span class="n">PulsarClient</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="n">pulsarBrokerRootUrl</span><span class="o">);</span>
@@ -612,17 +632,12 @@
     <span class="admonition-title"><p>Default broker URLs for standalone clusters</p>
 </span>
     
-<p>If you’re running a cluster in <a href="../getting-started/LocalCluster">standalone mode</a>, the broker will be available at these two URLs by default:</p>
-
-<ul>
-  <li><code class="highlighter-rouge">pulsar://localhost:6650</code></li>
-  <li><code class="highlighter-rouge">http://localhost:8080</code></li>
-</ul>
+<p>If you’re running a cluster in <a href="../getting-started/LocalCluster">standalone mode</a>, the broker will be available at the <code class="highlighter-rouge">pulsar://localhost:6650</code> URL by default.</p>
 
   </div>
 </div>
 
-<p>Once you’ve instantiated a <a target="_blank" href="/api/client/com/yahoo/pulsar/client/api/PulsarClient.html"><code class="highlighter-rouge">PulsarClient</code></a> object, you can create a <a target="_blank" href="/api/client/com/yahoo/pulsar/client/api/Producer.html"><code class="highlighter-rouge">Producer</code></a> for a <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topic</span>.</p>
+<p>Once you’ve instantiated a <a target="_blank" href="/api/client/org/apache/pulsar/client/api/PulsarClient.html"><code class="highlighter-rouge">PulsarClient</code></a> object, you can create a <a target="_blank" href="/api/client/org/apache/pulsar/client/api/Producer.html"><code class="highlighter-rouge">Producer</code></a> for a <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topic</span>.</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">String</span> <span class="n">topic</span> <span class="o">=</span> <span class="s">"persistent://sample/standalone/ns1/my-topic"</span><span class="o">;</span>
 <span class="n">Producer</span> <span class="n">producer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="na">createProducer</span><span class="o">(</span><span class="n">topic</span><span class="o">);</span>
@@ -642,7 +657,7 @@
   <div class="warning">
     
     
-<p>You should always make sure to close your producer, consumer, and client when no longer needed:</p>
+<p>You should always make sure to close your producers, consumers, and clients when they are no longer needed:</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">producer</span><span class="o">.</span><span class="na">close</span><span class="o">();</span>
 <span class="n">consumer</span><span class="o">.</span><span class="na">close</span><span class="o">();</span>
@@ -663,44 +678,12 @@
 
 <h3 id="configuring-producers">Configuring producers</h3>
 
-<p>If you instantiate a <code class="highlighter-rouge">Producer</code> object specifying only a topic name, as in the example above, the producer will use the default configuration. To use a non-default configuration, you can instantiate the <code class="highlighter-rouge">Producer</code> with a <a target="_blank" href="/api/client/com/yahoo/pulsar/client/api/ProducerConfiguration.html"><code class="highlighter-rouge">ProducerConfiguration</code></a> object as well. The following setters are available:</p>
-
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// Set the send timeout (default: 30 seconds)</span>
-<span class="kd">public</span> <span class="kt">void</span> <span class="nf">setSendTimeout</span><span class="o">(</span><span class="kt">int</span> <span class="n">sendTimeout</span><span class="o">,</span> <span class="n">TimeUnit</span> <span class="n">unit</span><span class="o">);</span>
-
-<span class="c1">// Set the max size of the queue holding the messages pending to receive an acknowledgment from the broker.</span>
-
-<span class="kd">public</span> <span class="kt">void</span> <span class="nf">setMaxPendingMessages</span><span class="o">(</span><span class="kt">int</span> <span class="n">maxPendingMessages</span><span class="o">);</span>
-
-<span class="c1">// Set whether the Producer#send and Producer#sendAsync operations should block when the outgoing message queue is full.</span>
-<span class="kd">public</span> <span class="kt">void</span> <span class="nf">setBlockIfQueueFull</span><span class="o">(</span><span class="kt">boolean</span> <span class="n">blockIfQueueFull</span><span class="o">);</span>
-
-<span class="c1">// Set the message routing mode for the partitioned producer</span>
-<span class="kd">public</span> <span class="kt">void</span> <span class="nf">setMessageRoutingMode</span><span class="o">(</span><span class="n">MessageRoutingMode</span> <span class="n">messageRouteMode</span><span class="o">);</span>
-
-<span class="c1">// Set the compression type for the producer.</span>
-<span class="kd">public</span> <span class="kt">void</span> <span class="nf">setCompressionType</span><span class="o">(</span><span class="n">CompressionType</span> <span class="n">compressionType</span><span class="o">);</span>
-
-<span class="c1">// Set a custom message routing policy by passing an implementation of MessageRouter</span>
-<span class="kd">public</span> <span class="kt">void</span> <span class="nf">setMessageRouter</span><span class="o">(</span><span class="n">MessageRouter</span> <span class="n">messageRouter</span><span class="o">);</span>
-
-<span class="c1">// Control whether automatic batching of messages is enabled for the producer, default: false.</span>
-<span class="kd">public</span> <span class="kt">void</span> <span class="nf">setBatchingEnabled</span><span class="o">(</span><span class="kt">boolean</span> <span class="n">batchMessagesEnabled</span><span class="o">);</span>
-
-<span class="c1">// Set the time period within which the messages sent will be batched, default: 10ms.</span>
-<span class="kd">public</span> <span class="kt">void</span> <span class="nf">setBatchingMaxPublishDelay</span><span class="o">(</span><span class="kt">long</span> <span class="n">batchDelay</span><span class="o">,</span> <span class="n">TimeUnit</span> <span class="n">timeUnit</span><span class="o">);</span>
-
-<span class="c1">// Set the maximum number of messages permitted in a batch, default: 1000.</span>
-<span class="kd">public</span> <span class="kt">void</span> <span class="nf">setBatchingMaxMessages</span><span class="o">(</span><span class="kt">int</span> <span class="n">batchMessagesMaxMessagesPerBatch</span><span class="o">);</span>
-</code></pre>
-</div>
-
-<p>Here’s a configuration example:</p>
+<p>If you instantiate a <code class="highlighter-rouge">Producer</code> object specifying only a topic name, as in the example above, the producer will use the default configuration. To use a non-default configuration, you can instantiate the <code class="highlighter-rouge">Producer</code> with a <a target="_blank" href="/api/client/org/apache/pulsar/client/api/ProducerConfiguration.html"><code class="highlighter-rouge">ProducerConfiguration</code></a> object as well. Here’s an example configuration:</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PulsarClient</span> <span class="n">client</span> <span class="o">=</span> <span class="n">PulsarClient</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="n">pulsarBrokerRootUrl</span><span class="o">);</span>
 <span class="n">ProducerConfiguration</span> <span class="n">config</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ProducerConfiguration</span><span class="o">();</span>
-<span class="n">config</span><span class="o">.</span><span class="na">setIoThreads</span><span class="o">(</span><span class="mi">10</span><span class="o">);</span>
-<span class="n">config</span><span class="o">.</span><span class="na">setUseTcpNoDelay</span><span class="o">(</span><span class="kc">true</span><span class="o">);</span>
+<span class="n">config</span><span class="o">.</span><span class="na">setBatchingEnabled</span><span class="o">(</span><span class="kc">true</span><span class="o">);</span>
+<span class="n">config</span><span class="o">.</span><span class="na">setSendTimeout</span><span class="o">(</span><span class="mi">10</span><span class="o">,</span> <span class="n">TimeUnit</span><span class="o">.</span><span class="na">SECONDS</span><span class="o">);</span>
 <span class="n">Producer</span> <span class="n">producer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="na">createProducer</span><span class="o">(</span><span class="n">topic</span><span class="o">,</span> <span class="n">config</span><span class="o">);</span>
 </code></pre>
 </div>
@@ -715,15 +698,17 @@
 
 <p>Here’s an example async send operation:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">producer</span><span class="o">.</span><span class="na">sendAsync</span><span class="o">(</span><span class="s">"my-async-message"</span><span class="o">.</span><span class="na">getBytes</span><span class="o">());</span>
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">CompletableFuture</span><span class="o">&lt;</span><span class="n">MessageId</span><span class="o">&gt;</span> <span class="n">future</span> <span class="o">=</span> <span class="n">producer</span><span class="o">.</span><span class="na">sendAsync</span><span class="o">(</span><span class="s">"my-async-message"</span><span class="o">.</span><span class="na">getBytes</span><span class="o">());</span>
 </code></pre>
 </div>
 
+<p>Async send operations return a <a target="_blank" href="/api/client/org/apache/pulsar/client/api/MessageId.html"><code class="highlighter-rouge">MessageId</code></a> wrapped in a <a href="http://www.baeldung.com/java-completablefuture"><code class="highlighter-rouge">CompletableFuture</code></a>.</p>
+
 <h2 id="consumers">Consumers</h2>
 
-<p>In Pulsar, <span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumers</span> subscribe to <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topics</span> and handle <span class="popover-term" tabindex="0" title="What is a message in Pulsar?" data-placement="top" data-content="TODO" data-toggle="popover" data-trigger="focus">messages</span> that <span class="popover-term" tabindex="0" title="What is a producer?" data-placement="top" data-content="A process that publishes messages to a Pulsar topic." data-toggle="popover" data-trigger="focus">producers</span> publish to those topics. You can instantiate a new <span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumer</span> by first instantiating a <a target="_blank" href="/api/client/com/yahoo/pulsar/client/api/PulsarClient.html"><code class="highlighter-rouge">PulsarClient</code></a>, passing it a URL for a Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">broker</span> (we’ll use the <code class="highlighter-rouge">client</code> object from the producer example above).</p>
+<p>In Pulsar, <span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumers</span> subscribe to <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topics</span> and handle <span class="popover-term" tabindex="0" title="What is a message in Pulsar?" data-placement="top" data-content="TODO" data-toggle="popover" data-trigger="focus">messages</span> that <span class="popover-term" tabindex="0" title="What is a producer?" data-placement="top" data-content="A process that publishes messages to a Pulsar topic." data-toggle="popover" data-trigger="focus">producers</span> publish to those topics. You can instantiate a new <span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumer</span> by first instantiating a <a target="_blank" href="/api/client/org/apache/pulsar/client/api/PulsarClient.html"><code class="highlighter-rouge">PulsarClient</code></a>, passing it a URL for a Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">broker</span> (we’ll use the <code class="highlighter-rouge">client</code> object from the producer example above).</p>
 
-<p>Once you’ve instantiated a <a target="_blank" href="/api/client/com/yahoo/pulsar/client/api/PulsarClient.html"><code class="highlighter-rouge">PulsarClient</code></a> object, you can create a <a target="_blank" href="/api/client/com/yahoo/pulsar/client/api/Consumer.html"><code class="highlighter-rouge">Consumer</code></a> for a <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topic</span>. You also need to supply a <span class="popover-term" tabindex="0" title="What is a subscription?" data-placement="top" data-content="TODO" data-toggle="popover" data-trigger="focus">subscription</span> name.</p>
+<p>Once you’ve instantiated a <a target="_blank" href="/api/client/org/apache/pulsar/client/api/PulsarClient.html"><code class="highlighter-rouge">PulsarClient</code></a> object, you can create a <a target="_blank" href="/api/client/org/apache/pulsar/client/api/Consumer.html"><code class="highlighter-rouge">Consumer</code></a> for a <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topic</span>. You also need to supply a <span class="popover-term" tabindex="0" title="What is a subscription?" data-placement="top" data-content="TODO" data-toggle="popover" data-trigger="focus">subscription</span> name.</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">String</span> <span class="n">topic</span> <span class="o">=</span> <span class="s">"persistent://sample/standalone/ns1/my-topic"</span><span class="o">;</span> <span class="c1">// from above</span>
 <span class="n">String</span> <span class="n">subscription</span> <span class="o">=</span> <span class="s">"my-subscription"</span><span class="o">;</span>
@@ -747,21 +732,7 @@
 
 <h3 id="configuring-consumers">Configuring consumers</h3>
 
-<p>If you instantiate a <code class="highlighter-rouge">Consumer</code> object specifying only a topic and subscription name, as in the example above, the consumer will use the default configuration. To use a non-default configuration, you can instantiate the <code class="highlighter-rouge">Consumer</code> with a <a target="_blank" href="/api/client/com/yahoo/pulsar/client/api/ConsumerConfiguration.html"><code class="highlighter-rouge">ConsumerConfiguration</code></a> object as well. The following setters are available:</p>
-
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// Set the timeout for unacked messages, truncated to the nearest millisecond</span>
-<span class="kd">public</span> <span class="n">ConsumerConfiguration</span> <span class="nf">setAckTimeout</span><span class="o">(</span><span class="kt">long</span> <span class="n">ackTimeout</span><span class="o">,</span> <span class="n">TimeUnit</span> <span class="n">timeUnit</span><span class="o">);</span>
-
-<span class="c1">// Select the subscription type to be used when subscribing to the topic</span>
-<span class="kd">public</span> <span class="n">ConsumerConfiguration</span> <span class="nf">setSubscriptionType</span><span class="o">(</span><span class="n">SubscriptionType</span> <span class="n">subscriptionType</span><span class="o">);</span>
-
-<span class="c1">// Sets a MessageListener for the consumer</span>
-<span class="kd">public</span> <span class="n">ConsumerConfiguration</span> <span class="nf">setMessageListener</span><span class="o">(</span><span class="n">MessageListener</span> <span class="n">messageListener</span><span class="o">);</span>
-
-<span class="c1">// Sets the size of the consumer receive queue</span>
-<span class="kd">public</span> <span class="n">ConsumerConfiguration</span> <span class="nf">setReceiverQueueSize</span><span class="o">(</span><span class="kt">int</span> <span class="n">receiverQueueSize</span><span class="o">);</span>
-</code></pre>
-</div>
+<p>If you instantiate a <code class="highlighter-rouge">Consumer</code> object specifying only a topic and subscription name, as in the example above, the consumer will use the default configuration. To use a non-default configuration, you can instantiate the <code class="highlighter-rouge">Consumer</code> with a <a target="_blank" href="/api/client/org/apache/pulsar/client/api/ConsumerConfiguration.html"><code class="highlighter-rouge">ConsumerConfiguration</code></a> object as well.</p>
 
 <p>Here’s an example configuration:</p>
 
@@ -783,13 +754,17 @@
 </code></pre>
 </div>
 
+<p>Async send operations return a <a target="_blank" href="/api/client/org/apache/pulsar/client/api/Message.html"><code class="highlighter-rouge">Message</code></a> wrapped in a <a href="http://www.baeldung.com/java-completablefuture"><code class="highlighter-rouge">CompletableFuture</code></a>.</p>
+
 <h2 id="authentication">Authentication</h2>
 
 <p>Pulsar currently supports two authentication schemes: <a href="../../admin/Authz#tls-authentication">TLS</a> and <a href="../../admin/Authz#athenz">Athenz</a>. The Pulsar Java client can be used with both.</p>
 
 <h3 id="tls-authentication">TLS Authentication</h3>
 
-<p>To use <a href="../../admin/Authz#tls-authentication">TLS</a>, you need to set TLS to <code class="highlighter-rouge">true</code> using the <code class="highlighter-rouge">setUseTls</code> method, point your Pulsar client to a TLS cert path, and provide paths to cert and key files. Here’s an example configuration:</p>
+<p>To use <a href="../../admin/Authz#tls-authentication">TLS</a>, you need to set TLS to <code class="highlighter-rouge">true</code> using the <code class="highlighter-rouge">setUseTls</code> method, point your Pulsar client to a TLS cert path, and provide paths to cert and key files.</p>
+
+<p>Here’s an example configuration:</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">ClientConfiguration</span> <span class="n">conf</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ClientConfiguration</span><span class="o">();</span>
 <span class="n">conf</span><span class="o">.</span><span class="na">setUseTls</span><span class="o">(</span><span class="kc">true</span><span class="o">);</span>
