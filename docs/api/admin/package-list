@@ -1,5 +1,1 @@
 com.yahoo.pulsar.client.admin
-com.yahoo.pulsar.common.policies
-com.yahoo.pulsar.common.policies.data
-com.yahoo.pulsar.common.policies.data.loadbalancer
-com.yahoo.pulsar.common.policies.impl

@@ -7,18 +7,18 @@ The Pulsar Java client can be used both to create Java {% popover producers %} a
 
 The current version of the Java client is **{{ site.current_version }}**.
 
-Javadoc for the Pulsar client is divided up into three domains, by package:
+Javadoc for the Pulsar client is divided up into two domains, by package:
 
 Package | Description
 :-------|:-----------
-[`com.yahoo.pulsar.client.api`]({{ site.baseurl }}api/client) | The {% popover producer %} and {% popover consumer %} API
-[`com.yahoo.pulsar.client.admin`]({{ site.baseurl }}api/admin) | The Java [admin API](../../admin/AdminInterface)
+[`org.apache.pulsar.client.api`]({{ site.baseurl }}api/client) | The {% popover producer %} and {% popover consumer %} API
+[`org.apache.pulsar.client.admin`]({{ site.baseurl }}api/admin) | The Java [admin API](../../admin/AdminInterface)
 
-This document will focus only on the client API for producing and consuming messages on Pulsar {% popover topics %}.
+This document will focus only on the client API for producing and consuming messages on Pulsar {% popover topics %}. For a guide to using the Java admin client, see [The Pulsar admin interface](../../admin/AdminInterface).
 
 ## Installation
 
-The latest version of the Pulsar Java client library is available via [Maven Central](http://search.maven.org/#artifactdetails%7Ccom.yahoo.pulsar%7Cpulsar-client%7C{{ site.current_version }}%7Cjar). To use the latest version, add the `pulsar-client` library to your build configuration.
+The latest version of the Pulsar Java client library is available via [Maven Central](http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client%7C{{ site.current_version }}%7Cjar). To use the latest version, add the `pulsar-client` library to your build configuration.
 
 ### Maven
 
@@ -30,7 +30,7 @@ If you're using Maven, add this to your `pom.xml`:
 
 <!-- in your <dependencies> block -->
 <dependency>
-  <groupId>com.yahoo.pulsar</groupId>
+  <groupId>org.apache.pulsar</groupId>
   <artifactId>pulsar-client</artifactId>
   <version>${pulsar.version}</version>
 </dependency>
@@ -41,51 +41,35 @@ If you're using Maven, add this to your `pom.xml`:
 If you're using Gradle, add this to your `build.gradle` file:
 
 ```groovy
+def pulsarVersion = '{{ site.current_version }}'
+
 dependencies {
-    compile group: 'com.yahoo.pulsar', name: 'pulsar-client', version: '{{ site.current_version }}'
+    compile group: 'org.apache.pulsar', name: 'pulsar-client', version: pulsarVersion
 }
 ```
 
+## Connection URLs
+
+{% include explanations/client-url.md %}
+
 ## Client configuration
 
-You can instantiate a {% javadoc PulsarClient client com.yahoo.pulsar.client.api.PulsarClient %} object using just a URL for the target Pulsar {% popover broker %}, like this:
+You can instantiate a {% javadoc PulsarClient client org.apache.pulsar.client.api.PulsarClient %} object using just a URL for the target Pulsar {% popover cluster %}, like this:
 
 ```java
 String pulsarBrokerRootUrl = "pulsar://localhost:6650";
 PulsarClient client = PulsarClient.create(pulsarBrokerRootUrl);
 ```
 
-This object will use the default configuration.
-
-```java
-// Set the authentication provider to use in the Pulsar client instance
-public void setAuthentication(Authentication authentication);
-public void setAuthentication(String authPluginClassName, String authParamsString);
-public void setAuthentication(String authPluginClassName, Map<String, String> authParams);
-
-// Set the operation timeout(default: 30 seconds)
-public void setOperationTimeout(int operationTimeout, TimeUnit unit);
-
-// Set the number of threads to be used for handling connections to brokers (default: 1 thread)
-public void setIoThreads(int numIoThreads);
-
-// Set the number of threads to be used for message listeners(default: 1 thread)
-public void setListenerThreads(int numListenerThreads);
-
-// Sets the max number of connection that the client library will open to a single broker
-public void setConnectionsPerBroker(int connectionsPerBroker);
-
-// Configure whether to use TCP no-delay flag on the connection, to disable the Nagle algorithm
-public void setUseTcpNoDelay(boolean useTcpNoDelay);
-```
+This `PulsarClient` object will use the default configuration. See the Javadoc for {% javadoc ClientConfiguration client org.apache.pulsar.client.api.ClientConfiguration %} to see how to provide a non-default configuration.
 
 {% include admonition.html type="info" content="
-In addition to client-level configuration, you can also apply [producer](#configuring-producers)- and [consumer](#configuring-consumers)-specific configuration.
+In addition to client-level configuration, you can also apply [producer](#configuring-producers)- and [consumer](#configuring-consumers)-specific configuration, as you'll see in the sections below.
 " %}
 
 ## Producers
 
-In Pulsar, {% popover producers %} point to a Pulsar {% popover broker %} and write {% popover messages %} to {% popover topics %}. You can instantiate a new popover producer  by first instantiating a {% javadoc PulsarClient client com.yahoo.pulsar.client.api.PulsarClient %}, passing it a URL for a Pulsar {% popover broker %}.
+In Pulsar, {% popover producers %} write {% popover messages %} to {% popover topics %}. You can instantiate a new {% popover producer %} by first instantiating a {% javadoc PulsarClient client org.apache.pulsar.client.api.PulsarClient %}, passing it a URL for a Pulsar {% popover broker %}.
 
 ```java
 String pulsarBrokerRootUrl = "pulsar://localhost:6650";
@@ -93,12 +77,9 @@ PulsarClient client = PulsarClient.create(pulsarBrokerRootUrl);
 ```
 
 {% include admonition.html type='info' title='Default broker URLs for standalone clusters' content="
-If you're running a cluster in [standalone mode](../getting-started/LocalCluster), the broker will be available at these two URLs by default:
+If you're running a cluster in [standalone mode](../getting-started/LocalCluster), the broker will be available at the `pulsar://localhost:6650` URL by default." %}
 
-* `pulsar://localhost:6650`
-* `http://localhost:8080`" %}
-
-Once you've instantiated a {% javadoc PulsarClient client com.yahoo.pulsar.client.api.PulsarClient %} object, you can create a {% javadoc Producer client com.yahoo.pulsar.client.api.Producer %} for a {% popover topic %}.
+Once you've instantiated a {% javadoc PulsarClient client org.apache.pulsar.client.api.PulsarClient %} object, you can create a {% javadoc Producer client org.apache.pulsar.client.api.Producer %} for a {% popover topic %}.
 
 ```java
 String topic = "persistent://sample/standalone/ns1/my-topic";
@@ -115,7 +96,7 @@ for (int i = 0; i < 10; i++) {
 ```
 
 {% include admonition.html type='warning' content="
-You should always make sure to close your producer, consumer, and client when no longer needed:
+You should always make sure to close your producers, consumers, and clients when they are no longer needed:
 
 ```java
 producer.close();
@@ -135,45 +116,13 @@ clioent.asyncClose();
 
 ### Configuring producers
 
-If you instantiate a `Producer` object specifying only a topic name, as in the example above, the producer will use the default configuration. To use a non-default configuration, you can instantiate the `Producer` with a {% javadoc ProducerConfiguration client com.yahoo.pulsar.client.api.ProducerConfiguration %} object as well. The following setters are available:
-
-```java
-// Set the send timeout (default: 30 seconds)
-public void setSendTimeout(int sendTimeout, TimeUnit unit);
-
-// Set the max size of the queue holding the messages pending to receive an acknowledgment from the broker.
-
-public void setMaxPendingMessages(int maxPendingMessages);
-
-// Set whether the Producer#send and Producer#sendAsync operations should block when the outgoing message queue is full.
-public void setBlockIfQueueFull(boolean blockIfQueueFull);
-
-// Set the message routing mode for the partitioned producer
-public void setMessageRoutingMode(MessageRoutingMode messageRouteMode);
-
-// Set the compression type for the producer.
-public void setCompressionType(CompressionType compressionType);
-
-// Set a custom message routing policy by passing an implementation of MessageRouter
-public void setMessageRouter(MessageRouter messageRouter);
-
-// Control whether automatic batching of messages is enabled for the producer, default: false.
-public void setBatchingEnabled(boolean batchMessagesEnabled);
-
-// Set the time period within which the messages sent will be batched, default: 10ms.
-public void setBatchingMaxPublishDelay(long batchDelay, TimeUnit timeUnit);
-
-// Set the maximum number of messages permitted in a batch, default: 1000.
-public void setBatchingMaxMessages(int batchMessagesMaxMessagesPerBatch);
-```
-
-Here's a configuration example:
+If you instantiate a `Producer` object specifying only a topic name, as in the example above, the producer will use the default configuration. To use a non-default configuration, you can instantiate the `Producer` with a {% javadoc ProducerConfiguration client org.apache.pulsar.client.api.ProducerConfiguration %} object as well. Here's an example configuration:
 
 ```java
 PulsarClient client = PulsarClient.create(pulsarBrokerRootUrl);
 ProducerConfiguration config = new ProducerConfiguration();
-config.setIoThreads(10);
-config.setUseTcpNoDelay(true);
+config.setBatchingEnabled(true);
+config.setSendTimeout(10, TimeUnit.SECONDS);
 Producer producer = client.createProducer(topic, config);
 ```
 
@@ -188,14 +137,16 @@ You can publish messages [asynchronously](../../getting-started/ConceptsAndArchi
 Here's an example async send operation:
 
 ```java
-producer.sendAsync("my-async-message".getBytes());
+CompletableFuture<MessageId> future = producer.sendAsync("my-async-message".getBytes());
 ```
+
+Async send operations return a {% javadoc MessageId client org.apache.pulsar.client.api.MessageId %} wrapped in a [`CompletableFuture`](http://www.baeldung.com/java-completablefuture).
 
 ## Consumers
 
-In Pulsar, {% popover consumers %} subscribe to {% popover topics %} and handle {% popover messages %} that {% popover producers %} publish to those topics. You can instantiate a new {% popover consumer %} by first instantiating a {% javadoc PulsarClient client com.yahoo.pulsar.client.api.PulsarClient %}, passing it a URL for a Pulsar {% popover broker %} (we'll use the `client` object from the producer example above).
+In Pulsar, {% popover consumers %} subscribe to {% popover topics %} and handle {% popover messages %} that {% popover producers %} publish to those topics. You can instantiate a new {% popover consumer %} by first instantiating a {% javadoc PulsarClient client org.apache.pulsar.client.api.PulsarClient %}, passing it a URL for a Pulsar {% popover broker %} (we'll use the `client` object from the producer example above).
 
-Once you've instantiated a {% javadoc PulsarClient client com.yahoo.pulsar.client.api.PulsarClient %} object, you can create a {% javadoc Consumer client com.yahoo.pulsar.client.api.Consumer %} for a {% popover topic %}. You also need to supply a {% popover subscription %} name.
+Once you've instantiated a {% javadoc PulsarClient client org.apache.pulsar.client.api.PulsarClient %} object, you can create a {% javadoc Consumer client org.apache.pulsar.client.api.Consumer %} for a {% popover topic %}. You also need to supply a {% popover subscription %} name.
 
 ```java
 String topic = "persistent://sample/standalone/ns1/my-topic"; // from above
@@ -219,22 +170,7 @@ while (true) {
 
 ### Configuring consumers
 
-If you instantiate a `Consumer` object specifying only a topic and subscription name, as in the example above, the consumer will use the default configuration. To use a non-default configuration, you can instantiate the `Consumer` with a {% javadoc ConsumerConfiguration client com.yahoo.pulsar.client.api.ConsumerConfiguration %} object as well. The following setters are available:
-
-
-```java
-// Set the timeout for unacked messages, truncated to the nearest millisecond
-public ConsumerConfiguration setAckTimeout(long ackTimeout, TimeUnit timeUnit);
-
-// Select the subscription type to be used when subscribing to the topic
-public ConsumerConfiguration setSubscriptionType(SubscriptionType subscriptionType);
-
-// Sets a MessageListener for the consumer
-public ConsumerConfiguration setMessageListener(MessageListener messageListener);
-
-// Sets the size of the consumer receive queue
-public ConsumerConfiguration setReceiverQueueSize(int receiverQueueSize);
-```
+If you instantiate a `Consumer` object specifying only a topic and subscription name, as in the example above, the consumer will use the default configuration. To use a non-default configuration, you can instantiate the `Consumer` with a {% javadoc ConsumerConfiguration client org.apache.pulsar.client.api.ConsumerConfiguration %} object as well.
 
 Here's an example configuration:
 
@@ -256,13 +192,17 @@ Here's an example:
 CompletableFuture<Message> asyncMessage = consumer.receiveAsync();
 ```
 
+Async send operations return a {% javadoc Message client org.apache.pulsar.client.api.Message %} wrapped in a [`CompletableFuture`](http://www.baeldung.com/java-completablefuture).
+
 ## Authentication
 
 Pulsar currently supports two authentication schemes: [TLS](../../admin/Authz#tls-authentication) and [Athenz](../../admin/Authz#athenz). The Pulsar Java client can be used with both.
 
 ### TLS Authentication
 
-To use [TLS](../../admin/Authz#tls-authentication), you need to set TLS to `true` using the `setUseTls` method, point your Pulsar client to a TLS cert path, and provide paths to cert and key files. Here's an example configuration:
+To use [TLS](../../admin/Authz#tls-authentication), you need to set TLS to `true` using the `setUseTls` method, point your Pulsar client to a TLS cert path, and provide paths to cert and key files.
+
+Here's an example configuration:
 
 ```java
 ClientConfiguration conf = new ClientConfiguration();

@@ -134,38 +134,36 @@ section.docs-cards {
   .btn-javadoc i {
     margin-left: 15px; }
 
-.sidebar {
-  position: fixed; }
-  .sidebar section.sidebar-group h4 {
-    font-size: 18px;
-    margin-bottom: 10px; }
-  .sidebar section.sidebar-group ul {
+aside.sidebar {
+  position: fixed;
+  overflow-y: scroll; }
+  aside.sidebar section.sidebar-group h4 {
+    font-size: 16px;
+    margin-bottom: 8px; }
+  aside.sidebar section.sidebar-group ul {
     overflow: auto;
     margin-left: 5px;
     list-style: outside; }
-    .sidebar section.sidebar-group ul li {
+    aside.sidebar section.sidebar-group ul li {
       max-width: 100%;
-      font-size: 16px;
+      font-size: 14px;
       margin-left: 0; }
-      .sidebar section.sidebar-group ul li a {
+      aside.sidebar section.sidebar-group ul li a {
         color: #4d4d4d; }
-        .sidebar section.sidebar-group ul li a.active {
+        aside.sidebar section.sidebar-group ul li a.active {
           color: #d33682; }
-        .sidebar section.sidebar-group ul li a:hover {
+        aside.sidebar section.sidebar-group ul li a:hover {
           color: #0075e4;
           text-decoration: none; }
-      .sidebar section.sidebar-group ul li i {
+      aside.sidebar section.sidebar-group ul li i {
         color: #999;
         margin-right: 15px; }
-        .sidebar section.sidebar-group ul li i:hover {
+        aside.sidebar section.sidebar-group ul li i:hover {
           color: #4d4d4d; }
-      .sidebar section.sidebar-group ul li + li {
+      aside.sidebar section.sidebar-group ul li + li {
         margin-top: 4px; }
-  .sidebar section.sidebar-group + section.sidebar-group {
+  aside.sidebar section.sidebar-group + section.sidebar-group {
     margin-top: 15px; }
-
-header {
-  background-color: black; }
 
 .docs-container {
   width: 90%; }
@@ -307,7 +305,8 @@ a.download-btn {
 
 footer.footer {
   padding: 1%;
-  background-color: black; }
+  background-color: black;
+  z-index: 999; }
   footer.footer p {
     color: #188fff; }
 
@@ -9286,6 +9285,10 @@ nav.navbar {
   nav.navbar img.japan-flag {
     height: 28px;
     border: 1px solid #c4c4c4; }
+  nav.navbar li.nav-item a.nav-link {
+    color: #188fff; }
+    nav.navbar li.nav-item a.nav-link:hover, nav.navbar li.nav-item a.nav-link:active {
+      color: #188fff; }
   nav.navbar .collapse {
     margin: 8px 0 8px 100px; }
     nav.navbar .collapse ul.navbar-nav li.nav-item + li.nav-item {

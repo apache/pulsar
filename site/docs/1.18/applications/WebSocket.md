@@ -3,7 +3,7 @@ title: Pulsar's WebSocket API
 tags: [websocket, nodejs, python]
 ---
 
-Pulsar's [WebSocket](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API) API is meant to provide a simple way to interact with Pulsar using languages outside the Java Virtual Machine (JVM). Through WebSockets you can publish and consume messages and use all the features available in the [Java client library](../JavaClient).
+Pulsar's [WebSocket](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API) API is meant to provide a simple way to interact with Pulsar using languages that do not have an official [client library](../../getting-started/Clients). Through WebSockets you can publish and consume messages and use all the features available in the [Java](../JavaClient), [Python](../PythonClient), and [C++](../CppClient) client libraries.
 
 {% include admonition.html type="success" content="You can use Pulsar's WebSocket API with any WebSocket client library. See examples for Python and Node.js [below](#client-examples)." %}
 
@@ -52,13 +52,13 @@ $ bin/pulsar-daemon start websocket
 
 Pulsar's WebSocket API offers two endpoints, one for [producing](#producer-endpoint) messages and one for [consuming](#consumer-endpoint) messages.
 
-All exchanges via the WebSocket API are done using JSON messages.
+All exchanges via the WebSocket API use JSON.
 
 ### Producer endpoint
 
 The producer endpoint requires you to specify a {% popover property %}, {% popover cluster %}, {% popover namespace %}, and {% popover topic %} in the URL:
 
-{% endpoint http://broker-service-url:8080/ws/producer/persistent/:property/:cluster/:namespace/:topic %}
+{% endpoint ws://broker-service-url:8080/ws/producer/persistent/:property/:cluster/:namespace/:topic %}
 
 #### Publishing a message
 
@@ -79,9 +79,7 @@ Key | Type | Required? | Explanation
 `replicationClusters` | array | no | Restrict replication to this list of {% popover clusters %}, specified by name
 
 
-#### Acknowledgement from server
-
-##### Success response
+##### Example success response
 
 ```json
 {
@@ -90,7 +88,8 @@ Key | Type | Required? | Explanation
    "context": "1"
  }
 ```
-###### Failure response
+##### Example failure response
+
 ```json
  {
    "result": "send-error:3",
@@ -110,7 +109,7 @@ Key | Type | Required? | Explanation
 
 The producer endpoint requires you to specify a {% popover property %}, {% popover cluster %}, {% popover namespace %}, and {% popover topic %}, as well as a {% popover subscription %}, in the URL:
 
-{% endpoint http://broker-service-url:8080/ws/consumer/persistent/:property/:cluster/:namespace/:topic/:subscription %}
+{% endpoint ws://broker-service-url:8080/ws/consumer/persistent/:property/:cluster/:namespace/:topic/:subscription %}
 
 ##### Receiving messages
 
@@ -156,20 +155,18 @@ Key | Type | Required? | Explanation
 In case of error the server will close the WebSocket session using the
 following error codes:
 
-#### Different Possible Error Types
-
 Error Code | Error Message
 :----------|:-------------
 1 | Failed to create producer
 2 | Failed to subscribe
-3 | Failed to de-serialize from JSON
+3 | Failed to deserialize from JSON
 4 | Failed to serialize to JSON
 5 | Failed to authenticate client
 6 | Client is not authorized
 7 | Invalid payload encoding
 8 | Unknown error
 
-{% include admonition.html type='warning' content='The application is responsible to re-establish a new WebSocket session after a backoff period.' %}
+{% include admonition.html type='warning' content='The application is responsible for re-establishing a new WebSocket session after a backoff period.' %}
 
 ## Client examples
 
@@ -196,7 +193,7 @@ TOPIC = 'ws://localhost:8080/ws/producer/persistent/sample/standalone/ns1/my-top
 
 ws = websocket.create_connection(TOPIC)
 
-# Send one message
+# Send one message as JSON
 ws.send(json.dumps({
     'payload' : base64.b64encode('Hello World'),
     'properties': {
@@ -216,7 +213,7 @@ ws.close()
 
 #### Python consumer
 
-Here's an example Python {% popover consumer %} that listens on a Pulsar {% popover topic %} and prints the message payload whenever a message arrives:
+Here's an example Python {% popover consumer %} that listens on a Pulsar {% popover topic %} and prints the message ID whenever a message arrives:
 
 ```python
 import websocket, base64, json

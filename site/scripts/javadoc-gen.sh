@@ -13,7 +13,7 @@ JDK_COMMON_PKGS=java.lang:java.util:java.util.concurrent:java.nio:java.net:java.
     -doctitle "Pulsar Client Java API" \
     -overview site/scripts/javadoc-client.html \
     -d site/api/client \
-    -subpackages com.yahoo.pulsar.client.api \
+    -subpackages org.apache.pulsar.client.api \
     -noqualifier $JDK_COMMON_PKGS \
     `find pulsar-client/src/main/java/org/apache/pulsar/client/api -name *.java`
 

@@ -66,7 +66,6 @@ $ export OPENSSL_ROOT_DIR=/usr/local/opt/openssl/
 
 # Protocol Buffers installation
 $ brew tap homebrew/versions
-$ brew tap homebrew/versions
 $ brew install protobuf260
 $ brew install boost
 $ brew install log4cxx
@@ -82,7 +81,8 @@ Then compile the Pulsar client library in the repo that you cloned:
 
 ```shell
 $ cd pulsar-client-cpp
-$ TODO
+$ cmake .
+$ make
 ```
 
 ## Consumer
