@@ -1,11 +1,11 @@
 Each Pulsar {% popover instance %} relies on two separate ZooKeeper quorums.
 
-* [Local ZooKeeper](#deploying-local-zookeeper) operates at the {% popover cluster %} level and provides cluster-specific configuration management and coordination. Each Pulsar cluster should have its own ZooKeeper cluster associated with it.
-* [Global ZooKeeper](#deploying-global-zookeeper) operates at the {% popover instance %} level and provides configuration management that applies to the entire Pulsar system. The global ZooKeeper quorum can be provided by an independent cluster of machines
+* [Local ZooKeeper](#deploying-local-zookeeper) operates at the {% popover cluster %} level and provides cluster-specific configuration management and coordination. Each Pulsar cluster should have a dedicated ZooKeeper cluster.
+* [Global ZooKeeper](#deploying-global-zookeeper) operates at the {% popover instance %} level and provides configuration management for the entire system (and thus across clusters). The global ZooKeeper quorum can be provided by an independent cluster of machines or by the same machines used by local ZooKeeper.
 
 ### Deploying local ZooKeeper
 
-Deploying a Pulsar instance requires you to stand up one local {% popover ZooKeeper %} cluster *per Pulsar {% popover cluster %}*. ZooKeeper manages a variety of essential coordination- and configuration-related tasks for Pulsar.
+ZooKeeper manages a variety of essential coordination- and configuration-related tasks for Pulsar. Deploying a Pulsar instance requires you to stand up one local {% popover ZooKeeper %} cluster *per Pulsar {% popover cluster %}*. 
 
 To begin, add all ZooKeeper servers to the quorum configuration specified in the [`conf/zookeeper.conf`](../../reference/Configuration#zookeeper) file. Add a `server.N` line for each node in the cluster to the configuration, where `N` is the number of the ZooKeeper node. Here's an example for a three-node cluster:
 
@@ -30,7 +30,7 @@ $ echo 1 > data/zookeeper/myid
 
 On `zk2.us-west.example.com` the command would be `echo 2 > data/zookeeper/myid` and so on.
 
-Once each server has been added to the `zookeeper.conf` configuration and has the appropriate `myid` entry, you can start ZooKeeper on all hosts:
+Once each server has been added to the `zookeeper.conf` configuration and has the appropriate `myid` entry, you can start ZooKeeper on all hosts using [`pulsar-daemon`](../../reference/CliTools#pulsar-daemon):
 
 ```shell
 $ bin/pulsar-daemon start zookeeper

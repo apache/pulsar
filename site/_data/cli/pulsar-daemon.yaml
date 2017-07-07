@@ -1,1 +1,10 @@
-description: A wrapper around the [`pulsar`](#pulsar) tool to start the process in the background with [nohup](https://en.wikipedia.org/wiki/Nohup). `pulsar-daemon` has the same command interface as `pulsar`.
+description: A wrapper around the [`pulsar`](#pulsar) tool that's used to start and stop processes, such as ZooKeeper, bookies, and Pulsar brokers, in the background using [nohup](https://en.wikipedia.org/wiki/Nohup). `pulsar-daemon` has a similar interface to the `pulsar` command but adds `start` and `stop` commands for various services.
+commands:
+- name: start
+  description: Start a service in the background using nohup.
+  argument: service
+- name: stop
+  description: Stop a service that's already been started using [`start`](#pulsar-daemon-start).
+  argument: service
+  options:
+  - flags: -force

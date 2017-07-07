@@ -3,7 +3,7 @@ title: Deploying a Pulsar instance
 tags: [admin, instance]
 ---
 
-A Pulsar *instance* is a Pulsar installation consisting of multiple {% popover clusters %} that are potentially distributed across data centers or geographical regions.
+A Pulsar *instance* consists of multiple Pulsar {% popover clusters %} that are potentially distributed across data centers or geographical regions.
 
 {% include admonition.html type="info" title='Running Pulsar locally?' content="
 This guide shows you how to deploy Pulsar in production. If you're looking to run a standalone Pulsar cluster for development purposes on a single machine, see the [Setting up a local cluster](../../getting-started/LocalCluster) guide." %}
