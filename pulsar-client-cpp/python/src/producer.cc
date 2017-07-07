@@ -17,12 +17,7 @@
 #include "utils.h"
 
 void Producer_send(Producer& producer, const Message& message) {
-    Result res;
-    Py_BEGIN_ALLOW_THREADS
-    res = producer.send(message);
-    Py_END_ALLOW_THREADS
-
-    CHECK_RESULT(res);
+    CHECK_RESULT(producer.send(message));
 }
 
 void Producer_sendAsyncCallback(PyObject* callback, Result res, const Message& msg) {
@@ -52,12 +47,7 @@ void Producer_sendAsync(Producer& producer, const Message& message, py::object c
 }
 
 void Producer_close(Producer& producer) {
-    Result res;
-    Py_BEGIN_ALLOW_THREADS
-    res = producer.close();
-    Py_END_ALLOW_THREADS
-
-    CHECK_RESULT(res);
+    CHECK_RESULT(producer.close());
 }
 
 void export_producer() {
@@ -82,4 +72,5 @@ void export_producer() {
             .def("send_async", &Producer_sendAsync)
             .def("close", &Producer_close)
             ;
+
 }

@@ -16,8 +16,8 @@
 package com.yahoo.pulsar.broker.admin;
 
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
@@ -36,6 +36,7 @@ import java.util.concurrent.TimeUnit;
 import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
 
+import org.apache.bookkeeper.test.PortManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -52,6 +53,7 @@ import com.google.common.collect.Sets;
 import com.google.common.hash.Hashing;
 import com.yahoo.pulsar.broker.PulsarServerException;
 import com.yahoo.pulsar.broker.PulsarService;
+import com.yahoo.pulsar.broker.ServiceConfiguration;
 import com.yahoo.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import com.yahoo.pulsar.broker.namespace.NamespaceEphemeralData;
 import com.yahoo.pulsar.broker.namespace.NamespaceService;
@@ -65,6 +67,7 @@ import com.yahoo.pulsar.client.admin.PulsarAdminException.PreconditionFailedExce
 import com.yahoo.pulsar.client.admin.internal.LookupImpl;
 import com.yahoo.pulsar.client.admin.internal.PersistentTopicsImpl;
 import com.yahoo.pulsar.client.admin.internal.PropertiesImpl;
+import com.yahoo.pulsar.client.api.Authentication;
 import com.yahoo.pulsar.client.api.ClientConfiguration;
 import com.yahoo.pulsar.client.api.Consumer;
 import com.yahoo.pulsar.client.api.ConsumerConfiguration;
@@ -105,13 +108,14 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
     private static final Logger LOG = LoggerFactory.getLogger(AdminApiTest.class);
 
-    private MockedPulsarService mockPulsarSetup;
-    
     private PulsarService otherPulsar;
 
     private PulsarAdmin otheradmin;
 
     private NamespaceBundleFactory bundleFactory;
+
+    private final int SECONDARY_BROKER_PORT = PortManager.nextFreePort();
+    private final int SECONDARY_BROKER_WEBSERVICE_PORT = PortManager.nextFreePort();
 
     @BeforeMethod
     @Override
@@ -123,10 +127,16 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         // create otherbroker to test redirect on calls that need
         // namespace ownership
-        mockPulsarSetup = new MockedPulsarService();
-        mockPulsarSetup.setup();
-        otherPulsar = mockPulsarSetup.getPulsar();
-        otheradmin = mockPulsarSetup.getAdmin();
+        ServiceConfiguration otherconfig = new ServiceConfiguration();
+        otherconfig.setBrokerServicePort(SECONDARY_BROKER_PORT);
+        otherconfig.setWebServicePort(SECONDARY_BROKER_WEBSERVICE_PORT);
+        otherconfig.setLoadBalancerEnabled(false);
+        otherconfig.setClusterName("test");
+
+        otherPulsar = startBroker(otherconfig);
+
+        otheradmin = new PulsarAdmin(new URL("http://127.0.0.1" + ":" + SECONDARY_BROKER_WEBSERVICE_PORT),
+                (Authentication) null);
 
         // Setup namespaces
         admin.clusters().createCluster("use", new ClusterData("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT));
@@ -139,7 +149,9 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
-        mockPulsarSetup.cleanup();
+
+        otheradmin.close();
+        otherPulsar.close();
     }
 
     @DataProvider(name = "numBundles")
@@ -349,11 +361,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     public void brokers() throws Exception {
         List<String> list = admin.brokers().getActiveBrokers("use");
         Assert.assertNotNull(list);
-        Assert.assertEquals(list.size(), 1);
-        
-        List<String> list2 = otheradmin.brokers().getActiveBrokers("test");
-        Assert.assertNotNull(list2);
-        Assert.assertEquals(list2.size(), 1);
+        Assert.assertEquals(list.size(), 2);
 
         Map<String, NamespaceOwnershipStatus> nsMap = admin.brokers().getOwnedNamespaces("use", list.get(0));
         // since sla-monitor ns is not created nsMap.size() == 1 (for HeartBeat Namespace)
@@ -1705,6 +1713,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
      */
     @Test(dataProvider = "topicName")
     public void testIncrementPartitionsOfTopic(String topicName) throws Exception {
+
         final String subName1 = topicName + "-my-sub 1";
         final String subName2 = topicName + "-my-sub 2";
         final int startPartitions = 4;
@@ -1784,28 +1793,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         consumer1.close();
         consumer2.close();
         consumer2.close();
+
     }
 
-    class MockedPulsarService extends MockedPulsarServiceBaseTest {
-        @Override
-        protected void setup() throws Exception {
-            conf.setLoadBalancerEnabled(false);
-            conf.setClusterName("test");
-            super.internalSetup();
-        }
-
-        @Override
-        protected void cleanup() throws Exception {
-            super.internalCleanup();
-        }
-
-        public PulsarService getPulsar() {
-            return pulsar;
-        }
-
-        public PulsarAdmin getAdmin() {
-            return admin;
-        }
-    }
-    
 }

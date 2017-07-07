@@ -22,7 +22,6 @@ import static org.testng.Assert.fail;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -39,30 +38,23 @@ import com.yahoo.pulsar.client.api.ProducerConfiguration.MessageRoutingMode;
 import com.yahoo.pulsar.client.impl.PartitionedProducerImpl;
 import com.yahoo.pulsar.common.naming.DestinationName;
 
-import io.netty.util.concurrent.DefaultThreadFactory;
-
 public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(PartitionedProducerConsumerTest.class);
-
-    private ExecutorService executor;
 
     @BeforeClass
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
         super.producerBaseSetup();
-
-        executor = Executors.newFixedThreadPool(1, new DefaultThreadFactory("PartitionedProducerConsumerTest"));
     }
 
     @AfterClass
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
-        executor.shutdown();
     }
 
-    @Test(timeOut = 30000)
+    @Test
     public void testRoundRobinProducer() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -103,8 +95,8 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
 
         log.info("-- Exiting {} test --", methodName);
     }
-
-    @Test(timeOut = 30000)
+    
+    @Test
     public void testPartitionedTopicNameWithSpecialCharacter() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -123,7 +115,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(timeOut = 30000)
+    @Test
     public void testSinglePartitionProducer() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -167,7 +159,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(timeOut = 30000)
+    @Test
     public void testKeyBasedProducer() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -224,7 +216,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
         Assert.assertTrue(messageSet.add(message), "Received duplicate message " + message);
     }
 
-    @Test(timeOut = 30000)
+    @Test
     public void testInvalidSequence() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -274,7 +266,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
 
     }
 
-    @Test(timeOut = 30000)
+    @Test
     public void testSillyUser() throws Exception {
 
         int numPartitions = 4;
@@ -336,7 +328,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
 
     }
 
-    @Test(timeOut = 30000)
+    @Test
     public void testDeletePartitionedTopic() throws Exception {
         int numPartitions = 4;
         DestinationName dn = DestinationName.get("persistent://my-property/use/my-ns/my-partitionedtopic6");
@@ -356,7 +348,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
         }
     }
 
-    @Test(timeOut = 30000)
+    @Test(timeOut = 4000)
     public void testAsyncPartitionedProducerConsumer() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -389,7 +381,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
 
         // receive messages
         CountDownLatch latch = new CountDownLatch(totalMsg);
-        receiveAsync(consumer, totalMsg, 0, latch, consumeMsgs, executor);
+        receiveAsync(consumer, totalMsg, 0, latch, consumeMsgs, Executors.newFixedThreadPool(1));
 
         latch.await();
 
@@ -407,7 +399,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(timeOut = 30000)
+    @Test(timeOut = 4000)
     public void testAsyncPartitionedProducerConsumerQueueSizeOne() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -440,7 +432,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
 
         // receive messages
         CountDownLatch latch = new CountDownLatch(totalMsg);
-        receiveAsync(consumer, totalMsg, 0, latch, consumeMsgs, executor);
+        receiveAsync(consumer, totalMsg, 0, latch, consumeMsgs, Executors.newFixedThreadPool(1));
 
         latch.await();
 
@@ -460,10 +452,10 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
 
     /**
      * It verifies that consumer consumes from all the partitions fairly.
-     *
+     * 
      * @throws Exception
      */
-    @Test(timeOut = 30000)
+    @Test
     public void testFairDistributionForPartitionConsumers() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -521,7 +513,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
 
         log.info("-- Exiting {} test --", methodName);
     }
-
+    
     private void receiveAsync(Consumer consumer, int totalMessage, int currentMessage, CountDownLatch latch,
             final Set<String> consumeMsg, ExecutorService executor) throws PulsarClientException {
         if (currentMessage < totalMessage) {

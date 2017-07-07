@@ -17,79 +17,43 @@
 #include "utils.h"
 
 void Consumer_unsubscribe(Consumer& consumer) {
-    Result res;
-    Py_BEGIN_ALLOW_THREADS
-    res = consumer.unsubscribe();
-    Py_END_ALLOW_THREADS
-
-    CHECK_RESULT(res);
+    CHECK_RESULT(consumer.unsubscribe());
 }
 
 Message Consumer_receive(Consumer& consumer) {
     Message msg;
-    Result res;
     Py_BEGIN_ALLOW_THREADS
-    res = consumer.receive(msg);
+    CHECK_RESULT(consumer.receive(msg));
     Py_END_ALLOW_THREADS
-
-    CHECK_RESULT(res);
     return msg;
 }
 
 Message Consumer_receive_timeout(Consumer& consumer, int timeoutMs) {
     Message msg;
-    Result res;
     Py_BEGIN_ALLOW_THREADS
-    res = consumer.receive(msg, timeoutMs);
+    CHECK_RESULT(consumer.receive(msg, timeoutMs));
     Py_END_ALLOW_THREADS
-
-    CHECK_RESULT(res);
     return msg;
 }
 
 void Consumer_acknowledge(Consumer& consumer, const Message& msg) {
-    Result res;
-    Py_BEGIN_ALLOW_THREADS
-    res = consumer.acknowledge(msg);
-    Py_END_ALLOW_THREADS
-
-    CHECK_RESULT(res);
+    CHECK_RESULT(consumer.acknowledge(msg));
 }
 
 void Consumer_acknowledge_message_id(Consumer& consumer, const MessageId& msgId) {
-    Result res;
-    Py_BEGIN_ALLOW_THREADS
-    res = consumer.acknowledge(msgId);
-    Py_END_ALLOW_THREADS
-
-    CHECK_RESULT(res);
+    CHECK_RESULT(consumer.acknowledge(msgId));
 }
 
 void Consumer_acknowledge_cumulative(Consumer& consumer, const Message& msg) {
-    Result res;
-    Py_BEGIN_ALLOW_THREADS
-    res = consumer.acknowledgeCumulative(msg);
-    Py_END_ALLOW_THREADS
-
-    CHECK_RESULT(res);
+    CHECK_RESULT(consumer.acknowledgeCumulative(msg));
 }
 
 void Consumer_acknowledge_cumulative_message_id(Consumer& consumer, const MessageId& msgId) {
-    Result res;
-    Py_BEGIN_ALLOW_THREADS
-    res = consumer.acknowledgeCumulative(msgId);
-    Py_END_ALLOW_THREADS
-
-    CHECK_RESULT(res);
+    CHECK_RESULT(consumer.acknowledgeCumulative(msgId));
 }
 
 void Consumer_close(Consumer& consumer) {
-    Result res;
-    Py_BEGIN_ALLOW_THREADS
-    res = consumer.close();
-    Py_END_ALLOW_THREADS
-
-    CHECK_RESULT(res);
+    CHECK_RESULT(consumer.close());
 }
 
 void Consumer_pauseMessageListener(Consumer& consumer) {

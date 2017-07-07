@@ -406,8 +406,7 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
 
         stats.cancelStatsTimeout();
 
-        ClientCnx cnx = cnx();
-        if (cnx == null || currentState != State.Ready) {
+        if (getClientCnx() == null || currentState != State.Ready) {
             log.info("[{}] [{}] Closed Producer (not connected)", topic, producerName);
             synchronized (this) {
                 setState(State.Closed);
@@ -429,6 +428,7 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
         ByteBuf cmd = Commands.newCloseProducer(producerId, requestId);
 
         CompletableFuture<Void> closeFuture = new CompletableFuture<>();
+        ClientCnx cnx = cnx();
         cnx.sendRequestWithId(cmd, requestId).handle((v, exception) -> {
             cnx.removeProducer(producerId);
             if (exception == null || !cnx.ctx().channel().isActive()) {

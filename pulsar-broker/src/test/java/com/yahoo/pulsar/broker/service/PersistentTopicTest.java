@@ -161,12 +161,7 @@ public class PersistentTopicTest {
     public void teardown() throws Exception {
         brokerService.getTopics().clear();
         brokerService.close(); //to clear pulsarStats
-        try {
-            pulsar.close();
-        } catch (Exception e) {
-            log.warn("Failed to close pulsar service", e);
-            throw e;
-        }
+        pulsar.close();
     }
 
     @Test
@@ -858,9 +853,9 @@ public class PersistentTopicTest {
      * <p>
      * 3. remove from replicator-list.
      * <p>
-     *
+     * 
      * If we try to startReplicationProducer before step-c finish then it should not avoid restarting repl-producer.
-     *
+     * 
      * @throws Exception
      */
     @Test
@@ -875,7 +870,7 @@ public class PersistentTopicTest {
         PersistentTopic topic = new PersistentTopic(globalTopicName, ledgerMock, brokerService);
         String remoteReplicatorName = topic.replicatorPrefix + "." + remoteCluster;
         ConcurrentOpenHashMap<String, PersistentReplicator> replicatorMap = topic.getReplicators();
-
+        
         final URL brokerUrl = new URL(
                 "http://" + pulsar.getAdvertisedAddress() + ":" + pulsar.getConfiguration().getBrokerServicePort());
         PulsarClient client = PulsarClient.create(brokerUrl.toString());
@@ -919,30 +914,30 @@ public class PersistentTopicTest {
 
         PersistentTopic topic = new PersistentTopic(globalTopicName, ledgerMock, brokerService);
         String remoteReplicatorName = topic.replicatorPrefix + "." + localCluster;
-
+        
         final URL brokerUrl = new URL(
                 "http://" + pulsar.getAdvertisedAddress() + ":" + pulsar.getConfiguration().getBrokerServicePort());
         PulsarClient client =  spy( PulsarClient.create(brokerUrl.toString()) );
         PulsarClientImpl clientImpl = (PulsarClientImpl) client;
         Field conf = PersistentReplicator.class.getDeclaredField("producerConfiguration");
         conf.setAccessible(true);
-
+        
         ManagedCursor cursor = mock(ManagedCursorImpl.class);
         doReturn(remoteCluster).when(cursor).getName();
         brokerService.getReplicationClients().put(remoteCluster, client);
         PersistentReplicator replicator = new PersistentReplicator(topic, cursor, localCluster, remoteCluster, brokerService);
 
         doReturn(new CompletableFuture<Producer>()).when(clientImpl).createProducerAsync(globalTopicName, (ProducerConfiguration) conf.get(replicator), remoteReplicatorName);
-
+    
         replicator.startProducer();
         verify(clientImpl).createProducerAsync(globalTopicName, (ProducerConfiguration) conf.get(replicator), remoteReplicatorName);
-
+        
         replicator.disconnect(false);
         replicator.disconnect(false);
-
+        
         replicator.startProducer();
 
-        verify(clientImpl, Mockito.times(2)).createProducerAsync(globalTopicName, (ProducerConfiguration) conf.get(replicator), remoteReplicatorName);
+        verify(clientImpl, Mockito.times(2)).createProducerAsync(globalTopicName, (ProducerConfiguration) conf.get(replicator), remoteReplicatorName);       
     }
 
 }

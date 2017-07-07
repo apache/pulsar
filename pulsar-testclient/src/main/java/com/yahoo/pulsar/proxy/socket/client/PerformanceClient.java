@@ -24,7 +24,6 @@ import java.net.URI;
 import java.text.DecimalFormat;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -32,7 +31,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.LongAdder;
 
-import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,10 +44,6 @@ import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.google.common.util.concurrent.RateLimiter;
-
-import com.yahoo.pulsar.client.api.Authentication;
-import com.yahoo.pulsar.client.api.AuthenticationFactory;
-import com.yahoo.pulsar.client.api.AuthenticationDataProvider;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
 
@@ -157,7 +151,7 @@ public class PerformanceClient {
     }
 
     public void runPerformanceTest(long messages, long limit, int numOfTopic, int sizeOfMessage, String baseUrl,
-            String destination, String authPluginClassName, String authParams) throws InterruptedException, FileNotFoundException {
+            String destination) throws InterruptedException, FileNotFoundException {
         ExecutorService executor = Executors.newCachedThreadPool(new DefaultThreadFactory("pulsar-perf-producer-exec"));
         HashMap<String, Tuple> producersMap = new HashMap<>();
         String produceBaseEndPoint = baseUrl + "ws/producer" + destination;
@@ -167,21 +161,6 @@ public class PerformanceClient {
 
             WebSocketClient produceClient = new WebSocketClient(new SslContextFactory(true));
             ClientUpgradeRequest produceRequest = new ClientUpgradeRequest();
-
-            if (StringUtils.isNotBlank(authPluginClassName) && StringUtils.isNotBlank(authParams)) {
-                try {
-                    Authentication auth = AuthenticationFactory.create(authPluginClassName, authParams);
-                    auth.start();
-                    AuthenticationDataProvider authData = auth.getAuthData();
-                    if (authData.hasDataForHttp()) {
-                        for (Map.Entry<String, String> kv : authData.getHttpHeaders()) {
-                            produceRequest.setHeader(kv.getKey(), kv.getValue());
-                        }
-                    }
-                } catch (Exception e) {
-                    log.error("Authentication plugin error: " + e.getMessage());
-                }
-            }
 
             SimpleTestProducerSocket produceSocket = new SimpleTestProducerSocket();
 
@@ -291,7 +270,7 @@ public class PerformanceClient {
         PerformanceClient test = new PerformanceClient();
         Arguments arguments = test.loadArguments(args);
         test.runPerformanceTest(arguments.numMessages, arguments.msgRate, arguments.numTopics, arguments.msgSize,
-                arguments.proxyURL, arguments.destinations.get(0), arguments.authPluginClassName, arguments.authParams);
+                arguments.proxyURL, arguments.destinations.get(0));
     }
 
     private class Tuple {

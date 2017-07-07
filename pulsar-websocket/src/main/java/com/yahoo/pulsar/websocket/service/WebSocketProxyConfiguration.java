@@ -30,6 +30,8 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     public static final int WEBSOCKET_SERVICE_THREADS = 20;
     // Number of threads used by Global ZK
     public static final int GLOBAL_ZK_THREADS = 8;
+    // Number of IO threads in Pulsar Client
+    public static final int PULSAR_CLIENT_IO_THREADS = Runtime.getRuntime().availableProcessors();
 
     // Name of the cluster to which this broker belongs to
     @FieldContext(required = true)
@@ -66,11 +68,6 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     // Authentication settings of the proxy itself. Used to connect to brokers
     private String brokerClientAuthenticationPlugin;
     private String brokerClientAuthenticationParameters;
-
-    // Number of IO threads in Pulsar Client used in WebSocket proxy
-    private int numIoThreads = Runtime.getRuntime().availableProcessors();
-    // Number of connections per Broker in Pulsar Client used in WebSocket proxy
-    private int connectionsPerBroker = Runtime.getRuntime().availableProcessors();
 
     /***** --- TLS --- ****/
     // Enable TLS
@@ -213,14 +210,6 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     public void setBrokerClientAuthenticationParameters(String brokerClientAuthenticationParameters) {
         this.brokerClientAuthenticationParameters = brokerClientAuthenticationParameters;
     }
-
-    public int getNumIoThreads() { return numIoThreads; }
-
-    public void setNumIoThreads(int numIoThreads) { this.numIoThreads = numIoThreads; }
-
-    public int getConnectionsPerBroker() { return connectionsPerBroker; }
-
-    public void setConnectionsPerBroker(int connectionsPerBroker) { this.connectionsPerBroker = connectionsPerBroker; }
 
     public boolean isTlsEnabled() {
         return tlsEnabled;

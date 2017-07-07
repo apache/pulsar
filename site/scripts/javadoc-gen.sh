@@ -13,10 +13,10 @@ JDK_COMMON_PKGS=java.lang:java.util:java.util.concurrent:java.nio:java.net:java.
     -doctitle "Pulsar Client Java API" \
     -overview site/scripts/javadoc-client.html \
     -d site/api/client \
-    -subpackages org.apache.pulsar.client.api \
+    -subpackages com.yahoo.client.api \
     -noqualifier $JDK_COMMON_PKGS \
     -notimestamp \
-    `find pulsar-client/src/main/java/org/apache/pulsar/client/api -name *.java`
+    `find pulsar-client/src/main/java/com/yahoo/pulsar/client/api -name *.java`
 
   # Java admin
   javadoc \
@@ -28,7 +28,7 @@ JDK_COMMON_PKGS=java.lang:java.util:java.util.concurrent:java.nio:java.net:java.
     -noqualifier $JDK_COMMON_PKGS \
     -notimestamp \
     `find pulsar-client-admin -name *.java | grep -v /internal/` \
-    `find pulsar-common/src/main/java/org/apache/pulsar/common/policies -name *.java`
+    `find pulsar-common/src/main/java/com/yahoo/pulsar/common/policies -name *.java`
 
   # Broker
   #javadoc \

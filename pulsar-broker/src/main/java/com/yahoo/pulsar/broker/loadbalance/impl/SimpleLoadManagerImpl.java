@@ -74,8 +74,6 @@ import com.yahoo.pulsar.zookeeper.ZooKeeperCacheListener;
 import com.yahoo.pulsar.zookeeper.ZooKeeperChildrenCache;
 import com.yahoo.pulsar.zookeeper.ZooKeeperDataCache;
 
-import io.netty.util.concurrent.DefaultThreadFactory;
-
 public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListener<LoadReport> {
 
     private static final Logger log = LoggerFactory.getLogger(SimpleLoadManagerImpl.class);
@@ -181,7 +179,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
 
     // Perform initializations which may be done without a PulsarService.
     public SimpleLoadManagerImpl() {
-        scheduler = Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-simple-load-manager"));
+        scheduler = Executors.newScheduledThreadPool(1);
         this.sortedRankings.set(new TreeMap<>());
         this.currentLoadReports = new HashMap<>();
         this.resourceUnitRankings = new HashMap<>();
@@ -434,10 +432,6 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
     private PulsarResourceDescription fromLoadReport(LoadReport report) {
         SystemResourceUsage sru = report.getSystemResourceUsage();
         PulsarResourceDescription resourceDescription = new PulsarResourceDescription();
-        if (sru == null) {
-            return resourceDescription;
-        }
-
         if (sru.bandwidthIn != null)
             resourceDescription.put("bandwidthIn", sru.bandwidthIn);
         if (sru.bandwidthOut != null)

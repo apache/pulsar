@@ -37,8 +37,6 @@ import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.MockZooKeeper;
 import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.data.ACL;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.google.common.util.concurrent.MoreExecutors;
 import com.yahoo.pulsar.broker.BookKeeperClientFactory;
@@ -121,17 +119,12 @@ public abstract class MockedPulsarServiceBaseTest {
     }
 
     protected final void internalCleanup() throws Exception {
-        try {
-            admin.close();
-            pulsarClient.close();
-            pulsar.close();
-            mockBookKeeper.reallyShutdow();
-            mockZookKeeper.shutdown();
-            sameThreadOrderedSafeExecutor.shutdown();
-        } catch (Exception e) {
-            log.warn("Failed to clean up mocked pulsar service:", e);
-            throw e;
-        }
+        admin.close();
+        pulsarClient.close();
+        pulsar.close();
+        mockBookKeeper.reallyShutdow();
+        mockZookKeeper.shutdown();
+        sameThreadOrderedSafeExecutor.shutdown();
     }
 
     protected abstract void setup() throws Exception;
@@ -229,6 +222,4 @@ public abstract class MockedPulsarServiceBaseTest {
             // no-op
         }
     };
-
-    private static final Logger log = LoggerFactory.getLogger(MockedPulsarServiceBaseTest.class);
 }

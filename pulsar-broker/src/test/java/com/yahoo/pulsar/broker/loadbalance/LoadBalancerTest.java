@@ -202,6 +202,8 @@ public class LoadBalancerTest {
 
                 LoadReport loadReport = objectMapper.readValue(loadReportData, LoadReport.class);
                 assert (loadReport.getName().equals(lookupAddresses[i]));
+                assertTrue(loadReport.isUnderLoaded());
+                assertFalse(loadReport.isOverLoaded());
 
                 // Check Initial Ranking is populated in both the brokers
                 Field ranking = ((SimpleLoadManagerImpl) pulsarServices[i].getLoadManager().get()).getClass()
