@@ -885,6 +885,7 @@ void ClientConnection::handleIncomingCommand() {
                     ConsumersMap::iterator it = consumers_.find(consumerId);
                     if (it != consumers_.end()) {
                         ConsumerImplPtr consumer = it->second.lock();
+                        consumers_.erase(it);
                         lock.unlock();
 
                         if (consumer) {
@@ -1124,6 +1125,10 @@ void ClientConnection::close() {
     state_ = Disconnected;
     boost::system::error_code err;
     socket_->close(err);
+    ConsumersMap consumers;
+    consumers.swap(consumers_);
+    ProducersMap producers;
+    producers.swap(producers_);
     lock.unlock();
 
     LOG_INFO(cnxString_ << "Connection closed");
@@ -1135,11 +1140,11 @@ void ClientConnection::close() {
     if (consumerStatsRequestTimer_) {
         consumerStatsRequestTimer_->cancel();
     }
-    for (ProducersMap::iterator it = producers_.begin(); it != producers_.end(); ++it) {
+    for (ProducersMap::iterator it = producers.begin(); it != producers.end(); ++it) {
         HandlerBase::handleDisconnection(ResultConnectError, shared_from_this(), it->second);
     }
 
-    for (ConsumersMap::iterator it = consumers_.begin(); it != consumers_.end(); ++it) {
+    for (ConsumersMap::iterator it = consumers.begin(); it != consumers.end(); ++it) {
         HandlerBase::handleDisconnection(ResultConnectError, shared_from_this(), it->second);
     }
 
