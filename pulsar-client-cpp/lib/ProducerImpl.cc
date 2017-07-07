@@ -548,9 +548,10 @@ bool ProducerImpl::ackReceived(uint64_t sequenceId) {
 
 void ProducerImpl::disconnectProducer() {
 	LOG_DEBUG("Broker notification of Closed producer: " << producerId_);
+	Lock lock(mutex_);
 	connection_.reset();
+	lock.unlock();
 	scheduleReconnection(shared_from_this());
-
 }
 
 const std::string& ProducerImpl::getName() const{
