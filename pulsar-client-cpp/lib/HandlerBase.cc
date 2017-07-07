@@ -99,9 +99,7 @@ void HandlerBase::handleDisconnection(Result result, ClientConnectionWeakPtr con
         return;
     }
 
-    if (currentConnection) {
-        currentConnection.reset();
-    }
+    handler->connection_.reset();
 
     switch (state) {
         case Pending:
