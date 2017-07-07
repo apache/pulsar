@@ -1,0 +1,3399 @@
+<!doctype html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+
+    <title>pulsar API documentation</title>
+    <meta name="description" content="The Pulsar Python client library is based on the existing C++ client library.
+All the same features ..." />
+
+  <link href='http://fonts.googleapis.com/css?family=Source+Sans+Pro:400,300' rel='stylesheet' type='text/css'>
+  
+  <style type="text/css">
+  
+* {
+  box-sizing: border-box;
+}
+/*! normalize.css v1.1.1 | MIT License | git.io/normalize */
+
+/* ==========================================================================
+   HTML5 display definitions
+   ========================================================================== */
+
+/**
+ * Correct `block` display not defined in IE 6/7/8/9 and Firefox 3.
+ */
+
+article,
+aside,
+details,
+figcaption,
+figure,
+footer,
+header,
+hgroup,
+main,
+nav,
+section,
+summary {
+    display: block;
+}
+
+/**
+ * Correct `inline-block` display not defined in IE 6/7/8/9 and Firefox 3.
+ */
+
+audio,
+canvas,
+video {
+    display: inline-block;
+    *display: inline;
+    *zoom: 1;
+}
+
+/**
+ * Prevent modern browsers from displaying `audio` without controls.
+ * Remove excess height in iOS 5 devices.
+ */
+
+audio:not([controls]) {
+    display: none;
+    height: 0;
+}
+
+/**
+ * Address styling not present in IE 7/8/9, Firefox 3, and Safari 4.
+ * Known issue: no IE 6 support.
+ */
+
+[hidden] {
+    display: none;
+}
+
+/* ==========================================================================
+   Base
+   ========================================================================== */
+
+/**
+ * 1. Prevent system color scheme's background color being used in Firefox, IE,
+ *    and Opera.
+ * 2. Prevent system color scheme's text color being used in Firefox, IE, and
+ *    Opera.
+ * 3. Correct text resizing oddly in IE 6/7 when body `font-size` is set using
+ *    `em` units.
+ * 4. Prevent iOS text size adjust after orientation change, without disabling
+ *    user zoom.
+ */
+
+html {
+    background: #fff; /* 1 */
+    color: #000; /* 2 */
+    font-size: 100%; /* 3 */
+    -webkit-text-size-adjust: 100%; /* 4 */
+    -ms-text-size-adjust: 100%; /* 4 */
+}
+
+/**
+ * Address `font-family` inconsistency between `textarea` and other form
+ * elements.
+ */
+
+html,
+button,
+input,
+select,
+textarea {
+    font-family: sans-serif;
+}
+
+/**
+ * Address margins handled incorrectly in IE 6/7.
+ */
+
+body {
+    margin: 0;
+}
+
+/* ==========================================================================
+   Links
+   ========================================================================== */
+
+/**
+ * Address `outline` inconsistency between Chrome and other browsers.
+ */
+
+a:focus {
+    outline: thin dotted;
+}
+
+/**
+ * Improve readability when focused and also mouse hovered in all browsers.
+ */
+
+a:active,
+a:hover {
+    outline: 0;
+}
+
+/* ==========================================================================
+   Typography
+   ========================================================================== */
+
+/**
+ * Address font sizes and margins set differently in IE 6/7.
+ * Address font sizes within `section` and `article` in Firefox 4+, Safari 5,
+ * and Chrome.
+ */
+
+h1 {
+    font-size: 2em;
+    margin: 0.67em 0;
+}
+
+h2 {
+    font-size: 1.5em;
+    margin: 0.83em 0;
+}
+
+h3 {
+    font-size: 1.17em;
+    margin: 1em 0;
+}
+
+h4 {
+    font-size: 1em;
+    margin: 1.33em 0;
+}
+
+h5 {
+    font-size: 0.83em;
+    margin: 1.67em 0;
+}
+
+h6 {
+    font-size: 0.67em;
+    margin: 2.33em 0;
+}
+
+/**
+ * Address styling not present in IE 7/8/9, Safari 5, and Chrome.
+ */
+
+abbr[title] {
+    border-bottom: 1px dotted;
+}
+
+/**
+ * Address style set to `bolder` in Firefox 3+, Safari 4/5, and Chrome.
+ */
+
+b,
+strong {
+    font-weight: bold;
+}
+
+blockquote {
+    margin: 1em 40px;
+}
+
+/**
+ * Address styling not present in Safari 5 and Chrome.
+ */
+
+dfn {
+    font-style: italic;
+}
+
+/**
+ * Address differences between Firefox and other browsers.
+ * Known issue: no IE 6/7 normalization.
+ */
+
+hr {
+    -moz-box-sizing: content-box;
+    box-sizing: content-box;
+    height: 0;
+}
+
+/**
+ * Address styling not present in IE 6/7/8/9.
+ */
+
+mark {
+    background: #ff0;
+    color: #000;
+}
+
+/**
+ * Address margins set differently in IE 6/7.
+ */
+
+p,
+pre {
+    margin: 1em 0;
+}
+
+/**
+ * Correct font family set oddly in IE 6, Safari 4/5, and Chrome.
+ */
+
+code,
+kbd,
+pre,
+samp {
+    font-family: monospace, serif;
+    _font-family: 'courier new', monospace;
+    font-size: 1em;
+}
+
+/**
+ * Improve readability of pre-formatted text in all browsers.
+ */
+
+pre {
+    white-space: pre;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+/**
+ * Address CSS quotes not supported in IE 6/7.
+ */
+
+q {
+    quotes: none;
+}
+
+/**
+ * Address `quotes` property not supported in Safari 4.
+ */
+
+q:before,
+q:after {
+    content: '';
+    content: none;
+}
+
+/**
+ * Address inconsistent and variable font size in all browsers.
+ */
+
+small {
+    font-size: 80%;
+}
+
+/**
+ * Prevent `sub` and `sup` affecting `line-height` in all browsers.
+ */
+
+sub,
+sup {
+    font-size: 75%;
+    line-height: 0;
+    position: relative;
+    vertical-align: baseline;
+}
+
+sup {
+    top: -0.5em;
+}
+
+sub {
+    bottom: -0.25em;
+}
+
+/* ==========================================================================
+   Lists
+   ========================================================================== */
+
+/**
+ * Address margins set differently in IE 6/7.
+ */
+
+dl,
+menu,
+ol,
+ul {
+    margin: 1em 0;
+}
+
+dd {
+    margin: 0 0 0 40px;
+}
+
+/**
+ * Address paddings set differently in IE 6/7.
+ */
+
+menu,
+ol,
+ul {
+    padding: 0 0 0 40px;
+}
+
+/**
+ * Correct list images handled incorrectly in IE 7.
+ */
+
+nav ul,
+nav ol {
+    list-style: none;
+    list-style-image: none;
+}
+
+/* ==========================================================================
+   Embedded content
+   ========================================================================== */
+
+/**
+ * 1. Remove border when inside `a` element in IE 6/7/8/9 and Firefox 3.
+ * 2. Improve image quality when scaled in IE 7.
+ */
+
+img {
+    border: 0; /* 1 */
+    -ms-interpolation-mode: bicubic; /* 2 */
+}
+
+/**
+ * Correct overflow displayed oddly in IE 9.
+ */
+
+svg:not(:root) {
+    overflow: hidden;
+}
+
+/* ==========================================================================
+   Figures
+   ========================================================================== */
+
+/**
+ * Address margin not present in IE 6/7/8/9, Safari 5, and Opera 11.
+ */
+
+figure {
+    margin: 0;
+}
+
+/* ==========================================================================
+   Forms
+   ========================================================================== */
+
+/**
+ * Correct margin displayed oddly in IE 6/7.
+ */
+
+form {
+    margin: 0;
+}
+
+/**
+ * Define consistent border, margin, and padding.
+ */
+
+fieldset {
+    border: 1px solid #c0c0c0;
+    margin: 0 2px;
+    padding: 0.35em 0.625em 0.75em;
+}
+
+/**
+ * 1. Correct color not being inherited in IE 6/7/8/9.
+ * 2. Correct text not wrapping in Firefox 3.
+ * 3. Correct alignment displayed oddly in IE 6/7.
+ */
+
+legend {
+    border: 0; /* 1 */
+    padding: 0;
+    white-space: normal; /* 2 */
+    *margin-left: -7px; /* 3 */
+}
+
+/**
+ * 1. Correct font size not being inherited in all browsers.
+ * 2. Address margins set differently in IE 6/7, Firefox 3+, Safari 5,
+ *    and Chrome.
+ * 3. Improve appearance and consistency in all browsers.
+ */
+
+button,
+input,
+select,
+textarea {
+    font-size: 100%; /* 1 */
+    margin: 0; /* 2 */
+    vertical-align: baseline; /* 3 */
+    *vertical-align: middle; /* 3 */
+}
+
+/**
+ * Address Firefox 3+ setting `line-height` on `input` using `!important` in
+ * the UA stylesheet.
+ */
+
+button,
+input {
+    line-height: normal;
+}
+
+/**
+ * Address inconsistent `text-transform` inheritance for `button` and `select`.
+ * All other form control elements do not inherit `text-transform` values.
+ * Correct `button` style inheritance in Chrome, Safari 5+, and IE 6+.
+ * Correct `select` style inheritance in Firefox 4+ and Opera.
+ */
+
+button,
+select {
+    text-transform: none;
+}
+
+/**
+ * 1. Avoid the WebKit bug in Android 4.0.* where (2) destroys native `audio`
+ *    and `video` controls.
+ * 2. Correct inability to style clickable `input` types in iOS.
+ * 3. Improve usability and consistency of cursor style between image-type
+ *    `input` and others.
+ * 4. Remove inner spacing in IE 7 without affecting normal text inputs.
+ *    Known issue: inner spacing remains in IE 6.
+ */
+
+button,
+html input[type="button"], /* 1 */
+input[type="reset"],
+input[type="submit"] {
+    -webkit-appearance: button; /* 2 */
+    cursor: pointer; /* 3 */
+    *overflow: visible;  /* 4 */
+}
+
+/**
+ * Re-set default cursor for disabled elements.
+ */
+
+button[disabled],
+html input[disabled] {
+    cursor: default;
+}
+
+/**
+ * 1. Address box sizing set to content-box in IE 8/9.
+ * 2. Remove excess padding in IE 8/9.
+ * 3. Remove excess padding in IE 7.
+ *    Known issue: excess padding remains in IE 6.
+ */
+
+input[type="checkbox"],
+input[type="radio"] {
+    box-sizing: border-box; /* 1 */
+    padding: 0; /* 2 */
+    *height: 13px; /* 3 */
+    *width: 13px; /* 3 */
+}
+
+/**
+ * 1. Address `appearance` set to `searchfield` in Safari 5 and Chrome.
+ * 2. Address `box-sizing` set to `border-box` in Safari 5 and Chrome
+ *    (include `-moz` to future-proof).
+ */
+
+input[type="search"] {
+    -webkit-appearance: textfield; /* 1 */
+    -moz-box-sizing: content-box;
+    -webkit-box-sizing: content-box; /* 2 */
+    box-sizing: content-box;
+}
+
+/**
+ * Remove inner padding and search cancel button in Safari 5 and Chrome
+ * on OS X.
+ */
+
+input[type="search"]::-webkit-search-cancel-button,
+input[type="search"]::-webkit-search-decoration {
+    -webkit-appearance: none;
+}
+
+/**
+ * Remove inner padding and border in Firefox 3+.
+ */
+
+button::-moz-focus-inner,
+input::-moz-focus-inner {
+    border: 0;
+    padding: 0;
+}
+
+/**
+ * 1. Remove default vertical scrollbar in IE 6/7/8/9.
+ * 2. Improve readability and alignment in all browsers.
+ */
+
+textarea {
+    overflow: auto; /* 1 */
+    vertical-align: top; /* 2 */
+}
+
+/* ==========================================================================
+   Tables
+   ========================================================================== */
+
+/**
+ * Remove most spacing between table cells.
+ */
+
+table {
+    border-collapse: collapse;
+    border-spacing: 0;
+}
+
+  </style>
+
+  <style type="text/css">
+  
+  html, body {
+    margin: 0;
+    padding: 0;
+    min-height: 100%;
+  }
+  body {
+    background: #fff;
+    font-family: "Source Sans Pro", "Helvetica Neueue", Helvetica, sans;
+    font-weight: 300;
+    font-size: 16px;
+    line-height: 1.6em;
+  }
+  #content {
+    width: 70%;
+    max-width: 850px;
+    float: left;
+    padding: 30px 60px;
+    border-left: 1px solid #ddd;
+  }
+  #sidebar {
+    width: 25%;
+    float: left;
+    padding: 30px;
+    overflow: hidden;
+  }
+  #nav {
+    font-size: 130%;
+    margin: 0 0 15px 0;
+  }
+
+  #top {
+    display: block;
+    position: fixed;
+    bottom: 5px;
+    left: 5px;
+    font-size: .85em;
+    text-transform: uppercase;
+  }
+
+  #footer {
+    font-size: .75em;
+    padding: 5px 30px;
+    border-top: 1px solid #ddd;
+    text-align: right;
+  }
+    #footer p {
+      margin: 0 0 0 30px;
+      display: inline-block;
+    }
+
+  h1, h2, h3, h4, h5 {
+    font-weight: 300;
+  }
+  h1 {
+    font-size: 2.5em;
+    line-height: 1.1em;
+    margin: 0 0 .50em 0;
+  }
+
+  h2 {
+    font-size: 1.75em;
+    margin: 1em 0 .50em 0;
+  }
+
+  h3 {
+    margin: 25px 0 10px 0;
+  }
+
+  h4 {
+    margin: 0;
+    font-size: 105%;
+  }
+
+  a {
+    color: #058;
+    text-decoration: none;
+    transition: color .3s ease-in-out;
+  }
+
+  a:hover {
+    color: #e08524;
+    transition: color .3s ease-in-out;
+  }
+
+  pre, code, .mono, .name {
+    font-family: "Ubuntu Mono", "Cousine", "DejaVu Sans Mono", monospace;
+  }
+
+  .title .name {
+    font-weight: bold;
+  }
+  .section-title {
+    margin-top: 2em;
+  }
+  .ident {
+    color: #900;
+  }
+
+  code {
+    background: #f9f9f9;
+  } 
+
+  pre {
+    background: #fefefe;
+    border: 1px solid #ddd;
+    box-shadow: 2px 2px 0 #f3f3f3;
+    margin: 0 30px;
+    padding: 15px 30px;
+  }
+
+  .codehilite {
+    margin: 0 30px 10px 30px;
+  }
+
+    .codehilite pre {
+      margin: 0;
+    }
+    .codehilite .err { background: #ff3300; color: #fff !important; } 
+
+  table#module-list {
+    font-size: 110%;
+  }
+
+    table#module-list tr td:first-child {
+      padding-right: 10px;
+      white-space: nowrap;
+    }
+
+    table#module-list td {
+      vertical-align: top;
+      padding-bottom: 8px;
+    }
+
+      table#module-list td p {
+        margin: 0 0 7px 0;
+      }
+
+  .def {
+    display: table;
+  }
+
+    .def p {
+      display: table-cell;
+      vertical-align: top;
+      text-align: left;
+    }
+
+    .def p:first-child {
+      white-space: nowrap;
+    }
+
+    .def p:last-child {
+      width: 100%;
+    }
+
+
+  #index {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+  }
+    ul#index .class_name {
+      /* font-size: 110%; */
+      font-weight: bold;
+    }
+    #index ul {
+      margin: 0;
+    }
+
+  .item {
+    margin: 0 0 15px 0;
+  }
+
+    .item .class {
+      margin: 0 0 25px 30px;
+    }
+
+      .item .class ul.class_list {
+        margin: 0 0 20px 0;
+      }
+
+    .item .name {
+      background: #fafafa;
+      margin: 0;
+      font-weight: bold;
+      padding: 5px 10px;
+      border-radius: 3px;
+      display: inline-block;
+      min-width: 40%;
+    }
+      .item .name:hover {
+        background: #f6f6f6;
+      }
+
+    .item .empty_desc {
+      margin: 0 0 5px 0;
+      padding: 0;
+    }
+
+    .item .inheritance {
+      margin: 3px 0 0 30px;
+    }
+
+    .item .inherited {
+      color: #666;
+    }
+
+    .item .desc {
+      padding: 0 8px;
+      margin: 0;
+    }
+
+      .item .desc p {
+        margin: 0 0 10px 0;
+      }
+
+    .source_cont {
+      margin: 0;
+      padding: 0;
+    }
+
+    .source_link a {
+      background: #ffc300;
+      font-weight: 400;
+      font-size: .75em;
+      text-transform: uppercase;
+      color: #fff;
+      text-shadow: 1px 1px 0 #f4b700;
+      
+      padding: 3px 8px;
+      border-radius: 2px;
+      transition: background .3s ease-in-out;
+    }
+      .source_link a:hover {
+        background: #FF7200;
+        text-shadow: none;
+        transition: background .3s ease-in-out;
+      }
+
+    .source {
+      display: none;
+      max-height: 600px;
+      overflow-y: scroll;
+      margin-bottom: 15px;
+    }
+
+      .source .codehilite {
+        margin: 0;
+      }
+
+  .desc h1, .desc h2, .desc h3 {
+    font-size: 100% !important;
+  }
+  .clear {
+    clear: both;
+  }
+
+  @media all and (max-width: 950px) {
+    #sidebar {
+      width: 35%;
+    }
+    #content {
+      width: 65%;
+    }
+  }
+  @media all and (max-width: 650px) {
+    #top {
+      display: none;
+    }
+    #sidebar {
+      float: none;
+      width: auto;
+    }
+    #content {
+      float: none;
+      width: auto;
+      padding: 30px;
+    }
+
+    #index ul {
+      padding: 0;
+      margin-bottom: 15px;
+    }
+    #index ul li {
+      display: inline-block;
+      margin-right: 30px;
+    }
+    #footer {
+      text-align: left;
+    }
+    #footer p {
+      display: block;
+      margin: inherit;
+    }
+  }
+
+  /*****************************/
+
+  </style>
+
+  <style type="text/css">
+  .codehilite .hll { background-color: #ffffcc }
+.codehilite  { background: #f8f8f8; }
+.codehilite .c { color: #408080; font-style: italic } /* Comment */
+.codehilite .err { border: 1px solid #FF0000 } /* Error */
+.codehilite .k { color: #008000; font-weight: bold } /* Keyword */
+.codehilite .o { color: #666666 } /* Operator */
+.codehilite .ch { color: #408080; font-style: italic } /* Comment.Hashbang */
+.codehilite .cm { color: #408080; font-style: italic } /* Comment.Multiline */
+.codehilite .cp { color: #BC7A00 } /* Comment.Preproc */
+.codehilite .cpf { color: #408080; font-style: italic } /* Comment.PreprocFile */
+.codehilite .c1 { color: #408080; font-style: italic } /* Comment.Single */
+.codehilite .cs { color: #408080; font-style: italic } /* Comment.Special */
+.codehilite .gd { color: #A00000 } /* Generic.Deleted */
+.codehilite .ge { font-style: italic } /* Generic.Emph */
+.codehilite .gr { color: #FF0000 } /* Generic.Error */
+.codehilite .gh { color: #000080; font-weight: bold } /* Generic.Heading */
+.codehilite .gi { color: #00A000 } /* Generic.Inserted */
+.codehilite .go { color: #888888 } /* Generic.Output */
+.codehilite .gp { color: #000080; font-weight: bold } /* Generic.Prompt */
+.codehilite .gs { font-weight: bold } /* Generic.Strong */
+.codehilite .gu { color: #800080; font-weight: bold } /* Generic.Subheading */
+.codehilite .gt { color: #0044DD } /* Generic.Traceback */
+.codehilite .kc { color: #008000; font-weight: bold } /* Keyword.Constant */
+.codehilite .kd { color: #008000; font-weight: bold } /* Keyword.Declaration */
+.codehilite .kn { color: #008000; font-weight: bold } /* Keyword.Namespace */
+.codehilite .kp { color: #008000 } /* Keyword.Pseudo */
+.codehilite .kr { color: #008000; font-weight: bold } /* Keyword.Reserved */
+.codehilite .kt { color: #B00040 } /* Keyword.Type */
+.codehilite .m { color: #666666 } /* Literal.Number */
+.codehilite .s { color: #BA2121 } /* Literal.String */
+.codehilite .na { color: #7D9029 } /* Name.Attribute */
+.codehilite .nb { color: #008000 } /* Name.Builtin */
+.codehilite .nc { color: #0000FF; font-weight: bold } /* Name.Class */
+.codehilite .no { color: #880000 } /* Name.Constant */
+.codehilite .nd { color: #AA22FF } /* Name.Decorator */
+.codehilite .ni { color: #999999; font-weight: bold } /* Name.Entity */
+.codehilite .ne { color: #D2413A; font-weight: bold } /* Name.Exception */
+.codehilite .nf { color: #0000FF } /* Name.Function */
+.codehilite .nl { color: #A0A000 } /* Name.Label */
+.codehilite .nn { color: #0000FF; font-weight: bold } /* Name.Namespace */
+.codehilite .nt { color: #008000; font-weight: bold } /* Name.Tag */
+.codehilite .nv { color: #19177C } /* Name.Variable */
+.codehilite .ow { color: #AA22FF; font-weight: bold } /* Operator.Word */
+.codehilite .w { color: #bbbbbb } /* Text.Whitespace */
+.codehilite .mb { color: #666666 } /* Literal.Number.Bin */
+.codehilite .mf { color: #666666 } /* Literal.Number.Float */
+.codehilite .mh { color: #666666 } /* Literal.Number.Hex */
+.codehilite .mi { color: #666666 } /* Literal.Number.Integer */
+.codehilite .mo { color: #666666 } /* Literal.Number.Oct */
+.codehilite .sb { color: #BA2121 } /* Literal.String.Backtick */
+.codehilite .sc { color: #BA2121 } /* Literal.String.Char */
+.codehilite .sd { color: #BA2121; font-style: italic } /* Literal.String.Doc */
+.codehilite .s2 { color: #BA2121 } /* Literal.String.Double */
+.codehilite .se { color: #BB6622; font-weight: bold } /* Literal.String.Escape */
+.codehilite .sh { color: #BA2121 } /* Literal.String.Heredoc */
+.codehilite .si { color: #BB6688; font-weight: bold } /* Literal.String.Interpol */
+.codehilite .sx { color: #008000 } /* Literal.String.Other */
+.codehilite .sr { color: #BB6688 } /* Literal.String.Regex */
+.codehilite .s1 { color: #BA2121 } /* Literal.String.Single */
+.codehilite .ss { color: #19177C } /* Literal.String.Symbol */
+.codehilite .bp { color: #008000 } /* Name.Builtin.Pseudo */
+.codehilite .vc { color: #19177C } /* Name.Variable.Class */
+.codehilite .vg { color: #19177C } /* Name.Variable.Global */
+.codehilite .vi { color: #19177C } /* Name.Variable.Instance */
+.codehilite .il { color: #666666 } /* Literal.Number.Integer.Long */
+  </style>
+
+  <style type="text/css">
+  
+/* ==========================================================================
+   EXAMPLE Media Queries for Responsive Design.
+   These examples override the primary ('mobile first') styles.
+   Modify as content requires.
+   ========================================================================== */
+
+@media only screen and (min-width: 35em) {
+    /* Style adjustments for viewports that meet the condition */
+}
+
+@media print,
+       (-o-min-device-pixel-ratio: 5/4),
+       (-webkit-min-device-pixel-ratio: 1.25),
+       (min-resolution: 120dpi) {
+    /* Style adjustments for high resolution devices */
+}
+
+/* ==========================================================================
+   Print styles.
+   Inlined to avoid required HTTP connection: h5bp.com/r
+   ========================================================================== */
+
+@media print {
+    * {
+        background: transparent !important;
+        color: #000 !important; /* Black prints faster: h5bp.com/s */
+        box-shadow: none !important;
+        text-shadow: none !important;
+    }
+
+    a,
+    a:visited {
+        text-decoration: underline;
+    }
+
+    a[href]:after {
+        content: " (" attr(href) ")";
+    }
+
+    abbr[title]:after {
+        content: " (" attr(title) ")";
+    }
+
+    /*
+     * Don't show links for images, or javascript/internal links
+     */
+
+    .ir a:after,
+    a[href^="javascript:"]:after,
+    a[href^="#"]:after {
+        content: "";
+    }
+
+    pre,
+    blockquote {
+        border: 1px solid #999;
+        page-break-inside: avoid;
+    }
+
+    thead {
+        display: table-header-group; /* h5bp.com/t */
+    }
+
+    tr,
+    img {
+        page-break-inside: avoid;
+    }
+
+    img {
+        max-width: 100% !important;
+    }
+
+    @page {
+        margin: 0.5cm;
+    }
+
+    p,
+    h2,
+    h3 {
+        orphans: 3;
+        widows: 3;
+    }
+
+    h2,
+    h3 {
+        page-break-after: avoid;
+    }
+}
+
+  </style>
+
+  <script type="text/javascript">
+  function toggle(id, $link) {
+    $node = document.getElementById(id);
+    if (!$node)
+    return;
+    if (!$node.style.display || $node.style.display == 'none') {
+    $node.style.display = 'block';
+    $link.innerHTML = 'Hide source &nequiv;';
+    } else {
+    $node.style.display = 'none';
+    $link.innerHTML = 'Show source &equiv;';
+    }
+  }
+  </script>
+</head>
+<body>
+<a href="#" id="top">Top</a>
+
+<div id="container">
+    
+  
+  <div id="sidebar">
+    <h1>Index</h1>
+    <ul id="index">
+
+
+    <li class="set"><h3><a href="#header-classes">Classes</a></h3>
+      <ul>
+        <li class="mono">
+        <span class="class_name"><a href="#pulsar.Authentication">Authentication</a></span>
+        
+          
+  <ul>
+    <li class="mono"><a href="#pulsar.Authentication.__init__">__init__</a></li>
+  </ul>
+
+        </li>
+        <li class="mono">
+        <span class="class_name"><a href="#pulsar.Client">Client</a></span>
+        
+          
+  <ul>
+    <li class="mono"><a href="#pulsar.Client.__init__">__init__</a></li>
+    <li class="mono"><a href="#pulsar.Client.close">close</a></li>
+    <li class="mono"><a href="#pulsar.Client.create_producer">create_producer</a></li>
+    <li class="mono"><a href="#pulsar.Client.subscribe">subscribe</a></li>
+  </ul>
+
+        </li>
+        <li class="mono">
+        <span class="class_name"><a href="#pulsar.Consumer">Consumer</a></span>
+        
+          
+  <ul>
+    <li class="mono"><a href="#pulsar.Consumer.acknowledge">acknowledge</a></li>
+    <li class="mono"><a href="#pulsar.Consumer.acknowledge_cumulative">acknowledge_cumulative</a></li>
+    <li class="mono"><a href="#pulsar.Consumer.close">close</a></li>
+    <li class="mono"><a href="#pulsar.Consumer.pause_message_listener">pause_message_listener</a></li>
+    <li class="mono"><a href="#pulsar.Consumer.receive">receive</a></li>
+    <li class="mono"><a href="#pulsar.Consumer.redeliver_unacknowledged_messages">redeliver_unacknowledged_messages</a></li>
+    <li class="mono"><a href="#pulsar.Consumer.resume_message_listener">resume_message_listener</a></li>
+    <li class="mono"><a href="#pulsar.Consumer.subscription_name">subscription_name</a></li>
+    <li class="mono"><a href="#pulsar.Consumer.topic">topic</a></li>
+    <li class="mono"><a href="#pulsar.Consumer.unsubscribe">unsubscribe</a></li>
+  </ul>
+
+        </li>
+        <li class="mono">
+        <span class="class_name"><a href="#pulsar.Message">Message</a></span>
+        
+          
+  <ul>
+    <li class="mono"><a href="#pulsar.Message.data">data</a></li>
+    <li class="mono"><a href="#pulsar.Message.message_id">message_id</a></li>
+    <li class="mono"><a href="#pulsar.Message.partition_key">partition_key</a></li>
+    <li class="mono"><a href="#pulsar.Message.properties">properties</a></li>
+    <li class="mono"><a href="#pulsar.Message.publish_timestamp">publish_timestamp</a></li>
+  </ul>
+
+        </li>
+        <li class="mono">
+        <span class="class_name"><a href="#pulsar.Producer">Producer</a></span>
+        
+          
+  <ul>
+    <li class="mono"><a href="#pulsar.Producer.close">close</a></li>
+    <li class="mono"><a href="#pulsar.Producer.send">send</a></li>
+    <li class="mono"><a href="#pulsar.Producer.send_async">send_async</a></li>
+  </ul>
+
+        </li>
+      </ul>
+    </li>
+
+    </ul>
+  </div>
+
+    <article id="content">
+      
+  
+
+  
+
+
+  <header id="section-intro">
+  <h1 class="title"><span class="name">pulsar</span> module</h1>
+  <p>The Pulsar Python client library is based on the existing C++ client library.
+All the same features are exposed through the Python interface.</p>
+<p>Currently, the only supported Python version is 2.7.</p>
+<h2>Install from PyPI</h2>
+<p>Download Python wheel binary files for MacOS and Linux
+directly from the PyPI archive.</p>
+<div class="codehilite"><pre><span></span>$ sudo pip install pulsar-client
+</pre></div>
+
+
+<h2>Install from sources</h2>
+<p>Follow the instructions to compile the Pulsar C++ client library. This method
+will also build the Python binding for the library.</p>
+<p>To install the Python bindings:</p>
+<div class="codehilite"><pre><span></span>$ <span class="nb">cd</span> pulsar-client-cpp/python
+$ sudo python setup.py install
+</pre></div>
+
+
+<h2>Examples</h2>
+<h3><a href="#pulsar.Producer">Producer</a> example</h3>
+<div class="codehilite"><pre><span></span><span class="kn">import</span> <span class="nn">pulsar</span>
+
+<span class="n">client</span> <span class="o">=</span> <span class="n">pulsar</span><span class="o">.</span><span class="n">Client</span><span class="p">(</span><span class="s1">&#39;pulsar://localhost:6650&#39;</span><span class="p">)</span>
+
+<span class="n">producer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">create_producer</span><span class="p">(</span>
+                <span class="s1">&#39;persistent://sample/standalone/ns/my-topic&#39;</span><span class="p">)</span>
+
+<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">):</span>
+    <span class="n">producer</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="s1">&#39;Hello-</span><span class="si">%d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">i</span><span class="p">)</span>
+
+<span class="n">client</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</pre></div>
+
+
+<h4><a href="#pulsar.Consumer">Consumer</a> Example</h4>
+<div class="codehilite"><pre><span></span><span class="kn">import</span> <span class="nn">pulsar</span>
+
+<span class="n">client</span> <span class="o">=</span> <span class="n">pulsar</span><span class="o">.</span><span class="n">Client</span><span class="p">(</span><span class="s1">&#39;pulsar://localhost:6650&#39;</span><span class="p">)</span>
+<span class="n">consumer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">subscribe</span><span class="p">(</span>
+        <span class="s1">&#39;persistent://sample/standalone/ns/my-topic&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;my-sub&#39;</span><span class="p">)</span>
+
+<span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
+    <span class="n">msg</span> <span class="o">=</span> <span class="n">consumer</span><span class="o">.</span><span class="n">receive</span><span class="p">()</span>
+    <span class="k">print</span><span class="p">(</span><span class="s2">&quot;Received message &#39;</span><span class="si">%s</span><span class="s2">&#39; id=&#39;</span><span class="si">%s</span><span class="s2">&#39;&quot;</span><span class="p">,</span> <span class="n">msg</span><span class="o">.</span><span class="n">data</span><span class="p">(),</span> <span class="n">msg</span><span class="o">.</span><span class="n">message_id</span><span class="p">())</span>
+    <span class="n">consumer</span><span class="o">.</span><span class="n">acknowledge</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+<span class="n">client</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</pre></div>
+
+
+<h3><a href="#pulsar.Producer.send_async">Async producer</a> example</h3>
+<div class="codehilite"><pre><span></span><span class="kn">import</span> <span class="nn">pulsar</span>
+
+<span class="n">client</span> <span class="o">=</span> <span class="n">pulsar</span><span class="o">.</span><span class="n">Client</span><span class="p">(</span><span class="s1">&#39;pulsar://localhost:6650&#39;</span><span class="p">)</span>
+
+<span class="n">producer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">create_producer</span><span class="p">(</span>
+                <span class="s1">&#39;persistent://sample/standalone/ns/my-topic&#39;</span><span class="p">,</span>
+                <span class="n">block_if_queue_full</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+                <span class="n">batching_enabled</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+                <span class="n">batching_max_publish_delay_ms</span><span class="o">=</span><span class="mi">10</span>
+            <span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">send_callback</span><span class="p">(</span><span class="n">res</span><span class="p">,</span> <span class="n">msg</span><span class="p">):</span>
+    <span class="k">print</span><span class="p">(</span><span class="s1">&#39;Message published res=</span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">res</span><span class="p">)</span>
+
+<span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
+    <span class="n">producer</span><span class="o">.</span><span class="n">send_async</span><span class="p">(</span><span class="s1">&#39;Hello-</span><span class="si">%d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">i</span><span class="p">,</span> <span class="n">send_callback</span><span class="p">)</span>
+
+<span class="n">client</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</pre></div>
+  
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar" class="source">
+    <div class="codehilite"><pre><span></span><span class="c1">#</span>
+<span class="c1"># Copyright 2016 Yahoo Inc.</span>
+<span class="c1">#</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># you may not use this file except in compliance with the License.</span>
+<span class="c1"># You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#     http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">The Pulsar Python client library is based on the existing C++ client library.</span>
+<span class="sd">All the same features are exposed through the Python interface.</span>
+
+<span class="sd">Currently, the only supported Python version is 2.7.</span>
+
+<span class="sd">## Install from PyPI</span>
+
+<span class="sd">Download Python wheel binary files for MacOS and Linux</span>
+<span class="sd">directly from the PyPI archive.</span>
+
+<span class="sd">    #!shell</span>
+<span class="sd">    $ sudo pip install pulsar-client</span>
+
+<span class="sd">## Install from sources</span>
+
+<span class="sd">Follow the instructions to compile the Pulsar C++ client library. This method</span>
+<span class="sd">will also build the Python binding for the library.</span>
+
+<span class="sd">To install the Python bindings:</span>
+
+<span class="sd">    #!shell</span>
+<span class="sd">    $ cd pulsar-client-cpp/python</span>
+<span class="sd">    $ sudo python setup.py install</span>
+
+<span class="sd">## Examples</span>
+
+<span class="sd">### [Producer](#pulsar.Producer) example</span>
+
+<span class="sd">    #!python</span>
+<span class="sd">    import pulsar</span>
+
+<span class="sd">    client = pulsar.Client(&#39;pulsar://localhost:6650&#39;)</span>
+
+<span class="sd">    producer = client.create_producer(</span>
+<span class="sd">                    &#39;persistent://sample/standalone/ns/my-topic&#39;)</span>
+
+<span class="sd">    for i in range(10):</span>
+<span class="sd">        producer.send(&#39;Hello-%d&#39; % i)</span>
+
+<span class="sd">    client.close()</span>
+
+<span class="sd">#### [Consumer](#pulsar.Consumer) Example</span>
+
+<span class="sd">    #!python</span>
+<span class="sd">    import pulsar</span>
+
+<span class="sd">    client = pulsar.Client(&#39;pulsar://localhost:6650&#39;)</span>
+<span class="sd">    consumer = client.subscribe(</span>
+<span class="sd">            &#39;persistent://sample/standalone/ns/my-topic&#39;,</span>
+<span class="sd">            &#39;my-sub&#39;)</span>
+
+<span class="sd">    while True:</span>
+<span class="sd">        msg = consumer.receive()</span>
+<span class="sd">        print(&quot;Received message &#39;%s&#39; id=&#39;%s&#39;&quot;, msg.data(), msg.message_id())</span>
+<span class="sd">        consumer.acknowledge(msg)</span>
+
+<span class="sd">    client.close()</span>
+
+<span class="sd">### [Async producer](#pulsar.Producer.send_async) example</span>
+
+<span class="sd">    #!python</span>
+<span class="sd">    import pulsar</span>
+
+<span class="sd">    client = pulsar.Client(&#39;pulsar://localhost:6650&#39;)</span>
+
+<span class="sd">    producer = client.create_producer(</span>
+<span class="sd">                    &#39;persistent://sample/standalone/ns/my-topic&#39;,</span>
+<span class="sd">                    block_if_queue_full=True,</span>
+<span class="sd">                    batching_enabled=True,</span>
+<span class="sd">                    batching_max_publish_delay_ms=10</span>
+<span class="sd">                )</span>
+
+<span class="sd">    def send_callback(res, msg):</span>
+<span class="sd">        print(&#39;Message published res=%s&#39;, res)</span>
+
+<span class="sd">    while True:</span>
+<span class="sd">        producer.send_async(&#39;Hello-%d&#39; % i, send_callback)</span>
+
+<span class="sd">    client.close()</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">_pulsar</span>
+
+<span class="kn">from</span> <span class="nn">_pulsar</span> <span class="kn">import</span> <span class="n">Result</span><span class="p">,</span> <span class="n">CompressionType</span><span class="p">,</span> <span class="n">ConsumerType</span><span class="p">,</span> <span class="n">PartitionsRoutingMode</span>  <span class="c1"># noqa: F401</span>
+
+
+<span class="k">class</span> <span class="nc">Message</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Message objects are returned by a consumer, either by calling `receive` or</span>
+<span class="sd">    through a listener.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns a string with the content of the message.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_message</span><span class="o">.</span><span class="n">data</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">properties</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return the properties attached to the message. Properties are</span>
+<span class="sd">        application-defined key/value pairs that will be attached to the</span>
+<span class="sd">        message.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_message</span><span class="o">.</span><span class="n">properties</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">partition_key</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the partitioning key for the message.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_message</span><span class="o">.</span><span class="n">partition_key</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">publish_timestamp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the timestamp in milliseconds with the message publish time.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_message</span><span class="o">.</span><span class="n">publish_timestamp</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">message_id</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        The message ID that can be used to refere to this particular message.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_message</span><span class="o">.</span><span class="n">message_id</span><span class="p">()</span>
+
+
+<span class="k">class</span> <span class="nc">Authentication</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Authentication provider object.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dynamicLibPath</span><span class="p">,</span> <span class="n">authParamsString</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create the authentication provider instance.</span>
+
+<span class="sd">        **Args**</span>
+
+<span class="sd">        * `dynamicLibPath`: Path to the authentication provider shared library</span>
+<span class="sd">          (such as `tls.so`)</span>
+<span class="sd">        * `authParamsString`: Comma-separated list of provider-specific</span>
+<span class="sd">          configuration params</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_auth</span> <span class="o">=</span> <span class="n">_pulsar</span><span class="o">.</span><span class="n">Authentication</span><span class="p">(</span><span class="n">dynamicLibPath</span><span class="p">,</span> <span class="n">authParamsString</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">Client</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    The Pulsar client. A single client instance can be used to create producers</span>
+<span class="sd">    and consumers on multiple topics.</span>
+
+<span class="sd">    The client will share the same connection pool and threads across all</span>
+<span class="sd">    producers and consumers.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">service_url</span><span class="p">,</span>
+                 <span class="n">authentication</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                 <span class="n">operation_timeout_seconds</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span>
+                 <span class="n">io_threads</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                 <span class="n">message_listener_threads</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                 <span class="n">concurrent_lookup_requests</span><span class="o">=</span><span class="mi">5000</span><span class="p">,</span>
+                 <span class="n">log_conf_file_path</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                 <span class="n">use_tls</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+                 <span class="n">tls_trust_certs_file_path</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                 <span class="n">tls_allow_insecure_connection</span><span class="o">=</span><span class="bp">False</span>
+                 <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create a new Pulsar client instance.</span>
+
+<span class="sd">        **Args**</span>
+
+<span class="sd">        * `service_url`: The Pulsar service url eg: pulsar://my-broker.com:6650/</span>
+
+<span class="sd">        **Options**</span>
+
+<span class="sd">        * `authentication`:</span>
+<span class="sd">          Set the authentication provider to be used with the broker.</span>
+<span class="sd">        * `operation_timeout_seconds`:</span>
+<span class="sd">          Set timeout on client operations (subscribe, create producer, close,</span>
+<span class="sd">          unsubscribe).</span>
+<span class="sd">        * `io_threads`:</span>
+<span class="sd">          Set the number of IO threads to be used by the Pulsar client.</span>
+<span class="sd">        * `message_listener_threads`:</span>
+<span class="sd">          Set the number of threads to be used by the Pulsar client when</span>
+<span class="sd">          delivering messages through message listener. The default is 1 thread</span>
+<span class="sd">          per Pulsar client. If using more than 1 thread, messages for distinct</span>
+<span class="sd">          `message_listener`s will be delivered in different threads, however a</span>
+<span class="sd">          single `MessageListener` will always be assigned to the same thread.</span>
+<span class="sd">        * `concurrent_lookup_requests`:</span>
+<span class="sd">          Number of concurrent lookup-requests allowed on each broker connection</span>
+<span class="sd">          to prevent overload on the broker.</span>
+<span class="sd">        * `log_conf_file_path`:</span>
+<span class="sd">          Initialize log4cxx from a configuration file.</span>
+<span class="sd">        * `use_tls`:</span>
+<span class="sd">          Configure whether to use TLS encryption on the connection.</span>
+<span class="sd">        * `tls_trust_certs_file_path`:</span>
+<span class="sd">          Set the path to the trusted TLS certificate file.</span>
+<span class="sd">        * `tls_allow_insecure_connection`:</span>
+<span class="sd">          Configure whether the Pulsar client accepts untrusted TLS certificates</span>
+<span class="sd">          from the broker.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">conf</span> <span class="o">=</span> <span class="n">_pulsar</span><span class="o">.</span><span class="n">ClientConfiguration</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">authentication</span><span class="p">:</span>
+            <span class="n">conf</span><span class="o">.</span><span class="n">authentication</span><span class="p">(</span><span class="n">authentication</span><span class="o">.</span><span class="n">auth</span><span class="p">)</span>
+        <span class="n">conf</span><span class="o">.</span><span class="n">operation_timeout_seconds</span><span class="p">(</span><span class="n">operation_timeout_seconds</span><span class="p">)</span>
+        <span class="n">conf</span><span class="o">.</span><span class="n">io_threads</span><span class="p">(</span><span class="n">io_threads</span><span class="p">)</span>
+        <span class="n">conf</span><span class="o">.</span><span class="n">message_listener_threads</span><span class="p">(</span><span class="n">message_listener_threads</span><span class="p">)</span>
+        <span class="n">conf</span><span class="o">.</span><span class="n">concurrent_lookup_requests</span><span class="p">(</span><span class="n">concurrent_lookup_requests</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">log_conf_file_path</span><span class="p">:</span>
+            <span class="n">conf</span><span class="o">.</span><span class="n">log_conf_file_path</span><span class="p">(</span><span class="n">log_conf_file_path</span><span class="p">)</span>
+        <span class="n">conf</span><span class="o">.</span><span class="n">use_tls</span><span class="p">(</span><span class="n">use_tls</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">tls_trust_certs_file_path</span><span class="p">:</span>
+            <span class="n">conf</span><span class="o">.</span><span class="n">tls_trust_certs_file_path</span><span class="p">(</span><span class="n">tls_trust_certs_file_path</span><span class="p">)</span>
+        <span class="n">conf</span><span class="o">.</span><span class="n">tls_allow_insecure_connection</span><span class="p">(</span><span class="n">tls_allow_insecure_connection</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_client</span> <span class="o">=</span> <span class="n">_pulsar</span><span class="o">.</span><span class="n">Client</span><span class="p">(</span><span class="n">service_url</span><span class="p">,</span> <span class="n">conf</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_consumers</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">def</span> <span class="nf">create_producer</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">topic</span><span class="p">,</span>
+                        <span class="n">send_timeout_millis</span><span class="o">=</span><span class="mi">30000</span><span class="p">,</span>
+                        <span class="n">compression_type</span><span class="o">=</span><span class="n">CompressionType</span><span class="o">.</span><span class="n">None</span><span class="p">,</span>
+                        <span class="n">max_pending_messages</span><span class="o">=</span><span class="mi">30000</span><span class="p">,</span>
+                        <span class="n">block_if_queue_full</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+                        <span class="n">batching_enabled</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+                        <span class="n">batching_max_messages</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span>
+                        <span class="n">batching_max_allowed_size_in_bytes</span><span class="o">=</span><span class="mi">128</span><span class="o">*</span><span class="mi">1024</span><span class="p">,</span>
+                        <span class="n">batching_max_publish_delay_ms</span><span class="o">=</span><span class="mi">10</span>
+                        <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create a new producer on a given topic.</span>
+
+<span class="sd">        **Args**</span>
+
+<span class="sd">        * `topic`:</span>
+<span class="sd">          The topic name</span>
+
+<span class="sd">        **Options**</span>
+
+<span class="sd">        * `send_timeout_seconds`:</span>
+<span class="sd">          If a message is not acknowledged by the server before the</span>
+<span class="sd">          `send_timeout` expires, an error will be reported.</span>
+<span class="sd">        * `compression_type`:</span>
+<span class="sd">          Set the compression type for the producer. By default, message</span>
+<span class="sd">          payloads are not compressed. Supported compression types are</span>
+<span class="sd">          `CompressionType.LZ4` and `CompressionType.ZLib`.</span>
+<span class="sd">        * `max_pending_messages`:</span>
+<span class="sd">          Set the max size of the queue holding the messages pending to receive</span>
+<span class="sd">          an acknowledgment from the broker.</span>
+<span class="sd">        * `block_if_queue_full`: Set whether `send_async` operations should</span>
+<span class="sd">          block when the outgoing message queue is full.</span>
+<span class="sd">        * `message_routing_mode`:</span>
+<span class="sd">          Set the message routing mode for the partitioned producer.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">conf</span> <span class="o">=</span> <span class="n">_pulsar</span><span class="o">.</span><span class="n">ProducerConfiguration</span><span class="p">()</span>
+        <span class="n">conf</span><span class="o">.</span><span class="n">send_timeout_millis</span><span class="p">(</span><span class="n">send_timeout_millis</span><span class="p">)</span>
+        <span class="n">conf</span><span class="o">.</span><span class="n">compression_type</span><span class="p">(</span><span class="n">compression_type</span><span class="p">)</span>
+        <span class="n">conf</span><span class="o">.</span><span class="n">max_pending_messages</span><span class="p">(</span><span class="n">max_pending_messages</span><span class="p">)</span>
+        <span class="n">conf</span><span class="o">.</span><span class="n">block_if_queue_full</span><span class="p">(</span><span class="n">block_if_queue_full</span><span class="p">)</span>
+        <span class="n">conf</span><span class="o">.</span><span class="n">batching_enabled</span><span class="p">(</span><span class="n">batching_enabled</span><span class="p">)</span>
+        <span class="n">conf</span><span class="o">.</span><span class="n">batching_max_messages</span><span class="p">(</span><span class="n">batching_max_messages</span><span class="p">)</span>
+        <span class="n">conf</span><span class="o">.</span><span class="n">batching_max_allowed_size_in_bytes</span><span class="p">(</span><span class="n">batching_max_allowed_size_in_bytes</span><span class="p">)</span>
+        <span class="n">conf</span><span class="o">.</span><span class="n">batching_max_publish_delay_ms</span><span class="p">(</span><span class="n">batching_max_publish_delay_ms</span><span class="p">)</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="n">Producer</span><span class="p">()</span>
+        <span class="n">p</span><span class="o">.</span><span class="n">_producer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="o">.</span><span class="n">create_producer</span><span class="p">(</span><span class="n">topic</span><span class="p">,</span> <span class="n">conf</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">p</span>
+
+    <span class="k">def</span> <span class="nf">subscribe</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">topic</span><span class="p">,</span> <span class="n">subscription_name</span><span class="p">,</span>
+                  <span class="n">consumer_type</span><span class="o">=</span><span class="n">ConsumerType</span><span class="o">.</span><span class="n">Exclusive</span><span class="p">,</span>
+                  <span class="n">message_listener</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                  <span class="n">receiver_queue_size</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span>
+                  <span class="n">consumer_name</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                  <span class="n">unacked_messages_timeout_ms</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                  <span class="n">broker_consumer_stats_cache_time_ms</span><span class="o">=</span><span class="mi">30000</span>
+                  <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Subscribe to the given topic and subscription combination.</span>
+
+<span class="sd">        **Args**</span>
+
+<span class="sd">        * `topic`: The name of the topic.</span>
+<span class="sd">        * `subscription`: The name of the subscription.</span>
+
+<span class="sd">        **Options**</span>
+
+<span class="sd">        * `consumer_type`:</span>
+<span class="sd">          Select the subscription type to be used when subscribing to the topic.</span>
+<span class="sd">        * `message_listener`:</span>
+<span class="sd">          Sets a message listener for the consumer. When the listener is set,</span>
+<span class="sd">          the application will receive messages through it. Calls to</span>
+<span class="sd">          `consumer.receive()` will not be allowed. The listener function needs</span>
+<span class="sd">          to accept (consumer, message), for example:</span>
+
+<span class="sd">                #!python</span>
+<span class="sd">                def my_listener(consumer, message):</span>
+<span class="sd">                    # process message</span>
+<span class="sd">                    consumer.acknowledge(message)</span>
+
+<span class="sd">        * `receiver_queue_size`:</span>
+<span class="sd">          Sets the size of the consumer receive queue. The consumer receive</span>
+<span class="sd">          queue controls how many messages can be accumulated by the consumer</span>
+<span class="sd">          before the application calls `receive()`. Using a higher value could</span>
+<span class="sd">          potentially increase the consumer throughput at the expense of higher</span>
+<span class="sd">          memory utilization. Setting the consumer queue size to zero decreases</span>
+<span class="sd">          the throughput of the consumer by disabling pre-fetching of messages.</span>
+<span class="sd">          This approach improves the message distribution on shared subscription</span>
+<span class="sd">          by pushing messages only to those consumers that are ready to process</span>
+<span class="sd">          them. Neither receive with timeout nor partitioned topics can be used</span>
+<span class="sd">          if the consumer queue size is zero. The `receive()` function call</span>
+<span class="sd">          should not be interrupted when the consumer queue size is zero. The</span>
+<span class="sd">          default value is 1000 messages and should work well for most use</span>
+<span class="sd">          cases.</span>
+<span class="sd">        * `consumer_name`:</span>
+<span class="sd">          Sets the consumer name.</span>
+<span class="sd">        * `unacked_messages_timeout_ms`:</span>
+<span class="sd">          Sets the timeout in milliseconds for unacknowledged messages. The</span>
+<span class="sd">          timeout needs to be greater than 10 seconds. An exception is thrown if</span>
+<span class="sd">          the given value is less than 10 seconds. If a successful</span>
+<span class="sd">          acknowledgement is not sent within the timeout, all the unacknowledged</span>
+<span class="sd">          messages are redelivered.</span>
+<span class="sd">        * `broker_consumer_stats_cache_time_ms`:</span>
+<span class="sd">          Sets the time duration for which the broker-side consumer stats will</span>
+<span class="sd">          be cached in the client.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">conf</span> <span class="o">=</span> <span class="n">_pulsar</span><span class="o">.</span><span class="n">ConsumerConfiguration</span><span class="p">()</span>
+        <span class="n">conf</span><span class="o">.</span><span class="n">consumer_type</span><span class="p">(</span><span class="n">consumer_type</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">message_listener</span><span class="p">:</span>
+            <span class="n">conf</span><span class="o">.</span><span class="n">message_listener</span><span class="p">(</span><span class="n">message_listener</span><span class="p">)</span>
+        <span class="n">conf</span><span class="o">.</span><span class="n">receiver_queue_size</span><span class="p">(</span><span class="n">receiver_queue_size</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">consumer_name</span><span class="p">:</span>
+            <span class="n">conf</span><span class="o">.</span><span class="n">consumer_name</span><span class="p">(</span><span class="n">consumer_name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">unacked_messages_timeout_ms</span><span class="p">:</span>
+            <span class="n">conf</span><span class="o">.</span><span class="n">unacked_messages_timeout_ms</span><span class="p">(</span><span class="n">unacked_messages_timeout_ms</span><span class="p">)</span>
+        <span class="n">conf</span><span class="o">.</span><span class="n">broker_consumer_stats_cache_time_ms</span><span class="p">(</span><span class="n">broker_consumer_stats_cache_time_ms</span><span class="p">)</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="n">Consumer</span><span class="p">()</span>
+        <span class="n">c</span><span class="o">.</span><span class="n">_consumer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="o">.</span><span class="n">subscribe</span><span class="p">(</span><span class="n">topic</span><span class="p">,</span> <span class="n">subscription_name</span><span class="p">,</span> <span class="n">conf</span><span class="p">)</span>
+        <span class="n">c</span><span class="o">.</span><span class="n">_client</span> <span class="o">=</span> <span class="bp">self</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_consumers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">c</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">c</span>
+
+    <span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Close the client and all the associated producers and consumers</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+
+<span class="k">class</span> <span class="nc">Producer</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    The Pulsar message producer, used to publish messages on a topic.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">send</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">content</span><span class="p">,</span>
+             <span class="n">properties</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+             <span class="n">partition_key</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+             <span class="n">replication_clusters</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+             <span class="n">disable_replication</span><span class="o">=</span><span class="bp">False</span>
+             <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Publish a message on the topic. Blocks until the message is acknowledged</span>
+
+<span class="sd">        **Args**</span>
+
+<span class="sd">        * `content`:</span>
+<span class="sd">          A string with the message payload</span>
+
+<span class="sd">        **Options**</span>
+
+<span class="sd">        * `properties`:</span>
+<span class="sd">          A dict of application-defined string properties.</span>
+<span class="sd">        * `partition_key`:</span>
+<span class="sd">          Sets the partition key for message routing. A hash of this key is used</span>
+<span class="sd">          to determine the message&#39;s destination partition.</span>
+<span class="sd">        * `replication_clusters`:</span>
+<span class="sd">          Override namespace replication clusters. Note that it is the caller&#39;s</span>
+<span class="sd">          responsibility to provide valid cluster names and that all clusters</span>
+<span class="sd">          have been previously configured as destinations. Given an empty list,</span>
+<span class="sd">          the message will replicate according to the namespace configuration.</span>
+<span class="sd">        * `disable_replication`:</span>
+<span class="sd">          Do not replicate this message.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_msg</span><span class="p">(</span><span class="n">content</span><span class="p">,</span> <span class="n">properties</span><span class="p">,</span> <span class="n">partition_key</span><span class="p">,</span>
+                              <span class="n">replication_clusters</span><span class="p">,</span> <span class="n">disable_replication</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_producer</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">send_async</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">content</span><span class="p">,</span> <span class="n">callback</span><span class="p">,</span>
+                   <span class="n">properties</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                   <span class="n">partition_key</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                   <span class="n">replication_clusters</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                   <span class="n">disable_replication</span><span class="o">=</span><span class="bp">False</span>
+                   <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Send a message asynchronously.</span>
+
+<span class="sd">        The `callback` will be invoked once the message has been acknowledged</span>
+<span class="sd">        by the broker.</span>
+
+<span class="sd">        Example:</span>
+
+<span class="sd">            #!python</span>
+<span class="sd">            def callback(res, msg):</span>
+<span class="sd">                print &#39;Message published:&#39;, res</span>
+
+<span class="sd">            producer.send_async(msg, callback)</span>
+
+<span class="sd">        When the producer queue is full, by default the message will be rejected</span>
+<span class="sd">        and the callback invoked with an error code.</span>
+
+<span class="sd">        **Args**</span>
+
+<span class="sd">        * `content`:</span>
+<span class="sd">          A string with the message payload.</span>
+
+<span class="sd">        **Options**</span>
+
+<span class="sd">        * `properties`:</span>
+<span class="sd">          A dict of application0-defined string properties.</span>
+<span class="sd">        * `partition_key`:</span>
+<span class="sd">          Sets the partition key for the message routing. A hash of this key is</span>
+<span class="sd">          used to determine the message&#39;s destination partition.</span>
+<span class="sd">        * `replication_clusters`: Override namespace replication clusters. Note</span>
+<span class="sd">          that it is the caller&#39;s responsibility to provide valid cluster names</span>
+<span class="sd">          and that all clusters have been previously configured as destinations.</span>
+<span class="sd">          Given an empty list, the message will replicate per the namespace</span>
+<span class="sd">          configuration.</span>
+<span class="sd">        * `disable_replication`:</span>
+<span class="sd">          Do not replicate this message.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_msg</span><span class="p">(</span><span class="n">content</span><span class="p">,</span> <span class="n">properties</span><span class="p">,</span> <span class="n">partition_key</span><span class="p">,</span>
+                              <span class="n">replication_clusters</span><span class="p">,</span> <span class="n">disable_replication</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_producer</span><span class="o">.</span><span class="n">send_async</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="n">callback</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Close the producer.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">_build_msg</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">content</span><span class="p">,</span> <span class="n">properties</span><span class="p">,</span> <span class="n">partition_key</span><span class="p">,</span>
+                   <span class="n">replication_clusters</span><span class="p">,</span> <span class="n">disable_replication</span><span class="p">):</span>
+        <span class="n">mb</span> <span class="o">=</span> <span class="n">_pulsar</span><span class="o">.</span><span class="n">MessageBuilder</span><span class="p">()</span>
+        <span class="n">mb</span><span class="o">.</span><span class="n">content</span><span class="p">(</span><span class="n">content</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">properties</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">properties</span><span class="p">:</span>
+                <span class="n">mb</span><span class="o">.</span><span class="n">property</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">partition_key</span><span class="p">:</span>
+            <span class="n">mb</span><span class="o">.</span><span class="n">partition_key</span><span class="p">(</span><span class="n">partition_key</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">replication_clusters</span><span class="p">:</span>
+            <span class="n">mb</span><span class="o">.</span><span class="n">replication_clusters</span><span class="p">(</span><span class="n">replication_clusters</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">disable_replication</span><span class="p">:</span>
+            <span class="n">mb</span><span class="o">.</span><span class="n">disable_replication</span><span class="p">(</span><span class="n">disable_replication</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">mb</span><span class="o">.</span><span class="n">build</span><span class="p">()</span>
+
+
+<span class="k">class</span> <span class="nc">Consumer</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Pulsar consumer.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">topic</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return the topic this consumer is subscribed to.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_consumer</span><span class="o">.</span><span class="n">topic</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">subscription_name</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return the subscription name.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_consumer</span><span class="o">.</span><span class="n">subscription_name</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">unsubscribe</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Unsubscribe the current consumer from the topic.</span>
+
+<span class="sd">        This method will block until the operation is completed. Once the</span>
+<span class="sd">        consumer is unsubscribed, no more messages will be received and</span>
+<span class="sd">        subsequent new messages will not be retained for this consumer.</span>
+
+<span class="sd">        This consumer object cannot be reused.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_consumer</span><span class="o">.</span><span class="n">unsubcribe</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">receive</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timeout_millis</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Receive a single message.</span>
+
+<span class="sd">        If a message is not immediately available, this method will block until</span>
+<span class="sd">        a new message is available.</span>
+
+<span class="sd">        **Options**</span>
+
+<span class="sd">        * `timeout_millis`:</span>
+<span class="sd">          If specified, the receive will raise an exception if a message is not</span>
+<span class="sd">          availble within the timeout.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">timeout_millis</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_consumer</span><span class="o">.</span><span class="n">receive</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_consumer</span><span class="o">.</span><span class="n">receive</span><span class="p">(</span><span class="n">timeout_millis</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">acknowledge</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Acknowledge the reception of a single message.</span>
+
+<span class="sd">        This method will block until an acknowledgement is sent to the broker.</span>
+<span class="sd">        After that, the message will not be re-delivered to this consumer.</span>
+
+<span class="sd">        **Args**</span>
+
+<span class="sd">        * `message`:</span>
+<span class="sd">          The received message or message id.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_consumer</span><span class="o">.</span><span class="n">acknowledge</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">acknowledge_cumulative</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Acknowledge the reception of all the messages in the stream up to (and</span>
+<span class="sd">        including) the provided message.</span>
+
+<span class="sd">        This method will block until an acknowledgement is sent to the broker.</span>
+<span class="sd">        After that, the messages will not be re-delivered to this consumer.</span>
+
+<span class="sd">        **Args**</span>
+
+<span class="sd">        * `message`:</span>
+<span class="sd">          The received message or message id.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_consumer</span><span class="o">.</span><span class="n">acknowledge_cumulative</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">pause_message_listener</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Pause receiving messages via the `message_listener` until</span>
+<span class="sd">        `resume_message_listener()` is called.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_consumer</span><span class="o">.</span><span class="n">pause_message_listener</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">resume_message_listener</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Resume receiving the messages via the message listener.</span>
+<span class="sd">        Asynchronously receive all the messages enqueued from the time</span>
+<span class="sd">        `pause_message_listener()` was called.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_consumer</span><span class="o">.</span><span class="n">resume_message_listener</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">redeliver_unacknowledged_messages</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Redelivers all the unacknowledged messages. In failover mode, the</span>
+<span class="sd">        request is ignored if the consumer is not active for the given topic. In</span>
+<span class="sd">        shared mode, the consumer&#39;s messages to be redelivered are distributed</span>
+<span class="sd">        across all the connected consumers. This is a non-blocking call and</span>
+<span class="sd">        doesn&#39;t throw an exception. In case the connection breaks, the messages</span>
+<span class="sd">        are redelivered after reconnect.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_consumer</span><span class="o">.</span><span class="n">redeliver_unacknowledged_messages</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Close the consumer.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_consumer</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="o">.</span><span class="n">_consumers</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+</pre></div>
+
+  </div>
+
+  </header>
+
+  <section id="section-items">
+
+
+    <h2 class="section-title" id="header-classes">Classes</h2>
+      
+      <div class="item">
+      <p id="pulsar.Authentication" class="name">class <span class="ident">Authentication</span></p>
+      
+  
+    <div class="desc"><p>Authentication provider object.</p></div>
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.Authentication', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.Authentication" class="source">
+    <div class="codehilite"><pre><span></span><span class="k">class</span> <span class="nc">Authentication</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Authentication provider object.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dynamicLibPath</span><span class="p">,</span> <span class="n">authParamsString</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create the authentication provider instance.</span>
+
+<span class="sd">        **Args**</span>
+
+<span class="sd">        * `dynamicLibPath`: Path to the authentication provider shared library</span>
+<span class="sd">          (such as `tls.so`)</span>
+<span class="sd">        * `authParamsString`: Comma-separated list of provider-specific</span>
+<span class="sd">          configuration params</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_auth</span> <span class="o">=</span> <span class="n">_pulsar</span><span class="o">.</span><span class="n">Authentication</span><span class="p">(</span><span class="n">dynamicLibPath</span><span class="p">,</span> <span class="n">authParamsString</span><span class="p">)</span>
+</pre></div>
+
+  </div>
+</div>
+
+
+      <div class="class">
+          <h3>Ancestors (in MRO)</h3>
+          <ul class="class_list">
+          <li><a href="#pulsar.Authentication">Authentication</a></li>
+          </ul>
+          <h3>Methods</h3>
+            
+  <div class="item">
+    <div class="name def" id="pulsar.Authentication.__init__">
+    <p>def <span class="ident">__init__</span>(</p><p>self, dynamicLibPath, authParamsString)</p>
+    </div>
+    
+
+    
+  
+    <div class="desc"><p>Create the authentication provider instance.</p>
+<p><strong>Args</strong></p>
+<ul>
+<li><code>dynamicLibPath</code>: Path to the authentication provider shared library
+  (such as <code>tls.so</code>)</li>
+<li><code>authParamsString</code>: Comma-separated list of provider-specific
+  configuration params</li>
+</ul></div>
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.Authentication.__init__', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.Authentication.__init__" class="source">
+    <div class="codehilite"><pre><span></span><span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dynamicLibPath</span><span class="p">,</span> <span class="n">authParamsString</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Create the authentication provider instance.</span>
+<span class="sd">    **Args**</span>
+<span class="sd">    * `dynamicLibPath`: Path to the authentication provider shared library</span>
+<span class="sd">      (such as `tls.so`)</span>
+<span class="sd">    * `authParamsString`: Comma-separated list of provider-specific</span>
+<span class="sd">      configuration params</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_auth</span> <span class="o">=</span> <span class="n">_pulsar</span><span class="o">.</span><span class="n">Authentication</span><span class="p">(</span><span class="n">dynamicLibPath</span><span class="p">,</span> <span class="n">authParamsString</span><span class="p">)</span>
+</pre></div>
+
+  </div>
+</div>
+
+  </div>
+  
+      </div>
+      </div>
+      
+      <div class="item">
+      <p id="pulsar.Client" class="name">class <span class="ident">Client</span></p>
+      
+  
+    <div class="desc"><p>The Pulsar client. A single client instance can be used to create producers
+and consumers on multiple topics.</p>
+<p>The client will share the same connection pool and threads across all
+producers and consumers.</p></div>
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.Client', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.Client" class="source">
+    <div class="codehilite"><pre><span></span><span class="k">class</span> <span class="nc">Client</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    The Pulsar client. A single client instance can be used to create producers</span>
+<span class="sd">    and consumers on multiple topics.</span>
+
+<span class="sd">    The client will share the same connection pool and threads across all</span>
+<span class="sd">    producers and consumers.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">service_url</span><span class="p">,</span>
+                 <span class="n">authentication</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                 <span class="n">operation_timeout_seconds</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span>
+                 <span class="n">io_threads</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                 <span class="n">message_listener_threads</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                 <span class="n">concurrent_lookup_requests</span><span class="o">=</span><span class="mi">5000</span><span class="p">,</span>
+                 <span class="n">log_conf_file_path</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                 <span class="n">use_tls</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+                 <span class="n">tls_trust_certs_file_path</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                 <span class="n">tls_allow_insecure_connection</span><span class="o">=</span><span class="bp">False</span>
+                 <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create a new Pulsar client instance.</span>
+
+<span class="sd">        **Args**</span>
+
+<span class="sd">        * `service_url`: The Pulsar service url eg: pulsar://my-broker.com:6650/</span>
+
+<span class="sd">        **Options**</span>
+
+<span class="sd">        * `authentication`:</span>
+<span class="sd">          Set the authentication provider to be used with the broker.</span>
+<span class="sd">        * `operation_timeout_seconds`:</span>
+<span class="sd">          Set timeout on client operations (subscribe, create producer, close,</span>
+<span class="sd">          unsubscribe).</span>
+<span class="sd">        * `io_threads`:</span>
+<span class="sd">          Set the number of IO threads to be used by the Pulsar client.</span>
+<span class="sd">        * `message_listener_threads`:</span>
+<span class="sd">          Set the number of threads to be used by the Pulsar client when</span>
+<span class="sd">          delivering messages through message listener. The default is 1 thread</span>
+<span class="sd">          per Pulsar client. If using more than 1 thread, messages for distinct</span>
+<span class="sd">          `message_listener`s will be delivered in different threads, however a</span>
+<span class="sd">          single `MessageListener` will always be assigned to the same thread.</span>
+<span class="sd">        * `concurrent_lookup_requests`:</span>
+<span class="sd">          Number of concurrent lookup-requests allowed on each broker connection</span>
+<span class="sd">          to prevent overload on the broker.</span>
+<span class="sd">        * `log_conf_file_path`:</span>
+<span class="sd">          Initialize log4cxx from a configuration file.</span>
+<span class="sd">        * `use_tls`:</span>
+<span class="sd">          Configure whether to use TLS encryption on the connection.</span>
+<span class="sd">        * `tls_trust_certs_file_path`:</span>
+<span class="sd">          Set the path to the trusted TLS certificate file.</span>
+<span class="sd">        * `tls_allow_insecure_connection`:</span>
+<span class="sd">          Configure whether the Pulsar client accepts untrusted TLS certificates</span>
+<span class="sd">          from the broker.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">conf</span> <span class="o">=</span> <span class="n">_pulsar</span><span class="o">.</span><span class="n">ClientConfiguration</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">authentication</span><span class="p">:</span>
+            <span class="n">conf</span><span class="o">.</span><span class="n">authentication</span><span class="p">(</span><span class="n">authentication</span><span class="o">.</span><span class="n">auth</span><span class="p">)</span>
+        <span class="n">conf</span><span class="o">.</span><span class="n">operation_timeout_seconds</span><span class="p">(</span><span class="n">operation_timeout_seconds</span><span class="p">)</span>
+        <span class="n">conf</span><span class="o">.</span><span class="n">io_threads</span><span class="p">(</span><span class="n">io_threads</span><span class="p">)</span>
+        <span class="n">conf</span><span class="o">.</span><span class="n">message_listener_threads</span><span class="p">(</span><span class="n">message_listener_threads</span><span class="p">)</span>
+        <span class="n">conf</span><span class="o">.</span><span class="n">concurrent_lookup_requests</span><span class="p">(</span><span class="n">concurrent_lookup_requests</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">log_conf_file_path</span><span class="p">:</span>
+            <span class="n">conf</span><span class="o">.</span><span class="n">log_conf_file_path</span><span class="p">(</span><span class="n">log_conf_file_path</span><span class="p">)</span>
+        <span class="n">conf</span><span class="o">.</span><span class="n">use_tls</span><span class="p">(</span><span class="n">use_tls</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">tls_trust_certs_file_path</span><span class="p">:</span>
+            <span class="n">conf</span><span class="o">.</span><span class="n">tls_trust_certs_file_path</span><span class="p">(</span><span class="n">tls_trust_certs_file_path</span><span class="p">)</span>
+        <span class="n">conf</span><span class="o">.</span><span class="n">tls_allow_insecure_connection</span><span class="p">(</span><span class="n">tls_allow_insecure_connection</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_client</span> <span class="o">=</span> <span class="n">_pulsar</span><span class="o">.</span><span class="n">Client</span><span class="p">(</span><span class="n">service_url</span><span class="p">,</span> <span class="n">conf</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_consumers</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">def</span> <span class="nf">create_producer</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">topic</span><span class="p">,</span>
+                        <span class="n">send_timeout_millis</span><span class="o">=</span><span class="mi">30000</span><span class="p">,</span>
+                        <span class="n">compression_type</span><span class="o">=</span><span class="n">CompressionType</span><span class="o">.</span><span class="n">None</span><span class="p">,</span>
+                        <span class="n">max_pending_messages</span><span class="o">=</span><span class="mi">30000</span><span class="p">,</span>
+                        <span class="n">block_if_queue_full</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+                        <span class="n">batching_enabled</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+                        <span class="n">batching_max_messages</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span>
+                        <span class="n">batching_max_allowed_size_in_bytes</span><span class="o">=</span><span class="mi">128</span><span class="o">*</span><span class="mi">1024</span><span class="p">,</span>
+                        <span class="n">batching_max_publish_delay_ms</span><span class="o">=</span><span class="mi">10</span>
+                        <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create a new producer on a given topic.</span>
+
+<span class="sd">        **Args**</span>
+
+<span class="sd">        * `topic`:</span>
+<span class="sd">          The topic name</span>
+
+<span class="sd">        **Options**</span>
+
+<span class="sd">        * `send_timeout_seconds`:</span>
+<span class="sd">          If a message is not acknowledged by the server before the</span>
+<span class="sd">          `send_timeout` expires, an error will be reported.</span>
+<span class="sd">        * `compression_type`:</span>
+<span class="sd">          Set the compression type for the producer. By default, message</span>
+<span class="sd">          payloads are not compressed. Supported compression types are</span>
+<span class="sd">          `CompressionType.LZ4` and `CompressionType.ZLib`.</span>
+<span class="sd">        * `max_pending_messages`:</span>
+<span class="sd">          Set the max size of the queue holding the messages pending to receive</span>
+<span class="sd">          an acknowledgment from the broker.</span>
+<span class="sd">        * `block_if_queue_full`: Set whether `send_async` operations should</span>
+<span class="sd">          block when the outgoing message queue is full.</span>
+<span class="sd">        * `message_routing_mode`:</span>
+<span class="sd">          Set the message routing mode for the partitioned producer.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">conf</span> <span class="o">=</span> <span class="n">_pulsar</span><span class="o">.</span><span class="n">ProducerConfiguration</span><span class="p">()</span>
+        <span class="n">conf</span><span class="o">.</span><span class="n">send_timeout_millis</span><span class="p">(</span><span class="n">send_timeout_millis</span><span class="p">)</span>
+        <span class="n">conf</span><span class="o">.</span><span class="n">compression_type</span><span class="p">(</span><span class="n">compression_type</span><span class="p">)</span>
+        <span class="n">conf</span><span class="o">.</span><span class="n">max_pending_messages</span><span class="p">(</span><span class="n">max_pending_messages</span><span class="p">)</span>
+        <span class="n">conf</span><span class="o">.</span><span class="n">block_if_queue_full</span><span class="p">(</span><span class="n">block_if_queue_full</span><span class="p">)</span>
+        <span class="n">conf</span><span class="o">.</span><span class="n">batching_enabled</span><span class="p">(</span><span class="n">batching_enabled</span><span class="p">)</span>
+        <span class="n">conf</span><span class="o">.</span><span class="n">batching_max_messages</span><span class="p">(</span><span class="n">batching_max_messages</span><span class="p">)</span>
+        <span class="n">conf</span><span class="o">.</span><span class="n">batching_max_allowed_size_in_bytes</span><span class="p">(</span><span class="n">batching_max_allowed_size_in_bytes</span><span class="p">)</span>
+        <span class="n">conf</span><span class="o">.</span><span class="n">batching_max_publish_delay_ms</span><span class="p">(</span><span class="n">batching_max_publish_delay_ms</span><span class="p">)</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="n">Producer</span><span class="p">()</span>
+        <span class="n">p</span><span class="o">.</span><span class="n">_producer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="o">.</span><span class="n">create_producer</span><span class="p">(</span><span class="n">topic</span><span class="p">,</span> <span class="n">conf</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">p</span>
+
+    <span class="k">def</span> <span class="nf">subscribe</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">topic</span><span class="p">,</span> <span class="n">subscription_name</span><span class="p">,</span>
+                  <span class="n">consumer_type</span><span class="o">=</span><span class="n">ConsumerType</span><span class="o">.</span><span class="n">Exclusive</span><span class="p">,</span>
+                  <span class="n">message_listener</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                  <span class="n">receiver_queue_size</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span>
+                  <span class="n">consumer_name</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                  <span class="n">unacked_messages_timeout_ms</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                  <span class="n">broker_consumer_stats_cache_time_ms</span><span class="o">=</span><span class="mi">30000</span>
+                  <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Subscribe to the given topic and subscription combination.</span>
+
+<span class="sd">        **Args**</span>
+
+<span class="sd">        * `topic`: The name of the topic.</span>
+<span class="sd">        * `subscription`: The name of the subscription.</span>
+
+<span class="sd">        **Options**</span>
+
+<span class="sd">        * `consumer_type`:</span>
+<span class="sd">          Select the subscription type to be used when subscribing to the topic.</span>
+<span class="sd">        * `message_listener`:</span>
+<span class="sd">          Sets a message listener for the consumer. When the listener is set,</span>
+<span class="sd">          the application will receive messages through it. Calls to</span>
+<span class="sd">          `consumer.receive()` will not be allowed. The listener function needs</span>
+<span class="sd">          to accept (consumer, message), for example:</span>
+
+<span class="sd">                #!python</span>
+<span class="sd">                def my_listener(consumer, message):</span>
+<span class="sd">                    # process message</span>
+<span class="sd">                    consumer.acknowledge(message)</span>
+
+<span class="sd">        * `receiver_queue_size`:</span>
+<span class="sd">          Sets the size of the consumer receive queue. The consumer receive</span>
+<span class="sd">          queue controls how many messages can be accumulated by the consumer</span>
+<span class="sd">          before the application calls `receive()`. Using a higher value could</span>
+<span class="sd">          potentially increase the consumer throughput at the expense of higher</span>
+<span class="sd">          memory utilization. Setting the consumer queue size to zero decreases</span>
+<span class="sd">          the throughput of the consumer by disabling pre-fetching of messages.</span>
+<span class="sd">          This approach improves the message distribution on shared subscription</span>
+<span class="sd">          by pushing messages only to those consumers that are ready to process</span>
+<span class="sd">          them. Neither receive with timeout nor partitioned topics can be used</span>
+<span class="sd">          if the consumer queue size is zero. The `receive()` function call</span>
+<span class="sd">          should not be interrupted when the consumer queue size is zero. The</span>
+<span class="sd">          default value is 1000 messages and should work well for most use</span>
+<span class="sd">          cases.</span>
+<span class="sd">        * `consumer_name`:</span>
+<span class="sd">          Sets the consumer name.</span>
+<span class="sd">        * `unacked_messages_timeout_ms`:</span>
+<span class="sd">          Sets the timeout in milliseconds for unacknowledged messages. The</span>
+<span class="sd">          timeout needs to be greater than 10 seconds. An exception is thrown if</span>
+<span class="sd">          the given value is less than 10 seconds. If a successful</span>
+<span class="sd">          acknowledgement is not sent within the timeout, all the unacknowledged</span>
+<span class="sd">          messages are redelivered.</span>
+<span class="sd">        * `broker_consumer_stats_cache_time_ms`:</span>
+<span class="sd">          Sets the time duration for which the broker-side consumer stats will</span>
+<span class="sd">          be cached in the client.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">conf</span> <span class="o">=</span> <span class="n">_pulsar</span><span class="o">.</span><span class="n">ConsumerConfiguration</span><span class="p">()</span>
+        <span class="n">conf</span><span class="o">.</span><span class="n">consumer_type</span><span class="p">(</span><span class="n">consumer_type</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">message_listener</span><span class="p">:</span>
+            <span class="n">conf</span><span class="o">.</span><span class="n">message_listener</span><span class="p">(</span><span class="n">message_listener</span><span class="p">)</span>
+        <span class="n">conf</span><span class="o">.</span><span class="n">receiver_queue_size</span><span class="p">(</span><span class="n">receiver_queue_size</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">consumer_name</span><span class="p">:</span>
+            <span class="n">conf</span><span class="o">.</span><span class="n">consumer_name</span><span class="p">(</span><span class="n">consumer_name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">unacked_messages_timeout_ms</span><span class="p">:</span>
+            <span class="n">conf</span><span class="o">.</span><span class="n">unacked_messages_timeout_ms</span><span class="p">(</span><span class="n">unacked_messages_timeout_ms</span><span class="p">)</span>
+        <span class="n">conf</span><span class="o">.</span><span class="n">broker_consumer_stats_cache_time_ms</span><span class="p">(</span><span class="n">broker_consumer_stats_cache_time_ms</span><span class="p">)</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="n">Consumer</span><span class="p">()</span>
+        <span class="n">c</span><span class="o">.</span><span class="n">_consumer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="o">.</span><span class="n">subscribe</span><span class="p">(</span><span class="n">topic</span><span class="p">,</span> <span class="n">subscription_name</span><span class="p">,</span> <span class="n">conf</span><span class="p">)</span>
+        <span class="n">c</span><span class="o">.</span><span class="n">_client</span> <span class="o">=</span> <span class="bp">self</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_consumers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">c</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">c</span>
+
+    <span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Close the client and all the associated producers and consumers</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</pre></div>
+
+  </div>
+</div>
+
+
+      <div class="class">
+          <h3>Ancestors (in MRO)</h3>
+          <ul class="class_list">
+          <li><a href="#pulsar.Client">Client</a></li>
+          </ul>
+          <h3>Methods</h3>
+            
+  <div class="item">
+    <div class="name def" id="pulsar.Client.__init__">
+    <p>def <span class="ident">__init__</span>(</p><p>self, service_url, authentication=None, operation_timeout_seconds=30, io_threads=1, message_listener_threads=1, concurrent_lookup_requests=5000, log_conf_file_path=None, use_tls=False, tls_trust_certs_file_path=None, tls_allow_insecure_connection=False)</p>
+    </div>
+    
+
+    
+  
+    <div class="desc"><p>Create a new Pulsar client instance.</p>
+<p><strong>Args</strong></p>
+<ul>
+<li><code>service_url</code>: The Pulsar service url eg: pulsar://my-broker.com:6650/</li>
+</ul>
+<p><strong>Options</strong></p>
+<ul>
+<li><code>authentication</code>:
+  Set the authentication provider to be used with the broker.</li>
+<li><code>operation_timeout_seconds</code>:
+  Set timeout on client operations (subscribe, create producer, close,
+  unsubscribe).</li>
+<li><code>io_threads</code>:
+  Set the number of IO threads to be used by the Pulsar client.</li>
+<li><code>message_listener_threads</code>:
+  Set the number of threads to be used by the Pulsar client when
+  delivering messages through message listener. The default is 1 thread
+  per Pulsar client. If using more than 1 thread, messages for distinct
+  <code>message_listener</code>s will be delivered in different threads, however a
+  single <code>MessageListener</code> will always be assigned to the same thread.</li>
+<li><code>concurrent_lookup_requests</code>:
+  Number of concurrent lookup-requests allowed on each broker connection
+  to prevent overload on the broker.</li>
+<li><code>log_conf_file_path</code>:
+  Initialize log4cxx from a configuration file.</li>
+<li><code>use_tls</code>:
+  Configure whether to use TLS encryption on the connection.</li>
+<li><code>tls_trust_certs_file_path</code>:
+  Set the path to the trusted TLS certificate file.</li>
+<li><code>tls_allow_insecure_connection</code>:
+  Configure whether the Pulsar client accepts untrusted TLS certificates
+  from the broker.</li>
+</ul></div>
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.Client.__init__', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.Client.__init__" class="source">
+    <div class="codehilite"><pre><span></span><span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">service_url</span><span class="p">,</span>
+             <span class="n">authentication</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+             <span class="n">operation_timeout_seconds</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span>
+             <span class="n">io_threads</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+             <span class="n">message_listener_threads</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+             <span class="n">concurrent_lookup_requests</span><span class="o">=</span><span class="mi">5000</span><span class="p">,</span>
+             <span class="n">log_conf_file_path</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+             <span class="n">use_tls</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+             <span class="n">tls_trust_certs_file_path</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+             <span class="n">tls_allow_insecure_connection</span><span class="o">=</span><span class="bp">False</span>
+             <span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Create a new Pulsar client instance.</span>
+<span class="sd">    **Args**</span>
+<span class="sd">    * `service_url`: The Pulsar service url eg: pulsar://my-broker.com:6650/</span>
+<span class="sd">    **Options**</span>
+<span class="sd">    * `authentication`:</span>
+<span class="sd">      Set the authentication provider to be used with the broker.</span>
+<span class="sd">    * `operation_timeout_seconds`:</span>
+<span class="sd">      Set timeout on client operations (subscribe, create producer, close,</span>
+<span class="sd">      unsubscribe).</span>
+<span class="sd">    * `io_threads`:</span>
+<span class="sd">      Set the number of IO threads to be used by the Pulsar client.</span>
+<span class="sd">    * `message_listener_threads`:</span>
+<span class="sd">      Set the number of threads to be used by the Pulsar client when</span>
+<span class="sd">      delivering messages through message listener. The default is 1 thread</span>
+<span class="sd">      per Pulsar client. If using more than 1 thread, messages for distinct</span>
+<span class="sd">      `message_listener`s will be delivered in different threads, however a</span>
+<span class="sd">      single `MessageListener` will always be assigned to the same thread.</span>
+<span class="sd">    * `concurrent_lookup_requests`:</span>
+<span class="sd">      Number of concurrent lookup-requests allowed on each broker connection</span>
+<span class="sd">      to prevent overload on the broker.</span>
+<span class="sd">    * `log_conf_file_path`:</span>
+<span class="sd">      Initialize log4cxx from a configuration file.</span>
+<span class="sd">    * `use_tls`:</span>
+<span class="sd">      Configure whether to use TLS encryption on the connection.</span>
+<span class="sd">    * `tls_trust_certs_file_path`:</span>
+<span class="sd">      Set the path to the trusted TLS certificate file.</span>
+<span class="sd">    * `tls_allow_insecure_connection`:</span>
+<span class="sd">      Configure whether the Pulsar client accepts untrusted TLS certificates</span>
+<span class="sd">      from the broker.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">conf</span> <span class="o">=</span> <span class="n">_pulsar</span><span class="o">.</span><span class="n">ClientConfiguration</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">authentication</span><span class="p">:</span>
+        <span class="n">conf</span><span class="o">.</span><span class="n">authentication</span><span class="p">(</span><span class="n">authentication</span><span class="o">.</span><span class="n">auth</span><span class="p">)</span>
+    <span class="n">conf</span><span class="o">.</span><span class="n">operation_timeout_seconds</span><span class="p">(</span><span class="n">operation_timeout_seconds</span><span class="p">)</span>
+    <span class="n">conf</span><span class="o">.</span><span class="n">io_threads</span><span class="p">(</span><span class="n">io_threads</span><span class="p">)</span>
+    <span class="n">conf</span><span class="o">.</span><span class="n">message_listener_threads</span><span class="p">(</span><span class="n">message_listener_threads</span><span class="p">)</span>
+    <span class="n">conf</span><span class="o">.</span><span class="n">concurrent_lookup_requests</span><span class="p">(</span><span class="n">concurrent_lookup_requests</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">log_conf_file_path</span><span class="p">:</span>
+        <span class="n">conf</span><span class="o">.</span><span class="n">log_conf_file_path</span><span class="p">(</span><span class="n">log_conf_file_path</span><span class="p">)</span>
+    <span class="n">conf</span><span class="o">.</span><span class="n">use_tls</span><span class="p">(</span><span class="n">use_tls</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">tls_trust_certs_file_path</span><span class="p">:</span>
+        <span class="n">conf</span><span class="o">.</span><span class="n">tls_trust_certs_file_path</span><span class="p">(</span><span class="n">tls_trust_certs_file_path</span><span class="p">)</span>
+    <span class="n">conf</span><span class="o">.</span><span class="n">tls_allow_insecure_connection</span><span class="p">(</span><span class="n">tls_allow_insecure_connection</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_client</span> <span class="o">=</span> <span class="n">_pulsar</span><span class="o">.</span><span class="n">Client</span><span class="p">(</span><span class="n">service_url</span><span class="p">,</span> <span class="n">conf</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_consumers</span> <span class="o">=</span> <span class="p">[]</span>
+</pre></div>
+
+  </div>
+</div>
+
+  </div>
+  
+            
+  <div class="item">
+    <div class="name def" id="pulsar.Client.close">
+    <p>def <span class="ident">close</span>(</p><p>self)</p>
+    </div>
+    
+
+    
+  
+    <div class="desc"><p>Close the client and all the associated producers and consumers</p></div>
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.Client.close', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.Client.close" class="source">
+    <div class="codehilite"><pre><span></span><span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Close the client and all the associated producers and consumers</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</pre></div>
+
+  </div>
+</div>
+
+  </div>
+  
+            
+  <div class="item">
+    <div class="name def" id="pulsar.Client.create_producer">
+    <p>def <span class="ident">create_producer</span>(</p><p>self, topic, send_timeout_millis=30000, compression_type=_pulsar.CompressionType.None, max_pending_messages=30000, block_if_queue_full=False, batching_enabled=False, batching_max_messages=1000, batching_max_allowed_size_in_bytes=131072, batching_max_publish_delay_ms=10)</p>
+    </div>
+    
+
+    
+  
+    <div class="desc"><p>Create a new producer on a given topic.</p>
+<p><strong>Args</strong></p>
+<ul>
+<li><code>topic</code>:
+  The topic name</li>
+</ul>
+<p><strong>Options</strong></p>
+<ul>
+<li><code>send_timeout_seconds</code>:
+  If a message is not acknowledged by the server before the
+  <code>send_timeout</code> expires, an error will be reported.</li>
+<li><code>compression_type</code>:
+  Set the compression type for the producer. By default, message
+  payloads are not compressed. Supported compression types are
+  <code>CompressionType.LZ4</code> and <code>CompressionType.ZLib</code>.</li>
+<li><code>max_pending_messages</code>:
+  Set the max size of the queue holding the messages pending to receive
+  an acknowledgment from the broker.</li>
+<li><code>block_if_queue_full</code>: Set whether <code>send_async</code> operations should
+  block when the outgoing message queue is full.</li>
+<li><code>message_routing_mode</code>:
+  Set the message routing mode for the partitioned producer.</li>
+</ul></div>
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.Client.create_producer', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.Client.create_producer" class="source">
+    <div class="codehilite"><pre><span></span><span class="k">def</span> <span class="nf">create_producer</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">topic</span><span class="p">,</span>
+                    <span class="n">send_timeout_millis</span><span class="o">=</span><span class="mi">30000</span><span class="p">,</span>
+                    <span class="n">compression_type</span><span class="o">=</span><span class="n">CompressionType</span><span class="o">.</span><span class="n">None</span><span class="p">,</span>
+                    <span class="n">max_pending_messages</span><span class="o">=</span><span class="mi">30000</span><span class="p">,</span>
+                    <span class="n">block_if_queue_full</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+                    <span class="n">batching_enabled</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+                    <span class="n">batching_max_messages</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span>
+                    <span class="n">batching_max_allowed_size_in_bytes</span><span class="o">=</span><span class="mi">128</span><span class="o">*</span><span class="mi">1024</span><span class="p">,</span>
+                    <span class="n">batching_max_publish_delay_ms</span><span class="o">=</span><span class="mi">10</span>
+                    <span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Create a new producer on a given topic.</span>
+<span class="sd">    **Args**</span>
+<span class="sd">    * `topic`:</span>
+<span class="sd">      The topic name</span>
+<span class="sd">    **Options**</span>
+<span class="sd">    * `send_timeout_seconds`:</span>
+<span class="sd">      If a message is not acknowledged by the server before the</span>
+<span class="sd">      `send_timeout` expires, an error will be reported.</span>
+<span class="sd">    * `compression_type`:</span>
+<span class="sd">      Set the compression type for the producer. By default, message</span>
+<span class="sd">      payloads are not compressed. Supported compression types are</span>
+<span class="sd">      `CompressionType.LZ4` and `CompressionType.ZLib`.</span>
+<span class="sd">    * `max_pending_messages`:</span>
+<span class="sd">      Set the max size of the queue holding the messages pending to receive</span>
+<span class="sd">      an acknowledgment from the broker.</span>
+<span class="sd">    * `block_if_queue_full`: Set whether `send_async` operations should</span>
+<span class="sd">      block when the outgoing message queue is full.</span>
+<span class="sd">    * `message_routing_mode`:</span>
+<span class="sd">      Set the message routing mode for the partitioned producer.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">conf</span> <span class="o">=</span> <span class="n">_pulsar</span><span class="o">.</span><span class="n">ProducerConfiguration</span><span class="p">()</span>
+    <span class="n">conf</span><span class="o">.</span><span class="n">send_timeout_millis</span><span class="p">(</span><span class="n">send_timeout_millis</span><span class="p">)</span>
+    <span class="n">conf</span><span class="o">.</span><span class="n">compression_type</span><span class="p">(</span><span class="n">compression_type</span><span class="p">)</span>
+    <span class="n">conf</span><span class="o">.</span><span class="n">max_pending_messages</span><span class="p">(</span><span class="n">max_pending_messages</span><span class="p">)</span>
+    <span class="n">conf</span><span class="o">.</span><span class="n">block_if_queue_full</span><span class="p">(</span><span class="n">block_if_queue_full</span><span class="p">)</span>
+    <span class="n">conf</span><span class="o">.</span><span class="n">batching_enabled</span><span class="p">(</span><span class="n">batching_enabled</span><span class="p">)</span>
+    <span class="n">conf</span><span class="o">.</span><span class="n">batching_max_messages</span><span class="p">(</span><span class="n">batching_max_messages</span><span class="p">)</span>
+    <span class="n">conf</span><span class="o">.</span><span class="n">batching_max_allowed_size_in_bytes</span><span class="p">(</span><span class="n">batching_max_allowed_size_in_bytes</span><span class="p">)</span>
+    <span class="n">conf</span><span class="o">.</span><span class="n">batching_max_publish_delay_ms</span><span class="p">(</span><span class="n">batching_max_publish_delay_ms</span><span class="p">)</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">Producer</span><span class="p">()</span>
+    <span class="n">p</span><span class="o">.</span><span class="n">_producer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="o">.</span><span class="n">create_producer</span><span class="p">(</span><span class="n">topic</span><span class="p">,</span> <span class="n">conf</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">p</span>
+</pre></div>
+
+  </div>
+</div>
+
+  </div>
+  
+            
+  <div class="item">
+    <div class="name def" id="pulsar.Client.subscribe">
+    <p>def <span class="ident">subscribe</span>(</p><p>self, topic, subscription_name, consumer_type=_pulsar.ConsumerType.Exclusive, message_listener=None, receiver_queue_size=1000, consumer_name=None, unacked_messages_timeout_ms=None, broker_consumer_stats_cache_time_ms=30000)</p>
+    </div>
+    
+
+    
+  
+    <div class="desc"><p>Subscribe to the given topic and subscription combination.</p>
+<p><strong>Args</strong></p>
+<ul>
+<li><code>topic</code>: The name of the topic.</li>
+<li><code>subscription</code>: The name of the subscription.</li>
+</ul>
+<p><strong>Options</strong></p>
+<ul>
+<li><code>consumer_type</code>:
+  Select the subscription type to be used when subscribing to the topic.</li>
+<li>
+<p><code>message_listener</code>:
+  Sets a message listener for the consumer. When the listener is set,
+  the application will receive messages through it. Calls to
+  <code>consumer.receive()</code> will not be allowed. The listener function needs
+  to accept (consumer, message), for example:</p>
+<div class="codehilite"><pre><span></span><span class="k">def</span> <span class="nf">my_listener</span><span class="p">(</span><span class="n">consumer</span><span class="p">,</span> <span class="n">message</span><span class="p">):</span>
+    <span class="c1"># process message</span>
+    <span class="n">consumer</span><span class="o">.</span><span class="n">acknowledge</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+</pre></div>
+
+
+</li>
+<li>
+<p><code>receiver_queue_size</code>:
+  Sets the size of the consumer receive queue. The consumer receive
+  queue controls how many messages can be accumulated by the consumer
+  before the application calls <code>receive()</code>. Using a higher value could
+  potentially increase the consumer throughput at the expense of higher
+  memory utilization. Setting the consumer queue size to zero decreases
+  the throughput of the consumer by disabling pre-fetching of messages.
+  This approach improves the message distribution on shared subscription
+  by pushing messages only to those consumers that are ready to process
+  them. Neither receive with timeout nor partitioned topics can be used
+  if the consumer queue size is zero. The <code>receive()</code> function call
+  should not be interrupted when the consumer queue size is zero. The
+  default value is 1000 messages and should work well for most use
+  cases.</p>
+</li>
+<li><code>consumer_name</code>:
+  Sets the consumer name.</li>
+<li><code>unacked_messages_timeout_ms</code>:
+  Sets the timeout in milliseconds for unacknowledged messages. The
+  timeout needs to be greater than 10 seconds. An exception is thrown if
+  the given value is less than 10 seconds. If a successful
+  acknowledgement is not sent within the timeout, all the unacknowledged
+  messages are redelivered.</li>
+<li><code>broker_consumer_stats_cache_time_ms</code>:
+  Sets the time duration for which the broker-side consumer stats will
+  be cached in the client.</li>
+</ul></div>
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.Client.subscribe', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.Client.subscribe" class="source">
+    <div class="codehilite"><pre><span></span><span class="k">def</span> <span class="nf">subscribe</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">topic</span><span class="p">,</span> <span class="n">subscription_name</span><span class="p">,</span>
+              <span class="n">consumer_type</span><span class="o">=</span><span class="n">ConsumerType</span><span class="o">.</span><span class="n">Exclusive</span><span class="p">,</span>
+              <span class="n">message_listener</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+              <span class="n">receiver_queue_size</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span>
+              <span class="n">consumer_name</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+              <span class="n">unacked_messages_timeout_ms</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+              <span class="n">broker_consumer_stats_cache_time_ms</span><span class="o">=</span><span class="mi">30000</span>
+              <span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Subscribe to the given topic and subscription combination.</span>
+<span class="sd">    **Args**</span>
+<span class="sd">    * `topic`: The name of the topic.</span>
+<span class="sd">    * `subscription`: The name of the subscription.</span>
+<span class="sd">    **Options**</span>
+<span class="sd">    * `consumer_type`:</span>
+<span class="sd">      Select the subscription type to be used when subscribing to the topic.</span>
+<span class="sd">    * `message_listener`:</span>
+<span class="sd">      Sets a message listener for the consumer. When the listener is set,</span>
+<span class="sd">      the application will receive messages through it. Calls to</span>
+<span class="sd">      `consumer.receive()` will not be allowed. The listener function needs</span>
+<span class="sd">      to accept (consumer, message), for example:</span>
+<span class="sd">            #!python</span>
+<span class="sd">            def my_listener(consumer, message):</span>
+<span class="sd">                # process message</span>
+<span class="sd">                consumer.acknowledge(message)</span>
+<span class="sd">    * `receiver_queue_size`:</span>
+<span class="sd">      Sets the size of the consumer receive queue. The consumer receive</span>
+<span class="sd">      queue controls how many messages can be accumulated by the consumer</span>
+<span class="sd">      before the application calls `receive()`. Using a higher value could</span>
+<span class="sd">      potentially increase the consumer throughput at the expense of higher</span>
+<span class="sd">      memory utilization. Setting the consumer queue size to zero decreases</span>
+<span class="sd">      the throughput of the consumer by disabling pre-fetching of messages.</span>
+<span class="sd">      This approach improves the message distribution on shared subscription</span>
+<span class="sd">      by pushing messages only to those consumers that are ready to process</span>
+<span class="sd">      them. Neither receive with timeout nor partitioned topics can be used</span>
+<span class="sd">      if the consumer queue size is zero. The `receive()` function call</span>
+<span class="sd">      should not be interrupted when the consumer queue size is zero. The</span>
+<span class="sd">      default value is 1000 messages and should work well for most use</span>
+<span class="sd">      cases.</span>
+<span class="sd">    * `consumer_name`:</span>
+<span class="sd">      Sets the consumer name.</span>
+<span class="sd">    * `unacked_messages_timeout_ms`:</span>
+<span class="sd">      Sets the timeout in milliseconds for unacknowledged messages. The</span>
+<span class="sd">      timeout needs to be greater than 10 seconds. An exception is thrown if</span>
+<span class="sd">      the given value is less than 10 seconds. If a successful</span>
+<span class="sd">      acknowledgement is not sent within the timeout, all the unacknowledged</span>
+<span class="sd">      messages are redelivered.</span>
+<span class="sd">    * `broker_consumer_stats_cache_time_ms`:</span>
+<span class="sd">      Sets the time duration for which the broker-side consumer stats will</span>
+<span class="sd">      be cached in the client.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">conf</span> <span class="o">=</span> <span class="n">_pulsar</span><span class="o">.</span><span class="n">ConsumerConfiguration</span><span class="p">()</span>
+    <span class="n">conf</span><span class="o">.</span><span class="n">consumer_type</span><span class="p">(</span><span class="n">consumer_type</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">message_listener</span><span class="p">:</span>
+        <span class="n">conf</span><span class="o">.</span><span class="n">message_listener</span><span class="p">(</span><span class="n">message_listener</span><span class="p">)</span>
+    <span class="n">conf</span><span class="o">.</span><span class="n">receiver_queue_size</span><span class="p">(</span><span class="n">receiver_queue_size</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">consumer_name</span><span class="p">:</span>
+        <span class="n">conf</span><span class="o">.</span><span class="n">consumer_name</span><span class="p">(</span><span class="n">consumer_name</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">unacked_messages_timeout_ms</span><span class="p">:</span>
+        <span class="n">conf</span><span class="o">.</span><span class="n">unacked_messages_timeout_ms</span><span class="p">(</span><span class="n">unacked_messages_timeout_ms</span><span class="p">)</span>
+    <span class="n">conf</span><span class="o">.</span><span class="n">broker_consumer_stats_cache_time_ms</span><span class="p">(</span><span class="n">broker_consumer_stats_cache_time_ms</span><span class="p">)</span>
+    <span class="n">c</span> <span class="o">=</span> <span class="n">Consumer</span><span class="p">()</span>
+    <span class="n">c</span><span class="o">.</span><span class="n">_consumer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="o">.</span><span class="n">subscribe</span><span class="p">(</span><span class="n">topic</span><span class="p">,</span> <span class="n">subscription_name</span><span class="p">,</span> <span class="n">conf</span><span class="p">)</span>
+    <span class="n">c</span><span class="o">.</span><span class="n">_client</span> <span class="o">=</span> <span class="bp">self</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_consumers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">c</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">c</span>
+</pre></div>
+
+  </div>
+</div>
+
+  </div>
+  
+      </div>
+      </div>
+      
+      <div class="item">
+      <p id="pulsar.Consumer" class="name">class <span class="ident">Consumer</span></p>
+      
+  
+    <div class="desc"><p>Pulsar consumer.</p></div>
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.Consumer', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.Consumer" class="source">
+    <div class="codehilite"><pre><span></span><span class="k">class</span> <span class="nc">Consumer</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Pulsar consumer.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">topic</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return the topic this consumer is subscribed to.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_consumer</span><span class="o">.</span><span class="n">topic</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">subscription_name</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return the subscription name.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_consumer</span><span class="o">.</span><span class="n">subscription_name</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">unsubscribe</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Unsubscribe the current consumer from the topic.</span>
+
+<span class="sd">        This method will block until the operation is completed. Once the</span>
+<span class="sd">        consumer is unsubscribed, no more messages will be received and</span>
+<span class="sd">        subsequent new messages will not be retained for this consumer.</span>
+
+<span class="sd">        This consumer object cannot be reused.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_consumer</span><span class="o">.</span><span class="n">unsubcribe</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">receive</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timeout_millis</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Receive a single message.</span>
+
+<span class="sd">        If a message is not immediately available, this method will block until</span>
+<span class="sd">        a new message is available.</span>
+
+<span class="sd">        **Options**</span>
+
+<span class="sd">        * `timeout_millis`:</span>
+<span class="sd">          If specified, the receive will raise an exception if a message is not</span>
+<span class="sd">          availble within the timeout.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">timeout_millis</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_consumer</span><span class="o">.</span><span class="n">receive</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_consumer</span><span class="o">.</span><span class="n">receive</span><span class="p">(</span><span class="n">timeout_millis</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">acknowledge</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Acknowledge the reception of a single message.</span>
+
+<span class="sd">        This method will block until an acknowledgement is sent to the broker.</span>
+<span class="sd">        After that, the message will not be re-delivered to this consumer.</span>
+
+<span class="sd">        **Args**</span>
+
+<span class="sd">        * `message`:</span>
+<span class="sd">          The received message or message id.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_consumer</span><span class="o">.</span><span class="n">acknowledge</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">acknowledge_cumulative</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Acknowledge the reception of all the messages in the stream up to (and</span>
+<span class="sd">        including) the provided message.</span>
+
+<span class="sd">        This method will block until an acknowledgement is sent to the broker.</span>
+<span class="sd">        After that, the messages will not be re-delivered to this consumer.</span>
+
+<span class="sd">        **Args**</span>
+
+<span class="sd">        * `message`:</span>
+<span class="sd">          The received message or message id.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_consumer</span><span class="o">.</span><span class="n">acknowledge_cumulative</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">pause_message_listener</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Pause receiving messages via the `message_listener` until</span>
+<span class="sd">        `resume_message_listener()` is called.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_consumer</span><span class="o">.</span><span class="n">pause_message_listener</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">resume_message_listener</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Resume receiving the messages via the message listener.</span>
+<span class="sd">        Asynchronously receive all the messages enqueued from the time</span>
+<span class="sd">        `pause_message_listener()` was called.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_consumer</span><span class="o">.</span><span class="n">resume_message_listener</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">redeliver_unacknowledged_messages</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Redelivers all the unacknowledged messages. In failover mode, the</span>
+<span class="sd">        request is ignored if the consumer is not active for the given topic. In</span>
+<span class="sd">        shared mode, the consumer&#39;s messages to be redelivered are distributed</span>
+<span class="sd">        across all the connected consumers. This is a non-blocking call and</span>
+<span class="sd">        doesn&#39;t throw an exception. In case the connection breaks, the messages</span>
+<span class="sd">        are redelivered after reconnect.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_consumer</span><span class="o">.</span><span class="n">redeliver_unacknowledged_messages</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Close the consumer.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_consumer</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="o">.</span><span class="n">_consumers</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+</pre></div>
+
+  </div>
+</div>
+
+
+      <div class="class">
+          <h3>Ancestors (in MRO)</h3>
+          <ul class="class_list">
+          <li><a href="#pulsar.Consumer">Consumer</a></li>
+          </ul>
+          <h3>Methods</h3>
+            
+  <div class="item">
+    <div class="name def" id="pulsar.Consumer.acknowledge">
+    <p>def <span class="ident">acknowledge</span>(</p><p>self, message)</p>
+    </div>
+    
+
+    
+  
+    <div class="desc"><p>Acknowledge the reception of a single message.</p>
+<p>This method will block until an acknowledgement is sent to the broker.
+After that, the message will not be re-delivered to this consumer.</p>
+<p><strong>Args</strong></p>
+<ul>
+<li><code>message</code>:
+  The received message or message id.</li>
+</ul></div>
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.Consumer.acknowledge', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.Consumer.acknowledge" class="source">
+    <div class="codehilite"><pre><span></span><span class="k">def</span> <span class="nf">acknowledge</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Acknowledge the reception of a single message.</span>
+<span class="sd">    This method will block until an acknowledgement is sent to the broker.</span>
+<span class="sd">    After that, the message will not be re-delivered to this consumer.</span>
+<span class="sd">    **Args**</span>
+<span class="sd">    * `message`:</span>
+<span class="sd">      The received message or message id.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_consumer</span><span class="o">.</span><span class="n">acknowledge</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+</pre></div>
+
+  </div>
+</div>
+
+  </div>
+  
+            
+  <div class="item">
+    <div class="name def" id="pulsar.Consumer.acknowledge_cumulative">
+    <p>def <span class="ident">acknowledge_cumulative</span>(</p><p>self, message)</p>
+    </div>
+    
+
+    
+  
+    <div class="desc"><p>Acknowledge the reception of all the messages in the stream up to (and
+including) the provided message.</p>
+<p>This method will block until an acknowledgement is sent to the broker.
+After that, the messages will not be re-delivered to this consumer.</p>
+<p><strong>Args</strong></p>
+<ul>
+<li><code>message</code>:
+  The received message or message id.</li>
+</ul></div>
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.Consumer.acknowledge_cumulative', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.Consumer.acknowledge_cumulative" class="source">
+    <div class="codehilite"><pre><span></span><span class="k">def</span> <span class="nf">acknowledge_cumulative</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Acknowledge the reception of all the messages in the stream up to (and</span>
+<span class="sd">    including) the provided message.</span>
+<span class="sd">    This method will block until an acknowledgement is sent to the broker.</span>
+<span class="sd">    After that, the messages will not be re-delivered to this consumer.</span>
+<span class="sd">    **Args**</span>
+<span class="sd">    * `message`:</span>
+<span class="sd">      The received message or message id.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_consumer</span><span class="o">.</span><span class="n">acknowledge_cumulative</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+</pre></div>
+
+  </div>
+</div>
+
+  </div>
+  
+            
+  <div class="item">
+    <div class="name def" id="pulsar.Consumer.close">
+    <p>def <span class="ident">close</span>(</p><p>self)</p>
+    </div>
+    
+
+    
+  
+    <div class="desc"><p>Close the consumer.</p></div>
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.Consumer.close', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.Consumer.close" class="source">
+    <div class="codehilite"><pre><span></span><span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Close the consumer.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_consumer</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="o">.</span><span class="n">_consumers</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+</pre></div>
+
+  </div>
+</div>
+
+  </div>
+  
+            
+  <div class="item">
+    <div class="name def" id="pulsar.Consumer.pause_message_listener">
+    <p>def <span class="ident">pause_message_listener</span>(</p><p>self)</p>
+    </div>
+    
+
+    
+  
+    <div class="desc"><p>Pause receiving messages via the <code>message_listener</code> until
+<code>resume_message_listener()</code> is called.</p></div>
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.Consumer.pause_message_listener', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.Consumer.pause_message_listener" class="source">
+    <div class="codehilite"><pre><span></span><span class="k">def</span> <span class="nf">pause_message_listener</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Pause receiving messages via the `message_listener` until</span>
+<span class="sd">    `resume_message_listener()` is called.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_consumer</span><span class="o">.</span><span class="n">pause_message_listener</span><span class="p">()</span>
+</pre></div>
+
+  </div>
+</div>
+
+  </div>
+  
+            
+  <div class="item">
+    <div class="name def" id="pulsar.Consumer.receive">
+    <p>def <span class="ident">receive</span>(</p><p>self, timeout_millis=None)</p>
+    </div>
+    
+
+    
+  
+    <div class="desc"><p>Receive a single message.</p>
+<p>If a message is not immediately available, this method will block until
+a new message is available.</p>
+<p><strong>Options</strong></p>
+<ul>
+<li><code>timeout_millis</code>:
+  If specified, the receive will raise an exception if a message is not
+  availble within the timeout.</li>
+</ul></div>
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.Consumer.receive', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.Consumer.receive" class="source">
+    <div class="codehilite"><pre><span></span><span class="k">def</span> <span class="nf">receive</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timeout_millis</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Receive a single message.</span>
+<span class="sd">    If a message is not immediately available, this method will block until</span>
+<span class="sd">    a new message is available.</span>
+<span class="sd">    **Options**</span>
+<span class="sd">    * `timeout_millis`:</span>
+<span class="sd">      If specified, the receive will raise an exception if a message is not</span>
+<span class="sd">      availble within the timeout.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">timeout_millis</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_consumer</span><span class="o">.</span><span class="n">receive</span><span class="p">()</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_consumer</span><span class="o">.</span><span class="n">receive</span><span class="p">(</span><span class="n">timeout_millis</span><span class="p">)</span>
+</pre></div>
+
+  </div>
+</div>
+
+  </div>
+  
+            
+  <div class="item">
+    <div class="name def" id="pulsar.Consumer.redeliver_unacknowledged_messages">
+    <p>def <span class="ident">redeliver_unacknowledged_messages</span>(</p><p>self)</p>
+    </div>
+    
+
+    
+  
+    <div class="desc"><p>Redelivers all the unacknowledged messages. In failover mode, the
+request is ignored if the consumer is not active for the given topic. In
+shared mode, the consumer's messages to be redelivered are distributed
+across all the connected consumers. This is a non-blocking call and
+doesn't throw an exception. In case the connection breaks, the messages
+are redelivered after reconnect.</p></div>
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.Consumer.redeliver_unacknowledged_messages', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.Consumer.redeliver_unacknowledged_messages" class="source">
+    <div class="codehilite"><pre><span></span><span class="k">def</span> <span class="nf">redeliver_unacknowledged_messages</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Redelivers all the unacknowledged messages. In failover mode, the</span>
+<span class="sd">    request is ignored if the consumer is not active for the given topic. In</span>
+<span class="sd">    shared mode, the consumer&#39;s messages to be redelivered are distributed</span>
+<span class="sd">    across all the connected consumers. This is a non-blocking call and</span>
+<span class="sd">    doesn&#39;t throw an exception. In case the connection breaks, the messages</span>
+<span class="sd">    are redelivered after reconnect.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_consumer</span><span class="o">.</span><span class="n">redeliver_unacknowledged_messages</span><span class="p">()</span>
+</pre></div>
+
+  </div>
+</div>
+
+  </div>
+  
+            
+  <div class="item">
+    <div class="name def" id="pulsar.Consumer.resume_message_listener">
+    <p>def <span class="ident">resume_message_listener</span>(</p><p>self)</p>
+    </div>
+    
+
+    
+  
+    <div class="desc"><p>Resume receiving the messages via the message listener.
+Asynchronously receive all the messages enqueued from the time
+<code>pause_message_listener()</code> was called.</p></div>
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.Consumer.resume_message_listener', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.Consumer.resume_message_listener" class="source">
+    <div class="codehilite"><pre><span></span><span class="k">def</span> <span class="nf">resume_message_listener</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Resume receiving the messages via the message listener.</span>
+<span class="sd">    Asynchronously receive all the messages enqueued from the time</span>
+<span class="sd">    `pause_message_listener()` was called.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_consumer</span><span class="o">.</span><span class="n">resume_message_listener</span><span class="p">()</span>
+</pre></div>
+
+  </div>
+</div>
+
+  </div>
+  
+            
+  <div class="item">
+    <div class="name def" id="pulsar.Consumer.subscription_name">
+    <p>def <span class="ident">subscription_name</span>(</p><p>self)</p>
+    </div>
+    
+
+    
+  
+    <div class="desc"><p>Return the subscription name.</p></div>
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.Consumer.subscription_name', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.Consumer.subscription_name" class="source">
+    <div class="codehilite"><pre><span></span><span class="k">def</span> <span class="nf">subscription_name</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Return the subscription name.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_consumer</span><span class="o">.</span><span class="n">subscription_name</span><span class="p">()</span>
+</pre></div>
+
+  </div>
+</div>
+
+  </div>
+  
+            
+  <div class="item">
+    <div class="name def" id="pulsar.Consumer.topic">
+    <p>def <span class="ident">topic</span>(</p><p>self)</p>
+    </div>
+    
+
+    
+  
+    <div class="desc"><p>Return the topic this consumer is subscribed to.</p></div>
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.Consumer.topic', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.Consumer.topic" class="source">
+    <div class="codehilite"><pre><span></span><span class="k">def</span> <span class="nf">topic</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Return the topic this consumer is subscribed to.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_consumer</span><span class="o">.</span><span class="n">topic</span><span class="p">()</span>
+</pre></div>
+
+  </div>
+</div>
+
+  </div>
+  
+            
+  <div class="item">
+    <div class="name def" id="pulsar.Consumer.unsubscribe">
+    <p>def <span class="ident">unsubscribe</span>(</p><p>self)</p>
+    </div>
+    
+
+    
+  
+    <div class="desc"><p>Unsubscribe the current consumer from the topic.</p>
+<p>This method will block until the operation is completed. Once the
+consumer is unsubscribed, no more messages will be received and
+subsequent new messages will not be retained for this consumer.</p>
+<p>This consumer object cannot be reused.</p></div>
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.Consumer.unsubscribe', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.Consumer.unsubscribe" class="source">
+    <div class="codehilite"><pre><span></span><span class="k">def</span> <span class="nf">unsubscribe</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Unsubscribe the current consumer from the topic.</span>
+<span class="sd">    This method will block until the operation is completed. Once the</span>
+<span class="sd">    consumer is unsubscribed, no more messages will be received and</span>
+<span class="sd">    subsequent new messages will not be retained for this consumer.</span>
+<span class="sd">    This consumer object cannot be reused.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_consumer</span><span class="o">.</span><span class="n">unsubcribe</span><span class="p">()</span>
+</pre></div>
+
+  </div>
+</div>
+
+  </div>
+  
+      </div>
+      </div>
+      
+      <div class="item">
+      <p id="pulsar.Message" class="name">class <span class="ident">Message</span></p>
+      
+  
+    <div class="desc"><p>Message objects are returned by a consumer, either by calling <code>receive</code> or
+through a listener.</p></div>
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.Message', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.Message" class="source">
+    <div class="codehilite"><pre><span></span><span class="k">class</span> <span class="nc">Message</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Message objects are returned by a consumer, either by calling `receive` or</span>
+<span class="sd">    through a listener.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns a string with the content of the message.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_message</span><span class="o">.</span><span class="n">data</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">properties</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return the properties attached to the message. Properties are</span>
+<span class="sd">        application-defined key/value pairs that will be attached to the</span>
+<span class="sd">        message.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_message</span><span class="o">.</span><span class="n">properties</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">partition_key</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the partitioning key for the message.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_message</span><span class="o">.</span><span class="n">partition_key</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">publish_timestamp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the timestamp in milliseconds with the message publish time.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_message</span><span class="o">.</span><span class="n">publish_timestamp</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">message_id</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        The message ID that can be used to refere to this particular message.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_message</span><span class="o">.</span><span class="n">message_id</span><span class="p">()</span>
+</pre></div>
+
+  </div>
+</div>
+
+
+      <div class="class">
+          <h3>Ancestors (in MRO)</h3>
+          <ul class="class_list">
+          <li><a href="#pulsar.Message">Message</a></li>
+          </ul>
+          <h3>Methods</h3>
+            
+  <div class="item">
+    <div class="name def" id="pulsar.Message.data">
+    <p>def <span class="ident">data</span>(</p><p>self)</p>
+    </div>
+    
+
+    
+  
+    <div class="desc"><p>Returns a string with the content of the message.</p></div>
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.Message.data', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.Message.data" class="source">
+    <div class="codehilite"><pre><span></span><span class="k">def</span> <span class="nf">data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Returns a string with the content of the message.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_message</span><span class="o">.</span><span class="n">data</span><span class="p">()</span>
+</pre></div>
+
+  </div>
+</div>
+
+  </div>
+  
+            
+  <div class="item">
+    <div class="name def" id="pulsar.Message.message_id">
+    <p>def <span class="ident">message_id</span>(</p><p>self)</p>
+    </div>
+    
+
+    
+  
+    <div class="desc"><p>The message ID that can be used to refere to this particular message.</p></div>
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.Message.message_id', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.Message.message_id" class="source">
+    <div class="codehilite"><pre><span></span><span class="k">def</span> <span class="nf">message_id</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    The message ID that can be used to refere to this particular message.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_message</span><span class="o">.</span><span class="n">message_id</span><span class="p">()</span>
+</pre></div>
+
+  </div>
+</div>
+
+  </div>
+  
+            
+  <div class="item">
+    <div class="name def" id="pulsar.Message.partition_key">
+    <p>def <span class="ident">partition_key</span>(</p><p>self)</p>
+    </div>
+    
+
+    
+  
+    <div class="desc"><p>Get the partitioning key for the message.</p></div>
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.Message.partition_key', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.Message.partition_key" class="source">
+    <div class="codehilite"><pre><span></span><span class="k">def</span> <span class="nf">partition_key</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Get the partitioning key for the message.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_message</span><span class="o">.</span><span class="n">partition_key</span><span class="p">()</span>
+</pre></div>
+
+  </div>
+</div>
+
+  </div>
+  
+            
+  <div class="item">
+    <div class="name def" id="pulsar.Message.properties">
+    <p>def <span class="ident">properties</span>(</p><p>self)</p>
+    </div>
+    
+
+    
+  
+    <div class="desc"><p>Return the properties attached to the message. Properties are
+application-defined key/value pairs that will be attached to the
+message.</p></div>
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.Message.properties', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.Message.properties" class="source">
+    <div class="codehilite"><pre><span></span><span class="k">def</span> <span class="nf">properties</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Return the properties attached to the message. Properties are</span>
+<span class="sd">    application-defined key/value pairs that will be attached to the</span>
+<span class="sd">    message.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_message</span><span class="o">.</span><span class="n">properties</span><span class="p">()</span>
+</pre></div>
+
+  </div>
+</div>
+
+  </div>
+  
+            
+  <div class="item">
+    <div class="name def" id="pulsar.Message.publish_timestamp">
+    <p>def <span class="ident">publish_timestamp</span>(</p><p>self)</p>
+    </div>
+    
+
+    
+  
+    <div class="desc"><p>Get the timestamp in milliseconds with the message publish time.</p></div>
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.Message.publish_timestamp', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.Message.publish_timestamp" class="source">
+    <div class="codehilite"><pre><span></span><span class="k">def</span> <span class="nf">publish_timestamp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Get the timestamp in milliseconds with the message publish time.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_message</span><span class="o">.</span><span class="n">publish_timestamp</span><span class="p">()</span>
+</pre></div>
+
+  </div>
+</div>
+
+  </div>
+  
+      </div>
+      </div>
+      
+      <div class="item">
+      <p id="pulsar.Producer" class="name">class <span class="ident">Producer</span></p>
+      
+  
+    <div class="desc"><p>The Pulsar message producer, used to publish messages on a topic.</p></div>
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.Producer', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.Producer" class="source">
+    <div class="codehilite"><pre><span></span><span class="k">class</span> <span class="nc">Producer</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    The Pulsar message producer, used to publish messages on a topic.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">send</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">content</span><span class="p">,</span>
+             <span class="n">properties</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+             <span class="n">partition_key</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+             <span class="n">replication_clusters</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+             <span class="n">disable_replication</span><span class="o">=</span><span class="bp">False</span>
+             <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Publish a message on the topic. Blocks until the message is acknowledged</span>
+
+<span class="sd">        **Args**</span>
+
+<span class="sd">        * `content`:</span>
+<span class="sd">          A string with the message payload</span>
+
+<span class="sd">        **Options**</span>
+
+<span class="sd">        * `properties`:</span>
+<span class="sd">          A dict of application-defined string properties.</span>
+<span class="sd">        * `partition_key`:</span>
+<span class="sd">          Sets the partition key for message routing. A hash of this key is used</span>
+<span class="sd">          to determine the message&#39;s destination partition.</span>
+<span class="sd">        * `replication_clusters`:</span>
+<span class="sd">          Override namespace replication clusters. Note that it is the caller&#39;s</span>
+<span class="sd">          responsibility to provide valid cluster names and that all clusters</span>
+<span class="sd">          have been previously configured as destinations. Given an empty list,</span>
+<span class="sd">          the message will replicate according to the namespace configuration.</span>
+<span class="sd">        * `disable_replication`:</span>
+<span class="sd">          Do not replicate this message.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_msg</span><span class="p">(</span><span class="n">content</span><span class="p">,</span> <span class="n">properties</span><span class="p">,</span> <span class="n">partition_key</span><span class="p">,</span>
+                              <span class="n">replication_clusters</span><span class="p">,</span> <span class="n">disable_replication</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_producer</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">send_async</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">content</span><span class="p">,</span> <span class="n">callback</span><span class="p">,</span>
+                   <span class="n">properties</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                   <span class="n">partition_key</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                   <span class="n">replication_clusters</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                   <span class="n">disable_replication</span><span class="o">=</span><span class="bp">False</span>
+                   <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Send a message asynchronously.</span>
+
+<span class="sd">        The `callback` will be invoked once the message has been acknowledged</span>
+<span class="sd">        by the broker.</span>
+
+<span class="sd">        Example:</span>
+
+<span class="sd">            #!python</span>
+<span class="sd">            def callback(res, msg):</span>
+<span class="sd">                print &#39;Message published:&#39;, res</span>
+
+<span class="sd">            producer.send_async(msg, callback)</span>
+
+<span class="sd">        When the producer queue is full, by default the message will be rejected</span>
+<span class="sd">        and the callback invoked with an error code.</span>
+
+<span class="sd">        **Args**</span>
+
+<span class="sd">        * `content`:</span>
+<span class="sd">          A string with the message payload.</span>
+
+<span class="sd">        **Options**</span>
+
+<span class="sd">        * `properties`:</span>
+<span class="sd">          A dict of application0-defined string properties.</span>
+<span class="sd">        * `partition_key`:</span>
+<span class="sd">          Sets the partition key for the message routing. A hash of this key is</span>
+<span class="sd">          used to determine the message&#39;s destination partition.</span>
+<span class="sd">        * `replication_clusters`: Override namespace replication clusters. Note</span>
+<span class="sd">          that it is the caller&#39;s responsibility to provide valid cluster names</span>
+<span class="sd">          and that all clusters have been previously configured as destinations.</span>
+<span class="sd">          Given an empty list, the message will replicate per the namespace</span>
+<span class="sd">          configuration.</span>
+<span class="sd">        * `disable_replication`:</span>
+<span class="sd">          Do not replicate this message.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_msg</span><span class="p">(</span><span class="n">content</span><span class="p">,</span> <span class="n">properties</span><span class="p">,</span> <span class="n">partition_key</span><span class="p">,</span>
+                              <span class="n">replication_clusters</span><span class="p">,</span> <span class="n">disable_replication</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_producer</span><span class="o">.</span><span class="n">send_async</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="n">callback</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Close the producer.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">_build_msg</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">content</span><span class="p">,</span> <span class="n">properties</span><span class="p">,</span> <span class="n">partition_key</span><span class="p">,</span>
+                   <span class="n">replication_clusters</span><span class="p">,</span> <span class="n">disable_replication</span><span class="p">):</span>
+        <span class="n">mb</span> <span class="o">=</span> <span class="n">_pulsar</span><span class="o">.</span><span class="n">MessageBuilder</span><span class="p">()</span>
+        <span class="n">mb</span><span class="o">.</span><span class="n">content</span><span class="p">(</span><span class="n">content</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">properties</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">properties</span><span class="p">:</span>
+                <span class="n">mb</span><span class="o">.</span><span class="n">property</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">partition_key</span><span class="p">:</span>
+            <span class="n">mb</span><span class="o">.</span><span class="n">partition_key</span><span class="p">(</span><span class="n">partition_key</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">replication_clusters</span><span class="p">:</span>
+            <span class="n">mb</span><span class="o">.</span><span class="n">replication_clusters</span><span class="p">(</span><span class="n">replication_clusters</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">disable_replication</span><span class="p">:</span>
+            <span class="n">mb</span><span class="o">.</span><span class="n">disable_replication</span><span class="p">(</span><span class="n">disable_replication</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">mb</span><span class="o">.</span><span class="n">build</span><span class="p">()</span>
+</pre></div>
+
+  </div>
+</div>
+
+
+      <div class="class">
+          <h3>Ancestors (in MRO)</h3>
+          <ul class="class_list">
+          <li><a href="#pulsar.Producer">Producer</a></li>
+          </ul>
+          <h3>Methods</h3>
+            
+  <div class="item">
+    <div class="name def" id="pulsar.Producer.close">
+    <p>def <span class="ident">close</span>(</p><p>self)</p>
+    </div>
+    
+
+    
+  
+    <div class="desc"><p>Close the producer.</p></div>
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.Producer.close', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.Producer.close" class="source">
+    <div class="codehilite"><pre><span></span><span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Close the producer.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+</pre></div>
+
+  </div>
+</div>
+
+  </div>
+  
+            
+  <div class="item">
+    <div class="name def" id="pulsar.Producer.send">
+    <p>def <span class="ident">send</span>(</p><p>self, content, properties=None, partition_key=None, replication_clusters=None, disable_replication=False)</p>
+    </div>
+    
+
+    
+  
+    <div class="desc"><p>Publish a message on the topic. Blocks until the message is acknowledged</p>
+<p><strong>Args</strong></p>
+<ul>
+<li><code>content</code>:
+  A string with the message payload</li>
+</ul>
+<p><strong>Options</strong></p>
+<ul>
+<li><code>properties</code>:
+  A dict of application-defined string properties.</li>
+<li><code>partition_key</code>:
+  Sets the partition key for message routing. A hash of this key is used
+  to determine the message's destination partition.</li>
+<li><code>replication_clusters</code>:
+  Override namespace replication clusters. Note that it is the caller's
+  responsibility to provide valid cluster names and that all clusters
+  have been previously configured as destinations. Given an empty list,
+  the message will replicate according to the namespace configuration.</li>
+<li><code>disable_replication</code>:
+  Do not replicate this message.</li>
+</ul></div>
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.Producer.send', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.Producer.send" class="source">
+    <div class="codehilite"><pre><span></span><span class="k">def</span> <span class="nf">send</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">content</span><span class="p">,</span>
+         <span class="n">properties</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+         <span class="n">partition_key</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+         <span class="n">replication_clusters</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+         <span class="n">disable_replication</span><span class="o">=</span><span class="bp">False</span>
+         <span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Publish a message on the topic. Blocks until the message is acknowledged</span>
+<span class="sd">    **Args**</span>
+<span class="sd">    * `content`:</span>
+<span class="sd">      A string with the message payload</span>
+<span class="sd">    **Options**</span>
+<span class="sd">    * `properties`:</span>
+<span class="sd">      A dict of application-defined string properties.</span>
+<span class="sd">    * `partition_key`:</span>
+<span class="sd">      Sets the partition key for message routing. A hash of this key is used</span>
+<span class="sd">      to determine the message&#39;s destination partition.</span>
+<span class="sd">    * `replication_clusters`:</span>
+<span class="sd">      Override namespace replication clusters. Note that it is the caller&#39;s</span>
+<span class="sd">      responsibility to provide valid cluster names and that all clusters</span>
+<span class="sd">      have been previously configured as destinations. Given an empty list,</span>
+<span class="sd">      the message will replicate according to the namespace configuration.</span>
+<span class="sd">    * `disable_replication`:</span>
+<span class="sd">      Do not replicate this message.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">msg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_msg</span><span class="p">(</span><span class="n">content</span><span class="p">,</span> <span class="n">properties</span><span class="p">,</span> <span class="n">partition_key</span><span class="p">,</span>
+                          <span class="n">replication_clusters</span><span class="p">,</span> <span class="n">disable_replication</span><span class="p">)</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_producer</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+</pre></div>
+
+  </div>
+</div>
+
+  </div>
+  
+            
+  <div class="item">
+    <div class="name def" id="pulsar.Producer.send_async">
+    <p>def <span class="ident">send_async</span>(</p><p>self, content, callback, properties=None, partition_key=None, replication_clusters=None, disable_replication=False)</p>
+    </div>
+    
+
+    
+  
+    <div class="desc"><p>Send a message asynchronously.</p>
+<p>The <code>callback</code> will be invoked once the message has been acknowledged
+by the broker.</p>
+<p>Example:</p>
+<div class="codehilite"><pre><span></span><span class="k">def</span> <span class="nf">callback</span><span class="p">(</span><span class="n">res</span><span class="p">,</span> <span class="n">msg</span><span class="p">):</span>
+    <span class="k">print</span> <span class="s1">&#39;Message published:&#39;</span><span class="p">,</span> <span class="n">res</span>
+
+<span class="n">producer</span><span class="o">.</span><span class="n">send_async</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="n">callback</span><span class="p">)</span>
+</pre></div>
+
+
+<p>When the producer queue is full, by default the message will be rejected
+and the callback invoked with an error code.</p>
+<p><strong>Args</strong></p>
+<ul>
+<li><code>content</code>:
+  A string with the message payload.</li>
+</ul>
+<p><strong>Options</strong></p>
+<ul>
+<li><code>properties</code>:
+  A dict of application0-defined string properties.</li>
+<li><code>partition_key</code>:
+  Sets the partition key for the message routing. A hash of this key is
+  used to determine the message's destination partition.</li>
+<li><code>replication_clusters</code>: Override namespace replication clusters. Note
+  that it is the caller's responsibility to provide valid cluster names
+  and that all clusters have been previously configured as destinations.
+  Given an empty list, the message will replicate per the namespace
+  configuration.</li>
+<li><code>disable_replication</code>:
+  Do not replicate this message.</li>
+</ul></div>
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.Producer.send_async', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.Producer.send_async" class="source">
+    <div class="codehilite"><pre><span></span><span class="k">def</span> <span class="nf">send_async</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">content</span><span class="p">,</span> <span class="n">callback</span><span class="p">,</span>
+               <span class="n">properties</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+               <span class="n">partition_key</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+               <span class="n">replication_clusters</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+               <span class="n">disable_replication</span><span class="o">=</span><span class="bp">False</span>
+               <span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Send a message asynchronously.</span>
+<span class="sd">    The `callback` will be invoked once the message has been acknowledged</span>
+<span class="sd">    by the broker.</span>
+<span class="sd">    Example:</span>
+<span class="sd">        #!python</span>
+<span class="sd">        def callback(res, msg):</span>
+<span class="sd">            print &#39;Message published:&#39;, res</span>
+<span class="sd">        producer.send_async(msg, callback)</span>
+<span class="sd">    When the producer queue is full, by default the message will be rejected</span>
+<span class="sd">    and the callback invoked with an error code.</span>
+<span class="sd">    **Args**</span>
+<span class="sd">    * `content`:</span>
+<span class="sd">      A string with the message payload.</span>
+<span class="sd">    **Options**</span>
+<span class="sd">    * `properties`:</span>
+<span class="sd">      A dict of application0-defined string properties.</span>
+<span class="sd">    * `partition_key`:</span>
+<span class="sd">      Sets the partition key for the message routing. A hash of this key is</span>
+<span class="sd">      used to determine the message&#39;s destination partition.</span>
+<span class="sd">    * `replication_clusters`: Override namespace replication clusters. Note</span>
+<span class="sd">      that it is the caller&#39;s responsibility to provide valid cluster names</span>
+<span class="sd">      and that all clusters have been previously configured as destinations.</span>
+<span class="sd">      Given an empty list, the message will replicate per the namespace</span>
+<span class="sd">      configuration.</span>
+<span class="sd">    * `disable_replication`:</span>
+<span class="sd">      Do not replicate this message.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">msg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_msg</span><span class="p">(</span><span class="n">content</span><span class="p">,</span> <span class="n">properties</span><span class="p">,</span> <span class="n">partition_key</span><span class="p">,</span>
+                          <span class="n">replication_clusters</span><span class="p">,</span> <span class="n">disable_replication</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_producer</span><span class="o">.</span><span class="n">send_async</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="n">callback</span><span class="p">)</span>
+</pre></div>
+
+  </div>
+</div>
+
+  </div>
+  
+      </div>
+      </div>
+
+  </section>
+
+    </article>
+  <div class="clear"> </div>
+  <footer id="footer">
+    <p>
+      Documentation generated by
+      <a href="https://github.com/BurntSushi/pdoc">pdoc 0.3.2</a>
+    </p>
+
+    <p>pdoc is in the public domain with the
+      <a href="http://unlicense.org">UNLICENSE</a></p>
+
+    <p>Design by <a href="http://nadh.in">Kailash Nadh</a></p>
+  </footer>
+</div>
+</body>
+</html>
