@@ -1,5 +1,5 @@
 
-language: java C++
+language: java C++ ruby
 jdk:
   - oraclejdk8
 
@@ -22,6 +22,7 @@ before_install:
 
 install:
   - sudo bash -x $TRAVIS_BUILD_DIR/pulsar-client-cpp/travis-build.sh $HOME/pulsar-dep $TRAVIS_BUILD_DIR dep
+  - (cd site && make setup)
 
 script:
     # Build Java and C++
@@ -50,3 +51,7 @@ deploy:
     on:
       repo: yahoo/pulsar
       tags: true
+  -
+    provider: script
+    skip_cleanup: true
+    script: (cd site && make build)

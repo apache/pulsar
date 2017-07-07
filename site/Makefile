@@ -1,7 +1,6 @@
-BUNDLER_VERSION = $(shell cat package.json | jq .versions.bundler | tr -d '"')
+BUNDLER_VERSION = 1.15.1
 BUNDLE = bundle _${BUNDLER_VERSION}_
 JEKYLL = ${BUNDLE} exec jekyll
-GULP = node_modules/.bin/gulp
 RAKE = ${BUNDLE} exec rake
 
 deep_clean:
@@ -12,8 +11,7 @@ deep_clean:
 		node_modules \
 		vendor \
 		_data/config \
-		_data/admin-rest-api-swagger.json \
-		protobuf.json
+		_data/admin-rest-api-swagger.json
 
 doxygen_install:
 	rm -rf scripts/doxygen
@@ -36,7 +34,7 @@ ruby_setup:
 python_setup:
 	pip install pdoc pygments
 
-setup: clean_local ruby_setup protobuf_setup doxygen_install python_setup
+setup: ruby_setup doxygen_install python_setup
 
 build: api_docs
 	scripts/build-all-versions.sh
@@ -66,6 +64,6 @@ protobuf_setup:
 	mv protoc-gen-doc scripts
 	(cd scripts/protoc-gen-doc && PROTOBUF_PREFIX=$(shell brew --prefix protobuf) qmake && make)
 
-api_docs: javadoc protobuf_doc_gen python_doc_gen cpp_doc_gen
+api_docs: javadoc python_doc_gen cpp_doc_gen
 
-publish: deep_clean setup protobuf_doc_gen swagger_definition_gen build
+publish: deep_clean setup swagger_definition_gen build
