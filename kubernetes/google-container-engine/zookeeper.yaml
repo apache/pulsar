@@ -67,7 +67,7 @@ spec:
             labels:
                 app: pulsar
                 component: zookeeper
-                cluster: us-central
+                cluster: pulsar-gke
             annotations:
                 pod.alpha.kubernetes.io/initialized: "true"
                 prometheus.io/scrape: "true"

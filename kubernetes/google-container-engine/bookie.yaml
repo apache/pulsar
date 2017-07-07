@@ -50,7 +50,7 @@ spec:
                 component: bookkeeper
                 # Specify cluster to allow aggregation by cluster in
                 # the metrics
-                cluster: us-central
+                cluster: pulsar-gke
             annotations:
                 prometheus.io/scrape: "true"
                 prometheus.io/port: "8000"

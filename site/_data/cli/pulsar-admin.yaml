@@ -1,0 +1,452 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+description: |
+  The `pulsar-admin` tool enables you to manage Pulsar installations, including clusters, brokers, namespaces, properties, and more.
+commands:
+- name: broker-stats
+  description: Operations to collect broker statistics
+  subcommands:
+  - name: allocator-stats
+    description: Dump allocator stats
+    argument: allocator-name
+  - name: destinations
+    description: Dump destination stats
+    options:
+    - flags: -i, --indent
+      description: Indent JSON output
+      default: 'false'
+  - name: mbeans
+    description: Dump Mbean stats
+    options:
+    - flags: -i, --indent
+      description: Indent JSON output
+      default: 'false'
+  - name: monitoring-metrics
+    description: dump metrics for Monitoring
+    options:
+    - flags: -i, --indent
+      description: Indent JSON output
+      default: 'false'
+- name: brokers
+  description: Operations about brokers
+  subcommands:
+  - name: list
+    description: List active brokers of the cluster
+    argument: cluster-name
+  - name: namespaces
+    description: List namespaces owned by the broker
+    argument: cluster-name
+    options:
+    - flags: --url
+      description: The URL for the broker
+  - name: update-dynamic-config
+    description: Update a broker's dynamic service configuration
+    options:
+    - flags: --config
+      description: Service configuration parameter name
+    - flags: --value
+      description: Value for the configuration parameter value specified using the `--config` flag
+  - name: list-dynamic-config
+    description: Get list of updatable configuration name
+  - name: get-all-dynamic-config
+    description: Get all overridden dynamic-configuration values
+- name: clusters
+  description: Operations about clusters
+  subcommands:
+  - name: get
+    description: Get the configuration data for the specified cluster
+    argument: cluster-name
+  - name: create
+    description: Provisions a new cluster. This operation requires Pulsar super-user privileges.
+    argument: cluster-name
+    options:
+    - flags: --broker-url
+      description: The URL for the broker service.
+    - flags: --broker-url-secure
+      description: The broker service URL for a secure connection
+    - flags: --url
+      description: service-url
+    - flags: --url-secure
+      description: service-url for secure connection
+  - name: update
+    description: Update the configuration for a cluster
+    argument: cluster-name
+    options:
+    - flags: --broker-url
+      description: The URL for the broker service.
+    - flags: --broker-url-secure
+      description: The broker service URL for a secure connection
+    - flags: --url
+      description: service-url
+    - flags: --url-secure
+      description: service-url for secure connection
+  - name: delete
+    description: Deletes an existing cluster
+    argument: cluster-name
+  - name: list
+    description: List the existing clusters
+- name: namespaces
+  description: Operations about namespaces
+  subcommands:
+  - name: list
+    description: Get the namespaces for a property
+    argument: property-name
+  - name: list-cluster
+    description: Get the namespaces for a property in the cluster
+    argument: property/cluster
+  - name: destinations
+    description: Get the destinations for a namespace
+    argument: property/cluster/namespace
+  - name: policies
+    description: Get the policies of a namespace
+    argument: property/cluster/namespace
+  - name: create
+    description: Create a new namespace
+    argument: property/cluster/namespace
+    options:
+    - flags: -b, --bundles
+      description: The number of bundles to activate
+      default: 0
+  - name: delete
+    description: Deletes a namespace
+    argument: property/cluster/namespace
+  - name: permissions
+    description: Get the permissions on a namespace
+    argument: property/cluster/namespace
+  - name: grant-permission
+    description: Grant permissions on a namespace
+    argument: property/cluster/namespace
+    options:
+    - flags: --actions
+      description: Actions to be granted (`produce` or `consume`)
+    - flags: --role
+      description: The client role to which to grant the permissions
+  - name: revoke-permission
+    description: Revoke permissions on a namespace
+    argument: property/cluster/namespace
+    options:
+    - flags: --role
+      description: The client role from which to revoke the permissions
+  - name: set-clusters
+    description: Set replication clusters for a namespace
+    argument: property/cluster/namespace
+    options:
+    - flags: -c, --clusters
+      description: Replication clusters ID list (comma-separated values)
+  - name: get-clusters
+    description: Get replication clusters for a namespace
+    argument: property/cluster/namespace
+  - name: get-backlog-quotas
+    description: Get the backlog quota policies for a namespace
+    argument: property/cluster/namespace
+  - name: set-backlog-quota
+    description: Set a backlog quota for a namespace
+    argument: property/cluster/namespace
+    example: |
+      pulsar-admin namespaces set-backlog-quota my-prop/my-cluster/my-ns \
+      --limit 2G \
+      --policy producer_request_hold
+    options:
+    - flags: -l, --limit
+      description: The backlog size limit (for example `10M` or `16G`)
+    - flags: -p, --policy
+      description: |
+        The retention policy to enforce when the limit is reached. The valid options are:
+        * `producer_request_hold`
+        * `producer_exception`
+        * `consumer_backlog_eviction`
+  - name: remove-backlog-quota
+    description: Remove a backlog quota policy from a namespace
+    argument: property/cluster/namespace
+  - name: get-persistence
+    description: Get the persistence policies for a namespace
+    argument: property/cluster/namespace
+  - name: set-persistence
+    description: Set the persistence policies for a namespace
+    argument: property/cluster/namespace
+    options:
+    - flags: -a, --bookkeeper-ack-quorom
+      description: The number of acks (guaranteed copies) to wait for each entry
+      default: 0
+    - flags: -e, --bookkeeper-ensemble
+      description: The number of bookies to use for a topic
+      default: 0
+    - flags: -w, --bookkeeper-write-quorum
+      description: How many writes to make of each entry
+      default: 0
+    - flags: -r, --ml-mark-delete-max-rate
+      description: Throttling rate of mark-delete operation (0 means no throttle)
+  - name: get-message-ttl
+    description: Get the message TTL for a namespace
+    argument: property/cluster/namespace
+  - name: set-message-ttl
+    description: Set the message TTL for a namespace
+    options:
+    - flags: -ttl, --messageTTL
+      description: Message TTL in seconds
+      default: 0
+  - name: get-retention
+    description: Get the retention policy for a namespace
+    argument: property/cluster/namespace
+  - name: set-retention
+    description: Set the retention policy for a namespace
+    argument: property/cluster/namespace
+    options:
+    - flags: -s, --size
+      description: The retention size limits (for example `10M` or `16G`)
+    - flags: -t, --time
+      description: "The retention time in minutes, hours, days, or weeks. Examples: `100m`, `13h`, `2d`, `5w`."
+  - name: unload
+    description: Unload a namespace or namespace bundle from the current serving broker.
+    argument: property/cluster/namespace
+    options:
+    - flags: -b, --bundle
+      description: # `{start_boundary}_{end_boundary}`
+  - name: clear-backlog
+    description: Clear the backlog for a namespace
+    argument: property/cluster/namespace
+    options:
+    - flags: -b, --bundle
+      description: # `{start_boundary}_{end_boundary}`
+    - flags: -f, --force
+      description: Whether to force a clear backlog without prompt
+      default: 'false'
+    - flags: -s, --sub
+      description: The subscription name
+  - name: unsubscribe
+    description: Unsubscribe the given subscription on all destinations on a namespace
+    argument: property/cluster/namespace
+    options:
+    - flags: -b, --bundle
+      description: # `{start_boundary}_{end_boundary}`
+    - flags: -s, --sub
+      description: The subscription name
+- name: ns-isolation-policy
+  description: Operations for managing namespace isolation policies.
+  subcommands:
+  - name: set
+    description: Create/update a namespace isolation policy for a cluster. This operation requires Pulsar superuser privileges.
+    argument: cluster-name policy-name
+    options:
+    - flags: --auto-failover-policy-params
+      description: Comma-separated `name=value` auto failover policy parameters
+      default: '[]'
+    - flags: --auto-failover-policy-type
+      description: "Auto failover policy type name. Currently available options: `min_available`."
+      default: '[]'
+    - flags: --namespaces
+      description: Comma-separated namespaces regex list
+      default: '[]'
+    - flags: --primary
+      description: Comma-separated primary broker regex list
+      default: '[]'
+    - flags: --secondary
+      description: Comma-separated secondary broker regex list
+      default: '[]'
+  - name: get
+    description: Get the namespace isolation policy of a cluster. This operation requires Pulsar superuser privileges.
+    argument: cluster-name policy-name
+  - name: list
+    description: List all namespace isolation policies of a cluster. This operation requires Pulsar superuser privileges.
+    argument: cluster-name
+  - name: delete
+    description: Delete namespace isolation policy of a cluster. This operation requires superuser privileges.
+- name: persistent
+  description: Operations on persistent topics
+  subcommands:
+  - name: list
+    description: Get the list of topics under a namespace
+    argument: property/cluster/namespace
+  - name: permissions
+    description: Get the permissions on a topic. Retrieve the effective permissions for a desination. These permissions are defined by the permissions set at the namespace level combined (union) with any eventual specific permissions set on the topic.
+    argument: persistent://property/cluster/namespace/topic
+  - name: grant-permission
+    description: Grant a new permission to a client role on a single topic
+    argument: persistent://property/cluster/namespace/topic
+    options:
+    - flags: --actions
+      description: Actions to be granted (`produce` or `consume`)
+    - flags: --role
+      description: The client role to which permissions are to be granted
+  - name: revoke-permission
+    description: Revoke permissions to a client role on a single topic. If the permission was not set at the topic level, but rather at the namespace level, this operation will return an error (HTTP status code 412).
+    argument: persistent://property/cluster/namespace/topic
+  - name: lookup
+    description: Look up a topic from the current serving broker
+    argument: persistent://property/cluster/namespace/topic
+  - name: delete
+    description: Delete a topic. The topic cannot be deleted if there are any active subscriptions or producers connected to the topic.
+    argument: persistent://property/cluster/namespace/topic
+  - name: subscriptions
+    description: Get the list of subscriptions on the topic
+    argument: persistent://property/cluster/namespace/topic
+  - name: unsubscribe
+    description: Delete a durable subscriber from a topic
+    argument: persistent://property/cluster/namespace/topic
+    options:
+    - flags: -s, --subscription
+      description: The subscription to delete
+  - name: stats
+    description: Get the stats for the topic and its connected producers and consumers. All rates are computed over a 1-minute window and are relative to the last completed 1-minute period.
+    argument: persistent://property/cluster/namespace/topic
+  - name: stats-internal
+    description: Get the internal stats for the topic
+    argument: persistent://property/cluster/namespace/topic
+  - name: info-internal
+    description: Get the internal metadata info for the topic
+    argument: persistent://property/cluster/namespace/topic
+  - name: partitioned-stats
+    description: Get the stats for the partitioned topic and its connected producers and consumers. All rates are computed over a 1-minute window and are relative to the last completed 1-minute period.
+    argument: persistent://property/cluster/namespace/topic
+    options:
+    - flags: --per-partition
+      description: Get per-partition stats
+      default: 'false'
+  - name: skip
+    description: SKip some messages for the subscription
+    argument: persistent://property/cluster/namespace/topic
+    options:
+    - flags: -n, --count
+      description: The number of messages to skip
+      default: 0
+    - flags: -s, --subscription
+      description: The subscription on which to skip messages
+  - name: skip-all
+    description: Skip all the messages for the subscription
+    argument: persistent://property/cluster/namespace/topic
+    options:
+    - flags: -s, --subscription
+      description: The subscription to clear
+  - name: expire-messages
+    description: Expire messages that are older than the given expiry time (in seconds) for the subscription.
+    argument: persistent://property/cluster/namespace/topic
+    options:
+    - flags: -t, --expireTime
+      description: Expire messages older than the time (in seconds)
+      default: 0
+    - flags: -s, --subscription
+      description: The subscription to skip messages on
+  - name: expire-messages-all-subscriptions
+    description: Expire messages older than the given expiry time (in seconds) for all subscriptions
+    argument: persistent://property/cluster/namespace/topic
+    options:
+    - flags: -t, --expireTime
+      description: Expire messages older than the time (in seconds)
+      default: 0
+  - name: create-partitioned-topic
+    description: Create a partitioned topic
+    argument: persistent://property/cluster/namespace/topic
+    options:
+    - flags: -p, --partitions
+      description: The number of partitions for the topic
+      default: 0
+  - name: get-partitioned-topic-metadata
+    description: Get the partitioned topic metadata. If the topic is not created or is a non-partitioned topic, this will return an empty topic with zero partitions.
+    argument: persistent://property/cluster/namespace/topic
+  - name: delete-partitioned-topic
+    description: Delete a partitioned topic. This will also delete all the partitions of the topic if they exist.
+    argument: persistent://property/cluster/namespace/topic
+  - name: peek-messages
+    description: Peek some messages for the subscription.
+    argument: persistent://property/cluster/namespace/topic
+    options:
+    - flags: -n, --count
+      description: The number of messages
+      default: 1
+    - flags: -s, --subscription
+      description: Subscription to get messages from
+  - name: reset-cursor
+    description: Reset position for subscription to closest to timestamp
+    argument: persistent://property/cluster/namespace/topic
+    options:
+    - flags: -s, --subscription
+      description: Subscription to reset position on
+    - flags: -t, --time
+      description: "The time, in minutes, to reset back to (or minutes, hours, days, weeks, etc.). Examples: `100m`, `3h`, `2d`, `5w`."
+- name: properties
+  description: Operations about properties
+  subcommands:
+  - name: list
+    description: List the existing properties
+  - name: get
+    description: Gets the configuration of a property
+    argument: property-name
+  - name: create
+    description: Creates a new property
+    argument: property-name
+    options:
+    - flags: -r, --admin-roles
+      description: Comma-separated admin roles
+    - flags: -c, --allowed-clusters
+      description: Comma-separated allowed clusters
+  - name: update
+    description: Updates a property
+    argument: property-name
+    options:
+    - flags: -r, --admin-roles
+      description: Comma-separated admin roles
+    - flags: -c, --allowed-clusters
+      description: Comma-separated allowed clusters
+  - name: delete
+    description: Deletes an existing property
+    argument: property-name
+- name: resource-quotas
+  description: Operations about resource quotas
+  subcommands:
+  - name: get
+    description: Get the resource quota for a specified namespace bundle, or default quota if no namespace/bundle is specified.
+    options:
+    - flags: -b, --bundle
+      description: A bundle of the form `{start-boundary}_{end_boundary}`. This must be specified together with `-n`/`--namespace`.
+    - flags: -n, --namespace
+      description: The namespace
+      argument: property/cluster/namespace
+  - name: set
+    description: Set the resource quota for the specified namespace bundle, or default quota if no namespace/bundle is specified.
+    options:
+    - flags: -bi, --bandwidthIn
+      description: The expected inbound bandwidth (in bytes/second)
+      default: 0
+    - flags: -bo, --bandwidthOut
+      description: Expected outbound bandwidth (in bytes/second)
+      default: 0
+    - flags: -b, --bundle
+      description: A bundle of the form `{start-boundary}_{end_boundary}`. This must be specified together with `-n`/`--namespace`.
+    - flags: -d, --dynamic
+      description: Allow to be dynamically re-calculated (or not)
+      default: 'false'
+    - flags: -mem, --memory
+      description: Expectred memory usage (in megabytes)
+      default: 0
+    - flags: -mi, --msgRateIn
+      description: Expected incoming messages per second
+      default: 0
+    - flags: -mo, --msgRateOut
+      description: Expected outgoing messages per second
+      default: 0
+    - flags: -n, --namespace
+      description: The namespace as `property/cluster/namespace`, for example `my-prop/my-cluster/my-ns`. Must be specified together with `-b`/`--bundle`.
+  - name: reset-namespace-bundle-quota
+    description: Reset the specifed namespace bundle's resource quota to a default value.
+    options:
+    - flags: -b, --bundle
+      description: A bundle of the form `{start-boundary}_{end_boundary}`.
+    - flags: -n, --namespace
+      description: The namespace as `property/cluster/namespace`, for example `my-prop/my-cluster/my-ns`.

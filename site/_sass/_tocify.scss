@@ -1,0 +1,61 @@
+@import "variables";
+
+.tocify {
+  max-width: 80%;
+  margin: 0 0 0 1rem;
+  position: fixed;
+
+  h4 {
+    overflow-wrap: break-word;
+  }
+
+  ul.tocify-header {
+    list-style-position: inside;
+    text-size-adjust: none;
+  }
+
+  ul, li {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border: none;
+    line-height: 30px;
+  }
+
+  li {
+    font-size: $root-font-size;
+    padding: 0 1rem;
+    color: darken(#999, 30%);
+    border-left: 2px solid $brand-dark;
+
+    &.ui-state-default {
+      color: $brand-secondary;;
+      border-left: 4px solid $brand-secondary;
+    }
+  }
+
+  .tocify-subheader {
+    text-indent: 10px;
+    display: none;
+
+    li {
+      font-size: $root-font-size * 0.9;
+    }
+
+    .tocify-subheader {
+      text-indent: $root-indent * 2;
+
+      li {
+        font-size: $root-font-size * 0.8;
+      }
+
+      .tocify-subheader {
+        text-indent: $root-indent * 3;;
+
+        li {
+          font-size: $root-font-size * 0.7;
+        }
+      }
+    }
+  }
+}
