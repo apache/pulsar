@@ -194,7 +194,7 @@ aside.sidebar {
   section.sidebar-group {
     //max-width: 90%;
     h4 {
-      font-size: 16px;
+      font-size: 14px;
       margin-bottom: 8px;
     }
 
@@ -207,7 +207,7 @@ aside.sidebar {
         max-width: 100%;
         //text-indent: 20;
         //word-wrap: break-word;
-        font-size: 14px;
+        font-size: 12px;
         //list-style-type: none;
         margin-left: 0;
 
@@ -281,7 +281,7 @@ aside.sidebar {
 
         button {
           padding: 4px 8px;
-          font-size: 16px;
+          font-size: 14px;
         }
       }
 
@@ -291,7 +291,7 @@ aside.sidebar {
 
       span.docs-lead {
         margin: 20px 0 0 0;
-        font-size: 18px;
+        font-size: 16px;
         font-weight: lighter;
       }
 
@@ -305,9 +305,12 @@ aside.sidebar {
     }
 
     section.content {
+
+      font-size: 1rem;
+
       li {
         margin-left: 22px;
-        font-size: 1.25rem;
+        font-size: 100%;
       }
 
       h3 + h4 {
@@ -385,6 +388,11 @@ aside.sidebar {
         }
       }
 
+      img.inline {
+        margin: initial;
+        width: initial;
+      }
+
       p {
         font-size: $docs-font-size;
 
@@ -404,7 +412,7 @@ aside.sidebar {
         width: 100%;
 
         thead {
-          font-size: 20px;
+          font-size: 16px;
           border-bottom: 1px solid black;
 
           tr th {
@@ -450,7 +458,7 @@ aside.sidebar {
           }
 
           td, td p {
-            font-size: 14px;
+            font-size: 12px;
           }
 
           td {

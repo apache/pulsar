@@ -7,12 +7,12 @@ layout: default
   <div class="container">
     <div class="jumbotron-fluid text-center">
       <h1 class="display-1">{{ site.title }}</h1>
-      <p class="lead"><a href="">Pulsar</a> is an open-source distributed pub-sub messaging system originally<br /> created by <a href="https://yahoo.github.io">Yahoo!</a> and now part of the <a href="https://apache.org">Apache Software Foundation</a>.</p>
+      <p class="lead"><a href="">Pulsar</a> is an open-source distributed pub-sub messaging system originally<br />
+           created at <a href="https://developer.yahoo.com/open-source/">Yahoo</a> and now part of the <a href="https://apache.org">Apache Software Foundation</a>.</p>
 
       <p class="button-group lead">
-        <a class="btn btn-pulsar btn-lg" href="{{ site.baseurl }}docs/{{ site.versions.first }}" role="button">Read the docs</a>
-        <a class="btn btn-github btn-lg" href="https://github.com/yahoo/pulsar" role="button">GitHub <i class="fa fa-github fa-lg"></i></a>
-        <a class="btn btn-stack-overflow btn-lg" href="https://stackoverflow.com/search?q=yahoo+pulsar" role="button">StackOverflow <i class="fa fa-stack-overflow fa-lg"></i></a>
+        <a class="btn btn-pulsar btn-lg" href="{{ site.baseurl }}docs/{{ site.latest }}" role="button">Read the docs</a>
+        <a class="btn btn-github btn-lg" href="https://github.com/apache/incubator-pulsar" role="button">GitHub <i class="fa fa-github fa-lg"></i></a>
       </p>
     </div>
   </div>
@@ -34,5 +34,27 @@ layout: default
       </div>
       {% endfor %}
     </div>
+  </div>
+</div>
+
+
+<div class="index-container">
+  <div class="container">
+      <div class="jumbotron-fluid text-center">
+          <p>
+              <img src="img/apache_incubator.png" title="Apache Incubator" />
+          </p>
+          <p>Apache Pulsar is an effort undergoing incubation at
+              <a href="http://www.apache.org">The Apache Software Foundation (ASF)</a> sponsored by
+              the Apache Incubator PMC. Incubation is required of all newly accepted
+          projects until a further review indicates that the infrastructure, communications, and
+          decision making process have stabilized in a manner consistent with other successful ASF
+          projects. While incubation status is not necessarily a reflection of the completeness or
+          stability of the code, it does indicate that the project has yet to be fully endorsed by
+          the ASF.</p>
+          <p>
+          Apache Pulsar (incubating) is available under <a href="http://www.apache.org/licenses/LICENSE-2.0">
+              Apache License, version 2.0</a>.
+      </div>
   </div>
 </div>
