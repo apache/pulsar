@@ -31,6 +31,7 @@ import java.lang.reflect.Method;
 import java.net.InetAddress;
 import java.net.URL;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -49,6 +50,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.TimeAverageMessageData;
 import org.apache.pulsar.broker.loadbalance.LoadData;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
+import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerWrapper;
 import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Authentication;
@@ -403,5 +405,24 @@ public class ModularLoadManagerImplTest {
 
         currentData.setNumBundles(100);
         assert (!needUpdate.get());
+    }
+    
+    /**
+     * It verifies that deletion of broker-znode on broker-stop will invalidate availableBrokerCache list
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testBrokerStopCacheUpdate() throws Exception {
+        String secondaryBroker = pulsar2.getAdvertisedAddress() + ":" + SECONDARY_BROKER_WEBSERVICE_PORT;
+        pulsar2.getLocalZkCache().getZooKeeper().delete(LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + secondaryBroker,
+                -1);
+        Thread.sleep(100);
+        ModularLoadManagerWrapper loadManagerWapper = (ModularLoadManagerWrapper) pulsar1.getLoadManager().get();
+        Field loadMgrField = ModularLoadManagerWrapper.class.getDeclaredField("loadManager");
+        loadMgrField.setAccessible(true);
+        ModularLoadManagerImpl loadManager = (ModularLoadManagerImpl) loadMgrField.get(loadManagerWapper);
+        Set<String> avaialbeBrokers = loadManager.getAvailableBrokers();
+        assertEquals(avaialbeBrokers.size(), 1);
     }
 }
